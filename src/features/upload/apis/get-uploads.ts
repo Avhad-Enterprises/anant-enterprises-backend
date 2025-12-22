@@ -2,6 +2,9 @@
  * GET /api/uploads (list all with pagination/filtering)
  * GET /api/uploads/:id (get by ID)
  * GET /api/uploads/status/:status (get by status)
+ *
+ * Regular users: see own uploads only
+ * Users with uploads:read permission: see all uploads
  */
 
 import { Router, Response } from 'express';
@@ -16,21 +19,23 @@ import HttpException from '../../../utils/httpException';
 import { db } from '../../../database/drizzle';
 import { uploads } from '../shared/schema';
 import { convertUpload } from '../shared/interface';
-import { findUploadById } from '../shared/queries';
+import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
+import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
 
 const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
 
 const uploadQuerySchema = z.object({
   status: uploadStatusSchema.optional(),
-  mime_type: z.string().optional(), // Allow any mime type string for filtering
+  mime_type: z.string().optional(),
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
   sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
 });
 
-async function getUserUploadsWithPagination(
+async function getUploadsWithPagination(
   userId: number,
+  canViewAll: boolean,
   filters: z.infer<typeof uploadQuerySchema>
 ) {
   const {
@@ -42,7 +47,12 @@ async function getUserUploadsWithPagination(
     sort_order = 'desc',
   } = filters;
 
-  const conditions = [eq(uploads.user_id, userId), eq(uploads.is_deleted, false)];
+  // Build conditions - if canViewAll, don't filter by user_id
+  const conditions = [eq(uploads.is_deleted, false)];
+
+  if (!canViewAll) {
+    conditions.push(eq(uploads.user_id, userId));
+  }
 
   if (status) {
     conditions.push(eq(uploads.status, status));
@@ -79,13 +89,16 @@ const handleGetAllUploads = asyncHandler(async (req: RequestWithUser, res: Respo
   const userId = getUserId(req);
   const filters = req.query as z.infer<typeof uploadQuerySchema>;
 
-  const result = await getUserUploadsWithPagination(userId, filters);
+  // Check if user can view all uploads
+  const canViewAll = await rbacCacheService.hasPermission(userId, 'uploads:read');
+
+  const result = await getUploadsWithPagination(userId, canViewAll, filters);
 
   ResponseFormatter.paginated(
     res,
     result.uploads,
     { page: result.page, limit: result.limit, total: result.total },
-    'Uploads retrieved successfully'
+    canViewAll ? 'All uploads retrieved successfully' : 'Your uploads retrieved successfully'
   );
 });
 
@@ -93,7 +106,15 @@ const handleGetUploadById = asyncHandler(async (req: RequestWithUser, res: Respo
   const userId = getUserId(req);
   const uploadId = parseIdParam(req);
 
-  const upload = await findUploadById(uploadId, userId);
+  // Check if user can view all uploads
+  const canViewAll = await rbacCacheService.hasPermission(userId, 'uploads:read');
+
+  let upload;
+  if (canViewAll) {
+    upload = await findUploadByIdAdmin(uploadId);
+  } else {
+    upload = await findUploadById(uploadId, userId);
+  }
 
   if (!upload) {
     throw new HttpException(404, 'Upload not found');
@@ -111,16 +132,16 @@ const handleGetUploadsByStatus = asyncHandler(async (req: RequestWithUser, res: 
     throw new HttpException(400, 'Invalid upload status');
   }
 
-  const uploadsList = await db
-    .select()
-    .from(uploads)
-    .where(
-      and(
-        eq(uploads.user_id, userId),
-        eq(uploads.status, statusResult.data),
-        eq(uploads.is_deleted, false)
-      )
-    );
+  // Check if user can view all uploads
+  const canViewAll = await rbacCacheService.hasPermission(userId, 'uploads:read');
+
+  const conditions = [eq(uploads.status, statusResult.data), eq(uploads.is_deleted, false)];
+
+  if (!canViewAll) {
+    conditions.push(eq(uploads.user_id, userId));
+  }
+
+  const uploadsList = await db.select().from(uploads).where(and(...conditions));
 
   ResponseFormatter.success(
     res,

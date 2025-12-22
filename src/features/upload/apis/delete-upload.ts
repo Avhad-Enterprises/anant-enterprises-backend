@@ -1,6 +1,9 @@
 /**
  * DELETE /api/uploads/:id
- * Soft delete an upload (Requires auth and ownership)
+ * Soft delete an upload
+ *
+ * Regular users: can only delete own uploads
+ * Users with uploads:delete permission: can delete any upload
  */
 
 import { Router, Response } from 'express';
@@ -14,14 +17,21 @@ import { asyncHandler, getUserId } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
 import { db } from '../../../database/drizzle';
 import { uploads } from '../shared/schema';
-import { findUploadById } from '../shared/queries';
+import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
+import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive('Upload ID must be a positive integer'),
 });
 
-async function handleDeleteUpload(uploadId: number, userId: number): Promise<void> {
-  const existingUpload = await findUploadById(uploadId, userId);
+async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll: boolean): Promise<void> {
+  // Find upload based on permission
+  let existingUpload;
+  if (canDeleteAll) {
+    existingUpload = await findUploadByIdAdmin(uploadId);
+  } else {
+    existingUpload = await findUploadById(uploadId, userId);
+  }
 
   if (!existingUpload) {
     throw new HttpException(404, 'Upload not found');
@@ -46,7 +56,10 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const userId = getUserId(req);
   const { id: uploadId } = paramsSchema.parse(req.params);
 
-  await handleDeleteUpload(uploadId, userId);
+  // Check if user can delete any upload
+  const canDeleteAll = await rbacCacheService.hasPermission(userId, 'uploads:delete');
+
+  await handleDeleteUpload(uploadId, userId, canDeleteAll);
 
   ResponseFormatter.success(res, null, 'Upload deleted successfully');
 });

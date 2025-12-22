@@ -1,14 +1,18 @@
 /**
  * GET /api/users/:id
- * Get user by ID (Requires auth)
+ * Get user by ID
+ * - Users can view their own profile
+ * - Users with users:read permission can view any profile
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
+import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
+import { requireOwnerOrPermission } from '../../../middlewares/permission.middleware';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
+import { asyncHandler, parseIdParam } from '../../../utils/controllerHelpers';
 import { sanitizeUser } from '../../../utils/sanitizeUser';
 import HttpException from '../../../utils/httpException';
 import { findUserById } from '../shared/queries';
@@ -28,8 +32,8 @@ async function getUserById(id: number): Promise<IUser> {
   return user as IUser;
 }
 
-const handler = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = paramsSchema.parse(req.params);
+const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+  const id = parseIdParam(req);
   const user = await getUserById(id);
   const userResponse = sanitizeUser(user);
 
@@ -37,6 +41,12 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const router = Router();
-router.get('/:id', requireAuth, validationMiddleware(paramsSchema, 'params'), handler);
+router.get(
+  '/:id',
+  requireAuth,
+  validationMiddleware(paramsSchema, 'params'),
+  requireOwnerOrPermission('id', 'users:read'),
+  handler
+);
 
 export default router;

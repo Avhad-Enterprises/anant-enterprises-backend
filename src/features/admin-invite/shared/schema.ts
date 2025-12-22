@@ -1,5 +1,5 @@
 import { pgTable, serial, text, timestamp, integer, boolean, varchar, index } from 'drizzle-orm/pg-core';
-import { userRoles, users } from '../../user/shared/schema';
+import { users } from '../../user/shared/schema';
 
 export const invitationStatuses = ['pending', 'accepted', 'revoked', 'expired'] as const;
 export type InvitationStatus = (typeof invitationStatuses)[number];
@@ -7,6 +7,9 @@ export type InvitationStatus = (typeof invitationStatuses)[number];
 /**
  * Admin invitations table schema
  * Stores invitation data for admin-created user accounts
+ *
+ * NOTE: Role assignment is now handled via the dynamic RBAC system
+ * The assigned_role_id field references the roles table
  *
  * Indexes:
  * - invite_token_idx: For token lookup during invite acceptance (critical path)
@@ -30,7 +33,8 @@ export const invitations = pgTable(
     status: text('status').$type<InvitationStatus>().default('pending').notNull(),
 
     // Role assignment (will be assigned when user accepts invite)
-    assigned_role: text('assigned_role').$type<(typeof userRoles)[number]>(),
+    // References the dynamic RBAC roles table
+    assigned_role_id: integer('assigned_role_id'),
 
     // Security - stores encrypted temp password (can be decrypted for user verification)
     temp_password_encrypted: text('temp_password_encrypted'), // AES-256-GCM encrypted

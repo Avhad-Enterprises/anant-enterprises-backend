@@ -18,10 +18,6 @@ morgan.token('user-id', (req: Request) => {
   return req.userId?.toString() || 'anonymous';
 });
 
-morgan.token('user-role', (req: Request) => {
-  return req.userRole || 'anonymous';
-});
-
 /**
  * Unified request logging middleware
  * Uses Morgan with custom tokens for consistent, structured logging

@@ -9,7 +9,7 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
 import { listDocuments, getDocumentStats } from '../shared/queries';
@@ -59,9 +59,9 @@ const statsHandler = asyncHandler(async (_req: Request, res: Response) => {
 const router = Router();
 
 // GET /api/chatbot/documents - List documents (admin only)
-router.get('/documents', requireAuth, requireRole('admin'), handler);
+router.get('/documents', requireAuth, requirePermission('chatbot:documents'), handler);
 
 // GET /api/chatbot/documents/stats - Get document statistics (admin only)
-router.get('/documents/stats', requireAuth, requireRole('admin'), statsHandler);
+router.get('/documents/stats', requireAuth, requirePermission('chatbot:documents'), statsHandler);
 
 export default router;

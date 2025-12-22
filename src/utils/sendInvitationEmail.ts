@@ -1,25 +1,14 @@
 import { createTransporter, EMAIL_SENDER, APP_NAME } from './emailConfig';
 import { logger } from './logger';
-import { UserRole } from '../features/user/shared/schema';
 
 interface InvitationEmailParams {
     to: string;
     firstName: string;
     lastName: string;
-    assignedRole: UserRole;
+    assignedRoleId: number;
     inviteLink: string;
     expiresIn: string;
     tempPassword: string; // Temporary password for first login
-}
-
-/**
- * Format role for display (capitalize first letter, handle underscores)
- */
-function formatRole(role: UserRole): string {
-  if (role === 'field_technician') {
-    return 'Field Technician';
-  }
-  return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
 /**
@@ -30,14 +19,13 @@ export const sendInvitationEmail = async ({
     to,
     firstName,
     lastName,
-    assignedRole,
+    assignedRoleId,
     inviteLink,
     expiresIn = '24 hours',
     tempPassword,
 }: InvitationEmailParams): Promise<void> => {
     const transporter = createTransporter();
-    const formattedRole = formatRole(assignedRole);
-    
+
     const mailOptions = {
         from: `"${APP_NAME}" <${EMAIL_SENDER}>`,
         to,
@@ -51,13 +39,12 @@ export const sendInvitationEmail = async ({
                 <h2 style="color: #333;">Welcome, ${firstName} ${lastName}!</h2>
                 
                 <p style="color: #555; font-size: 16px; line-height: 1.6;">
-                    You've been invited to join <strong>${APP_NAME}</strong> as a <strong>${formattedRole}</strong>.
+                    You've been invited to join <strong>${APP_NAME}</strong>.
                 </p>
                 
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #1a73e8;">
                     <p style="margin: 0; color: #555;">
                         <strong>Email:</strong> ${to}<br>
-                        <strong>Role:</strong> ${formattedRole}<br>
                         <strong>Temporary Password:</strong> <code style="background: #e8eaed; padding: 2px 6px; border-radius: 3px; font-family: monospace;">${tempPassword}</code>
                     </p>
                 </div>
@@ -95,16 +82,16 @@ export const sendInvitationEmail = async ({
             </div>
         `
     };
-    
+
     try {
         const info = await transporter.sendMail(mailOptions);
-        logger.info(`Invitation email sent successfully to ${to}`, { 
-            messageId: info.messageId 
+        logger.info(`Invitation email sent successfully to ${to}`, {
+            messageId: info.messageId
         });
     } catch (error) {
-        logger.error('Failed to send invitation email:', { 
-            to, 
-            error: error instanceof Error ? error.message : String(error) 
+        logger.error('Failed to send invitation email:', {
+            to,
+            error: error instanceof Error ? error.message : String(error)
         });
         throw new Error(`Email service error: ${error instanceof Error ? error.message : String(error)}`);
     }

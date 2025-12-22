@@ -10,7 +10,7 @@ import { authRateLimit } from '../../../middlewares/rate-limit.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
-import { verifyToken, generateAccessToken, generateRefreshToken } from '../../../utils/jwt';
+import { verifyToken, generateToken, generateRefreshToken } from '../../../utils/jwt';
 import { findUserById } from '../../user/shared/queries';
 import { IAuthUserWithToken } from '../../../interfaces/request.interface';
 
@@ -30,13 +30,14 @@ async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithTo
     throw new HttpException(404, 'User not found');
   }
 
-  const accessToken = generateAccessToken({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-  });
-
+  const newToken = generateToken(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+    '24h'
+  );
   const newRefreshToken = generateRefreshToken({
     id: user.id,
   });
@@ -46,10 +47,9 @@ async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithTo
     name: user.name,
     email: user.email,
     phone_number: user.phone_number || undefined,
-    role: user.role,
     created_at: user.created_at,
     updated_at: user.updated_at,
-    token: accessToken,
+    token: newToken,
     refreshToken: newRefreshToken,
   };
 }

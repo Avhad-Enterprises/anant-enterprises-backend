@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
@@ -48,6 +48,6 @@ const handler = asyncHandler(async (req: Request, res: Response): Promise<void> 
 });
 
 const router = Router();
-router.get('/', requireAuth, requireRole('admin'), validationMiddleware(querySchema, 'query'), handler);
+router.get('/', requireAuth, requirePermission('admin:invitations'), validationMiddleware(querySchema, 'query'), handler);
 
 export default router;

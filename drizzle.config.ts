@@ -18,17 +18,17 @@ dotenv.config();
  */
 function getDatabaseUrl(): string {
   let dbUrl = process.env.DATABASE_URL || '';
-  
+
   if (dbUrl.includes('@postgres:5432')) {
     const hostPort = nodeEnv === 'development' ? 5434 : nodeEnv === 'test' ? 5433 : 5432;
     dbUrl = dbUrl.replace('@postgres:5432', `@localhost:${hostPort}`);
   }
-  
+
   return dbUrl;
 }
 
 export default defineConfig({
-  schema: './src/features/**/shared/schema.ts',
+  schema: './src/features/**/shared/*schema.ts',
   out: './src/database/migrations',
   dialect: 'postgresql',
   dbCredentials: {

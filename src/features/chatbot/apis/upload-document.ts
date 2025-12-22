@@ -10,7 +10,7 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
@@ -178,7 +178,7 @@ const router = Router();
 router.post(
   '/documents',
   requireAuth,
-  requireRole('admin'),
+  requirePermission('chatbot:documents'),
   uploadSingleFileMiddleware,
   handler
 );

@@ -26,3 +26,17 @@ export const findUploadById = async (
 
   return upload;
 };
+
+/**
+ * Find upload by ID for admin (no ownership verification)
+ * @param id - Upload ID
+ */
+export const findUploadByIdAdmin = async (id: number): Promise<DrizzleUpload | undefined> => {
+  const [upload] = await db
+    .select()
+    .from(uploads)
+    .where(and(eq(uploads.id, id), eq(uploads.is_deleted, false)))
+    .limit(1);
+
+  return upload;
+};

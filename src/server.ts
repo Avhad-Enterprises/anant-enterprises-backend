@@ -5,8 +5,9 @@ import AuthRoute from './features/auth';
 import UploadRoute from './features/upload';
 import AdminInviteRoute from './features/admin-invite';
 import ChatbotRoute from './features/chatbot';
+import RBACRoute from './features/rbac';
 import { connectWithRetry, pool } from './database/drizzle';
-// import { redisClient, testRedisConnection } from './utils/redis';
+import { redisClient, testRedisConnection } from './utils/redis';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
 
 let server: import('http').Server;
@@ -23,7 +24,12 @@ async function bootstrap() {
     logger.info('✅ Database connected');
 
     // Initialize Redis connection
-    // await testRedisConnection();
+    const redisConnected = await testRedisConnection();
+    if (!redisConnected) {
+      logger.warn('⚠️ Redis not available - using in-memory caching as fallback');
+    } else {
+      logger.info('✅ Redis connected');
+    }
 
     // Start Express app
     const app = new App([
@@ -32,6 +38,7 @@ async function bootstrap() {
       new UploadRoute(),
       new AdminInviteRoute(),
       new ChatbotRoute(),
+      new RBACRoute(),
     ]);
 
     server = app.listen();
@@ -40,12 +47,12 @@ async function bootstrap() {
     setupGracefulShutdown({
       server,
       database: pool,
-      // redis: redisClient, // Redis disabled
+      redis: redisClient,
     });
 
     logger.info('✅ Express Backend started successfully!');
   } catch (error) {
-    logger.error('App failed to start', { 
+    logger.error('App failed to start', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
     });

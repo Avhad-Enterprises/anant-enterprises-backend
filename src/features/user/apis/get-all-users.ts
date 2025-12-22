@@ -8,7 +8,7 @@ import { eq, count, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
 import { sanitizeUsers } from '../../../utils/sanitizeUser';
@@ -42,7 +42,7 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     .select({ total: count() })
     .from(users)
     .where(eq(users.is_deleted, false));
-  
+
   const total = countResult?.total ?? 0;
 
   // Get paginated users
@@ -65,7 +65,7 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
 const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   // Parse and validate pagination params
   const { page, limit } = paginationSchema.parse(req.query);
-  
+
   const result = await getAllUsers(page, limit);
   const sanitizedUsers = sanitizeUsers(result.users);
 
@@ -78,6 +78,6 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
 });
 
 const router = Router();
-router.get('/', requireAuth, requireRole('admin'), handler);
+router.get('/', requireAuth, requirePermission('users:read'), handler);
 
 export default router;

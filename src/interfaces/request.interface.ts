@@ -1,5 +1,4 @@
 import { Request } from 'express';
-import { UserRole } from '../features/user/shared/schema';
 
 /**
  * Extended Request interfaces for type-safe middleware handling
@@ -18,10 +17,11 @@ export interface RequestWithId extends Request {
 /**
  * Request with guaranteed user authentication (after auth middleware)
  * Use this type in handlers that require authentication
+ * 
+ * Note: User roles are now managed via dynamic RBAC system
  */
 export interface RequestWithUser extends Request {
   userId: number;
-  userRole: UserRole;
   userAgent?: string;
   clientIP?: string;
 }
@@ -34,7 +34,6 @@ export interface IAuthUser {
   name: string;
   email: string;
   phone_number?: string;
-  role?: UserRole;
   created_at: Date;
   updated_at: Date;
 }
@@ -54,5 +53,4 @@ export interface DataStoredInToken {
   id: number;
   email?: string;
   name?: string;
-  role?: UserRole;
 }

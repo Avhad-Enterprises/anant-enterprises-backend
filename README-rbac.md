@@ -1,504 +1,357 @@
-# Role-Based Access Control (RBAC) Implementation
+# Dynamic Role-Based Access Control (RBAC) System
 
-This document details the Role-Based Access Control (RBAC) system implemented in the Express Backend Template, including current static roles and future dynamic RBAC considerations.
+This document details the **Dynamic RBAC** system implemented in the Anant Enterprises Backend, similar to AWS IAM.
 
 ## 📋 Table of Contents
 
-- [Current RBAC System](#-current-rbac-system)
-- [Role Definitions](#-role-definitions)
-- [Middleware Implementation](#-middleware-implementation)
-- [API Access Control](#-api-access-control)
+- [Overview](#-overview)
 - [Database Schema](#-database-schema)
-- [Authentication Flow](#-authentication-flow)
-- [Future Dynamic RBAC](#-future-dynamic-rbac)
-- [Security Considerations](#-security-considerations)
+- [Permissions](#-permissions)
+- [API Reference](#-api-reference)
+- [Middleware Usage](#-middleware-usage)
+- [Cache Service](#-cache-service)
+- [Audit Logging](#-audit-logging)
+- [Security](#-security)
 
-## 🔐 Current RBAC System
+## 🔐 Overview
 
-The Express Backend Template implements a **static role-based access control** system with predefined roles and permissions. This approach provides security while maintaining simplicity for the current use case.
+The backend uses a **dynamic, granular permission system** with:
 
-### **Key Characteristics**
-
-- **Static Roles**: Fixed set of roles defined in code
-- **Role-Based Permissions**: Access control based on user roles
-- **Middleware Enforcement**: Automatic permission checking on API endpoints
-- **Audit Trail**: All operations logged with user context
-- **Soft Deletes**: Data preservation with logical deletion
-
-## 👥 Role Definitions
-
-### **Available Roles**
-
-| Role | Description | Access Level |
-|------|-------------|--------------|
-| `admin` | System administrator with full access | Highest |
-| `scientist` | Research scientist with data access | Medium |
-| `researcher` | Research assistant with limited access | Medium |
-| `policymaker` | Policy maker with read-only access | Low |
-
-### **Default Role**
-- **Default**: `scientist` (assigned to new users)
-
-### **Role Permissions Matrix**
-
-| Permission | admin | scientist | researcher | policymaker |
-|------------|-------|-----------|------------|-------------|
-| **User Management** | | | | |
-| View all users | ✅ | ❌ | ❌ | ❌ |
-| View own profile | ✅ | ✅ | ✅ | ✅ |
-| Edit own profile | ✅ | ✅ | ✅ | ✅ |
-| Delete users | ✅ | ❌ | ❌ | ❌ |
-| **File Management** | | | | |
-| Upload files | ✅ | ✅ | ✅ | ❌ |
-| Download files | ✅ | ✅ | ✅ | ✅ |
-| Delete files | ✅ | ✅ | ✅ | ❌ |
-| View all uploads | ✅ | ❌ | ❌ | ❌ |
-| **Admin Functions** | | | | |
-| Send invitations | ✅ | ❌ | ❌ | ❌ |
-| System monitoring | ✅ | ❌ | ❌ | ❌ |
-
-## 🛡️ Middleware Implementation
-
-### **Role Middleware (`src/middlewares/role.middleware.ts`)**
-
-```typescript
-import { Request, Response, NextFunction } from 'express';
-import { UserRole } from '../interfaces/user.interface';
-
-// Extend Express Request to include user info
-interface RequestWithUser extends Request {
-  userId?: number;
-  userRole?: UserRole;
-  userAgent?: string;
-  clientIP?: string;
-}
-
-// Role validation function
-export const requireRole = (allowedRoles: UserRole | UserRole[]) => {
-  return (req: RequestWithUser, res: Response, next: NextFunction) => {
-    try {
-      // Check if user is authenticated
-      if (!req.userId || !req.userRole) {
-        return res.status(401).json({
-          success: false,
-          error: { message: 'Authentication required' }
-        });
-      }
-
-      // Convert single role to array for consistent checking
-      const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-
-      // Check if user's role is in allowed roles
-      if (!roles.includes(req.userRole)) {
-        return res.status(403).json({
-          success: false,
-          error: { message: 'Insufficient permissions' }
-        });
-      }
-
-      next();
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: { message: 'Role validation failed' }
-      });
-    }
-  };
-};
-```
-
-### **Usage Examples**
-
-```typescript
-// Single role requirement
-router.get('/users', requireAuth, requireRole('admin'), getAllUsers);
-
-// Multiple roles allowed
-router.get('/uploads', requireAuth, requireRole(['admin', 'scientist']), getUploads);
-
-// All authenticated users (no role restriction)
-router.get('/profile', requireAuth, getUserProfile);
-```
-
-## 🔗 API Access Control
-
-### **Protected Endpoints by Role**
-
-#### **Admin Only Endpoints**
-```typescript
-// User management - admin only
-GET    /api/v1/users              // List all users
-DELETE /api/v1/users/:id          // Delete user
-
-// Admin functions
-POST   /api/v1/admin/invitations  // Send user invitations
-```
-
-#### **Authenticated User Endpoints**
-```typescript
-// Profile management - own profile only
-GET    /api/v1/users/:id          // Get user by ID (with ownership check)
-PUT    /api/v1/users/:id          // Update user (with ownership check)
-
-// File operations - authenticated users
-GET    /api/v1/uploads            // List user's uploads
-POST   /api/v1/uploads            // Upload file
-GET    /api/v1/uploads/:id/download // Download file
-DELETE /api/v1/uploads/:id        // Delete upload
-```
-
-### **Ownership Validation**
-
-For endpoints that allow users to access their own data, additional ownership checks are implemented:
-
-```typescript
-// In user API handlers
-const getUserById = async (req: RequestWithUser, res: Response) => {
-  const userId = parseIdParam(req);
-  const currentUserId = req.userId!;
-  const currentUserRole = req.userRole!;
-
-  // Allow admins to view any user, others can only view themselves
-  if (currentUserRole !== 'admin' && userId !== currentUserId) {
-    throw new HttpException(403, 'Access denied: Can only view own profile');
-  }
-
-  const user = await findUserById(userId);
-  // ... rest of handler
-};
-```
+- **Dynamic Roles**: Create/update/delete roles at runtime
+- **Granular Permissions**: `resource:action` format (e.g., `users:read`)
+- **Role-Permission Mapping**: Assign any permissions to any role
+- **User-Role Mapping**: Assign multiple roles to users (with optional expiration)
+- **Superadmin Wildcard**: `*` permission grants full access
+- **In-Memory Caching**: 5-minute TTL for performance
+- **Audit Logging**: Track all RBAC changes
 
 ## 🗄️ Database Schema
 
-### **Users Table**
+### Tables
 
-```typescript
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').unique().notNull(),
-  password: text('password').notNull(),
-  phone_number: text('phone_number'),
-  role: text('role').$type<UserRole>().default('scientist').notNull(),
+| Table | Purpose |
+|-------|---------|
+| `roles` | Stores roles (name, description, is_system_role) |
+| `permissions` | Stores permissions (name, resource, action) |
+| `role_permissions` | Maps roles to permissions (many-to-many) |
+| `user_roles` | Maps users to roles (with expiration support) |
+| `rbac_audit_logs` | Audit trail for all RBAC operations |
 
-  // Audit fields (required on all tables)
-  created_by: integer('created_by').notNull(),
-  created_at: timestamp('created_at').defaultNow().notNull(),
-  updated_by: integer('updated_by'),
-  updated_at: timestamp('updated_at').defaultNow().notNull(),
-  is_deleted: boolean('is_deleted').default(false).notNull(),
-  deleted_by: integer('deleted_by'),
-  deleted_at: timestamp('deleted_at'),
-});
-```
-
-### **Role Type Definition**
-
-```typescript
-// src/interfaces/user.interface.ts
-export type UserRole = 'admin' | 'scientist' | 'researcher' | 'policymaker';
-
-// Default role assignment
-export const DEFAULT_USER_ROLE: UserRole = 'scientist';
-```
-
-## 🔄 Authentication Flow
-
-### **JWT Token Payload**
-
-```typescript
-interface JWTPayload {
-  id: number;        // User ID
-  role: UserRole;    // User role
-  iat: number;       // Issued at timestamp
-  exp: number;       // Expiration timestamp
-}
-```
-
-### **Authentication Middleware**
-
-```typescript
-// src/middlewares/auth.middleware.ts
-export const requireAuth = async (req: RequestWithUser, res: Response, next: NextFunction) => {
-  try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: { message: 'Authorization token required' }
-      });
-    }
-
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token) as JWTPayload;
-
-    // Attach user info to request
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
-    req.userAgent = req.get('User-Agent');
-    req.clientIP = req.ip;
-
-    next();
-  } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: { message: 'Invalid or expired token' }
-    });
-  }
-};
-```
-
-### **Complete Request Flow**
+### Entity Relationship
 
 ```
-1. Client Request → 2. Auth Middleware → 3. Role Middleware → 4. Route Handler
-       ↓                     ↓                     ↓                     ↓
-   - Bearer Token       - JWT Verification    - Role Check         - Business Logic
-   - Headers            - User Context        - Permission         - Database Ops
-   - Body               - req.userId          - Access Control      - Response
+users ←──── user_roles ────→ roles ←──── role_permissions ────→ permissions
 ```
 
-## 🚀 Future Dynamic RBAC
+## 🎫 Permissions
 
-### **Current Limitations**
+### Format
 
-The current static RBAC system has these limitations:
-- Fixed roles cannot be modified without code changes
-- No granular permissions (all-or-nothing per role)
-- No role hierarchies or inheritance
-- Difficult to customize permissions per organization
+Permissions use `resource:action` naming convention:
 
-### **Dynamic RBAC Architecture**
-
-For future implementation of dynamic RBAC, consider this architecture:
-
-#### **Database Schema Extensions**
-
-```sql
--- Roles table (dynamic roles)
-CREATE TABLE roles (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(50) UNIQUE NOT NULL,
-  description TEXT,
-  is_system_role BOOLEAN DEFAULT FALSE,
-  created_by INTEGER NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Permissions table
-CREATE TABLE permissions (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(100) UNIQUE NOT NULL,
-  resource VARCHAR(50) NOT NULL,  -- e.g., 'users', 'uploads'
-  action VARCHAR(50) NOT NULL,    -- e.g., 'create', 'read', 'update', 'delete'
-  description TEXT
-);
-
--- Role-Permission mapping
-CREATE TABLE role_permissions (
-  role_id INTEGER REFERENCES roles(id),
-  permission_id INTEGER REFERENCES permissions(id),
-  PRIMARY KEY (role_id, permission_id)
-);
-
--- User-Role mapping (many-to-many)
-CREATE TABLE user_roles (
-  user_id INTEGER REFERENCES users(id),
-  role_id INTEGER REFERENCES roles(id),
-  assigned_by INTEGER NOT NULL,
-  assigned_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (user_id, role_id)
-);
+```
+users:read       - Read user data
+users:update     - Update any user
+users:update:own - Update own profile only
+users:delete     - Delete users
+roles:read       - View roles
+roles:manage     - Create/update/delete roles
+permissions:assign - Assign permissions to roles
+*                - Wildcard (full access)
 ```
 
-#### **Permission Checking Logic**
+### Default Permissions
 
-```typescript
-interface Permission {
-  resource: string;
-  action: string;
-}
+| Resource | Actions |
+|----------|---------|
+| `users` | read, create, update, update:own, delete |
+| `roles` | read, manage |
+| `permissions` | read, assign |
+| `uploads` | create, read:own, read:all, delete:own, delete:all |
+| `admin` | system, invitations |
+| `chatbot` | access, documents |
 
-class DynamicRBACService {
-  async hasPermission(userId: number, permission: Permission): Promise<boolean> {
-    // Get all roles for user
-    const userRoles = await this.getUserRoles(userId);
+### Default Roles
 
-    // Check if any role has the required permission
-    for (const role of userRoles) {
-      const hasPermission = await this.roleHasPermission(role.id, permission);
-      if (hasPermission) return true;
-    }
+| Role | Permissions | Description |
+|------|-------------|-------------|
+| `user` | 6 permissions | Basic access (own resources) |
+| `admin` | 14 permissions | Elevated access (manage users/content) |
+| `superadmin` | `*` wildcard | Full system access |
 
-    return false;
-  }
+## 🔧 API Reference
 
-  async getUserRoles(userId: number): Promise<Role[]> {
-    // Query user_roles and roles tables
-  }
+### Role Management
 
-  async roleHasPermission(roleId: number, permission: Permission): Promise<boolean> {
-    // Query role_permissions and permissions tables
-  }
-}
-```
+```bash
+# List all roles with counts
+GET /api/rbac/roles
+Authorization: Bearer <token>
+Permission: roles:read
 
-#### **Middleware Updates**
-
-```typescript
-export const requirePermission = (resource: string, action: string) => {
-  return async (req: RequestWithUser, res: Response, next: NextFunction) => {
-    const userId = req.userId!;
-    const rbacService = new DynamicRBACService();
-
-    const hasPermission = await rbacService.hasPermission(userId, { resource, action });
-
-    if (!hasPermission) {
-      return res.status(403).json({
-        success: false,
-        error: { message: 'Insufficient permissions' }
-      });
-    }
-
-    next();
-  };
-};
-```
-
-### **Migration Strategy**
-
-1. **Phase 1**: Keep current static system, add dynamic tables alongside
-2. **Phase 2**: Create migration script to populate dynamic tables with current roles
-3. **Phase 3**: Update middleware to use dynamic system
-4. **Phase 4**: Add admin UI for role/permission management
-5. **Phase 5**: Deprecate static role system
-
-## 🔒 Security Considerations
-
-### **Current Security Measures**
-
-- **JWT Expiration**: 24-hour token validity
-- **Password Hashing**: bcrypt with salt rounds
-- **Rate Limiting**: API protection against abuse
-- **Input Validation**: Zod schemas prevent injection attacks
-- **Audit Logging**: All operations tracked with user context
-
-### **RBAC Security Best Practices**
-
-#### **Principle of Least Privilege**
-- Users should only have minimum permissions required
-- Regular permission audits recommended
-- Role changes logged and monitored
-
-#### **Defense in Depth**
-- Multiple layers of access control
-- Client-side restrictions supplemented by server-side checks
-- Database-level constraints and triggers
-
-#### **Security Monitoring**
-```typescript
-// Log all permission checks
-logger.info('Permission check', {
-  userId: req.userId,
-  role: req.userRole,
-  resource: 'users',
-  action: 'read',
-  allowed: true,
-  ip: req.clientIP,
-  userAgent: req.userAgent
-});
-```
-
-### **Common Security Issues to Avoid**
-
-1. **Privilege Escalation**: Ensure users can't assign themselves higher roles
-2. **Role Confusion**: Clear separation between role assignment and permission checking
-3. **Session Fixation**: Proper token invalidation on role changes
-4. **Information Leakage**: Don't expose role/permission details in error messages
-
-## 📊 Monitoring and Auditing
-
-### **Access Log Analysis**
-
-```typescript
-// Example log entry for permission check
+# Create new role
+POST /api/rbac/roles
 {
-  "timestamp": "2024-01-01T10:30:00.000Z",
-  "level": "info",
-  "message": "Permission check",
-  "userId": 123,
-  "role": "scientist",
-  "resource": "uploads",
-  "action": "create",
-  "allowed": true,
-  "ip": "192.168.1.100",
-  "userAgent": "Mozilla/5.0...",
-  "requestId": "req-abc-123"
+  "name": "moderator",
+  "description": "Content moderator"
+}
+Permission: roles:manage
+
+# Update role
+PUT /api/rbac/roles/:roleId
+{
+  "description": "Updated description",
+  "is_active": false
+}
+Permission: roles:manage
+
+# Delete role (soft delete)
+DELETE /api/rbac/roles/:roleId
+Permission: roles:manage
+```
+
+### Permission Management
+
+```bash
+# List all permissions (grouped by resource)
+GET /api/rbac/permissions
+Permission: permissions:read
+
+# Create new permission
+POST /api/rbac/permissions
+{
+  "name": "reports:generate",
+  "resource": "reports",
+  "action": "generate",
+  "description": "Generate analytics reports"
+}
+Permission: permissions:assign
+```
+
+### Role-Permission Assignments
+
+```bash
+# Get role permissions
+GET /api/rbac/roles/:roleId/permissions
+Permission: roles:read
+
+# Assign single permission to role
+POST /api/rbac/roles/:roleId/permissions
+{
+  "permission_id": 5
+}
+Permission: permissions:assign
+
+# Bulk assign permissions to role
+POST /api/rbac/roles/:roleId/permissions/bulk
+{
+  "permission_ids": [1, 2, 3, 4, 5]
+}
+Permission: permissions:assign
+
+# Remove permission from role
+DELETE /api/rbac/roles/:roleId/permissions/:permissionId
+Permission: permissions:assign
+```
+
+### User-Role Assignments
+
+```bash
+# Get user's roles
+GET /api/rbac/users/:userId/roles
+Permission: users:read
+
+# Get user's effective permissions
+GET /api/rbac/users/:userId/permissions
+Permission: users:read
+
+# Assign role to user (with optional expiration)
+POST /api/rbac/users/:userId/roles
+{
+  "role_id": 2,
+  "expires_at": "2025-12-31T23:59:59Z"
+}
+Permission: roles:manage
+
+# Remove role from user
+DELETE /api/rbac/users/:userId/roles/:roleId
+Permission: roles:manage
+```
+
+## 🛡️ Middleware Usage
+
+### Available Middleware
+
+```typescript
+import {
+  requirePermission,      // Require ALL specified permissions
+  requireAnyPermission,   // Require ANY of specified permissions
+  requireOwnerOrPermission // Allow owner OR permission holder
+} from '../middlewares/permission.middleware';
+```
+
+### Examples
+
+```typescript
+// Require single permission
+router.get('/users', requireAuth, requirePermission('users:read'), handler);
+
+// Require multiple permissions (ALL required)
+router.post('/admin/config', 
+  requireAuth, 
+  requirePermission(['admin:system', 'users:update']), 
+  handler
+);
+
+// Require ANY of the permissions
+router.get('/dashboard', 
+  requireAuth, 
+  requireAnyPermission(['admin:system', 'roles:manage']), 
+  handler
+);
+
+// Allow owner OR permission holder
+router.put('/users/:id', 
+  requireAuth, 
+  requireOwnerOrPermission('id', 'users:update'), 
+  handler
+);
+```
+
+### Inline Permission Checks
+
+```typescript
+import { rbacCacheService } from '../features/rbac/services/rbac-cache.service';
+
+// In handler
+const canDelete = await rbacCacheService.hasPermission(req.userId, 'users:delete');
+if (!canDelete) {
+  throw new HttpException(403, 'Insufficient permissions');
 }
 ```
 
-### **Audit Queries**
+## ⚡ Cache Service
 
-```sql
--- Recent permission denials
-SELECT * FROM audit_logs
-WHERE action = 'permission_denied'
-AND created_at > NOW() - INTERVAL '24 hours'
-ORDER BY created_at DESC;
-
--- Role change history
-SELECT * FROM audit_logs
-WHERE resource = 'users'
-AND action = 'role_changed'
-ORDER BY created_at DESC;
-```
-
-## 🔧 Implementation Examples
-
-### **Adding New Role**
+The RBAC cache service optimizes permission lookups:
 
 ```typescript
-// 1. Update UserRole type
-export type UserRole = 'admin' | 'scientist' | 'researcher' | 'policymaker' | 'analyst';
+import { rbacCacheService } from '../features/rbac/services/rbac-cache.service';
 
-// 2. Update permission matrix documentation
-// 3. Update API endpoints if needed
-// 4. Test role enforcement
+// Get all user permissions (cached)
+const permissions = await rbacCacheService.getUserPermissions(userId);
+
+// Check single permission
+const canRead = await rbacCacheService.hasPermission(userId, 'users:read');
+
+// Check ALL permissions
+const hasAll = await rbacCacheService.hasAllPermissions(userId, ['users:read', 'users:update']);
+
+// Check ANY permission
+const hasAny = await rbacCacheService.hasAnyPermission(userId, ['admin:system', 'users:delete']);
+
+// Invalidate user cache (after role change)
+rbacCacheService.invalidateUser(userId);
+
+// Invalidate all cache (after permission/role changes)
+rbacCacheService.invalidateAll();
 ```
 
-### **Testing Role Permissions**
+**Cache Configuration:**
+- TTL: 5 minutes
+- Storage: In-memory (per-instance)
+- Invalidation: Automatic on RBAC changes
+
+## 📋 Audit Logging
+
+All RBAC operations are logged to `rbac_audit_logs` table:
 
 ```typescript
-describe('Role-based Access Control', () => {
-  it('should allow admin to view all users', async () => {
-    const adminToken = await createTestUser('admin');
-    const response = await request(app)
-      .get('/api/v1/users')
-      .set('Authorization', `Bearer ${adminToken}`);
+import { rbacAuditService } from '../features/rbac/services/audit.service';
 
-    expect(response.status).toBe(200);
-  });
-
-  it('should deny scientist from viewing all users', async () => {
-    const scientistToken = await createTestUser('scientist');
-    const response = await request(app)
-      .get('/api/v1/users')
-      .set('Authorization', `Bearer ${scientistToken}`);
-
-    expect(response.status).toBe(403);
-  });
-});
+// Logged automatically by RBAC APIs
+// Actions tracked:
+// - role_created, role_updated, role_deleted
+// - permission_created
+// - permission_assigned_to_role, permission_removed_from_role
+// - role_assigned_to_user, role_removed_from_user
 ```
 
-## 📚 Related Documentation
+**Audit Log Fields:**
+- `action`: Type of operation
+- `performed_by`: User ID who performed the action
+- `target_type`: 'role', 'permission', or 'user_role'
+- `target_id`: ID of affected entity
+- `old_value` / `new_value`: JSON of changes
+- `ip_address`: Client IP
+- `user_agent`: Browser info
+- `created_at`: Timestamp
 
-- [Main README](../README.md) - Complete project documentation
-- [API Documentation](../README.md#api-documentation) - Endpoint specifications
-- [Security Guide](../README.md#security) - Security implementation details
+## 🔒 Security
+
+### Protections
+
+1. **System Roles**: Cannot be deleted (`user`, `admin`, `superadmin`)
+2. **System Role Names**: Cannot be renamed
+3. **Role Deletion**: Blocked if users are assigned
+4. **Self Role Change**: Users cannot change their own role
+5. **Wildcard**: Only `superadmin` has `*` permission
+6. **Cache Invalidation**: Automatic on permission changes
+
+### Best Practices
+
+1. Use `requirePermission` instead of `requireRole`
+2. Follow principle of least privilege
+3. Use granular permissions (`users:read` not `admin`)
+4. Set role expiration for temporary access
+5. Monitor audit logs for suspicious activity
+
+## 🧪 Testing
+
+```bash
+# Test as superadmin
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/rbac/users/3/permissions
+
+# Response
+{
+  "success": true,
+  "data": {
+    "user_id": 3,
+    "roles": ["superadmin"],
+    "permissions": ["*"],
+    "has_wildcard": true
+  }
+}
+```
+
+## 📁 File Structure
+
+```
+src/features/rbac/
+├── apis/
+│   ├── get-roles.ts
+│   ├── create-role.ts
+│   ├── update-role.ts
+│   ├── delete-role.ts
+│   ├── get-permissions.ts
+│   ├── create-permission.ts
+│   ├── role-permissions.ts
+│   ├── bulk-permissions.ts
+│   └── user-roles.ts
+├── services/
+│   ├── rbac-cache.service.ts
+│   └── audit.service.ts
+├── shared/
+│   ├── schema.ts
+│   ├── audit-schema.ts
+│   ├── queries.ts
+│   └── interface.ts
+├── seed.ts
+└── index.ts
+
+src/middlewares/
+└── permission.middleware.ts
+```
 
 ---
 
-**RBAC Implementation - Static Roles with Dynamic Future**</content>
-<parameter name="filePath">/Users/harshalpatil/Documents/Projects/express-backend-template/README-rbac.md
+**Dynamic RBAC - AWS IAM-like Access Control for Anant Enterprises**

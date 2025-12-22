@@ -1,6 +1,8 @@
 /**
  * POST /api/auth/register
  * Register new user account (Public - no auth)
+ * 
+ * NOTE: New users are automatically assigned the 'user' role via RBAC system
  */
 
 import { Router, Request, Response } from 'express';
@@ -12,17 +14,14 @@ import { asyncHandler } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
 import { generateToken } from '../../../utils/jwt';
 import { findUserByEmail, createUser, updateUserById } from '../../user/shared/queries';
+import { assignRoleToUser, findRoleByName } from '../../rbac/shared/queries';
 import { IAuthUserWithToken } from '../../../interfaces/request.interface';
-
-/** Default role for public registration - cannot be changed by users */
-const DEFAULT_REGISTRATION_ROLE = 'scientist' as const;
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email format'),
   phone_number: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters long'),
-  // Note: role is intentionally not accepted from user input for security
 });
 
 type RegisterDto = z.infer<typeof schema>;
@@ -37,7 +36,6 @@ async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
   const userData = {
     ...data,
     password: hashedPassword,
-    role: DEFAULT_REGISTRATION_ROLE, // Hardcoded for security - admins must use invite system
   };
 
   const newUser = await createUser(userData);
@@ -45,12 +43,17 @@ async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
   // Self-reference: User created themselves
   await updateUserById(newUser.id, { created_by: newUser.id, updated_by: newUser.id });
 
+  // Assign default 'user' role via RBAC system
+  const userRole = await findRoleByName('user');
+  if (userRole) {
+    await assignRoleToUser(newUser.id, userRole.id, newUser.id);
+  }
+
   const token = generateToken(
     {
       id: newUser.id,
       email: newUser.email,
       name: newUser.name,
-      role: newUser.role,
     },
     '24h'
   );
@@ -60,7 +63,6 @@ async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
     name: newUser.name,
     email: newUser.email,
     phone_number: newUser.phone_number || undefined,
-    role: newUser.role,
     created_at: newUser.created_at,
     updated_at: newUser.updated_at,
     token,

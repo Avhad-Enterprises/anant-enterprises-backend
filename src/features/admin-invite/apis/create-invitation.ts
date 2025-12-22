@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { randomBytes } from 'crypto';
 import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler, getUserId } from '../../../utils/controllerHelpers';
@@ -19,7 +19,7 @@ import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils/logger';
 import { encrypt, generateSecurePassword } from '../../../utils/encryption';
 import { hashPassword } from '../../../utils/password';
-import { userRoles } from '../../user/shared/schema';
+
 import { createInvitation, findInvitationByEmail } from '../shared/queries';
 import { findUserByEmail } from '../../user/shared/queries';
 import { ICreateInvitation, IInvitation } from '../shared/interface';
@@ -28,7 +28,7 @@ const schema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
   last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
   email: z.string().email('Invalid email format'),
-  assigned_role: z.enum(userRoles),
+  assigned_role_id: z.number().int().positive('Role ID must be a positive integer'),
 });
 
 type CreateInvitationDto = z.infer<typeof schema>;
@@ -54,13 +54,13 @@ async function handleCreateInvitation(
 
   // Generate secure random token (64 chars hex)
   const inviteToken = randomBytes(32).toString('hex');
-  
+
   // Generate secure temporary password
   const tempPassword = generateSecurePassword(16);
-  
+
   // Encrypt temp password (for retrieval during verification)
   const tempPasswordEncrypted = encrypt(tempPassword);
-  
+
   // Hash password (for actual login verification)
   const passwordHash = await hashPassword(tempPassword);
 
@@ -71,7 +71,7 @@ async function handleCreateInvitation(
     first_name: invitationData.first_name,
     last_name: invitationData.last_name,
     email: invitationData.email,
-    assigned_role: invitationData.assigned_role,
+    assigned_role_id: invitationData.assigned_role_id,
     invite_token: inviteToken,
     temp_password_encrypted: tempPasswordEncrypted,
     password_hash: passwordHash,
@@ -84,20 +84,20 @@ async function handleCreateInvitation(
   try {
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
-    
+
     await sendInvitationEmail({
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
-      assignedRole: invitationData.assigned_role,
+      assignedRoleId: invitationData.assigned_role_id,
       inviteLink,
       expiresIn: `${INVITATION_EXPIRY_HOURS} hours`,
       tempPassword, // Include credentials in email
     });
   } catch (emailError) {
-    logger.error('Failed to send invitation email', { 
+    logger.error('Failed to send invitation email', {
       email: invitationData.email,
-      error: emailError 
+      error: emailError
     });
   }
 
@@ -108,7 +108,7 @@ async function handleCreateInvitation(
     last_name: newInvitation.last_name,
     email: newInvitation.email,
     status: newInvitation.status,
-    assigned_role: newInvitation.assigned_role,
+    assigned_role_id: newInvitation.assigned_role_id,
     invited_by: newInvitation.invited_by,
     expires_at: newInvitation.expires_at,
     accepted_at: newInvitation.accepted_at,
@@ -130,6 +130,6 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response): Promis
 });
 
 const router = Router();
-router.post('/', requireAuth, requireRole('admin'), validationMiddleware(schema), handler);
+router.post('/', requireAuth, requirePermission('admin:invitations'), validationMiddleware(schema), handler);
 
 export default router;

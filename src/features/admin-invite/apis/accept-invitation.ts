@@ -7,7 +7,6 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-// import { invitationRateLimit } from '../../../middlewares/rate-limit.middleware'; // DISABLED
 import { verifyPassword } from '../../../utils/password';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
@@ -16,6 +15,7 @@ import { logger } from '../../../utils/logger';
 import { generateToken } from '../../../utils/jwt';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { findUserByEmail, createUser } from '../../user/shared/queries';
+import { assignRoleToUser } from '../../rbac/shared/queries';
 import { IAuthUserWithToken } from '../../../interfaces/request.interface';
 
 const schema = z.object({
@@ -28,10 +28,10 @@ type AcceptInvitationDto = z.infer<typeof schema>;
 
 async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<IAuthUserWithToken> {
   const invitation = await findInvitationByToken(acceptData.token);
-  
+
   if (!invitation) {
-    logger.warn('Invalid invitation token used', { 
-      tokenPrefix: acceptData.token.substring(0, 8) 
+    logger.warn('Invalid invitation token used', {
+      tokenPrefix: acceptData.token.substring(0, 8)
     });
     throw new HttpException(404, 'Invalid or expired invitation token');
   }
@@ -71,9 +71,13 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
     name: `${invitation.first_name} ${invitation.last_name}`,
     email: invitation.email,
     password: invitation.password_hash, // Use the same hash
-    role: invitation.assigned_role || 'scientist',
     created_by: invitation.invited_by,
   });
+
+  // Assign role via RBAC system
+  if (invitation.assigned_role_id) {
+    await assignRoleToUser(newUser.id, invitation.assigned_role_id, invitation.invited_by);
+  }
 
   // Mark invitation as accepted
   await updateInvitation(invitation.id, {
@@ -89,22 +93,20 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
       id: newUser.id,
       email: newUser.email,
       name: newUser.name,
-      role: newUser.role,
     },
     '24h'
   );
 
-  logger.info('Invitation accepted, user created', { 
+  logger.info('Invitation accepted, user created', {
     email: invitation.email,
     userId: newUser.id,
-    invitationId: invitation.id 
+    invitationId: invitation.id
   });
 
   return {
     id: newUser.id,
     name: newUser.name,
     email: newUser.email,
-    role: newUser.role,
     created_at: newUser.created_at,
     updated_at: newUser.updated_at,
     token,
@@ -123,6 +125,6 @@ const handler = asyncHandler(async (req: Request, res: Response): Promise<void> 
 });
 
 const router = Router();
-router.post('/accept', validationMiddleware(schema), handler); // invitationRateLimit DISABLED
+router.post('/accept', validationMiddleware(schema), handler);
 
 export default router;

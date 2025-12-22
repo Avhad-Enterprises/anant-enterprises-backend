@@ -9,7 +9,7 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { requirePermission } from '../../../middlewares/permission.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
@@ -59,6 +59,6 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 const router = Router();
 
 // DELETE /api/chatbot/documents/:id - Delete document (admin only)
-router.delete('/documents/:id', requireAuth, requireRole('admin'), handler);
+router.delete('/documents/:id', requireAuth, requirePermission('chatbot:documents'), handler);
 
 export default router;

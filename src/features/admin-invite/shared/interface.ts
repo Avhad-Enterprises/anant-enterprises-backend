@@ -1,5 +1,4 @@
 import { InvitationStatus } from './schema';
-import { UserRole } from '../../user/shared/schema';
 
 export interface IInvitation {
   id: number;
@@ -8,7 +7,7 @@ export interface IInvitation {
   email: string;
   invite_token?: string;
   status: InvitationStatus;
-  assigned_role?: UserRole | null;
+  assigned_role_id?: number | null;
   temp_password_encrypted?: string | null;
   password_hash?: string | null;
   invited_by: number;
@@ -25,7 +24,7 @@ export interface ICreateInvitation {
   first_name: string;
   last_name: string;
   email: string;
-  assigned_role: UserRole;
+  assigned_role_id: number;
 }
 
 /**
@@ -37,5 +36,5 @@ export interface IInvitationVerifyResponse {
   password: string; // Plain text temp password for frontend pre-fill
   first_name: string;
   last_name: string;
-  assigned_role: UserRole;
+  assigned_role_id: number;
 }

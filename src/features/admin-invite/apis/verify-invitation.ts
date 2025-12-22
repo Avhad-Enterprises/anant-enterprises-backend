@@ -33,7 +33,7 @@ const MAX_VERIFY_ATTEMPTS = 5;
 
 async function handleVerifyInvitation(token: string): Promise<IInvitationVerifyResponse> {
   const invitation = await findInvitationByToken(token);
-  
+
   if (!invitation) {
     logger.warn('Invitation not found for token', { tokenPrefix: token.substring(0, 8) });
     throw new HttpException(404, 'Invalid or expired invitation token');
@@ -41,9 +41,9 @@ async function handleVerifyInvitation(token: string): Promise<IInvitationVerifyR
 
   // Check verification attempts (brute force protection)
   if (invitation.verify_attempts >= MAX_VERIFY_ATTEMPTS) {
-    logger.warn('Max verification attempts exceeded', { 
-      invitationId: invitation.id, 
-      attempts: invitation.verify_attempts 
+    logger.warn('Max verification attempts exceeded', {
+      invitationId: invitation.id,
+      attempts: invitation.verify_attempts
     });
     throw new HttpException(429, 'Too many verification attempts. Please contact administrator.');
   }
@@ -73,16 +73,16 @@ async function handleVerifyInvitation(token: string): Promise<IInvitationVerifyR
   try {
     plainPassword = decrypt(invitation.temp_password_encrypted);
   } catch (error) {
-    logger.error('Failed to decrypt invitation password', { 
+    logger.error('Failed to decrypt invitation password', {
       invitationId: invitation.id,
       error: error instanceof Error ? error.message : String(error)
     });
     throw new HttpException(500, 'Failed to retrieve credentials');
   }
 
-  logger.info('Invitation verified successfully', { 
+  logger.info('Invitation verified successfully', {
     email: invitation.email,
-    invitationId: invitation.id 
+    invitationId: invitation.id
   });
 
   return {
@@ -90,7 +90,7 @@ async function handleVerifyInvitation(token: string): Promise<IInvitationVerifyR
     password: plainPassword,
     first_name: invitation.first_name,
     last_name: invitation.last_name,
-    assigned_role: invitation.assigned_role!,
+    assigned_role_id: invitation.assigned_role_id!,
   };
 }
 
@@ -100,8 +100,8 @@ const handler = asyncHandler(async (req: Request, res: Response): Promise<void> 
   const credentials = await handleVerifyInvitation(token);
 
   ResponseFormatter.success(
-    res, 
-    credentials, 
+    res,
+    credentials,
     'Invitation verified. Use these credentials to log in.'
   );
 });

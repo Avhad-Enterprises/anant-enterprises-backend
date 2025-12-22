@@ -51,7 +51,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     const decoded = verificationResponse as DataStoredInToken;
 
     // Validate required fields exist
-    if (!decoded.id || !decoded.role) {
+    if (!decoded.id) {
       logger.warn('Authentication failed: Missing required token fields', {
         ip: clientIP,
         userAgent,
@@ -64,14 +64,12 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     // Attach user information to request
     req.userId = decoded.id;
-    req.userRole = decoded.role;
     req.userAgent = userAgent;
     req.clientIP = clientIP;
 
     // Log successful authentication
     logger.info('Authentication successful', {
       userId: decoded.id,
-      userRole: decoded.role,
       ip: clientIP,
       userAgent: userAgent.substring(0, 100), // Truncate for logging
       url: req.originalUrl,

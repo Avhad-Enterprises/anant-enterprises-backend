@@ -43,7 +43,6 @@ async function handleLogin(email: string, password: string): Promise<IAuthUserWi
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
     },
     '24h'
   );
@@ -53,7 +52,6 @@ async function handleLogin(email: string, password: string): Promise<IAuthUserWi
     name: user.name,
     email: user.email,
     phone_number: user.phone_number || undefined,
-    role: user.role,
     created_at: user.created_at,
     updated_at: user.updated_at,
     token,
