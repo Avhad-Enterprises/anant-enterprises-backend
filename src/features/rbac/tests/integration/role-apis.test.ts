@@ -1,259 +1,194 @@
 /**
  * Integration tests for RBAC Role APIs
+ * Tests full API flows using supertest
  */
 
 import request from 'supertest';
+import app from '../../../../../tests/utils/app.helper';
+import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
 import { db } from '../../../../database/drizzle';
-import { roles, permissions, rolePermissions } from '../../shared/schema';
-import { users } from '../../../user/shared/schema';
+import { roles, rolePermissions, userRoles } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils/password';
-import { generateToken } from '../../../../utils/jwt';
+import { rbacCacheService } from '../../services/rbac-cache.service';
 
-describe('RBAC Role APIs Integration Tests', () => {
-    let adminUser: any;
-    let regularUser: any;
-    let testRole: any;
-    let testPermission: any;
+describe('RBAC Role APIs - Integration Tests', () => {
+    let superadminToken: string;
+    let superadminUserId: number;
     let adminToken: string;
-    let userToken: string;
+    let regularUserToken: string;
 
-    beforeEach(async () => {
-        // Clean up
-        await db.delete(rolePermissions);
+    beforeAll(async () => {
+        await AuthTestHelper.seedRBACData();
 
-        const testRoles = await db.select().from(roles).where(eq(roles.name, 'test-role'));
-        if (testRoles.length > 0) {
-            await db.delete(roles).where(eq(roles.id, testRoles[0].id));
-        }
+        const { token: saToken, userId: saUserId } = await AuthTestHelper.createTestSuperadminUser();
+        superadminToken = saToken;
+        superadminUserId = saUserId;
 
-        const testPerms = await db.select().from(permissions).where(eq(permissions.name, 'test:permission'));
-        if (testPerms.length > 0) {
-            await db.delete(permissions).where(eq(permissions.id, testPerms[0].id));
-        }
+        const { token: aToken } = await AuthTestHelper.createTestAdminUser();
+        adminToken = aToken;
 
-        const adminUsers = await db.select().from(users).where(eq(users.email, 'admin-rbac@test.com'));
-        if (adminUsers.length > 0) {
-            await db.delete(users).where(eq(users.id, adminUsers[0].id));
-        }
-
-        const regUsers = await db.select().from(users).where(eq(users.email, 'user-rbac@test.com'));
-        if (regUsers.length > 0) {
-            await db.delete(users).where(eq(users.id, regUsers[0].id));
-        }
-
-        // Create users
-        const hashedPassword = await hashPassword('password123');
-        const [createdAdmin] = await db
-            .insert(users)
-            .values({
-                name: 'Admin User',
-                email: 'admin-rbac@test.com',
-                password: hashedPassword,
-                created_by: 1,
-            })
-            .returning();
-        adminUser = createdAdmin;
-
-        const [createdUser] = await db
-            .insert(users)
-            .values({
-                name: 'Regular User',
-                email: 'user-rbac@test.com',
-                password: hashedPassword,
-                created_by: 1,
-            })
-            .returning();
-        regularUser = createdUser;
-
-        // Generate tokens
-        adminToken = generateToken({ id: adminUser.id, email: adminUser.email, name: adminUser.name });
-        userToken = generateToken({ id: regularUser.id, email: regularUser.email, name: regularUser.name });
+        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        regularUserToken = uToken;
     });
 
     afterEach(async () => {
-        // Cleanup
-        if (testRole?.id) {
-            await db.delete(rolePermissions).where(eq(rolePermissions.role_id, testRole.id));
-            await db.delete(roles).where(eq(roles.id, testRole.id));
-        }
-        if (testPermission?.id) {
-            await db.delete(permissions).where(eq(permissions.id, testPermission.id));
-        }
-        if (adminUser?.id) {
-            await db.delete(users).where(eq(users.id, adminUser.id));
-        }
-        if (regularUser?.id) {
-            await db.delete(users).where(eq(users.id, regularUser.id));
-        }
+        // Clean up test roles created during tests
+        await db.delete(roles).where(eq(roles.name, 'integration_test_role'));
+        await db.delete(roles).where(eq(roles.name, 'flow_test_role'));
+        await rbacCacheService.invalidateAll();
     });
 
-    describe('GET /api/rbac/roles', () => {
-        it('should return list of roles', async () => {
-            const rolesData = await db.select().from(roles);
-            // Just verify we can query roles, count may vary based on test order
-            expect(Array.isArray(rolesData)).toBe(true);
-        });
-    });
+    describe('Complete Role Lifecycle', () => {
+        it('should complete full role CRUD lifecycle via API', async () => {
+            // 1. CREATE role
+            const createResponse = await request(app)
+                .post('/api/rbac/roles')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'integration_test_role',
+                    description: 'Integration test role',
+                });
 
-    describe('POST /api/rbac/roles', () => {
-        it('should create a new role', async () => {
-            const [createdRole] = await db
-                .insert(roles)
-                .values({
-                    name: 'test-role',
-                    description: 'Test Role',
-                    created_by: adminUser.id,
-                })
-                .returning();
+            expect(createResponse.status).toBe(201);
+            expect(createResponse.body.success).toBe(true);
+            const createdRoleId = createResponse.body.data.id;
 
-            testRole = createdRole;
+            // 2. READ role (via list)
+            const listResponse = await request(app)
+                .get('/api/rbac/roles')
+                .set('Authorization', `Bearer ${superadminToken}`);
 
-            expect(testRole).toBeDefined();
-            expect(testRole.name).toBe('test-role');
-            expect(testRole.description).toBe('Test Role');
-        });
+            expect(listResponse.status).toBe(200);
+            const foundRole = listResponse.body.data.find((r: any) => r.id === createdRoleId);
+            expect(foundRole).toBeDefined();
+            expect(foundRole.name).toBe('integration_test_role');
 
-        it('should not allow duplicate role names', async () => {
-            const [firstRole] = await db
-                .insert(roles)
-                .values({
-                    name: 'test-role',
-                    description: 'First Test Role',
-                    created_by: adminUser.id,
-                })
-                .returning();
+            // 3. UPDATE role
+            const updateResponse = await request(app)
+                .put(`/api/rbac/roles/${createdRoleId}`)
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    description: 'Updated integration test role',
+                });
 
-            testRole = firstRole;
+            expect(updateResponse.status).toBe(200);
+            expect(updateResponse.body.data.description).toBe('Updated integration test role');
 
-            // Attempting to create duplicate should fail
-            await expect(
-                db.insert(roles).values({
-                    name: 'test-role',
-                    description: 'Duplicate Test Role',
-                    created_by: adminUser.id,
-                })
-            ).rejects.toThrow();
+            // 4. DELETE role
+            const deleteResponse = await request(app)
+                .delete(`/api/rbac/roles/${createdRoleId}`)
+                .set('Authorization', `Bearer ${superadminToken}`);
+
+            expect(deleteResponse.status).toBe(200);
         });
     });
 
-    describe('PUT /api/rbac/roles/:id', () => {
-        beforeEach(async () => {
-            const [createdRole] = await db
-                .insert(roles)
-                .values({
-                    name: 'test-role',
-                    description: 'Original Description',
-                    created_by: adminUser.id,
-                })
-                .returning();
-            testRole = createdRole;
-        });
+    describe('Role with Permissions Flow', () => {
+        it('should create role and assign permissions via API', async () => {
+            // Create role
+            const createResponse = await request(app)
+                .post('/api/rbac/roles')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'flow_test_role',
+                    description: 'Role for permission flow test',
+                });
 
-        it('should update role details', async () => {
-            const [updatedRole] = await db
-                .update(roles)
-                .set({
-                    description: 'Updated Description',
-                    updated_by: adminUser.id,
-                    updated_at: new Date(),
-                })
-                .where(eq(roles.id, testRole.id))
-                .returning();
+            expect(createResponse.status).toBe(201);
+            const roleId = createResponse.body.data.id;
 
-            expect(updatedRole.description).toBe('Updated Description');
-            expect(updatedRole.name).toBe('test-role');
-        });
-    });
+            // Get available permissions
+            const permissionsResponse = await request(app)
+                .get('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`);
 
-    describe('DELETE /api/rbac/roles/:id', () => {
-        beforeEach(async () => {
-            const [createdRole] = await db
-                .insert(roles)
-                .values({
-                    name: 'test-role',
-                    description: 'To be deleted',
-                    created_by: adminUser.id,
-                })
-                .returning();
-            testRole = createdRole;
-        });
+            expect(permissionsResponse.status).toBe(200);
+            const permissions = permissionsResponse.body.data.permissions;
+            expect(permissions.length).toBeGreaterThan(0);
 
-        it('should soft delete a role', async () => {
-            const [deletedRole] = await db
-                .update(roles)
-                .set({
-                    is_deleted: true,
-                    deleted_by: adminUser.id,
-                    deleted_at: new Date(),
-                })
-                .where(eq(roles.id, testRole.id))
-                .returning();
+            // Assign permission to role (use first available permission)
+            const permissionId = permissions[0].id;
+            const assignResponse = await request(app)
+                .post(`/api/rbac/roles/${roleId}/permissions`)
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ permission_id: permissionId });
 
-            expect(deletedRole.is_deleted).toBe(true);
-            expect(deletedRole.deleted_by).toBe(adminUser.id);
+            expect(assignResponse.status).toBe(200);
+
+            // Verify permissions are assigned
+            const rolePermissionsResponse = await request(app)
+                .get(`/api/rbac/roles/${roleId}/permissions`)
+                .set('Authorization', `Bearer ${superadminToken}`);
+
+            expect(rolePermissionsResponse.status).toBe(200);
+            expect(rolePermissionsResponse.body.data.permissions.length).toBeGreaterThan(0);
+
+            // Clean up
+            await request(app)
+                .delete(`/api/rbac/roles/${roleId}`)
+                .set('Authorization', `Bearer ${superadminToken}`);
         });
     });
 
-    describe('Permission Assignment', () => {
-        beforeEach(async () => {
-            const [createdRole] = await db
-                .insert(roles)
-                .values({
-                    name: 'test-role',
-                    description: 'Test Role',
-                    created_by: adminUser.id,
-                })
-                .returning();
-            testRole = createdRole;
+    describe('Authorization Enforcement', () => {
+        it('should enforce authentication for all role endpoints', async () => {
+            const endpoints = [
+                { method: 'get', path: '/api/rbac/roles' },
+                { method: 'post', path: '/api/rbac/roles' },
+                { method: 'put', path: '/api/rbac/roles/1' },
+                { method: 'delete', path: '/api/rbac/roles/1' },
+            ];
 
-            const [createdPermission] = await db
-                .insert(permissions)
-                .values({
-                    name: 'test:permission',
-                    resource: 'test',
-                    action: 'permission',
-                    description: 'Test Permission',
-                })
-                .returning();
-            testPermission = createdPermission;
+            for (const endpoint of endpoints) {
+                const response = await (request(app) as any)[endpoint.method](endpoint.path);
+                expect(response.status).toBe(401);
+            }
         });
 
-        it('should assign permission to role', async () => {
-            await db.insert(rolePermissions).values({
-                role_id: testRole.id,
-                permission_id: testPermission.id,
-                assigned_by: adminUser.id,
-            });
+        it('should enforce proper permissions for role management', async () => {
+            // Regular user should not be able to create roles
+            const createResponse = await request(app)
+                .post('/api/rbac/roles')
+                .set('Authorization', `Bearer ${regularUserToken}`)
+                .send({
+                    name: 'unauthorized_role',
+                    description: 'Should not be created',
+                });
 
-            const assignments = await db
-                .select()
-                .from(rolePermissions)
-                .where(eq(rolePermissions.role_id, testRole.id));
-
-            expect(assignments.length).toBe(1);
-            expect(assignments[0].permission_id).toBe(testPermission.id);
+            expect(createResponse.status).toBe(403);
         });
 
-        it('should remove permission from role', async () => {
-            // First assign
-            await db.insert(rolePermissions).values({
-                role_id: testRole.id,
-                permission_id: testPermission.id,
-                assigned_by: adminUser.id,
-            });
+        it('should allow admin to read roles', async () => {
+            const response = await request(app)
+                .get('/api/rbac/roles')
+                .set('Authorization', `Bearer ${adminToken}`);
 
-            // Then remove
-            await db
-                .delete(rolePermissions)
-                .where(eq(rolePermissions.role_id, testRole.id));
+            expect(response.status).toBe(200);
+        });
+    });
 
-            const assignments = await db
-                .select()
-                .from(rolePermissions)
-                .where(eq(rolePermissions.role_id, testRole.id));
+    describe('System Role Protection', () => {
+        it('should prevent deletion of system roles via API', async () => {
+            // Get admin role (system role)
+            const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
 
-            expect(assignments.length).toBe(0);
+            const response = await request(app)
+                .delete(`/api/rbac/roles/${adminRole.id}`)
+                .set('Authorization', `Bearer ${superadminToken}`);
+
+            expect(response.status).toBe(400);
+            expect(response.body.error?.message || response.body.message).toContain('system role');
+        });
+
+        it('should prevent renaming system roles via API', async () => {
+            const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
+
+            const response = await request(app)
+                .put(`/api/rbac/roles/${adminRole.id}`)
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ name: 'hacked_admin' });
+
+            expect(response.status).toBe(400);
         });
     });
 });

@@ -52,7 +52,7 @@ describe('Sessions & Chat API Integration Tests', () => {
       email: 'user@example.com',
       password: 'UserPass123!',
       name: 'Test User',
-      role: 'researcher',
+      role: 'user',
     });
     userToken = token;
     userId = user.id;
@@ -62,7 +62,7 @@ describe('Sessions & Chat API Integration Tests', () => {
       email: 'other@example.com',
       password: 'OtherPass123!',
       name: 'Other User',
-      role: 'researcher',
+      role: 'user',
     });
     otherUserToken = otherToken;
     otherUserId = other.id;

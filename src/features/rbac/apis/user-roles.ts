@@ -8,7 +8,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
+import { requirePermission, requireOwnerOrPermission } from '../../../middlewares/permission.middleware';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler, parseIdParam, getUserId } from '../../../utils/controllerHelpers';
@@ -131,9 +131,11 @@ const deleteHandler = asyncHandler(async (req: RequestWithUser, res: Response) =
 // Router
 // ============================================
 
+// ... handlers ...
+
 const router = Router();
-router.get('/:userId/roles', requireAuth, requirePermission('users:read'), getRolesHandler);
-router.get('/:userId/permissions', requireAuth, requirePermission('users:read'), getPermissionsHandler);
+router.get('/:userId/roles', requireAuth, requireOwnerOrPermission('userId', 'users:read'), getRolesHandler);
+router.get('/:userId/permissions', requireAuth, requireOwnerOrPermission('userId', 'users:read'), getPermissionsHandler);
 router.post('/:userId/roles', requireAuth, requirePermission('roles:manage'), validationMiddleware(assignRoleSchema), postHandler);
 router.delete('/:userId/roles/:roleId', requireAuth, requirePermission('roles:manage'), deleteHandler);
 

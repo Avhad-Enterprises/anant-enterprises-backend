@@ -25,7 +25,6 @@ describe('Auth Middleware', () => {
     it('should successfully authenticate with valid token', async () => {
       const mockDecoded = {
         id: 1,
-        role: 'user' as const,
       };
       mockRequest.headers = {
         authorization: 'Bearer valid.jwt.token',
@@ -36,7 +35,6 @@ describe('Auth Middleware', () => {
 
       expect(mockVerifyToken).toHaveBeenCalledWith('valid.jwt.token');
       expect(mockRequest.userId).toBe(mockDecoded.id);
-      expect(mockRequest.userRole).toBe(mockDecoded.role);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
@@ -114,7 +112,7 @@ describe('Auth Middleware', () => {
       mockRequest.headers = {
         authorization: 'Bearer valid.token',
       };
-      mockVerifyToken.mockReturnValue({ id: 1 } as any); // Missing role
+      mockVerifyToken.mockReturnValue({} as any); // Missing id
 
       await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
 

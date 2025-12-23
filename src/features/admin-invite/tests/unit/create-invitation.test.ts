@@ -73,7 +73,7 @@ async function handleCreateInvitation(
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
-      assignedRole: invitationData.assigned_role,
+      assignedRoleId: invitationData.assigned_role_id,
       inviteLink,
       expiresIn: '24 hours',
       tempPassword, // Include credentials in email
@@ -98,7 +98,7 @@ describe('Create Invitation Business Logic', () => {
     first_name: 'John',
     last_name: 'Doe',
     email: 'john.doe@example.com',
-    assigned_role: 'scientist',
+    assigned_role_id: 2,
   };
 
   const mockCreatedInvitation: Invitation = {
@@ -108,7 +108,7 @@ describe('Create Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     invite_token: 'a'.repeat(64),
     status: 'pending',
-    assigned_role: 'scientist',
+    assigned_role_id: 2,
     temp_password_encrypted: 'encrypted_temp_password',
     password_hash: 'hashedPassword123',
     verify_attempts: 0,
@@ -264,14 +264,14 @@ describe('Create Invitation Business Logic', () => {
       );
     });
 
-    it('should handle different assigned roles', async () => {
+    it('should handle different assigned role IDs', async () => {
       mockInviteQueries.findInvitationByEmail.mockResolvedValue(undefined);
 
-      const adminInvite = { ...mockInvitationData, assigned_role: 'admin' as const };
+      const adminInvite = { ...mockInvitationData, assigned_role_id: 3 };
       await handleCreateInvitation(adminInvite, 1);
 
       expect(mockInviteQueries.createInvitation).toHaveBeenCalledWith(
-        expect.objectContaining({ assigned_role: 'admin' })
+        expect.objectContaining({ assigned_role_id: 3 })
       );
     });
   });

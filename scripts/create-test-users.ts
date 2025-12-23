@@ -25,8 +25,6 @@ import { Pool } from 'pg';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import bcrypt from 'bcrypt';
-
-// Load environment-specific .env file FIRST
 const nodeEnv = process.env.NODE_ENV || 'development';
 if (nodeEnv === 'development') {
   dotenv.config({ path: '.env.dev' });
@@ -52,33 +50,28 @@ function getDatabaseUrl(): string {
   return dbUrl;
 }
 
-// Import schema after env is configured
+// Import schemas after env is configured
 import { users } from '../src/features/user/shared/schema';
+import { roles, userRoles } from '../src/features/rbac/shared/schema';
 
 const TEST_USERS = [
   {
-    name: 'Scientist User',
-    email: 'scientist@gmail.com',
+    name: 'Regular User',
+    email: 'user@gmail.com',
     password: '12345678',
-    role: 'scientist' as const,
+    role: 'user' as const,
   },
   {
-    name: 'Researcher User',
-    email: 'researcher@gmail.com',
+    name: 'Admin User',
+    email: 'admin2@gmail.com',
     password: '12345678',
-    role: 'researcher' as const,
+    role: 'admin' as const,
   },
   {
-    name: 'Policymaker User',
-    email: 'policymaker@gmail.com',
+    name: 'Super Admin User',
+    email: 'superadmin@gmail.com',
     password: '12345678',
-    role: 'policymaker' as const,
-  },
-  {
-    name: 'Field Technician User',
-    email: 'fieldtech@gmail.com',
-    password: '12345678',
-    role: 'field_technician' as const,
+    role: 'superadmin' as const,
   },
 ];
 
@@ -100,16 +93,19 @@ async function createTestUsers() {
     client.release();
     console.log('✅ Database connected');
 
-    // Get admin user ID for created_by reference
-    const [adminUser] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(and(eq(users.role, 'admin'), eq(users.is_deleted, false)))
+    // Get admin user ID for created_by reference via RBAC
+    const [adminUserRole] = await db
+      .select({ user_id: userRoles.user_id })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.role_id, roles.id))
+      .where(and(eq(roles.name, 'admin'), eq(roles.is_deleted, false)))
       .limit(1);
 
-    if (!adminUser) {
+    if (!adminUserRole) {
       throw new Error('Admin user not found. Please run create-admin.ts first.');
     }
+
+    const adminUser = { id: adminUserRole.user_id };
 
     console.log(`👤 Using admin user ID ${adminUser.id} as creator reference`);
 
@@ -135,22 +131,36 @@ async function createTestUsers() {
       console.log(`🔐 Hashing password for ${userData.role}...`);
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-      // Create test user
+      // Create test user (no role column)
       console.log(`📝 Creating ${userData.role} user...`);
 
       const result = await pool.query(`
-        INSERT INTO users (name, email, password, role, created_by)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, name, email, role, created_at
-      `, [userData.name, userData.email, hashedPassword, userData.role, adminUser.id]);
+        INSERT INTO users (name, email, password, created_by)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, email, created_at
+      `, [userData.name, userData.email, hashedPassword, adminUser.id]);
 
       const newUser = result.rows[0];
+
+      // Get role ID from RBAC
+      const [roleRecord] = await db.select().from(roles).where(eq(roles.name, userData.role)).limit(1);
+      
+      if (!roleRecord) {
+        throw new Error(`Role '${userData.role}' not found in RBAC system. Please run migrations and seed RBAC data first.`);
+      }
+
+      // Assign role via RBAC
+      await db.insert(userRoles).values({
+        user_id: newUser.id,
+        role_id: roleRecord.id,
+        assigned_by: adminUser.id,
+      }).onConflictDoNothing();
 
       console.log(`✅ ${userData.role} user created successfully!`);
       console.log(`   ID: ${newUser.id}`);
       console.log(`   Name: ${newUser.name}`);
       console.log(`   Email: ${newUser.email}`);
-      console.log(`   Role: ${newUser.role}`);
+      console.log(`   Role: ${userData.role} (assigned via RBAC)`);
       console.log(`   Created at: ${newUser.created_at}`);
       console.log(`   Login credentials: ${userData.email} / ${userData.password}`);
     }

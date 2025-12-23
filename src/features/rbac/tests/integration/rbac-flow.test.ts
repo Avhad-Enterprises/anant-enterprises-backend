@@ -54,7 +54,6 @@ describe('RBAC Integration Tests', () => {
                 name: 'Test User',
                 email: 'testuser@test.com',
                 password: hashedPassword,
-                created_by: 1,
             })
             .returning();
         testUser = createdUser;
@@ -66,7 +65,6 @@ describe('RBAC Integration Tests', () => {
                 name: 'Admin User',
                 email: 'admin@test.com',
                 password: hashedPassword,
-                created_by: 1,
             })
             .returning();
         adminUser = createdAdmin;
@@ -77,7 +75,7 @@ describe('RBAC Integration Tests', () => {
             await db.insert(userRoles).values({
                 user_id: adminUser.id,
                 role_id: adminRoles[0].id,
-                assigned_by: 1,
+                assigned_by: adminUser.id,
             });
         }
 

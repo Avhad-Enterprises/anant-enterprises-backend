@@ -66,7 +66,6 @@ GET /api/users?page=1&limit=20
       "name": "Admin User",
       "email": "admin@example.com",
       "phone_number": "+1234567890",
-      "role": "admin",
       "created_at": "2024-01-01T00:00:00.000Z",
       "updated_at": "2024-01-15T10:30:00.000Z"
     },
@@ -75,7 +74,6 @@ GET /api/users?page=1&limit=20
       "name": "John Doe",
       "email": "john.doe@example.com",
       "phone_number": null,
-      "role": "scientist",
       "created_at": "2024-01-10T09:00:00.000Z",
       "updated_at": "2024-01-10T09:00:00.000Z"
     }
@@ -152,7 +150,7 @@ Authorization: Bearer <jwt_token>
 
 ### 3. Update User
 
-Update user profile information. Users can update their own profile, while admins can update any user including role changes.
+Update user profile information. Users can update their own profile, while admins can update any user.
 
 **Endpoint:** `PUT /api/users/:id`
 
@@ -161,7 +159,6 @@ Update user profile information. Users can update their own profile, while admin
 **Authorization:** 
 - **Own profile:** Any authenticated user
 - **Other users:** Admin only
-- **Role changes:** Admin only
 
 #### Request Headers
 
@@ -183,8 +180,7 @@ Content-Type: application/json
   "name": "Jane Smith Updated",
   "email": "jane.updated@example.com",
   "phone_number": "+1122334455",
-  "password": "NewSecurePass123!",
-  "role": "scientist"
+  "password": "NewSecurePass123!"
 }
 ```
 
@@ -196,7 +192,6 @@ Content-Type: application/json
 | `email` | string | ❌ | Valid email address |
 | `phone_number` | string | ❌ | Phone number |
 | `password` | string | ❌ | New password (min 8 chars) |
-| `role` | string | ❌ | Role (admin only): `admin`, `scientist`, `researcher`, `policymaker` |
 
 #### Success Response
 
@@ -211,7 +206,6 @@ Content-Type: application/json
     "name": "Jane Smith Updated",
     "email": "jane.updated@example.com",
     "phone_number": "+1122334455",
-    "role": "scientist",
     "created_at": "2024-01-12T14:30:00.000Z",
     "updated_at": "2024-01-15T11:00:00.000Z"
   }
@@ -223,10 +217,8 @@ Content-Type: application/json
 | Status | Error | Description |
 |--------|-------|-------------|
 | `400` | Validation Error | Invalid request body |
-| `400` | Bad Request | Cannot change your own admin role |
 | `401` | Unauthorized | Missing or invalid JWT token |
 | `403` | Forbidden | You can only update your own profile |
-| `403` | Forbidden | Only admins can change user roles |
 | `404` | Not Found | User not found |
 | `409` | Conflict | Email already exists |
 
@@ -280,23 +272,23 @@ Authorization: Bearer <jwt_token>
 
 ## User Roles
 
+The system uses a dynamic Role-Based Access Control (RBAC) system. Users are assigned roles through the RBAC system, not directly in the user record.
+
 | Role | Description | Permissions |
 |------|-------------|-------------|
-| `admin` | System administrator | Full access, user management, role changes |
-| `scientist` | Scientific user | Default role for public registration |
-| `researcher` | Research user | Limited access to research features |
-| `policymaker` | Policy user | Access to policy-related features |
+| `user` | Regular user | Basic access, can view own profile |
+| `admin` | System administrator | Full access, user management |
+| `superadmin` | Super administrator | All permissions including system configuration |
 
 ### Role-Based Access Summary
 
-| Action | Admin | Scientist | Researcher | Policymaker |
-|--------|-------|-----------|------------|-------------|
-| View all users | ✅ | ❌ | ❌ | ❌ |
-| View any user by ID | ✅ | ✅ | ✅ | ✅ |
-| Update own profile | ✅ | ✅ | ✅ | ✅ |
-| Update other users | ✅ | ❌ | ❌ | ❌ |
-| Change user roles | ✅ | ❌ | ❌ | ❌ |
-| Delete users | ✅ | ❌ | ❌ | ❌ |
+| Action | Admin | Superadmin | User |
+|--------|-------|------------|------|
+| View all users | ✅ | ✅ | ❌ |
+| View any user by ID | ✅ | ✅ | ✅ (own only) |
+| Update own profile | ✅ | ✅ | ✅ |
+| Update other users | ✅ | ✅ | ❌ |
+| Delete users | ✅ | ✅ | ❌ |
 
 ---
 
@@ -320,25 +312,24 @@ Authorization: Bearer <jwt_token>
                         │ No                        │ Yes
                         ▼                           ▼
                    ┌────────┐               ┌───────────────┐
-                   │  401   │               │ Is user admin?│
-                   │ Error  │               └───────┬───────┘
-                   └────────┘                       │
+                   │  401   │               │ Has users:   │
+                   │ Error  │               │ update perm? │
+                   └────────┘               └───────┬───────┘
                                       ┌─────────────┼─────────────┐
                                       │ No                        │ Yes
                                       ▼                           ▼
                                ┌─────────────┐            ┌───────────────┐
                                │ Is updating │            │ ✅ Can update │
-                               │ own profile?│            │ any user +    │
-                               └──────┬──────┘            │ change roles  │
-                                      │                   └───────────────┘
+                               │ own profile?│            │ any user      │
+                               └──────┬──────┘            └───────────────┘
+                                      │
                         ┌─────────────┼─────────────┐
                         │ No                        │ Yes
                         ▼                           ▼
                    ┌────────┐               ┌───────────────┐
                    │  403   │               │ ✅ Can update │
                    │ Error  │               │ own profile   │
-                   └────────┘               │ (no role chg) │
-                                            └───────────────┘
+                   └────────┘               └───────────────┘
 ```
 
 ---
@@ -357,7 +348,6 @@ interface User {
   name: string;
   email: string;
   phone_number: string | null;
-  role: 'admin' | 'scientist' | 'researcher' | 'policymaker';
   created_at: string;
   updated_at: string;
 }
@@ -367,7 +357,6 @@ interface UpdateUserData {
   email?: string;
   phone_number?: string;
   password?: string;
-  role?: 'admin' | 'scientist' | 'researcher' | 'policymaker';
 }
 
 interface PaginatedUsers {

@@ -10,6 +10,7 @@ export interface IInvitation {
   assigned_role_id?: number | null;
   temp_password_encrypted?: string | null;
   password_hash?: string | null;
+  verify_attempts: number;
   invited_by: number;
   expires_at: Date;
   accepted_at?: Date | null;

@@ -26,8 +26,6 @@ import { Pool } from 'pg';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import bcrypt from 'bcrypt';
-
-// Load environment-specific .env file FIRST
 const nodeEnv = process.env.NODE_ENV || 'development';
 if (nodeEnv === 'development') {
   dotenv.config({ path: '.env.dev' });
@@ -53,8 +51,9 @@ function getDatabaseUrl(): string {
   return dbUrl;
 }
 
-// Import schema after env is configured
+// Import schemas after env is configured
 import { users } from '../src/features/user/shared/schema';
+import { roles, userRoles } from '../src/features/rbac/shared/schema';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
 const ADMIN_PASSWORD = '12345678';
@@ -89,7 +88,16 @@ async function createAdminUser() {
       console.log(`ℹ️  Admin user with email ${ADMIN_EMAIL} already exists`);
       console.log(`   ID: ${existingUser.id}`);
       console.log(`   Name: ${existingUser.name}`);
-      console.log(`   Role: ${existingUser.role}`);
+      // Check their roles via RBAC
+      const userRole = await db
+        .select({ roleName: roles.name })
+        .from(userRoles)
+        .innerJoin(roles, eq(userRoles.role_id, roles.id))
+        .where(eq(userRoles.user_id, existingUser.id))
+        .limit(1);
+      if (userRole.length > 0) {
+        console.log(`   Role: ${userRole[0].roleName}`);
+      }
       return;
     }
 
@@ -97,17 +105,16 @@ async function createAdminUser() {
     console.log('🔐 Hashing password...');
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-    // Create admin user with self-reference for first admin
-    // First, insert with a placeholder created_by (will update after)
+      // Create admin user with self-reference for first admin
     console.log('📝 Creating admin user...');
     
     // Use raw SQL to handle self-referential first user
     const result = await pool.query(`
-      INSERT INTO users (name, email, password, role, created_by)
-      VALUES ($1, $2, $3, $4, 1)
+      INSERT INTO users (name, email, password, created_by)
+      VALUES ($1, $2, $3, NULL)
       ON CONFLICT (email) DO NOTHING
-      RETURNING id, name, email, role, created_at
-    `, [ADMIN_NAME, ADMIN_EMAIL, hashedPassword, 'admin']);
+      RETURNING id, name, email, created_at
+    `, [ADMIN_NAME, ADMIN_EMAIL, hashedPassword]);
 
     if (result.rows.length === 0) {
       // User already exists (conflict)
@@ -120,11 +127,25 @@ async function createAdminUser() {
     // Update created_by to self-reference
     await pool.query('UPDATE users SET created_by = $1 WHERE id = $1', [newUser.id]);
 
+    // Get admin role ID from RBAC
+    const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
+    
+    if (!adminRole) {
+      throw new Error('Admin role not found in RBAC system. Please run migrations and seed RBAC data first.');
+    }
+
+    // Assign admin role via RBAC
+    await db.insert(userRoles).values({
+      user_id: newUser.id,
+      role_id: adminRole.id,
+      assigned_by: newUser.id, // Self-assigned
+    }).onConflictDoNothing();
+
     console.log('✅ Admin user created successfully!');
     console.log(`   ID: ${newUser.id}`);
     console.log(`   Name: ${newUser.name}`);
     console.log(`   Email: ${newUser.email}`);
-    console.log(`   Role: ${newUser.role}`);
+    console.log(`   Role: admin (assigned via RBAC)`);
     console.log(`   Created at: ${newUser.created_at}`);
 
   } catch (error) {

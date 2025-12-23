@@ -36,7 +36,7 @@ describe('Get Invitations Business Logic', () => {
       email: 'john.doe@example.com',
       invite_token: 'token1',
       status: 'pending',
-      assigned_role: 'scientist',
+      assigned_role_id: 2,
       temp_password_encrypted: 'encrypted_password_1',
       password_hash: 'hashedPassword1',
       verify_attempts: 0,
@@ -56,7 +56,7 @@ describe('Get Invitations Business Logic', () => {
       email: 'jane.smith@example.com',
       invite_token: 'token2',
       status: 'accepted',
-      assigned_role: 'researcher',
+      assigned_role_id: 3,
       temp_password_encrypted: 'encrypted_password_2',
       password_hash: 'hashedPassword2',
       verify_attempts: 0,
@@ -208,7 +208,7 @@ describe('Get Invitations Business Logic', () => {
       expect(result.invitations[0]).toHaveProperty('last_name');
       expect(result.invitations[0]).toHaveProperty('email');
       expect(result.invitations[0]).toHaveProperty('status');
-      expect(result.invitations[0]).toHaveProperty('assigned_role');
+      expect(result.invitations[0]).toHaveProperty('assigned_role_id');
     });
 
     it('should combine filters and pagination', async () => {

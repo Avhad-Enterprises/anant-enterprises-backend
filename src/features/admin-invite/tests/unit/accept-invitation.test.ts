@@ -6,16 +6,19 @@ import bcrypt from 'bcrypt';
 import HttpException from '../../../../utils/httpException';
 import * as inviteQueries from '../../shared/queries';
 import * as userQueries from '../../../user/shared/queries';
+import * as rbacQueries from '../../../rbac/shared/queries';
 import { IInvitation } from '../../shared/interface';
 
 // Mock dependencies
 jest.mock('bcrypt');
 jest.mock('../../shared/queries');
 jest.mock('../../../user/shared/queries');
+jest.mock('../../../rbac/shared/queries');
 
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockInviteQueries = inviteQueries as jest.Mocked<typeof inviteQueries>;
 const mockUserQueries = userQueries as jest.Mocked<typeof userQueries>;
+const mockRbacQueries = rbacQueries as jest.Mocked<typeof rbacQueries>;
 
 interface AcceptInvitationDto {
   token: string;
@@ -45,13 +48,17 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
 
   const hashedPassword = await bcrypt.hash(acceptData.password, 12);
 
-  await userQueries.createUser({
+  const newUser = await userQueries.createUser({
     name: `${invitation.first_name} ${invitation.last_name}`,
     email: invitation.email,
     password: hashedPassword,
-    role: invitation.assigned_role || 'scientist',
     created_by: invitation.invited_by,
   });
+
+  // Assign role via RBAC system if specified
+  if (invitation.assigned_role_id) {
+    await rbacQueries.assignRoleToUser(newUser.id, invitation.assigned_role_id, invitation.invited_by);
+  }
 
   const updatedInvitation = await inviteQueries.updateInvitation(invitation.id, {
     status: 'accepted',
@@ -69,8 +76,10 @@ describe('Accept Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     invite_token: 'validtoken123',
     status: 'pending' as const,
-    assigned_role: 'scientist' as const,
-    password: 'hashedTempPassword',
+    assigned_role_id: 2, // ID of 'user' role
+    temp_password_encrypted: 'encryptedTempPassword',
+    password_hash: 'hashedTempPassword',
+    verify_attempts: 0,
     invited_by: 1,
     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     accepted_at: null,
@@ -93,7 +102,6 @@ describe('Accept Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     password: 'hashedPassword',
     phone_number: null,
-    role: 'scientist' as const,
     created_by: 1,
     created_at: new Date(),
     updated_by: null,
@@ -225,28 +233,24 @@ describe('Accept Invitation Business Logic', () => {
       );
     });
 
-    it('should use assigned role from invitation', async () => {
-      const adminInvitation = { ...mockInvitation, assigned_role: 'admin' as const };
+    it('should assign role via RBAC when assigned_role_id is provided', async () => {
+      const adminInvitation = { ...mockInvitation, assigned_role_id: 3 }; // admin role ID
       mockInviteQueries.findInvitationByToken.mockResolvedValue(adminInvitation);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'admin' })
-      );
+      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(1, 3, 1);
     });
 
-    it('should default to scientist role if not specified', async () => {
-      const noRoleInvitation = { ...mockInvitation, assigned_role: null };
+    it('should not assign role if assigned_role_id is null', async () => {
+      const noRoleInvitation = { ...mockInvitation, assigned_role_id: null };
       mockInviteQueries.findInvitationByToken.mockResolvedValue(noRoleInvitation);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'scientist' })
-      );
+      expect(mockRbacQueries.assignRoleToUser).not.toHaveBeenCalled();
     });
 
     it('should set created_by to invited_by value', async () => {

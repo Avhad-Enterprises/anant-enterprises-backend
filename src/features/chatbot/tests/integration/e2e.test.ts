@@ -41,6 +41,8 @@ describe('Chatbot E2E Integration Tests', () => {
   let apiHelper: ApiTestHelper;
   let adminToken: string;
   let userToken: string;
+  let adminUserId: number;
+  let userId: number;
   let uploadedFilePath: string | null = null;
 
   beforeAll(async () => {
@@ -65,22 +67,24 @@ describe('Chatbot E2E Integration Tests', () => {
     await db.execute(sql`ALTER SEQUENCE chatbot_messages_id_seq RESTART WITH 1`);
 
     // Create admin user
-    const { token: aToken } = await AuthTestHelper.createTestUser({
+    const { user: admin, token: aToken } = await AuthTestHelper.createTestUser({
       email: 'admin@example.com',
       password: 'AdminPass123!',
       name: 'Admin User',
       role: 'admin',
     });
     adminToken = aToken;
+    adminUserId = admin.id;
 
     // Create regular user
-    const { token: uToken } = await AuthTestHelper.createTestUser({
+    const { user: regularUser, token: uToken } = await AuthTestHelper.createTestUser({
       email: 'user@example.com',
       password: 'UserPass123!',
       name: 'Regular User',
-      role: 'researcher',
+      role: 'user',
     });
     userToken = uToken;
+    userId = regularUser.id;
   });
 
   afterEach(async () => {
@@ -236,8 +240,8 @@ describe('Chatbot E2E Integration Tests', () => {
         mime_type: 'application/pdf',
         status: 'completed',
         chunk_count: 10,
-        created_by: 1,
-        updated_by: 1,
+        created_by: userId,
+        updated_by: userId,
       });
 
       // Send chat message

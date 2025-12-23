@@ -8,6 +8,7 @@ import { ApiTestHelper } from '../../../../../tests/utils/api.helper';
 import { db } from '../../../../database/drizzle';
 import { invitations } from '../../shared/schema';
 import { users } from '../../../user/shared/schema';
+import { roles } from '../../../rbac/shared/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
@@ -15,12 +16,22 @@ import crypto from 'crypto';
 // Helper to generate valid 64-char invite tokens
 const generateInviteToken = () => crypto.randomBytes(32).toString('hex');
 
+// Helper to get role ID by name
+async function getRoleId(roleName: string): Promise<number> {
+  const [role] = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1);
+  if (!role) throw new Error(`Role '${roleName}' not found`);
+  return role.id;
+}
+
 describe('Admin Invite API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let adminToken: string;
   let adminUserId: number;
   let scientistToken: string;
+  let scientistRoleId: number;
+  let adminRoleId: number;
+  let superadminRoleId: number;
 
   beforeAll(async () => {
     const adminInviteRoute = new AdminInviteRoute();
@@ -34,24 +45,19 @@ describe('Admin Invite API Integration Tests', () => {
     await dbHelper.cleanup();
     await dbHelper.resetSequences();
 
-    // Create admin user
-    const adminPassword = await bcrypt.hash('AdminPass123!', 12);
-    const [admin] = await db
-      .insert(users)
-      .values({
-        email: 'admin@example.com',
-        name: 'Admin User',
-        password: adminPassword,
-        role: 'admin',
-        created_by: 1,
-      })
-      .returning();
+    // Create admin user with proper RBAC permissions
+    const { user: admin, token } = await AuthTestHelper.createTestAdminUser();
     adminUserId = admin.id;
-    adminToken = AuthTestHelper.generateJwtToken(admin.id, admin.email, 'admin');
+    adminToken = token;
 
     // Create scientist user for authorization tests
-    const { token } = await AuthTestHelper.createTestUserWithToken();
-    scientistToken = token;
+    const { token: sciToken } = await AuthTestHelper.createTestUserWithToken();
+    scientistToken = sciToken;
+
+    // Get role IDs for tests
+    scientistRoleId = await getRoleId('user'); // Default role
+    adminRoleId = await getRoleId('admin');
+    superadminRoleId = await getRoleId('superadmin');
   });
 
   afterAll(async () => {
@@ -64,7 +70,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'Harshal',
         last_name: 'Patil',
         email: 'harshalpatilself@gmail.com',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
       };
 
       const response = await apiHelper.post(
@@ -77,7 +83,7 @@ describe('Admin Invite API Integration Tests', () => {
       expect(response.body.data.first_name).toBe('Harshal');
       expect(response.body.data.last_name).toBe('Patil');
       expect(response.body.data.email).toBe('harshalpatilself@gmail.com');
-      expect(response.body.data.assigned_role).toBe('scientist');
+      expect(response.body.data.assigned_role_id).toBe(scientistRoleId);
       expect(response.body.data.status).toBe('pending');
       // invite_token is intentionally not returned for security - token is only sent via email
       expect(response.body.data.invite_token).toBeUndefined();
@@ -90,7 +96,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'John',
         last_name: 'Doe',
         email: 'invalid-email',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
       };
 
       const response = await apiHelper.post(
@@ -103,17 +109,17 @@ describe('Admin Invite API Integration Tests', () => {
       expect(response.body.error.message).toContain('email');
     });
 
-    it('should fail with invalid role', async () => {
+    it('should fail with invalid role type', async () => {
       const invitationData = {
         first_name: 'John',
         last_name: 'Doe',
         email: 'john.doe@example.com',
-        assigned_role: 'invalid_role',
+        assigned_role_id: 'invalid_role', // String instead of number
       };
 
       const response = await apiHelper.post(
         '/api/admin/invitations',
-        invitationData,
+        invitationData as any,
         adminToken
       );
 
@@ -125,7 +131,7 @@ describe('Admin Invite API Integration Tests', () => {
       const invitationData = {
         first_name: 'John',
         email: 'john.doe@example.com',
-        // Missing last_name and assigned_role
+        // Missing last_name and assigned_role_id
       };
 
       const response = await apiHelper.post(
@@ -143,7 +149,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'John',
         last_name: 'Doe',
         email: 'john.doe@example.com',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
       };
 
       // Create first invitation
@@ -165,7 +171,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'John',
         last_name: 'Doe',
         email: 'john.doe@example.com',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
       };
 
       const response = await apiHelper.post(
@@ -175,7 +181,7 @@ describe('Admin Invite API Integration Tests', () => {
       );
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('Access denied');
+      expect(response.body.error.message).toContain('Insufficient permissions');
     });
 
     it('should require authentication', async () => {
@@ -183,7 +189,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'John',
         last_name: 'Doe',
         email: 'john.doe@example.com',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
       };
 
       const response = await apiHelper.post('/api/admin/invitations', invitationData);
@@ -193,14 +199,18 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should create invitation for all valid roles', async () => {
-      const roles = ['admin', 'scientist', 'researcher', 'policymaker', 'field_technician'];
+      const roles = [
+        { name: 'admin', id: adminRoleId },
+        { name: 'user', id: scientistRoleId },
+        { name: 'superadmin', id: superadminRoleId },
+      ];
 
       for (const role of roles) {
         const invitationData = {
           first_name: 'Test',
           last_name: 'User',
-          email: `test.${role}@example.com`,
-          assigned_role: role,
+          email: `test.${role.name}@example.com`,
+          assigned_role_id: role.id,
         };
 
         const response = await apiHelper.post(
@@ -210,7 +220,7 @@ describe('Admin Invite API Integration Tests', () => {
         );
 
         expect(response.status).toBe(200);
-        expect(response.body.data.assigned_role).toBe(role);
+        expect(response.body.data.assigned_role_id).toBe(role.id);
       }
     });
   });
@@ -226,7 +236,7 @@ describe('Admin Invite API Integration Tests', () => {
           email: 'john.pending@example.com',
           invite_token: generateInviteToken(),
           status: 'pending',
-          assigned_role: 'scientist',
+          assigned_role_id: scientistRoleId,
           password_hash: hashedPassword,
           invited_by: adminUserId,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -237,7 +247,7 @@ describe('Admin Invite API Integration Tests', () => {
           email: 'jane.accepted@example.com',
           invite_token: generateInviteToken(),
           status: 'accepted',
-          assigned_role: 'researcher',
+          assigned_role_id: adminRoleId,
           password_hash: hashedPassword,
           invited_by: adminUserId,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -249,7 +259,7 @@ describe('Admin Invite API Integration Tests', () => {
           email: 'bob.expired@example.com',
           invite_token: generateInviteToken(),
           status: 'expired',
-          assigned_role: 'policymaker',
+          assigned_role_id: superadminRoleId,
           password_hash: hashedPassword,
           invited_by: adminUserId,
           expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -294,7 +304,7 @@ describe('Admin Invite API Integration Tests', () => {
       const response = await apiHelper.get('/api/admin/invitations', scientistToken);
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('Access denied');
+      expect(response.body.error.message).toContain('Insufficient permissions');
     });
 
     it('should require authentication', async () => {
@@ -318,7 +328,7 @@ describe('Admin Invite API Integration Tests', () => {
         email: invitationEmail,
         invite_token: inviteToken,
         status: 'pending',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
         password_hash: hashedPassword,
         invited_by: adminUserId,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -346,7 +356,7 @@ describe('Admin Invite API Integration Tests', () => {
 
       expect(createdUser).toBeDefined();
       expect(createdUser.name).toBe('New User');
-      expect(createdUser.role).toBe('scientist');
+      // Note: role is managed via RBAC (userRoles table), not users table
     });
 
     it('should fail with invalid token', async () => {
@@ -388,7 +398,7 @@ describe('Admin Invite API Integration Tests', () => {
         email: invitationEmail,
         invite_token: inviteToken,
         status: 'pending',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
         password_hash: hashedPassword,
         invited_by: adminUserId,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -425,7 +435,7 @@ describe('Admin Invite API Integration Tests', () => {
         email: expiredEmail,
         invite_token: expiredToken,
         status: 'pending',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
         password_hash: hashedPassword,
         invited_by: adminUserId,
         expires_at: new Date(Date.now() - 1000), // Already expired
@@ -453,7 +463,7 @@ describe('Admin Invite API Integration Tests', () => {
         email: invitationEmail,
         invite_token: inviteToken,
         status: 'pending',
-        assigned_role: 'scientist',
+        assigned_role_id: scientistRoleId,
         password_hash: hashedPassword,
         invited_by: adminUserId,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -477,7 +487,7 @@ describe('Admin Invite API Integration Tests', () => {
         first_name: 'Harshal',
         last_name: 'Patil',
         email: 'harshalpatilself@gmail.com',
-        assigned_role: 'admin',
+        assigned_role_id: adminRoleId,
       };
 
       const response = await apiHelper.post(

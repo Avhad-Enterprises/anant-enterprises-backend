@@ -29,26 +29,21 @@ export class AuthTestHelper {
 
   /**
    * Seed RBAC data (roles and permissions) for tests
-   * This ensures admin users have proper permissions
+   * This ensures admin users have proper permissions.
+   * Always ensures role-permission mappings exist even if roles already exist.
    */
   static async seedRBACData(): Promise<void> {
     const db = dbHelper.getDb();
 
-    // Check if roles already exist
-    const existingRoles = await db.select().from(roles);
-    if (existingRoles.length > 0) {
-      return; // RBAC data already seeded
-    }
-
-    // Seed system roles
-    const seededRoles = await db.insert(roles).values([
+    // Seed system roles (onConflictDoNothing handles existing)
+    await db.insert(roles).values([
       { name: 'user', description: 'Standard user', is_system_role: true },
       { name: 'admin', description: 'Administrator', is_system_role: true },
       { name: 'superadmin', description: 'Super administrator', is_system_role: true },
-    ]).returning();
+    ]).onConflictDoNothing();
 
-    // Seed permissions
-    const seededPermissions = await db.insert(permissions).values([
+    // Seed permissions (onConflictDoNothing handles existing)
+    await db.insert(permissions).values([
       { name: 'users:read', resource: 'users', action: 'read' },
       { name: 'users:read:own', resource: 'users', action: 'read:own' },
       { name: 'users:create', resource: 'users', action: 'create' },
@@ -69,11 +64,15 @@ export class AuthTestHelper {
       { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
       { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
       { name: '*', resource: '*', action: '*' },
-    ]).returning();
+    ]).onConflictDoNothing();
+
+    // Fetch all roles and permissions to build mappings
+    const allRoles = await db.select().from(roles);
+    const allPermissions = await db.select().from(permissions);
 
     // Create role-permission mappings
-    const roleIdMap = new Map(seededRoles.map(r => [r.name, r.id]));
-    const permIdMap = new Map(seededPermissions.map(p => [p.name, p.id]));
+    const roleIdMap = new Map(allRoles.map(r => [r.name, r.id]));
+    const permIdMap = new Map(allPermissions.map(p => [p.name, p.id]));
 
     const rolePermissionMappings: Record<string, string[]> = {
       user: ['users:read:own', 'users:update:own', 'uploads:read:own', 'uploads:create', 'uploads:delete:own', 'chatbot:use'],
@@ -146,9 +145,8 @@ export class AuthTestHelper {
       .insert(users)
       .values({
         email: userData.email,
-        name: userData.name,
+        name: userData.name || 'Test User',
         password: hashedPassword,
-        created_by: 1,
       })
       .returning();
 

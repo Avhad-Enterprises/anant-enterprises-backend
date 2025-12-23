@@ -4,6 +4,7 @@ import { config } from 'dotenv';
 import { sql } from 'drizzle-orm';
 import { logger } from '../../src/utils/logger';
 import { pool as mainPool, db as mainDb } from '../../src/database/drizzle';
+import { rbacCacheService } from '../../src/features/rbac/services/rbac-cache.service';
 
 config();
 
@@ -62,6 +63,10 @@ export class DatabaseTestHelper {
       logger.warn('Database not connected, skipping cleanup');
       return;
     }
+
+    // Invalidate RBAC cache to prevent issues with ID reuse
+    await rbacCacheService.invalidateAll();
+
     try {
       // Use transaction for atomic cleanup
       // Order matters due to foreign key constraints

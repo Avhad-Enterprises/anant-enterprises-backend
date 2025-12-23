@@ -161,7 +161,7 @@ describe('User Authentication Integration Tests', () => {
       const response = await apiHelper.get('/api/users', token);
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('Access denied');
+      expect(response.body.error.message).toContain('Insufficient permissions');
     });
   });
 
@@ -177,8 +177,9 @@ describe('User Authentication Integration Tests', () => {
       expect(response.body.data.password).toBeUndefined();
     });
 
-    it('should return 404 for non-existent user', async () => {
-      const { token } = await AuthTestHelper.createTestUserWithToken();
+    it('should return 404 for non-existent user (requesting as admin)', async () => {
+      // Use admin user to bypass ownership check and reach the 404 logic
+      const { token } = await AuthTestHelper.createTestAdminUser();
 
       const response = await apiHelper.get('/api/users/99999', token);
 

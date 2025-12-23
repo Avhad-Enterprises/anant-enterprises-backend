@@ -1,172 +1,218 @@
 /**
  * Integration tests for RBAC Permission APIs
+ * Tests full API flows using supertest
  */
 
+import request from 'supertest';
+import app from '../../../../../tests/utils/app.helper';
+import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
 import { db } from '../../../../database/drizzle';
-import { permissions } from '../../shared/schema';
-import { users } from '../../../user/shared/schema';
+import { permissions, roles, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils/password';
-import { generateToken } from '../../../../utils/jwt';
+import { rbacCacheService } from '../../services/rbac-cache.service';
 
-describe('RBAC Permission APIs Integration Tests', () => {
-    let adminUser: any;
-    let testPermission: any;
+describe('RBAC Permission APIs - Integration Tests', () => {
+    let superadminToken: string;
+    let superadminUserId: number;
     let adminToken: string;
+    let regularUserToken: string;
 
-    beforeEach(async () => {
-        // Clean up test permissions
-        const testPerms = await db.select().from(permissions).where(eq(permissions.name, 'test:action'));
-        if (testPerms.length > 0) {
-            await db.delete(permissions).where(eq(permissions.id, testPerms[0].id));
-        }
+    beforeAll(async () => {
+        await AuthTestHelper.seedRBACData();
 
-        // Clean up test user
-        const adminUsers = await db.select().from(users).where(eq(users.email, 'permission-admin@test.com'));
-        if (adminUsers.length > 0) {
-            await db.delete(users).where(eq(users.id, adminUsers[0].id));
-        }
+        const { token: saToken, userId: saUserId } = await AuthTestHelper.createTestSuperadminUser();
+        superadminToken = saToken;
+        superadminUserId = saUserId;
 
-        // Create admin user
-        const hashedPassword = await hashPassword('password123');
-        const [createdAdmin] = await db
-            .insert(users)
-            .values({
-                name: 'Permission Admin',
-                email: 'permission-admin@test.com',
-                password: hashedPassword,
-                created_by: 1,
-            })
-            .returning();
-        adminUser = createdAdmin;
+        const { token: aToken } = await AuthTestHelper.createTestAdminUser();
+        adminToken = aToken;
 
-        adminToken = generateToken({ id: adminUser.id, email: adminUser.email, name: adminUser.name });
+        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        regularUserToken = uToken;
     });
 
     afterEach(async () => {
-        if (testPermission?.id) {
-            await db.delete(permissions).where(eq(permissions.id, testPermission.id));
-        }
-        if (adminUser?.id) {
-            await db.delete(users).where(eq(users.id, adminUser.id));
-        }
+        // Clean up test permissions
+        await db.delete(permissions).where(eq(permissions.name, 'integration:test'));
+        await db.delete(permissions).where(eq(permissions.name, 'flow:test'));
+        await db.delete(permissions).where(eq(permissions.name, 'bulk:one'));
+        await db.delete(permissions).where(eq(permissions.name, 'bulk:two'));
+        await db.delete(permissions).where(eq(permissions.name, 'bulk:three'));
+        await rbacCacheService.invalidateAll();
     });
 
-    describe('GET /api/rbac/permissions', () => {
-        it('should return list of permissions', async () => {
-            const perms = await db.select().from(permissions);
-            // Just verify we can query permissions - test DB may not have seeded data
-            expect(Array.isArray(perms)).toBe(true);
-            if (perms.length > 0) {
-                expect(perms[0]).toHaveProperty('name');
-                expect(perms[0]).toHaveProperty('resource');
-                expect(perms[0]).toHaveProperty('action');
-            }
+    describe('Permission Retrieval', () => {
+        it('should retrieve all permissions grouped by resource via API', async () => {
+            const response = await request(app)
+                .get('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`);
+
+            expect(response.status).toBe(200);
+            expect(response.body.success).toBe(true);
+
+            // Response has permissions array and by_resource object
+            expect(response.body.data).toHaveProperty('permissions');
+            expect(response.body.data).toHaveProperty('by_resource');
+            expect(Array.isArray(response.body.data.permissions)).toBe(true);
+
+            // Should have seeded permissions
+            expect(response.body.data.permissions.length).toBeGreaterThan(0);
+
+            // Verify permission structure
+            const firstPerm = response.body.data.permissions[0];
+            expect(firstPerm).toHaveProperty('id');
+            expect(firstPerm).toHaveProperty('name');
+            expect(firstPerm).toHaveProperty('resource');
+            expect(firstPerm).toHaveProperty('action');
         });
 
-        it('should have correct permission structure', async () => {
-            // Create a test permission to verify structure
-            const [testPerm] = await db.insert(permissions).values({
-                name: 'integration:test',
-                resource: 'integration',
-                action: 'test',
-                description: 'Test Permission'
-            }).returning();
+        it('should include wildcard permission for superadmin', async () => {
+            const response = await request(app)
+                .get('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`);
 
-            expect(testPerm).toHaveProperty('id');
-            expect(testPerm.name).toBe('integration:test');
-            expect(testPerm.resource).toBe('integration');
-            expect(testPerm.action).toBe('test');
-
-            // Cleanup
-            await db.delete(permissions).where(eq(permissions.id, testPerm.id));
+            expect(response.status).toBe(200);
+            const wildcardPerm = response.body.data.permissions.find((p: any) => p.name === '*');
+            expect(wildcardPerm).toBeDefined();
         });
     });
 
-    describe('POST /api/rbac/permissions', () => {
-        it('should create a new permission', async () => {
-            const [created] = await db
-                .insert(permissions)
-                .values({
-                    name: 'test:action',
+    describe('Permission Creation', () => {
+        it('should create permission with valid resource:action format via API', async () => {
+            const response = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'integration:test',
+                    resource: 'integration',
+                    action: 'test',
+                    description: 'Integration test permission',
+                });
+
+            expect(response.status).toBe(201);
+            expect(response.body.success).toBe(true);
+            expect(response.body.data.name).toBe('integration:test');
+        });
+
+        it('should reject duplicate permission names via API', async () => {
+            // Create first
+            await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'integration:test',
+                    resource: 'integration',
+                    action: 'test',
+                });
+
+            // Try duplicate
+            const response = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'integration:test',
+                    resource: 'integration',
+                    action: 'test',
+                });
+
+            expect(response.status).toBe(409);
+        });
+
+        it('should reject invalid permission format via API', async () => {
+            const response = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    name: 'Invalid-Format',
                     resource: 'test',
-                    action: 'action',
-                    description: 'Test Action Permission',
-                })
-                .returning();
+                    action: 'test',
+                });
 
-            testPermission = created;
-
-            expect(testPermission).toBeDefined();
-            expect(testPermission.name).toBe('test:action');
-            expect(testPermission.resource).toBe('test');
-            expect(testPermission.action).toBe('action');
-        });
-
-        it('should not allow duplicate permission names', async () => {
-            const [first] = await db
-                .insert(permissions)
-                .values({
-                    name: 'test:action',
-                    resource: 'test',
-                    action: 'action',
-                    description: 'First Permission',
-                })
-                .returning();
-
-            testPermission = first;
-
-            // Attempting to create duplicate should fail
-            await expect(
-                db.insert(permissions).values({
-                    name: 'test:action',
-                    resource: 'test',
-                    action: 'action',
-                    description: 'Duplicate Permission',
-                })
-            ).rejects.toThrow();
+            expect(response.status).toBe(400);
         });
     });
 
-    describe('Permission Naming Convention', () => {
-        it('should follow resource:action pattern', () => {
-            const validPermissionNames = [
-                'users:create',
-                'users:read',
-                'users:update',
-                'users:delete',
-                'roles:manage',
-                'permissions:assign',
-            ];
+    describe('Bulk Permission Assignment', () => {
+        it('should bulk assign permissions to role via API', async () => {
+            // Create test permissions
+            const perm1 = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ name: 'bulk:one', resource: 'bulk', action: 'one' });
 
-            validPermissionNames.forEach(name => {
-                const parts = name.split(':');
-                expect(parts.length).toBe(2);
-                expect(parts[0].length).toBeGreaterThan(0);
-                expect(parts[1].length).toBeGreaterThan(0);
-            });
+            const perm2 = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ name: 'bulk:two', resource: 'bulk', action: 'two' });
+
+            const perm3 = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ name: 'bulk:three', resource: 'bulk', action: 'three' });
+
+            // Create test role
+            const roleResponse = await request(app)
+                .post('/api/rbac/roles')
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({ name: 'bulk_test_role', description: 'Bulk test' });
+
+            const roleId = roleResponse.body.data.id;
+
+            // Bulk assign
+            const bulkResponse = await request(app)
+                .post(`/api/rbac/roles/${roleId}/permissions/bulk`)
+                .set('Authorization', `Bearer ${superadminToken}`)
+                .send({
+                    permission_ids: [
+                        perm1.body.data.id,
+                        perm2.body.data.id,
+                        perm3.body.data.id,
+                    ],
+                });
+
+            expect(bulkResponse.status).toBe(200);
+            expect(bulkResponse.body.data.assigned_count).toBe(3);
+            expect(bulkResponse.body.data.skipped_count).toBe(0);
+
+            // Clean up
+            await db.delete(rolePermissions).where(eq(rolePermissions.role_id, roleId));
+            await db.delete(roles).where(eq(roles.id, roleId));
         });
     });
 
-    describe('Bulk Permission Operations', () => {
-        it('should handle multiple permission creation', async () => {
-            const permissionsToCreate = [
-                { name: 'test:read', resource: 'test', action: 'read' },
-                { name: 'test:write', resource: 'test', action: 'write' },
-                { name: 'test:delete', resource: 'test', action: 'delete' },
-            ];
+    describe('Authorization Enforcement', () => {
+        it('should require authentication for permission endpoints', async () => {
+            const response = await request(app).get('/api/rbac/permissions');
+            expect(response.status).toBe(401);
+        });
 
-            const created = await db
-                .insert(permissions)
-                .values(permissionsToCreate)
-                .returning();
+        it('should require permissions:read for GET', async () => {
+            const response = await request(app)
+                .get('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${regularUserToken}`);
 
-            expect(created.length).toBe(3);
+            expect(response.status).toBe(403);
+        });
 
-            // Cleanup
-            for (const perm of created) {
-                await db.delete(permissions).where(eq(permissions.id, perm.id));
-            }
+        it('should require permissions:assign for POST', async () => {
+            const response = await request(app)
+                .post('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${regularUserToken}`)
+                .send({
+                    name: 'unauthorized:test',
+                    resource: 'unauthorized',
+                    action: 'test',
+                });
+
+            expect(response.status).toBe(403);
+        });
+
+        it('should allow admin to read permissions', async () => {
+            const response = await request(app)
+                .get('/api/rbac/permissions')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(response.status).toBe(200);
         });
     });
 });
