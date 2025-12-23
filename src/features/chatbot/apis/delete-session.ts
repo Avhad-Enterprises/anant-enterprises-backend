@@ -14,6 +14,7 @@ import { asyncHandler } from '../../../utils/controllerHelpers';
 import HttpException from '../../../utils/httpException';
 import { logger } from '../../../utils/logger';
 import { getSessionByIdForUser, deleteSession } from '../shared/queries';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Params schema
 const paramsSchema = z.object({
@@ -36,6 +37,9 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 
   // Delete session (also deletes messages due to cascade in deleteSession)
   await deleteSession(id, userId);
+
+  // Invalidate user's session cache
+  await chatbotCacheService.invalidateUserSessions(userId);
 
   logger.info(`✅ Session ${id} deleted by user ${userId}`);
 

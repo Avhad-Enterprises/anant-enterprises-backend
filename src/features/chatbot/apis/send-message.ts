@@ -27,6 +27,7 @@ import {
   generateChatResponse,
   generateSessionTitle,
 } from '../services/chat.service';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 import { MessageSource } from '../shared/schema';
 
 // Request body schema
@@ -59,6 +60,10 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
       created_by: userId,
     });
     isNewSession = true;
+
+    // Invalidate session list cache (new session created)
+    await chatbotCacheService.invalidateUserSessions(userId);
+
     logger.info(`📝 Created new chat session ${session.id} for user ${userId}`);
   }
 

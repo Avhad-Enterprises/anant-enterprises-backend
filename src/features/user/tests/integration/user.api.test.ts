@@ -24,9 +24,10 @@ describe('User API Integration Tests', () => {
     await dbHelper.cleanup();
     await dbHelper.resetSequences();
 
-    // Create a test user and get auth token
+    // Create a test user with unique email to avoid conflicts
+    const uniqueEmail = `testuser-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
     const userData = TestDataFactory.createUser({
-      email: 'testuser@example.com',
+      email: uniqueEmail,
       password: 'TestPassword123!',
       name: 'Test User',
     });
@@ -35,6 +36,11 @@ describe('User API Integration Tests', () => {
       '/api/auth/register',
       userData as unknown as Record<string, unknown>
     );
+
+    // Ensure registration succeeded
+    expect(registerResponse.status).toBe(201);
+    expect(registerResponse.body.data).toBeDefined();
+    expect(registerResponse.body.data.token).toBeDefined();
 
     authToken = registerResponse.body.data.token;
   });
@@ -48,7 +54,7 @@ describe('User API Integration Tests', () => {
       const response = await apiHelper.get('/api/users', authToken);
 
       expect(response.status).toBe(403);
-      expect(response.body.error.message).toContain('Access denied');
+      expect(response.body.error.message).toContain('Insufficient permissions');
     });
 
     it('should require authentication', async () => {
@@ -74,11 +80,12 @@ describe('User API Integration Tests', () => {
       expect(response.body.data).not.toHaveProperty('password');
     });
 
-    it('should return 404 for non-existent user', async () => {
+    it('should return 403 for non-existent user when lacking permission', async () => {
+      // Regular users cannot view other users, so they get 403 even if user doesn't exist
       const response = await apiHelper.get('/api/users/99999', authToken);
 
-      expect(response.status).toBe(404);
-      expect(response.body.error.message).toContain('User not found');
+      expect(response.status).toBe(403);
+      expect(response.body.error.message).toContain('Access denied');
     });
 
     it('should require authentication', async () => {

@@ -1,33 +1,22 @@
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../../database/drizzle';
 import { users, type User, type NewUser } from './schema';
+import { userCacheService } from '../services/user-cache.service';
 
 /**
- * Find user by ID (excluding deleted users)
- * Shared query used across multiple services
+ * Find user by ID (excluding deleted users) - CACHED
+ * Uses Redis/memory cache for better performance
  */
 export const findUserById = async (id: number): Promise<User | undefined> => {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.id, id), eq(users.is_deleted, false)))
-    .limit(1);
-
-  return user;
+  return userCacheService.getUserById(id);
 };
 
 /**
- * Find user by email (excluding deleted users)
- * Shared query used across multiple services
+ * Find user by email (excluding deleted users) - CACHED
+ * Uses Redis/memory cache for better performance
  */
 export const findUserByEmail = async (email: string): Promise<User | undefined> => {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.is_deleted, false)))
-    .limit(1);
-
-  return user;
+  return userCacheService.getUserByEmail(email);
 };
 
 /**
@@ -48,7 +37,7 @@ export const createUser = async (userData: NewUser): Promise<User> => {
  * Shared query used across services
  */
 export const updateUserById = async (
-  id: number, 
+  id: number,
   data: Partial<Omit<User, 'id'>>
 ): Promise<User | undefined> => {
   const [updatedUser] = await db

@@ -18,12 +18,14 @@ import { ApiTestHelper } from '../../../../../tests/utils/api.helper';
 import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
 import { db } from '../../../../database/drizzle';
 import { chatbotDocuments } from '../../shared/schema';
+import { chatbotCacheService } from '../../services/chatbot-cache.service';
 
 describe('Documents API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let adminToken: string;
   let userToken: string;
+  let adminUserId: number;
 
   beforeAll(async () => {
     const chatbotRoute = new ChatbotRoute();
@@ -34,31 +36,39 @@ describe('Documents API Integration Tests', () => {
   });
 
   beforeEach(async () => {
-    // Clean up tables
+    // Invalidate cache first to avoid stale data
+    await chatbotCacheService.invalidateAll();
+
+    // Clean up RBAC tables first (in correct order due to FK constraints)
+    await db.execute(sql`TRUNCATE TABLE user_roles CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE role_permissions CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE permissions CASCADE`);
+    await db.execute(sql`TRUNCATE TABLE roles CASCADE`);
+
+    // Clean up chatbot tables
     await db.execute(sql`TRUNCATE TABLE chatbot_messages CASCADE`);
     await db.execute(sql`TRUNCATE TABLE chatbot_sessions CASCADE`);
     await db.execute(sql`TRUNCATE TABLE chatbot_documents CASCADE`);
+
+    // Clean up users
     await dbHelper.cleanup();
     await dbHelper.resetSequences();
 
     // Reset chatbot sequences
     await db.execute(sql`ALTER SEQUENCE chatbot_documents_id_seq RESTART WITH 1`);
 
-    // Create admin user and get token
-    const { token: aToken } = await AuthTestHelper.createTestUser({
-      email: 'admin@example.com',
-      password: 'AdminPass123!',
-      name: 'Admin User',
-      role: 'admin',
-    });
+    // Create admin user with full permissions
+    const { token: aToken, userId: aId } = await AuthTestHelper.createTestAdminUser();
     adminToken = aToken;
+    adminUserId = aId;
 
-    // Create regular user and get token
+    // Create regular user (uses 'user' role which exists in RBAC)
+    const uniqueUserEmail = `user-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
     const { token: uToken } = await AuthTestHelper.createTestUser({
-      email: 'user@example.com',
+      email: uniqueUserEmail,
       password: 'UserPass123!',
       name: 'Regular User',
-      role: 'researcher',
+      role: 'user', // Use 'user' role instead of 'researcher'
     });
     userToken = uToken;
   });
@@ -69,7 +79,7 @@ describe('Documents API Integration Tests', () => {
 
   describe('GET /api/chatbot/documents', () => {
     it('should list documents for admin', async () => {
-      // Create test documents directly in DB
+      // Create test documents directly in DB using actual user IDs
       await db.insert(chatbotDocuments).values({
         name: 'Test Doc 1',
         file_url: 'https://example.com/doc1.pdf',
@@ -78,8 +88,8 @@ describe('Documents API Integration Tests', () => {
         mime_type: 'application/pdf',
         status: 'completed',
         chunk_count: 10,
-        created_by: 1,
-        updated_by: 1,
+        created_by: adminUserId,
+        updated_by: adminUserId,
       });
 
       await db.insert(chatbotDocuments).values({
@@ -89,8 +99,8 @@ describe('Documents API Integration Tests', () => {
         file_size: 2048,
         mime_type: 'application/pdf',
         status: 'pending',
-        created_by: 1,
-        updated_by: 1,
+        created_by: adminUserId,
+        updated_by: adminUserId,
       });
 
       const response = await apiHelper.get('/api/chatbot/documents', adminToken);
@@ -110,8 +120,8 @@ describe('Documents API Integration Tests', () => {
           file_size: 1024,
           mime_type: 'application/pdf',
           status: 'completed',
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         });
       }
 
@@ -148,8 +158,8 @@ describe('Documents API Integration Tests', () => {
           file_size: 1024,
           mime_type: 'application/pdf',
           status: 'pending',
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         },
         {
           name: 'Completed Doc',
@@ -159,8 +169,8 @@ describe('Documents API Integration Tests', () => {
           mime_type: 'application/pdf',
           status: 'completed',
           chunk_count: 15,
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         },
         {
           name: 'Failed Doc',
@@ -170,8 +180,8 @@ describe('Documents API Integration Tests', () => {
           mime_type: 'application/pdf',
           status: 'failed',
           error_message: 'Processing failed',
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         },
       ]);
 
@@ -215,8 +225,8 @@ describe('Documents API Integration Tests', () => {
           mime_type: 'application/pdf',
           status: 'completed',
           chunk_count: 5,
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         })
         .returning();
 
@@ -245,8 +255,8 @@ describe('Documents API Integration Tests', () => {
           file_size: 1024,
           mime_type: 'application/pdf',
           status: 'completed',
-          created_by: 1,
-          updated_by: 1,
+          created_by: adminUserId,
+          updated_by: adminUserId,
         })
         .returning();
 
@@ -258,8 +268,8 @@ describe('Documents API Integration Tests', () => {
     it('should reject invalid document ID', async () => {
       const response = await apiHelper.delete('/api/chatbot/documents/invalid', adminToken);
 
-      // Invalid ID causes Zod parse error - returns 500 (should be 400, but current behavior)
-      expect([400, 500]).toContain(response.status);
+      // Invalid ID causes Zod parse error - returns 400
+      expect(response.status).toBe(400);
     });
   });
 
@@ -268,11 +278,10 @@ describe('Documents API Integration Tests', () => {
   describe('POST /api/chatbot/documents', () => {
     it('should reject requests without file (multipart expected)', async () => {
       // This endpoint expects multipart/form-data with a file
-      // Sending JSON without file may result in different behavior
+      // Sending JSON without file results in 400 (no file)
       const response = await apiHelper.post('/api/chatbot/documents', {}, adminToken);
 
-      // Could be 400 (no file) or 404 (route not matching for non-multipart)
-      expect([400, 404]).toContain(response.status);
+      expect(response.status).toBe(400);
     });
 
     it('should require authentication', async () => {

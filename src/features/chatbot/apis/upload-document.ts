@@ -30,6 +30,7 @@ import {
 import { chunkText } from '../services/chunker.service';
 import { upsertDocumentVectors } from '../services/vector.service';
 import { chatbotConfig } from '../config/chatbot.config';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Validation schema for optional metadata
 const uploadMetadataSchema = z.object({
@@ -143,17 +144,23 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     updated_by: userId,
   });
 
+  // Invalidate document caches (new document added)
+  await chatbotCacheService.invalidateDocuments();
+
   // Process document asynchronously (training)
   // Note: We don't await this - processing happens in background
   processDocument(document.id, file.buffer, file.mimetype, documentName, userId)
-    .then(result => {
+    .then(async result => {
       logger.info(
         `✅ Document ${document.id} training completed: ${result.chunkCount} chunks embedded`
       );
+      // Invalidate cache again after processing completes (status changed)
+      await chatbotCacheService.invalidateDocuments();
     })
-    .catch(error => {
+    .catch(async error => {
       logger.error(`❌ Document ${document.id} training failed:`, error);
-      // Status already updated in processDocument
+      // Invalidate cache on failure too (status changed)
+      await chatbotCacheService.invalidateDocuments();
     });
 
   // Return immediately with pending status

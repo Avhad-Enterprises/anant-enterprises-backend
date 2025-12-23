@@ -12,6 +12,7 @@ import { RequestWithUser } from '../../../interfaces/request.interface';
 import { hashPassword } from '../../../utils/password';
 import { requireAuth } from '../../../middlewares/auth.middleware';
 import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
+import { userCacheService } from '../services/user-cache.service';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler, parseIdParam, getUserId } from '../../../utils/controllerHelpers';
@@ -92,6 +93,10 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const userId = getUserId(req);
 
   const user = await updateUser(id, updateData, userId);
+
+  // Invalidate cache for updated user
+  await userCacheService.invalidateUser(user.id, user.email);
+
   const userResponse = sanitizeUser(user);
 
   ResponseFormatter.success(res, userResponse, 'User updated successfully');

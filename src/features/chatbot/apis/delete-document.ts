@@ -16,6 +16,7 @@ import HttpException from '../../../utils/httpException';
 import { logger } from '../../../utils/logger';
 import { getDocumentById, deleteDocument } from '../shared/queries';
 import { deleteDocumentVectors } from '../services/vector.service';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Params schema
 const paramsSchema = z.object({
@@ -50,6 +51,9 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 
   // Soft delete the document
   await deleteDocument(id, userId);
+
+  // Invalidate document caches
+  await chatbotCacheService.invalidateDocuments();
 
   logger.info(`✅ Document ${id} deleted by user ${userId}`);
 

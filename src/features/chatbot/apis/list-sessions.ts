@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
-import { listUserSessions } from '../shared/queries';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Query params schema
 const querySchema = z.object({
@@ -20,13 +20,13 @@ const querySchema = z.object({
 });
 
 /**
- * List sessions handler
+ * List sessions handler - CACHED
  */
 const handler = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { page, limit } = querySchema.parse(req.query);
 
-  const { sessions, total } = await listUserSessions(userId, page, limit);
+  const { sessions, total } = await chatbotCacheService.listUserSessions(userId, page, limit);
 
   ResponseFormatter.paginated(
     res,

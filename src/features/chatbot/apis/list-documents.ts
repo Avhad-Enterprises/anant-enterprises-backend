@@ -12,7 +12,7 @@ import { requireAuth } from '../../../middlewares/auth.middleware';
 import { requirePermission } from '../../../middlewares/permission.middleware';
 import { ResponseFormatter } from '../../../utils/responseFormatter';
 import { asyncHandler } from '../../../utils/controllerHelpers';
-import { listDocuments, getDocumentStats } from '../shared/queries';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Query params schema
 const querySchema = z.object({
@@ -21,12 +21,12 @@ const querySchema = z.object({
 });
 
 /**
- * List documents handler
+ * List documents handler - CACHED
  */
 const handler = asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = querySchema.parse(req.query);
 
-  const { documents, total } = await listDocuments(page, limit);
+  const { documents, total } = await chatbotCacheService.listDocuments(page, limit);
 
   ResponseFormatter.paginated(
     res,
@@ -48,10 +48,10 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * Get document stats handler
+ * Get document stats handler - CACHED
  */
 const statsHandler = asyncHandler(async (_req: Request, res: Response) => {
-  const stats = await getDocumentStats();
+  const stats = await chatbotCacheService.getDocumentStats();
 
   ResponseFormatter.success(res, stats, 'Document statistics retrieved successfully');
 });

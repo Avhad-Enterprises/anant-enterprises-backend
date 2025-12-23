@@ -17,12 +17,13 @@ import HttpException from '../../../utils/httpException';
 import { db } from '../../../database/drizzle';
 import { users } from '../shared/schema';
 import { findUserById } from '../shared/queries';
+import { userCacheService } from '../services/user-cache.service';
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive('User ID must be a positive integer'),
 });
 
-async function deleteUser(id: number, deletedBy: number): Promise<void> {
+async function deleteUser(id: number, deletedBy: number): Promise<{ email: string }> {
   // Prevent self-deletion
   if (id === deletedBy) {
     throw new HttpException(400, 'Cannot delete your own account');
@@ -41,13 +42,18 @@ async function deleteUser(id: number, deletedBy: number): Promise<void> {
       deleted_at: new Date(),
     })
     .where(eq(users.id, id));
+
+  return { email: existingUser.email };
 }
 
 const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const { id } = paramsSchema.parse(req.params);
   const userId = getUserId(req);
 
-  await deleteUser(id, userId);
+  const { email } = await deleteUser(id, userId);
+
+  // Invalidate cache for deleted user
+  await userCacheService.invalidateUser(id, email);
 
   ResponseFormatter.success(res, null, 'User deleted successfully');
 });
