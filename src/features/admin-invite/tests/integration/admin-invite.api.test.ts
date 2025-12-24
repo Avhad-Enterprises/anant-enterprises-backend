@@ -499,13 +499,8 @@ describe('Admin Invite API Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.data.email).toBe('harshalpatilself@gmail.com');
       
-      // Log the invitation details for manual verification
-      console.log('\n=== INVITATION EMAIL TEST ===');
-      console.log('Email should be sent to: harshalpatilself@gmail.com');
-      console.log('Invitation created with ID:', response.body.data.id);
-      console.log('Status:', response.body.data.status);
-      console.log('Check your email inbox for the invitation!');
-      console.log('============================\n');
+      // Note: Email verification should be done manually by checking the inbox
+      // Invitation ID: ${response.body.data.id}, Status: ${response.body.data.status}
     }, 30000); // 30 second timeout for email sending
   });
 });

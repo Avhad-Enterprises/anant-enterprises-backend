@@ -372,6 +372,9 @@ describe('Audit API - Supertest Integration Tests', () => {
                 .set('Authorization', `Bearer ${adminToken}`)
                 .expect(200);
 
+            // Wait for audit log to be written (async operation)
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // Check if the access was logged
             const logs = await auditService.queryLogs({
                 userId: adminUser.id,

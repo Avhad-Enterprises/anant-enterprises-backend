@@ -13,6 +13,7 @@ import { auditLogs } from '../shared/schema';
 import { users } from '../../user/shared/schema';
 import { eq, and, desc, gte, lte, inArray, SQL } from 'drizzle-orm';
 import { logger } from '../../../utils/logging/logger';
+import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
 import type {
     AuditLogData,
     AuditLog,
@@ -371,10 +372,8 @@ class AuditService {
      */
     private async getUserRole(userId: number): Promise<string | null> {
         try {
-            // This will be implemented when RBAC integration is added
-            // For now, return null
-            // TODO: Import and use rbacCacheService.getUserRoles(userId)
-            return null;
+            const roles = await rbacCacheService.getUserRoles(userId);
+            return roles.length > 0 ? roles.map(role => role.name).join(', ') : null;
         } catch (error) {
             logger.warn('Failed to fetch user roles for audit', { error, userId });
             return null;
