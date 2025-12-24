@@ -3,18 +3,18 @@ dotenv.config({ quiet: true });
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { logger } from '../utils/logging/logger';
+import { logger } from '../utils';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas
-import { users } from '../features/user/shared/schema';
-import { uploads } from '../features/upload/shared/schema';
-import { invitations } from '../features/admin-invite/shared/schema';
+import { users } from '../features/user';
+import { uploads } from '../features/upload';
+import { invitations } from '../features/admin-invite';
 import {
   chatbotDocuments,
   chatbotSessions,
   chatbotMessages,
-} from '../features/chatbot/shared/schema';
+} from '../features/chatbot';
 
 /**
  * Database connection configuration

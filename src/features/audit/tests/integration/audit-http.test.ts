@@ -5,12 +5,12 @@
 
 import request from 'supertest';
 import App from '../../../../app';
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { auditLogs } from '../../shared/schema';
-import { users } from '../../../user/shared/schema';
-import { roles, permissions, userRoles, rolePermissions } from '../../../rbac/shared/schema';
+import { users } from '../../../user';
+import { roles, permissions, userRoles, rolePermissions } from '../../../rbac';
 import { eq } from 'drizzle-orm';
-import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
+import { AuthTestHelper } from '../../../../../tests/utils';
 import { auditService } from '../../services/audit.service';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 import UserRoute from '../../../user';

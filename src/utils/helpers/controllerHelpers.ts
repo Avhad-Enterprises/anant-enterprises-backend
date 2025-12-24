@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import HttpException from '../helpers/httpException';
+import { HttpException } from '../helpers/httpException';
 
 /**
  * Simple utility functions for common controller operations

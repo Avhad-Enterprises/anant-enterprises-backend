@@ -3,13 +3,13 @@
  * Tests with real database calls using the test database
  */
 
-import { db } from '../../../../database/drizzle';
-import { users } from '../../../user/shared/schema';
-import { roles, permissions, userRoles } from '../../../rbac/shared/schema';
+import { db } from '../../../../database';
+import { users } from '../../../user';
+import { roles, permissions, userRoles } from '../../../rbac';
 import { auditLogs } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils/auth/password';
-import { generateToken } from '../../../../utils/auth/jwt';
+import { hashPassword } from '../../../../utils';
+import { generateToken } from '../../../../utils';
 import { auditService } from '../../services/audit.service';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 

@@ -7,15 +7,15 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { hashPassword } from '../../../utils/auth/password';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { generateToken } from '../../../utils/auth/jwt';
-import { findUserByEmail, createUser, updateUserById } from '../../user/shared/queries';
-import { assignRoleToUser, findRoleByName } from '../../rbac/shared/queries';
-import { IAuthUserWithToken } from '../../../interfaces/request.interface';
+import { validationMiddleware } from '../../../middlewares';
+import { hashPassword } from '../../../utils';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { generateToken } from '../../../utils';
+import { findUserByEmail, createUser, updateUserById } from '../../user';
+import { assignRoleToUser, findRoleByName } from '../../rbac';
+import { IAuthUserWithToken } from '../../../interfaces';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),

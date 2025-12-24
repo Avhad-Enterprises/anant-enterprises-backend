@@ -5,14 +5,14 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { authRateLimit } from '../../../middlewares/rate-limit.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { verifyToken, generateToken, generateRefreshToken } from '../../../utils/auth/jwt';
-import { findUserById } from '../../user/shared/queries';
-import { IAuthUserWithToken } from '../../../interfaces/request.interface';
+import { validationMiddleware } from '../../../middlewares';
+import { authRateLimit } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { verifyToken, generateToken, generateRefreshToken } from '../../../utils';
+import { findUserById } from '../../user';
+import { IAuthUserWithToken } from '../../../interfaces';
 
 const schema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),

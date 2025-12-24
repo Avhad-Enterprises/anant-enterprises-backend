@@ -3,12 +3,12 @@
  */
 
 import { Response, NextFunction } from 'express';
-import { requirePermission, requireAnyPermission, requireOwnerOrPermission } from '../../src/middlewares/permission.middleware';
-import HttpException from '../../src/utils/httpException';
-import { RequestWithUser } from '../../src/interfaces/request.interface';
+import { requirePermission, requireAnyPermission, requireOwnerOrPermission } from '../../src/middlewares';
+import { HttpException } from '../../src/utils';
+import type { RequestWithUser } from '../../src/interfaces';
 
 // Mock the RBAC cache service
-jest.mock('../../src/features/rbac/services/rbac-cache.service', () => ({
+jest.mock('../../src/features/rbac/services', () => ({
     rbacCacheService: {
         hasPermission: jest.fn(),
         hasAllPermissions: jest.fn(),
@@ -16,7 +16,7 @@ jest.mock('../../src/features/rbac/services/rbac-cache.service', () => ({
     },
 }));
 
-import { rbacCacheService } from '../../src/features/rbac/services/rbac-cache.service';
+import { rbacCacheService } from '../../src/features/rbac';
 
 describe('Permission Middleware', () => {
     let mockRequest: Partial<RequestWithUser>;

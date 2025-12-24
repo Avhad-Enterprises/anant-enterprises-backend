@@ -1,6 +1,7 @@
 /**
- * Admin Invite Routes
- * Combines all admin invitation API endpoints
+ * Admin Invite Feature Index
+ *
+ * Central exports for all admin invitation-related functionality
  */
 
 import { Router } from 'express';
@@ -27,4 +28,35 @@ class AdminInviteRoute implements Route {
   }
 }
 
+// Main route export
 export default AdminInviteRoute;
+
+// Individual API routes
+export { default as createInvitationRouter } from './apis/create-invitation';
+export { default as getInvitationsRouter } from './apis/get-invitations';
+export { default as verifyInvitationRouter } from './apis/verify-invitation';
+export { default as acceptInvitationRouter } from './apis/accept-invitation';
+
+// Shared resources
+export {
+  invitations,
+  invitationStatuses,
+  type InvitationStatus,
+  type Invitation,
+  type NewInvitation,
+} from './shared/schema';
+
+export type {
+  IInvitation,
+  ICreateInvitation,
+  IInvitationVerifyResponse,
+} from './shared/interface';
+
+export {
+  findInvitationById,
+  findInvitationByEmail,
+  findInvitationByToken,
+  getInvitations,
+  createInvitation,
+  updateInvitation,
+} from './shared/queries';

@@ -1,6 +1,7 @@
 /**
- * Audit Routes
- * Combines all audit API endpoints
+ * Audit Feature Index
+ *
+ * Central exports for all audit-related functionality
  */
 
 import { Router } from 'express';
@@ -25,4 +26,36 @@ class AuditRoute implements Route {
     }
 }
 
+// Main route export
 export default AuditRoute;
+
+// Individual API routes
+export { default as getAuditLogsRouter } from './apis/get-audit-logs';
+export { default as getResourceHistoryRouter } from './apis/get-resource-history';
+export { default as getUserActivityRouter } from './apis/get-user-activity';
+
+// Services
+export { auditService, AuditService } from './services/audit.service';
+
+// Shared resources
+export {
+  auditLogs,
+  type AuditLog,
+  type NewAuditLog,
+} from './shared/schema';
+
+export {
+  AuditAction,
+  AuditResourceType,
+  type AuditLogData,
+  type AuditLogFilters,
+  type SanitizedAuditData,
+  type AuditContext,
+} from './shared/types';
+
+export {
+  createAuditLog,
+  queryAuditLogs,
+  getResourceAuditTrail,
+  getUserActivityHistory,
+} from './shared/queries';

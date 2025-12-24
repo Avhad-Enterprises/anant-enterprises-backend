@@ -15,7 +15,7 @@ import {
     jsonb,
     index,
 } from 'drizzle-orm/pg-core';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user';
 
 /**
  * Audit logs table - comprehensive audit trail for all system operations

@@ -2,10 +2,10 @@ import { Application } from 'express';
 import App from '../../../../app';
 import UserRoute from '../..';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils/database.helper';
-import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
-import { ApiTestHelper } from '../../../../../tests/utils/api.helper';
-import { TestDataFactory } from '../../../../../tests/utils/factories';
+import { dbHelper } from '../../../../../tests/utils';
+import { AuthTestHelper } from '../../../../../tests/utils';
+import { ApiTestHelper } from '../../../../../tests/utils';
+import { TestDataFactory } from '../../../../../tests/utils';
 
 describe('User API Integration Tests', () => {
   let app: Application;

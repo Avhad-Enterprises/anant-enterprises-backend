@@ -5,8 +5,8 @@ const nodeEnv = loadEnv();
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
-import { logger } from '../utils/logging/logger';
-import { getDatabaseUrl, getMaskedDatabaseUrl } from '../utils/database/dbUrl';
+import { logger } from '../utils';
+import { getDatabaseUrl, getMaskedDatabaseUrl } from '../utils';
 
 /**
  * Run database migrations

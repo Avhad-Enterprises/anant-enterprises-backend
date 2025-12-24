@@ -5,9 +5,9 @@
  * Run this after migrations to populate the RBAC tables.
  */
 
-import { db } from '../../database/drizzle';
+import { db } from '../../database';
 import { roles, permissions, rolePermissions } from './shared/schema';
-import { logger } from '../../utils/logging/logger';
+import { logger } from '../../utils';
 
 // ============================================
 // INITIAL ROLES

@@ -1,5 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import HttpException from '../helpers/httpException';
+import { HttpException } from '../helpers/httpException';
 import { logger } from '../logging/logger';
 import { config } from '../validateEnv';
 

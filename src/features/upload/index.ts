@@ -1,6 +1,7 @@
 /**
- * Upload Routes
- * Combines all upload API endpoints
+ * Upload Feature Index
+ *
+ * Central exports for all upload-related functionality
  */
 
 import { Router } from 'express';
@@ -32,4 +33,32 @@ class UploadRoute implements Route {
   }
 }
 
+// Main route export
 export default UploadRoute;
+
+// Individual API routes
+export { default as createUploadRouter } from './apis/create-upload';
+export { default as getUploadsRouter } from './apis/get-uploads';
+export { default as updateUploadRouter } from './apis/update-upload';
+export { default as deleteUploadRouter } from './apis/delete-upload';
+export { default as uploadStatsRouter } from './apis/upload-stats';
+export { default as downloadFileRouter } from './apis/download-file';
+
+// Shared resources
+export {
+  uploads,
+  uploadStatuses,
+  type UploadStatus,
+  type Upload as DrizzleUpload,
+  type NewUpload
+} from './shared/schema';
+export {
+  type Upload,
+  type UploadUpdateInput,
+  type UploadStats,
+  convertUpload
+} from './shared/interface';
+export {
+  findUploadById,
+  findUploadByIdAdmin
+} from './shared/queries';

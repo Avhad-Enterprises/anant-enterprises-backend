@@ -4,9 +4,9 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils/app.helper';
-import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
-import { db } from '../../../../database/drizzle';
+import app from '../../../../../tests/utils';
+import { AuthTestHelper } from '../../../../../tests/utils';
+import { db } from '../../../../database';
 import { permissions, roles, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { rbacCacheService } from '../../services/rbac-cache.service';

@@ -9,8 +9,8 @@
 
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
-import { logger } from '../../../utils/logging/logger';
-import HttpException from '../../../utils/helpers/httpException';
+import { logger } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { chatbotConfig } from '../config/chatbot.config';
 import { searchDocuments, buildContextFromResults, extractSourceReferences, hasDocuments } from './search.service';

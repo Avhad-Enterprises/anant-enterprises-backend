@@ -4,10 +4,10 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils/app.helper';
-import { dbHelper } from '../../../../../tests/utils/database.helper';
-import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
-import { db } from '../../../../database/drizzle';
+import app from '../../../../../tests/utils';
+import { dbHelper } from '../../../../../tests/utils';
+import { AuthTestHelper } from '../../../../../tests/utils';
+import { db } from '../../../../database';
 import { roles, userRoles } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 

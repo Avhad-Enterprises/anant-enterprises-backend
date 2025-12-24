@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '../../src/middlewares/auth.middleware';
-import { verifyToken } from '../../src/utils/jwt';
-import HttpException from '../../src/utils/httpException';
-import { RequestWithUser } from '../../src/interfaces/request.interface';
+import { requireAuth } from '../../src/middlewares';
+import { verifyToken, HttpException } from '../../src/utils';
+import type { RequestWithUser } from '../../src/interfaces';
 
-jest.mock('../../src/utils/jwt');
+jest.mock('../../src/utils');
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<RequestWithUser>;

@@ -2,9 +2,9 @@
  * Unit tests for delete-upload business logic (soft delete)
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as uploadQueries from '../../shared/queries';
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 
 // Mock dependencies
 jest.mock('../../../../database/drizzle', () => ({
@@ -13,7 +13,7 @@ jest.mock('../../../../database/drizzle', () => ({
   },
 }));
 jest.mock('../../shared/queries');
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

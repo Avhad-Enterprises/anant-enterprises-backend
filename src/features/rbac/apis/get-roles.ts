@@ -4,11 +4,11 @@
  */
 
 import { Router, Response } from 'express';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
 import { findAllRoles, countRolePermissions, countUsersWithRole } from '../shared/queries';
 import { IRoleResponse } from '../shared/interface';
 

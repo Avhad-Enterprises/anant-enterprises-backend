@@ -5,7 +5,7 @@
  * for scripts/tests running on the host machine.
  * 
  * Usage:
- *   import { getDatabaseUrl } from '../utils/database/dbUrl';
+ *   import { getDatabaseUrl } from '../utils';
  *   const dbUrl = getDatabaseUrl();
  */
 

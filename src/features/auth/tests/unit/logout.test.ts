@@ -5,10 +5,10 @@
  */
 
 import { Response } from 'express';
-import { ResponseFormatter } from '../../../../utils/responseFormatter';
+import { ResponseFormatter } from '../../../../utils';
 
 // Mock ResponseFormatter
-jest.mock('../../../../utils/responseFormatter');
+jest.mock('../../../../utils');
 
 const mockResponseFormatter = ResponseFormatter as jest.Mocked<typeof ResponseFormatter>;
 

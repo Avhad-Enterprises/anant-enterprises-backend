@@ -2,7 +2,7 @@
  * Unit tests for upload-stats business logic
  */
 
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { UploadStats } from '../../shared/interface';
 
 // Mock dependencies
@@ -11,7 +11,7 @@ jest.mock('../../../../database/drizzle', () => ({
     select: jest.fn().mockReturnThis(),
   },
 }));
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

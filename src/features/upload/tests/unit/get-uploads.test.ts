@@ -2,7 +2,7 @@
  * Unit tests for get-uploads business logic
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as uploadQueries from '../../shared/queries';
 import { Upload } from '../../shared/interface';
 
@@ -13,7 +13,7 @@ jest.mock('../../../../database/drizzle', () => ({
   },
 }));
 jest.mock('../../shared/queries');
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

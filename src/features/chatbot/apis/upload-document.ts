@@ -9,13 +9,13 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { logger } from '../../../utils/logging/logger';
-import { uploadSingleFileMiddleware } from '../../../middlewares/upload.middleware';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
+import { uploadSingleFileMiddleware } from '../../../middlewares';
 import { uploadToS3 } from '../../../utils/s3Upload';
 import {
   createDocument,

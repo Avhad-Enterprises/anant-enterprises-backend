@@ -6,7 +6,7 @@
  */
 
 // Mock redis module first
-jest.mock('../../../../utils/redis', () => ({
+jest.mock('../../../../utils', () => ({
     redisClient: {
         get: jest.fn(),
         setEx: jest.fn(),
@@ -17,7 +17,7 @@ jest.mock('../../../../utils/redis', () => ({
 }));
 
 // Mock logger to avoid console noise
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
@@ -27,7 +27,7 @@ jest.mock('../../../../utils/logger', () => ({
 }));
 
 import { UserCacheService } from '../../services/user-cache.service';
-import { redisClient, isRedisReady } from '../../../../utils/redis';
+import { redisClient, isRedisReady } from '../../../../utils';
 
 const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
 const mockIsRedisReady = isRedisReady as jest.MockedFunction<typeof isRedisReady>;

@@ -6,12 +6,12 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { asyncHandler } from '../../../utils';
+import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
 import { AuditAction, AuditResourceType } from '../shared/types';
 

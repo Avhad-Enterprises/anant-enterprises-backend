@@ -2,11 +2,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { db, closeDatabase } from './drizzle';
-import { users } from '../features/user/shared/schema';
-import { uploads } from '../features/upload/shared/schema';
-import { userRoles, roles } from '../features/rbac/shared/schema';
-import { seedRBAC } from '../features/rbac/seed';
-import { logger } from '../utils/logging/logger';
+import { users } from '../features/user';
+import { uploads } from '../features/upload';
+import { userRoles, roles } from '../features/rbac';
+import { seedRBAC } from '../features/rbac';
+import { logger } from '../utils';
 import bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
 

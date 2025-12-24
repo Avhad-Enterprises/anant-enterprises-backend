@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { v4 as generateUuid } from '../utils/helpers/uuid';
-import { RequestWithId } from '../interfaces/request.interface';
+import { v4 as generateUuid } from '../utils';
+import { RequestWithId } from '../interfaces';
 
 /**
  * Request ID middleware for distributed tracing

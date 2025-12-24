@@ -1,6 +1,6 @@
 import cors from 'cors';
 import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logging/logger';
+import { logger } from '../utils';
 import { config } from '../utils/validateEnv';
 
 /**

@@ -1,6 +1,7 @@
 /**
- * RBAC Routes
- * Combines all RBAC API endpoints
+ * RBAC Feature Index
+ *
+ * Central exports for all RBAC-related functionality
  */
 
 import { Router } from 'express';
@@ -41,4 +42,32 @@ class RBACRoute implements Route {
     }
 }
 
+// Main route export
 export default RBACRoute;
+
+// Individual API routes
+export { default as getRolesRouter } from './apis/get-roles';
+export { default as createRoleRouter } from './apis/create-role';
+export { default as updateRoleRouter } from './apis/update-role';
+export { default as deleteRoleRouter } from './apis/delete-role';
+export { default as getPermissionsRouter } from './apis/get-permissions';
+export { default as createPermissionRouter } from './apis/create-permission';
+export { default as rolePermissionsRouter } from './apis/role-permissions';
+export { default as bulkPermissionsRouter } from './apis/bulk-permissions';
+export { default as userRolesRouter } from './apis/user-roles';
+
+// Services
+export { rbacCacheService, RBACCacheService } from './services/rbac-cache.service';
+
+// Shared resources
+export * from './shared/schema';
+export * from './shared/interface';
+export * from './shared/queries';
+
+// Seed data and functions
+export {
+    SYSTEM_ROLES,
+    INITIAL_PERMISSIONS,
+    ROLE_PERMISSIONS_MAP,
+    seedRBAC
+} from './seed';

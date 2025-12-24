@@ -2,9 +2,9 @@
  * Unit tests for create-upload business logic
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as s3Upload from '../../../../utils/s3Upload';
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { Upload } from '../../shared/interface';
 
 // Mock dependencies
@@ -14,7 +14,7 @@ jest.mock('../../../../database/drizzle', () => ({
   },
 }));
 jest.mock('../../../../utils/s3Upload');
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

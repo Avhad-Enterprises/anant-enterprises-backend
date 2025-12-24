@@ -2,7 +2,7 @@
  * Unit tests for get-user-by-id business logic
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as userQueries from '../../shared/queries';
 import { IUser } from '../../shared/interface';
 

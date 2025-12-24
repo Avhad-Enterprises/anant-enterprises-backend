@@ -10,7 +10,7 @@ import {
   varchar,
   jsonb,
 } from 'drizzle-orm/pg-core';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user';
 
 /**
  * Document status enum values

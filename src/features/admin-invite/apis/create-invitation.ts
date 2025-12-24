@@ -7,21 +7,21 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { sendInvitationEmail } from '../../../utils/email/sendInvitationEmail';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, getUserId } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
-import { logger } from '../../../utils/logging/logger';
-import { encrypt, generateSecurePassword } from '../../../utils/auth/encryption';
-import { hashPassword } from '../../../utils/auth/password';
+import { logger } from '../../../utils';
+import { encrypt, generateSecurePassword } from '../../../utils';
+import { hashPassword } from '../../../utils';
 
 import { createInvitation, findInvitationByEmail } from '../shared/queries';
-import { findUserByEmail } from '../../user/shared/queries';
+import { findUserByEmail } from '../../user';
 import { ICreateInvitation, IInvitation } from '../shared/interface';
 
 const schema = z.object({

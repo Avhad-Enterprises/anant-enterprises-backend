@@ -6,13 +6,13 @@
 import { Router, Response } from 'express';
 import { eq, count, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import { sanitizeUsers } from '../../../utils/helpers/sanitizeUser';
-import { db } from '../../../database/drizzle';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { sanitizeUsers } from '../../../utils';
+import { db } from '../../../database';
 import { users } from '../shared/schema';
 import { IUser } from '../shared/interface';
 

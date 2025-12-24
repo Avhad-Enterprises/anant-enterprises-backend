@@ -5,7 +5,7 @@
  * Splits documents into optimal chunks for embedding while preserving meaning.
  */
 
-import { logger } from '../../../utils/logging/logger';
+import { logger } from '../../../utils';
 import { chatbotConfig } from '../config/chatbot.config';
 import { IChunk, IChunkingResult } from '../shared/interface';
 

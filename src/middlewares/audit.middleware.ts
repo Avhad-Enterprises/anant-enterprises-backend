@@ -6,15 +6,15 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { auditService } from '../features/audit/services/audit.service';
-import { logger } from '../utils/logging/logger';
+import { auditService } from '../features/audit';
+import { logger } from '../utils';
 import {
     extractRequestContext,
     shouldAuditRequest,
     getAuditActionFromRequest,
     getResourceTypeFromPath,
     getResourceIdFromPath,
-} from '../utils/audit/audit-utils';
+} from '../utils';
 
 /**
  * Audit logging middleware

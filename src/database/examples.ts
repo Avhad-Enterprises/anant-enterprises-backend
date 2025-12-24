@@ -5,10 +5,10 @@
 
 import { db, pool } from './drizzle';
 import { checkDatabaseHealth } from './health';
-import { users } from '../features/user/shared/schema';
-import { uploads } from '../features/upload/shared/schema';
+import { users } from '../features/user';
+import { uploads } from '../features/upload';
 import { eq, and, or, like, desc } from 'drizzle-orm';
-import { logger } from '../utils/logging/logger';
+import { logger } from '../utils';
 
 // ============================================
 // 1. BASIC QUERIES

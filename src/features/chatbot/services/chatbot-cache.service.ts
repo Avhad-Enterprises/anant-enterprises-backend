@@ -10,9 +10,9 @@
  * Pattern based on rbac-cache.service.ts and user-cache.service.ts
  */
 
-import { logger } from '../../../utils/logging/logger';
-import { redisClient, isRedisReady } from '../../../utils/database/redis';
-import { db } from '../../../database/drizzle';
+import { logger } from '../../../utils';
+import { redisClient, isRedisReady } from '../../../utils';
+import { db } from '../../../database';
 import { chatbotDocuments, chatbotSessions } from '../shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import type { ChatbotDocument, ChatbotSession } from '../shared/schema';

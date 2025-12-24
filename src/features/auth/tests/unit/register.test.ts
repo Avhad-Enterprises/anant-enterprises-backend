@@ -3,15 +3,15 @@
  */
 
 import bcrypt from 'bcrypt';
-import HttpException from '../../../../utils/httpException';
-import * as jwt from '../../../../utils/jwt';
-import * as userQueries from '../../../user/shared/queries';
-import { db } from '../../../../database/drizzle';
-import { users } from '../../../user/shared/schema';
+import { HttpException } from '../../../../utils';
+import * as jwt from '../../../../utils';
+import * as userQueries from '../../../user';
+import { db } from '../../../../database';
+import { users } from '../../../user';
 
 // Mock dependencies
 jest.mock('bcrypt');
-jest.mock('../../../../utils/jwt');
+jest.mock('../../../../utils');
 jest.mock('../../../user/shared/queries');
 jest.mock('../../../../database/drizzle', () => ({
   db: {

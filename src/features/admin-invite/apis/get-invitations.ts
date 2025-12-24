@@ -5,11 +5,11 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission } from '../../../middlewares/permission.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
 import { getInvitations } from '../shared/queries';
 import { InvitationStatus, invitationStatuses } from '../shared/schema';
 import { IInvitation } from '../shared/interface';

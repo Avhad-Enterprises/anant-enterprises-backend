@@ -36,4 +36,4 @@ class HttpException extends Error {
   }
 }
 
-export default HttpException;
+export { HttpException };

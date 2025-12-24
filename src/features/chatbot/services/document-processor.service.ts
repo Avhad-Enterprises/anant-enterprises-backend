@@ -9,8 +9,8 @@
  */
 
 import mammoth from 'mammoth';
-import { logger } from '../../../utils/logging/logger';
-import HttpException from '../../../utils/helpers/httpException';
+import { logger } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { downloadAsBuffer } from '../../../utils/s3Upload';
 
 // pdfjs-dist is ESM-only in v5+, use dynamic import

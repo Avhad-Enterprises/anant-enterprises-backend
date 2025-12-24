@@ -2,12 +2,12 @@
  * Unit tests for refresh-token business logic
  */
 
-import HttpException from '../../../../utils/httpException';
-import * as jwt from '../../../../utils/jwt';
-import * as userQueries from '../../../user/shared/queries';
+import { HttpException } from '../../../../utils';
+import * as jwt from '../../../../utils';
+import * as userQueries from '../../../user';
 
 // Mock dependencies
-jest.mock('../../../../utils/jwt');
+jest.mock('../../../../utils');
 jest.mock('../../../user/shared/queries');
 
 const mockJwt = jwt as jest.Mocked<typeof jwt>;

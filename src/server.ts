@@ -1,5 +1,5 @@
 import App from './app';
-import { logger } from './utils/logging/logger';
+import { logger } from './utils';
 import UserRoute from './features/user';
 import AuthRoute from './features/auth';
 import UploadRoute from './features/upload';
@@ -7,8 +7,8 @@ import AdminInviteRoute from './features/admin-invite';
 import ChatbotRoute from './features/chatbot';
 import RBACRoute from './features/rbac';
 import AuditRoute from './features/audit';
-import { connectWithRetry, pool } from './database/drizzle';
-import { redisClient, testRedisConnection } from './utils/database/redis';
+import { connectWithRetry, pool } from './database';
+import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
 
 let server: import('http').Server;

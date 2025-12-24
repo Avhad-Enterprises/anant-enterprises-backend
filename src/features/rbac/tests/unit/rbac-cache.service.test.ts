@@ -5,7 +5,7 @@
  */
 
 // Mock redis module first - use correct path from test file location
-jest.mock('../../../../utils/redis', () => ({
+jest.mock('../../../../utils', () => ({
     redisClient: {
         get: jest.fn(),
         setEx: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock('../../shared/queries', () => ({
 }));
 
 // Mock logger to avoid console noise
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

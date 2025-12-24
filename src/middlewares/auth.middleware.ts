@@ -1,8 +1,8 @@
 import { NextFunction, Response, Request } from 'express';
-import HttpException from '../utils/helpers/httpException';
-import { logger } from '../utils/logging/logger';
-import { DataStoredInToken } from '../interfaces/request.interface';
-import { verifyToken } from '../utils/auth/jwt';
+import { HttpException } from '../utils';
+import { logger } from '../utils';
+import { DataStoredInToken } from '../interfaces';
+import { verifyToken } from '../utils';
 
 /**
  * Authentication middleware - requires valid JWT token

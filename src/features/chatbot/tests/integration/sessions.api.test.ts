@@ -13,10 +13,10 @@ import { sql } from 'drizzle-orm';
 import App from '../../../../app';
 import ChatbotRoute from '../../index';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils/database.helper';
-import { ApiTestHelper } from '../../../../../tests/utils/api.helper';
-import { AuthTestHelper } from '../../../../../tests/utils/auth.helper';
-import { db } from '../../../../database/drizzle';
+import { dbHelper } from '../../../../../tests/utils';
+import { ApiTestHelper } from '../../../../../tests/utils';
+import { AuthTestHelper } from '../../../../../tests/utils';
+import { db } from '../../../../database';
 import { chatbotSessions, chatbotMessages, chatbotDocuments } from '../../shared/schema';
 
 describe('Sessions & Chat API Integration Tests', () => {

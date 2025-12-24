@@ -1,6 +1,7 @@
 /**
- * Auth Routes
- * Combines all authentication API endpoints
+ * Auth Feature Index
+ *
+ * Central exports for all authentication-related functionality
  */
 
 import { Router } from 'express';
@@ -26,4 +27,11 @@ class AuthRoute implements Route {
   }
 }
 
+// Main route export
 export default AuthRoute;
+
+// Individual API routes
+export { default as registerRouter } from './apis/register';
+export { default as loginRouter } from './apis/login';
+export { default as refreshTokenRouter } from './apis/refresh-token';
+export { default as logoutRouter } from './apis/logout';

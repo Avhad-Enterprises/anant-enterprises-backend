@@ -3,7 +3,7 @@
  * Tests database query behavior through mocked Drizzle ORM
  */
 
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { IUser } from '../../shared/interface';
 
 // Mock dependencies - properly mock the full query chain

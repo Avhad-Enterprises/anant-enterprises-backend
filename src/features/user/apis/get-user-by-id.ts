@@ -7,14 +7,14 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireOwnerOrPermission } from '../../../middlewares/permission.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, parseIdParam } from '../../../utils/helpers/controllerHelpers';
-import { sanitizeUser } from '../../../utils/helpers/sanitizeUser';
-import HttpException from '../../../utils/helpers/httpException';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requireOwnerOrPermission } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, parseIdParam } from '../../../utils';
+import { sanitizeUser } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { findUserById } from '../shared/queries';
 import { IUser } from '../shared/interface';
 

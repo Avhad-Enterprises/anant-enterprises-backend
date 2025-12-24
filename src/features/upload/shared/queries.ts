@@ -1,5 +1,5 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import { uploads, type Upload as DrizzleUpload } from './schema';
 
 /**

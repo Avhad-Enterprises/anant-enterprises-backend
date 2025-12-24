@@ -3,12 +3,12 @@
  * Tests the complete flow of roles, permissions, and user assignments
  */
 
-import { db } from '../../../../database/drizzle';
-import { users } from '../../../user/shared/schema';
+import { db } from '../../../../database';
+import { users } from '../../../user';
 import { roles, permissions, userRoles, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils/password';
-import { generateToken } from '../../../../utils/jwt';
+import { hashPassword } from '../../../../utils';
+import { generateToken } from '../../../../utils';
 
 describe('RBAC Integration Tests', () => {
     let testUser: any;

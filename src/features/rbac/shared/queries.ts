@@ -5,7 +5,7 @@
  */
 
 import { eq, and, isNull, inArray, gt, or } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import { roles, permissions, rolePermissions, userRoles } from './schema';
 
 // ============================================

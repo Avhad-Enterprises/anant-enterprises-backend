@@ -2,9 +2,9 @@
  * Unit tests for update-upload business logic
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as uploadQueries from '../../shared/queries';
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { Upload, UploadUpdateInput } from '../../shared/interface';
 
 // Mock dependencies
@@ -14,7 +14,7 @@ jest.mock('../../../../database/drizzle', () => ({
   },
 }));
 jest.mock('../../shared/queries');
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

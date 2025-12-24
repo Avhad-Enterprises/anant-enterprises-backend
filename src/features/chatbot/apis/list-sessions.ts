@@ -8,9 +8,9 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import { requireAuth } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
 import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Query params schema

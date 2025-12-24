@@ -6,7 +6,7 @@
  */
 
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import {
   chatbotDocuments,
   chatbotSessions,

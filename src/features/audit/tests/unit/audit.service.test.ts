@@ -25,7 +25,7 @@ jest.mock('../../../../database/drizzle', () => ({
 
 
 // Mock logger to avoid console noise
-jest.mock('../../../../utils/logging/logger', () => ({
+jest.mock('../../../../utils', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
@@ -35,8 +35,8 @@ jest.mock('../../../../utils/logging/logger', () => ({
 }));
 
 import { AuditService } from '../../services/audit.service';
-import { db } from '../../../../database/drizzle';
-import { logger } from '../../../../utils/logging/logger';
+import { db } from '../../../../database';
+import { logger } from '../../../../utils';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 
 // Type the mocked db

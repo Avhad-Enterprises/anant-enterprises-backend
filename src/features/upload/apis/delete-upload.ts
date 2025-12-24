@@ -9,16 +9,16 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { db } from '../../../database/drizzle';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, getUserId } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
-import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
+import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive('Upload ID must be a positive integer'),

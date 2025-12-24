@@ -3,14 +3,14 @@
  */
 
 import { Readable } from 'stream';
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as uploadQueries from '../../shared/queries';
 import * as s3Upload from '../../../../utils/s3Upload';
 
 // Mock dependencies
 jest.mock('../../shared/queries');
 jest.mock('../../../../utils/s3Upload');
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

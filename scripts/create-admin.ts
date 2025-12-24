@@ -52,8 +52,8 @@ function getDatabaseUrl(): string {
 }
 
 // Import schemas after env is configured
-import { users } from '../src/features/user/shared/schema';
-import { roles, userRoles } from '../src/features/rbac/shared/schema';
+import { users } from '../src/features/user';
+import { roles, userRoles } from '../src/features/rbac';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
 const ADMIN_PASSWORD = '12345678';

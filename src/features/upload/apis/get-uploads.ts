@@ -10,17 +10,17 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, count, desc, asc } from 'drizzle-orm';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, getUserId, parseIdParam } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { db } from '../../../database/drizzle';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, getUserId, parseIdParam } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { convertUpload } from '../shared/interface';
 import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
-import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
+import { rbacCacheService } from '../../rbac';
 
 const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
 

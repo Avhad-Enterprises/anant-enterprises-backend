@@ -5,11 +5,11 @@
 
 import { Router, Response } from 'express';
 import { eq, and, count, sql } from 'drizzle-orm';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/helpers/controllerHelpers';
-import { db } from '../../../database/drizzle';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, getUserId } from '../../../utils';
+import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { UploadStats } from '../shared/interface';
 

@@ -6,13 +6,13 @@
 import { Router, Response, Request } from 'express';
 // Import to ensure global Express interface extension is loaded
 import '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { uploadSingleFileMiddleware } from '../../../middlewares/upload.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
+import { requireAuth } from '../../../middlewares';
+import { uploadSingleFileMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, getUserId } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { uploadToS3 } from '../../../utils/s3Upload';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { Upload } from '../shared/interface';
 

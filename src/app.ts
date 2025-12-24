@@ -1,18 +1,18 @@
 import express from 'express';
 import hpp from 'hpp';
 import compression from 'compression';
-// import { authRateLimit, apiRateLimit } from './middlewares/rate-limit.middleware'; // DISABLED
-import { requestIdMiddleware } from './middlewares/request-id.middleware';
-import { securityMiddleware } from './middlewares/security.middleware';
-import { corsMiddleware } from './middlewares/cors.middleware';
-import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
-import { auditMiddleware } from './middlewares/audit.middleware';
-import Routes from './interfaces/route.interface';
-import errorMiddleware from './middlewares/error.middleware';
-import { logger } from './utils/logging/logger';
+// import { authRateLimit, apiRateLimit } from './middlewares'; // DISABLED
+import { requestIdMiddleware } from './middlewares';
+import { securityMiddleware } from './middlewares';
+import { corsMiddleware } from './middlewares';
+import { requestLoggerMiddleware } from './middlewares';
+import { auditMiddleware } from './middlewares';
+import type { Route as Routes } from './interfaces';
+import { errorMiddleware } from './middlewares';
+import { logger } from './utils';
 import { config } from './utils/validateEnv';
-import { checkDatabaseHealth } from './database/health';
-import { isRedisReady } from './utils/database/redis';
+import { checkDatabaseHealth } from './database';
+import { isRedisReady } from './utils';
 
 class App {
   public app: express.Application;

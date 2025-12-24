@@ -6,9 +6,9 @@
  */
 
 import { NextFunction, Response, Request } from 'express';
-import HttpException from '../utils/helpers/httpException';
-import { logger } from '../utils/logging/logger';
-import { rbacCacheService } from '../features/rbac/services/rbac-cache.service';
+import { HttpException } from '../utils';
+import { logger } from '../utils';
+import { rbacCacheService } from '../features/rbac';
 import '../interfaces/request.interface';
 
 /**

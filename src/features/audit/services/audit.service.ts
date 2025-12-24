@@ -8,12 +8,12 @@
  * - Sanitizing sensitive data
  */
 
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import { auditLogs } from '../shared/schema';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user';
 import { eq, and, desc, gte, lte, inArray, SQL } from 'drizzle-orm';
-import { logger } from '../../../utils/logging/logger';
-import { rbacCacheService } from '../../rbac/services/rbac-cache.service';
+import { logger } from '../../../utils';
+import { rbacCacheService } from '../../rbac';
 import type {
     AuditLogData,
     AuditLog,

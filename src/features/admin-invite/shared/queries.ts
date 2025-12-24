@@ -1,5 +1,5 @@
 import { eq, and, desc } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import { invitations, type Invitation, type NewInvitation, type InvitationStatus } from './schema';
 
 /**

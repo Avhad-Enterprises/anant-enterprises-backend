@@ -3,8 +3,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { parseIdParam, getUserId, asyncHandler } from '../../src/utils/controllerHelpers';
-import HttpException from '../../src/utils/httpException';
+import { parseIdParam, getUserId, asyncHandler, HttpException } from '../../src/utils';
 
 describe('Controller Helpers', () => {
   describe('parseIdParam', () => {

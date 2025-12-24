@@ -3,10 +3,10 @@
  */
 
 import bcrypt from 'bcrypt';
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as inviteQueries from '../../shared/queries';
-import * as userQueries from '../../../user/shared/queries';
-import * as rbacQueries from '../../../rbac/shared/queries';
+import * as userQueries from '../../../user';
+import * as rbacQueries from '../../../rbac';
 import { IInvitation } from '../../shared/interface';
 
 // Mock dependencies

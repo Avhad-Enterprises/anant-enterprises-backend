@@ -2,13 +2,13 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { dbHelper } from './database.helper';
 import { TestUser } from './factories';
-import { users } from '../../src/features/user/shared/schema';
+import { users } from '../../src/features/user';
 import {
   roles,
   userRoles,
   permissions,
   rolePermissions
-} from '../../src/features/rbac/shared/schema';
+} from '../../src/features/rbac';
 import { eq } from 'drizzle-orm';
 
 export class AuthTestHelper {

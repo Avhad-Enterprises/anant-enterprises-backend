@@ -6,7 +6,7 @@
  */
 
 import { Request } from 'express';
-import { AuditAction, AuditResourceType, AuditContext } from '../../features/audit/shared/types';
+import { AuditAction, AuditResourceType, AuditContext } from '../../features/audit';
 
 /**
  * Extract audit context from Express request

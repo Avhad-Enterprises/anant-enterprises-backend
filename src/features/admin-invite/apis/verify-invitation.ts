@@ -12,15 +12,15 @@
 import { Router, Request, Response } from 'express';
 import { sql, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { logger } from '../../../utils/logging/logger';
-import { decrypt } from '../../../utils/auth/encryption';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
+import { decrypt } from '../../../utils';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { IInvitationVerifyResponse } from '../shared/interface';
-// import { invitationRateLimit } from '../../../middlewares/rate-limit.middleware'; // DISABLED
-import { db } from '../../../database/drizzle';
+// import { invitationRateLimit } from '../../../middlewares'; // DISABLED
+import { db } from '../../../database';
 import { invitations } from '../shared/schema';
 
 // Validation schema for POST body

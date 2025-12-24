@@ -6,13 +6,13 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requirePermission, requireOwnerOrPermission } from '../../../middlewares/permission.middleware';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission, requireOwnerOrPermission } from '../../../middlewares';
+import { validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler, parseIdParam, getUserId } from '../../../utils';
+import { HttpException } from '../../../utils';
 import {
     findRoleById,
     findUserRoles,
@@ -21,7 +21,7 @@ import {
     findUserPermissions,
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
-import { findUserById } from '../../user/shared/queries';
+import { findUserById } from '../../user';
 import { Role } from '../shared/schema';
 import { IUserPermissionsResponse } from '../shared/interface';
 

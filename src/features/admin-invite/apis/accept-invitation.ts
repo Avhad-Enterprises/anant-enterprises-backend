@@ -6,17 +6,17 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import validationMiddleware from '../../../middlewares/validation.middleware';
-import { verifyPassword } from '../../../utils/auth/password';
-import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
-import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
-import HttpException from '../../../utils/helpers/httpException';
-import { logger } from '../../../utils/logging/logger';
-import { generateToken } from '../../../utils/auth/jwt';
+import { validationMiddleware } from '../../../middlewares';
+import { verifyPassword } from '../../../utils';
+import { ResponseFormatter } from '../../../utils';
+import { asyncHandler } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
+import { generateToken } from '../../../utils';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
-import { findUserByEmail, createUser } from '../../user/shared/queries';
-import { assignRoleToUser } from '../../rbac/shared/queries';
-import { IAuthUserWithToken } from '../../../interfaces/request.interface';
+import { findUserByEmail, createUser } from '../../user';
+import { assignRoleToUser } from '../../rbac';
+import { IAuthUserWithToken } from '../../../interfaces';
 
 const schema = z.object({
   token: z.string().length(64, 'Invalid invitation token'),

@@ -2,11 +2,10 @@
 process.env.NODE_ENV = 'test';
 
 // Load environment from .env.test
-import { loadEnv } from '../../src/utils/loadEnv';
+import { loadEnv, getDatabaseUrl } from '../../src/utils';
 loadEnv();
 
 // Convert Docker hostname to localhost for host-based test runs
-import { getDatabaseUrl } from '../../src/utils/database/dbUrl';
 process.env.DATABASE_URL = getDatabaseUrl();
 
 // Global test timeout

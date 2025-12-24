@@ -2,8 +2,7 @@
  * S3 Test Helper
  * Utility for cleaning up S3 test uploads after tests
  */
-import { deleteByPrefixFromS3, deleteFromS3 } from '../../src/utils/s3Upload';
-import { logger } from '../../src/utils/logger';
+import { deleteByPrefixFromS3, deleteFromS3, logger } from '../../src/utils';
 
 class S3TestHelper {
   private uploadedKeys: string[] = [];

@@ -3,9 +3,9 @@
  */
 
 import bcrypt from 'bcrypt';
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as inviteQueries from '../../shared/queries';
-import * as sendEmail from '../../../../utils/sendInvitationEmail';
+import * as sendEmail from '../../../../utils';
 import { ICreateInvitation, IInvitation } from '../../shared/interface';
 import { Invitation } from '../../shared/schema';
 import { config } from '../../../../utils/validateEnv';
@@ -20,14 +20,14 @@ jest.mock('../../../../database/drizzle', () => ({
 }));
 jest.mock('bcrypt');
 jest.mock('../../shared/queries');
-jest.mock('../../../../utils/sendInvitationEmail');
+jest.mock('../../../../utils/email/sendInvitationEmail');
 jest.mock('../../../../utils/validateEnv', () => ({
   config: {
     ALLOWED_ORIGINS: 'http://localhost:3000',
     FRONTEND_URL: 'http://localhost:8080',
   },
 }));
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),

@@ -7,9 +7,9 @@
  * Pattern based on rbac-cache.service.ts
  */
 
-import { logger } from '../../../utils/logging/logger';
-import { redisClient, isRedisReady } from '../../../utils/database/redis';
-import { db } from '../../../database/drizzle';
+import { logger } from '../../../utils';
+import { redisClient, isRedisReady } from '../../../utils';
+import { db } from '../../../database';
 import { users } from '../shared/schema';
 import { eq, and } from 'drizzle-orm';
 import type { User } from '../shared/schema';

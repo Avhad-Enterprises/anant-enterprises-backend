@@ -2,9 +2,9 @@
  * Unit tests for delete-user business logic (soft delete)
  */
 
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as userQueries from '../../shared/queries';
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { users } from '../../shared/schema';
 
 // Mock dependencies

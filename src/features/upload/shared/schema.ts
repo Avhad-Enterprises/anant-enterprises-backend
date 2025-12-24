@@ -9,7 +9,7 @@ import {
   index,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user';
 
 /**
  * Upload status enum values
