@@ -6,10 +6,10 @@
  */
 
 import { HfInference } from '@huggingface/inference';
-import { logger } from '../../../utils/logger';
+import { logger } from '../../../utils/logging/logger';
 import { config } from '../../../utils/validateEnv';
 import { chatbotConfig } from '../config/chatbot.config';
-import HttpException from '../../../utils/httpException';
+import HttpException from '../../../utils/helpers/httpException';
 
 // Initialize HuggingFace client
 const hf = new HfInference(config.HUGGINGFACE_TOKEN);

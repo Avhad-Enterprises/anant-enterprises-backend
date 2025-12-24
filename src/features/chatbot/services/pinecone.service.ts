@@ -5,7 +5,7 @@
  */
 
 import { Pinecone } from '@pinecone-database/pinecone';
-import { logger } from '../../../utils/logger';
+import { logger } from '../../../utils/logging/logger';
 import { config } from '../../../utils/validateEnv';
 import { chatbotConfig } from '../config/chatbot.config';
 

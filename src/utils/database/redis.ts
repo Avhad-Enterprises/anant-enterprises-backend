@@ -1,6 +1,6 @@
 import { createClient } from 'redis';
-import { logger } from './logger';
-import { config } from './validateEnv';
+import { logger } from '../logging/logger';
+import { config } from '../validateEnv';
 
 // Redis configuration from environment variables
 const redisUrl = config.REDIS_URL || `redis://${config.REDIS_HOST}:${config.REDIS_PORT}`;

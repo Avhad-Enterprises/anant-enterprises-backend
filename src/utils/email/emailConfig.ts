@@ -1,5 +1,5 @@
 import * as nodemailer from 'nodemailer';
-import { config } from './validateEnv';
+import { config } from '../validateEnv';
 
 // Email configuration constants
 export const EMAIL_SENDER = config.EMAIL_USER;

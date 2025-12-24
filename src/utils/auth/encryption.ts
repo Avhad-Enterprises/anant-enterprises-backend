@@ -7,8 +7,8 @@
  */
 
 import crypto from 'crypto';
-import { config } from './validateEnv';
-import { logger } from './logger';
+import { config } from '../validateEnv';
+import { logger } from '../logging/logger';
 
 /** AES-256-GCM encryption algorithm */
 const ALGORITHM = 'aes-256-gcm';

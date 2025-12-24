@@ -6,7 +6,7 @@ import { loadEnv } from '../../src/utils/loadEnv';
 loadEnv();
 
 // Convert Docker hostname to localhost for host-based test runs
-import { getDatabaseUrl } from '../../src/utils/dbUrl';
+import { getDatabaseUrl } from '../../src/utils/database/dbUrl';
 process.env.DATABASE_URL = getDatabaseUrl();
 
 // Global test timeout

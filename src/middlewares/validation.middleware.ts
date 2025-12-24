@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { z } from 'zod';
-import HttpException from '../utils/httpException';
-import { logger } from '../utils/logger';
+import HttpException from '../utils/helpers/httpException';
+import { logger } from '../utils/logging/logger';
 
 type ValidationTarget = 'body' | 'query' | 'params';
 

@@ -1,6 +1,6 @@
 import multer from 'multer';
 import { Request, Response, NextFunction } from 'express';
-import HttpException from '../utils/httpException';
+import HttpException from '../utils/helpers/httpException';
 import { config } from '../utils/validateEnv';
 
 /**

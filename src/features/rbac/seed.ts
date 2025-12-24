@@ -7,7 +7,7 @@
 
 import { db } from '../../database/drizzle';
 import { roles, permissions, rolePermissions } from './shared/schema';
-import { logger } from '../../utils/logger';
+import { logger } from '../../utils/logging/logger';
 
 // ============================================
 // INITIAL ROLES

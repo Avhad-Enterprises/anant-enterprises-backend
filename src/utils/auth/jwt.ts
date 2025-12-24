@@ -1,7 +1,7 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
-import HttpException from './httpException';
-import { logger } from './logger';
-import { config } from './validateEnv';
+import HttpException from '../helpers/httpException';
+import { logger } from '../logging/logger';
+import { config } from '../validateEnv';
 
 /**
  * Generate a JWT token with the provided payload

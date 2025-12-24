@@ -1,13 +1,14 @@
 import App from './app';
-import { logger } from './utils/logger';
+import { logger } from './utils/logging/logger';
 import UserRoute from './features/user';
 import AuthRoute from './features/auth';
 import UploadRoute from './features/upload';
 import AdminInviteRoute from './features/admin-invite';
 import ChatbotRoute from './features/chatbot';
 import RBACRoute from './features/rbac';
+import AuditRoute from './features/audit';
 import { connectWithRetry, pool } from './database/drizzle';
-import { redisClient, testRedisConnection } from './utils/redis';
+import { redisClient, testRedisConnection } from './utils/database/redis';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
 
 let server: import('http').Server;
@@ -39,6 +40,7 @@ async function bootstrap() {
       new AdminInviteRoute(),
       new ChatbotRoute(),
       new RBACRoute(),
+      new AuditRoute(), // Audit admin endpoints
     ]);
 
     server = app.listen();

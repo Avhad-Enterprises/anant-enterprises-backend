@@ -7,8 +7,8 @@ import { Router, Response } from 'express';
 import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
 import { requirePermission } from '../../../middlewares/permission.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
 import { findAllRoles, countRolePermissions, countUsersWithRole } from '../shared/queries';
 import { IRoleResponse } from '../shared/interface';
 

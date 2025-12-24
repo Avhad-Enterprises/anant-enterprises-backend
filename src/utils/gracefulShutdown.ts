@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from './logging/logger';
 
 /**
  * Graceful shutdown utility

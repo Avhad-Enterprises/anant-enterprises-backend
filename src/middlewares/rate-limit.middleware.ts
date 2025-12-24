@@ -1,8 +1,8 @@
 import rateLimit, { RateLimitExceededEventHandler } from 'express-rate-limit';
 // import RedisStore from 'rate-limit-redis';
 import { Request, RequestHandler } from 'express';
-import { logger } from '../utils/logger';
-// import { redisClient } from '../utils/redis';
+import { logger } from '../utils/logging/logger';
+// import { redisClient } from '../utils/database/redis';
 import { RequestWithId } from '../interfaces/request.interface';
 import { isDevelopment, isTest } from '../utils/validateEnv';
 

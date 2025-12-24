@@ -5,8 +5,8 @@
 
 import { Router, Request, Response } from 'express';
 import { requireAuth } from '../../../middlewares/auth.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
 
 const handler = asyncHandler(async (req: Request, res: Response) => {
   // Logout is simple - just return success

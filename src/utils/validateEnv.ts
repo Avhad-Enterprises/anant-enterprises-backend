@@ -14,7 +14,7 @@ if (nodeEnv === 'development') {
 dotenv.config();
 
 import { cleanEnv, port, str, num } from 'envalid';
-import { logger } from './logger';
+import { logger } from './logging/logger';
 
 /**
  * Validate all required environment variables for the application

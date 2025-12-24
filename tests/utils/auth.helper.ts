@@ -61,6 +61,7 @@ export class AuthTestHelper {
       { name: 'uploads:delete:own', resource: 'uploads', action: 'delete:own' },
       { name: 'admin:invitations', resource: 'admin', action: 'invitations' },
       { name: 'admin:system', resource: 'admin', action: 'system' },
+      { name: 'audit:read', resource: 'audit', action: 'read' },
       { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
       { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
       { name: '*', resource: '*', action: '*' },
@@ -78,7 +79,7 @@ export class AuthTestHelper {
       user: ['users:read:own', 'users:update:own', 'uploads:read:own', 'uploads:create', 'uploads:delete:own', 'chatbot:use'],
       admin: ['users:read', 'users:create', 'users:update', 'users:delete', 'users:read:own', 'users:update:own',
         'roles:read', 'permissions:read', 'uploads:read', 'uploads:create', 'uploads:delete',
-        'admin:invitations', 'chatbot:use', 'chatbot:documents'],
+        'admin:invitations', 'audit:read', 'chatbot:use', 'chatbot:documents'],
       superadmin: ['*'],
     };
 

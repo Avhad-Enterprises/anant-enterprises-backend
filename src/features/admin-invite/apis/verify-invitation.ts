@@ -12,11 +12,11 @@
 import { Router, Request, Response } from 'express';
 import { sql, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
-import { decrypt } from '../../../utils/encryption';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
+import { logger } from '../../../utils/logging/logger';
+import { decrypt } from '../../../utils/auth/encryption';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { IInvitationVerifyResponse } from '../shared/interface';
 // import { invitationRateLimit } from '../../../middlewares/rate-limit.middleware'; // DISABLED

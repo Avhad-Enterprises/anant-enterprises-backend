@@ -1,5 +1,5 @@
 import { createTransporter, EMAIL_SENDER, APP_NAME } from './emailConfig';
-import { logger } from './logger';
+import { logger } from '../logging/logger';
 
 interface InvitationEmailParams {
     to: string;

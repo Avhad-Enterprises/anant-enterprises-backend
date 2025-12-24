@@ -9,9 +9,9 @@ import { RequestWithUser } from '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares/auth.middleware';
 import { requirePermission } from '../../../middlewares/permission.middleware';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler, parseIdParam, getUserId } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
 import {
     findRoleById,
     findPermissionById,

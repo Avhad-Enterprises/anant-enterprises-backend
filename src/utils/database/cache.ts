@@ -6,7 +6,7 @@
  */
 
 import { redisClient, isRedisReady } from './redis';
-import { logger } from './logger';
+import { logger } from '../logging/logger';
 
 // Default TTL: 5 minutes
 const DEFAULT_TTL = 300;

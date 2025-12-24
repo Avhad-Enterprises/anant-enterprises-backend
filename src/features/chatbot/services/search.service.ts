@@ -7,8 +7,8 @@
  * - Result ranking and formatting
  */
 
-import { logger } from '../../../utils/logger';
-import HttpException from '../../../utils/httpException';
+import { logger } from '../../../utils/logging/logger';
+import HttpException from '../../../utils/helpers/httpException';
 import { niraNamespace } from './pinecone.service';
 import { embedText } from './embedding.service';
 import { ISearchResult } from '../shared/interface';

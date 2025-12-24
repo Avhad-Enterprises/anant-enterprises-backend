@@ -3,7 +3,7 @@ dotenv.config({ quiet: true });
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logging/logger';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas

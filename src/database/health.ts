@@ -1,6 +1,6 @@
 import { db, pool } from './drizzle';
 import { sql } from 'drizzle-orm';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logging/logger';
 
 /**
  * Database health check result

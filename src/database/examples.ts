@@ -8,7 +8,7 @@ import { checkDatabaseHealth } from './health';
 import { users } from '../features/user/shared/schema';
 import { uploads } from '../features/upload/shared/schema';
 import { eq, and, or, like, desc } from 'drizzle-orm';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logging/logger';
 
 // ============================================
 // 1. BASIC QUERIES

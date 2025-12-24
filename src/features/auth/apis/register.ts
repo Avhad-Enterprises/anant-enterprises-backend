@@ -8,11 +8,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { hashPassword } from '../../../utils/password';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { generateToken } from '../../../utils/jwt';
+import { hashPassword } from '../../../utils/auth/password';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
+import { generateToken } from '../../../utils/auth/jwt';
 import { findUserByEmail, createUser, updateUserById } from '../../user/shared/queries';
 import { assignRoleToUser, findRoleByName } from '../../rbac/shared/queries';
 import { IAuthUserWithToken } from '../../../interfaces/request.interface';

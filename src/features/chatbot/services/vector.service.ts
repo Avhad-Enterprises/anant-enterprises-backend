@@ -7,8 +7,8 @@
  * - Fetch vectors
  */
 
-import { logger } from '../../../utils/logger';
-import HttpException from '../../../utils/httpException';
+import { logger } from '../../../utils/logging/logger';
+import HttpException from '../../../utils/helpers/httpException';
 import { niraNamespace } from './pinecone.service';
 import { embedTexts } from './embedding.service';
 import { IVectorRecord, IVectorMetadata, IChunk } from '../shared/interface';

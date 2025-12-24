@@ -6,12 +6,13 @@ import { requestIdMiddleware } from './middlewares/request-id.middleware';
 import { securityMiddleware } from './middlewares/security.middleware';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { requestLoggerMiddleware } from './middlewares/request-logger.middleware';
+import { auditMiddleware } from './middlewares/audit.middleware';
 import Routes from './interfaces/route.interface';
 import errorMiddleware from './middlewares/error.middleware';
-import { logger } from './utils/logger';
+import { logger } from './utils/logging/logger';
 import { config } from './utils/validateEnv';
 import { checkDatabaseHealth } from './database/health';
-import { isRedisReady } from './utils/redis';
+import { isRedisReady } from './utils/database/redis';
 
 class App {
   public app: express.Application;
@@ -115,6 +116,9 @@ class App {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+    // Audit logging (after body parsing, captures request body)
+    this.app.use(auditMiddleware);
   }
 
   private initializeRoutes(routes: Routes[]) {

@@ -7,10 +7,10 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { authRateLimit } from '../../../middlewares/rate-limit.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { verifyToken, generateToken, generateRefreshToken } from '../../../utils/jwt';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
+import { verifyToken, generateToken, generateRefreshToken } from '../../../utils/auth/jwt';
 import { findUserById } from '../../user/shared/queries';
 import { IAuthUserWithToken } from '../../../interfaces/request.interface';
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import HttpException from '../utils/httpException';
-import { logger } from '../utils/logger';
+import HttpException from '../utils/helpers/httpException';
+import { logger } from '../utils/logging/logger';
 import { isDevelopment } from '../utils/validateEnv';
 
 const errorMiddleware = (

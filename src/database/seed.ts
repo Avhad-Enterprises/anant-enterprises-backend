@@ -6,7 +6,7 @@ import { users } from '../features/user/shared/schema';
 import { uploads } from '../features/upload/shared/schema';
 import { userRoles, roles } from '../features/rbac/shared/schema';
 import { seedRBAC } from '../features/rbac/seed';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logging/logger';
 import bcrypt from 'bcrypt';
 import { eq } from 'drizzle-orm';
 

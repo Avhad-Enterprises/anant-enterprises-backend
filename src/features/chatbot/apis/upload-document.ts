@@ -11,10 +11,10 @@ import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares/auth.middleware';
 import { requirePermission } from '../../../middlewares/permission.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
+import { logger } from '../../../utils/logging/logger';
 import { uploadSingleFileMiddleware } from '../../../middlewares/upload.middleware';
 import { uploadToS3 } from '../../../utils/s3Upload';
 import {

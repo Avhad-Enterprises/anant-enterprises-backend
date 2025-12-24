@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { config } from 'dotenv';
 import { sql } from 'drizzle-orm';
-import { logger } from '../../src/utils/logger';
+import { logger } from '../../src/utils/logging/logger';
 import { pool as mainPool, db as mainDb } from '../../src/database/drizzle';
 import { rbacCacheService } from '../../src/features/rbac/services/rbac-cache.service';
 

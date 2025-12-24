@@ -7,12 +7,12 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { verifyPassword } from '../../../utils/password';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
-import { generateToken } from '../../../utils/jwt';
+import { verifyPassword } from '../../../utils/auth/password';
+import { ResponseFormatter } from '../../../utils/helpers/responseFormatter';
+import { asyncHandler } from '../../../utils/helpers/controllerHelpers';
+import HttpException from '../../../utils/helpers/httpException';
+import { logger } from '../../../utils/logging/logger';
+import { generateToken } from '../../../utils/auth/jwt';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { findUserByEmail, createUser } from '../../user/shared/queries';
 import { assignRoleToUser } from '../../rbac/shared/queries';

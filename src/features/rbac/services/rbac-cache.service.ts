@@ -6,8 +6,8 @@
  */
 
 import { findUserPermissions, findUserRoles } from '../shared/queries';
-import { logger } from '../../../utils/logger';
-import { redisClient, isRedisReady } from '../../../utils/redis';
+import { logger } from '../../../utils/logging/logger';
+import { redisClient, isRedisReady } from '../../../utils/database/redis';
 import { ICachedPermissions } from '../shared/interface';
 
 // Redis key prefixes

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
-import { stream } from '../utils/logger';
+import { stream } from '../utils/logging/logger';
 import { isProduction } from '../utils/validateEnv';
 
 /**
