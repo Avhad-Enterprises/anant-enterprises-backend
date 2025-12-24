@@ -1,14 +1,12 @@
 /**
  * Audit Feature Index
  *
- * Central exports for all audit-related functionality
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all audit-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import getAuditLogsRouter from './apis/get-audit-logs';
-import getResourceHistoryRouter from './apis/get-resource-history';
-import getUserActivityRouter from './apis/get-user-activity';
 
 class AuditRoute implements Route {
     public path = '/admin/audit';
@@ -18,7 +16,12 @@ class AuditRoute implements Route {
         this.initializeRoutes();
     }
 
-    private initializeRoutes() {
+    private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: getAuditLogsRouter } = await import('./apis/get-audit-logs');
+    const { default: getResourceHistoryRouter } = await import('./apis/get-resource-history');
+    const { default: getUserActivityRouter } = await import('./apis/get-user-activity');
+
         // Audit query endpoints: /api/admin/audit/*
         this.router.use(`${this.path}/logs`, getAuditLogsRouter);
         this.router.use(`${this.path}/resource`, getResourceHistoryRouter);
@@ -30,14 +33,11 @@ class AuditRoute implements Route {
 export default AuditRoute;
 
 // Individual API routes
-export { default as getAuditLogsRouter } from './apis/get-audit-logs';
-export { default as getResourceHistoryRouter } from './apis/get-resource-history';
-export { default as getUserActivityRouter } from './apis/get-user-activity';
 
-// Services
+// Services - SAFE to export
 export { auditService, AuditService } from './services/audit.service';
 
-// Shared resources
+// Shared resources - SAFE to export
 export {
   auditLogs,
   type AuditLog,

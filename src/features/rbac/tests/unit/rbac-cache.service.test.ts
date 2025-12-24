@@ -12,17 +12,7 @@ jest.mock('../../../../utils', () => ({
         del: jest.fn(),
         keys: jest.fn().mockResolvedValue([]),
     },
-    isRedisReady: jest.fn().mockReturnValue(false), // Disable Redis for unit tests
-}));
-
-// Mock queries module
-jest.mock('../../shared/queries', () => ({
-    findUserPermissions: jest.fn(),
-    findUserRoles: jest.fn().mockResolvedValue([]),
-}));
-
-// Mock logger to avoid console noise
-jest.mock('../../../../utils', () => ({
+    isRedisReady: jest.fn(),
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
@@ -31,11 +21,19 @@ jest.mock('../../../../utils', () => ({
     },
 }));
 
+// Mock queries module
+jest.mock('../../shared/queries', () => ({
+    findUserPermissions: jest.fn(),
+    findUserRoles: jest.fn().mockResolvedValue([]),
+}));
+
 import { RBACCacheService } from '../../services/rbac-cache.service';
 import { findUserPermissions, findUserRoles } from '../../shared/queries';
+import { isRedisReady } from '../../../../utils';
 
 const mockFindUserPermissions = findUserPermissions as jest.MockedFunction<typeof findUserPermissions>;
 const mockFindUserRoles = findUserRoles as jest.MockedFunction<typeof findUserRoles>;
+const mockIsRedisReady = isRedisReady as jest.MockedFunction<typeof isRedisReady>;
 
 describe('RBACCacheService', () => {
     let cacheService: RBACCacheService;

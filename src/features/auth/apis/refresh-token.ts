@@ -3,12 +3,11 @@
  * Refresh access token (Requires auth)
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
 import { authRateLimit } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { verifyToken, generateToken, generateRefreshToken } from '../../../utils';
 import { findUserById } from '../../user';
@@ -18,7 +17,7 @@ const schema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
-async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithToken> {
+export async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithToken> {
   const decoded = verifyToken(refreshToken);
 
   if (typeof decoded === 'string' || !decoded.id) {
@@ -54,17 +53,21 @@ async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithTo
   };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
+const handler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { refreshToken } = req.body;
 
-  if (!refreshToken) {
-    throw new HttpException(400, 'Refresh token is required');
+    if (!refreshToken) {
+      throw new HttpException(400, 'Refresh token is required');
+    }
+
+    const result = await handleRefreshToken(refreshToken);
+
+    ResponseFormatter.success(res, result, 'Token refreshed successfully');
+  } catch (error) {
+    next(error);
   }
-
-  const result = await handleRefreshToken(refreshToken);
-
-  ResponseFormatter.success(res, result, 'Token refreshed successfully');
-});
+};
 
 const router = Router();
 // No auth required - the refresh token itself is validated

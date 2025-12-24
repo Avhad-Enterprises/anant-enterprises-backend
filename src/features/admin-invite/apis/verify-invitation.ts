@@ -13,7 +13,6 @@ import { Router, Request, Response } from 'express';
 import { sql, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { decrypt } from '../../../utils';
@@ -25,8 +24,7 @@ import { invitations } from '../shared/schema';
 
 // Validation schema for POST body
 const verifySchema = z.object({
-  token: z.string().length(64, 'Invalid invitation token format').regex(/^[a-f0-9]+$/i, 'Invalid token format'),
-});
+  token: z.string().length(64, 'Invalid invitation token format').regex(/^[a-f0-9]+$/i, 'Invalid token format') });
 
 // Max verification attempts before lockout (brute force protection)
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -90,11 +88,10 @@ async function handleVerifyInvitation(token: string): Promise<IInvitationVerifyR
     password: plainPassword,
     first_name: invitation.first_name,
     last_name: invitation.last_name,
-    assigned_role_id: invitation.assigned_role_id!,
-  };
+    assigned_role_id: invitation.assigned_role_id! };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+const handler =(async (req: Request, res: Response): Promise<void> => {
   // Validate token from POST body (not URL params - security)
   const { token } = verifySchema.parse(req.body);
   const credentials = await handleVerifyInvitation(token);

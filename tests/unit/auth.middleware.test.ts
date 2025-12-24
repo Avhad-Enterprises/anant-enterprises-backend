@@ -1,9 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { requireAuth } from '../../src/middlewares';
-import { verifyToken, HttpException } from '../../src/utils';
+import { verifyToken } from '../../src/utils';
+import { HttpException } from '../../src/utils';
 import type { RequestWithUser } from '../../src/interfaces';
 
-jest.mock('../../src/utils');
+// Mock utils but preserve HttpException class
+jest.mock('../../src/utils', () => {
+  const actualUtils = jest.requireActual('../../src/utils');
+  return {
+    ...actualUtils,
+    verifyToken: jest.fn(),
+    logger: {
+      error: jest.fn(),
+      warn: jest.fn(),
+      debug: jest.fn(),
+      info: jest.fn(),
+    },
+  };
+});
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<RequestWithUser>;

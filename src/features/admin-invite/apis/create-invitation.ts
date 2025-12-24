@@ -12,7 +12,6 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
@@ -28,8 +27,7 @@ const schema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
   last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
   email: z.string().email('Invalid email format'),
-  assigned_role_id: z.number().int().positive('Role ID must be a positive integer'),
-});
+  assigned_role_id: z.number().int().positive('Role ID must be a positive integer') });
 
 type CreateInvitationDto = z.infer<typeof schema>;
 
@@ -77,8 +75,7 @@ async function handleCreateInvitation(
     password_hash: passwordHash,
     invited_by: invitedBy,
     expires_at: expiresAt,
-    status: 'pending',
-  });
+    status: 'pending' });
 
   // Send invitation email with credentials
   try {
@@ -89,7 +86,6 @@ async function handleCreateInvitation(
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
-      assignedRoleId: invitationData.assigned_role_id,
       inviteLink,
       expiresIn: `${INVITATION_EXPIRY_HOURS} hours`,
       tempPassword, // Include credentials in email
@@ -119,18 +115,20 @@ async function handleCreateInvitation(
     updated_at: newInvitation.updated_at,
     is_deleted: newInvitation.is_deleted,
     deleted_by: newInvitation.deleted_by,
-    deleted_at: newInvitation.deleted_at,
-  };
+    deleted_at: newInvitation.deleted_at };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response): Promise<void> => {
+const handler = async (req: RequestWithUser, res: Response): Promise<void> => {
   const invitationData: CreateInvitationDto = req.body;
-  const invitedBy = getUserId(req);
+  const invitedBy = req.userId;
+  if (!invitedBy) {
+    throw new HttpException(401, 'User authentication required');
+  }
 
   const invitation = await handleCreateInvitation(invitationData, invitedBy);
 
   ResponseFormatter.success(res, invitation, 'Invitation sent successfully');
-});
+};
 
 const router = Router();
 router.post('/', requireAuth, requirePermission('admin:invitations'), validationMiddleware(schema), handler);

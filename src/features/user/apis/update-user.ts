@@ -15,8 +15,7 @@ import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils';
-import { sanitizeUser } from '../../../utils';
+import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/schema';
@@ -27,8 +26,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   email: z.string().email('Invalid email format').optional(),
   phone_number: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters long').optional(),
-});
+  password: z.string().min(8, 'Password must be at least 8 characters long').optional() });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
 
@@ -64,8 +62,7 @@ async function updateUser(
 
   const updateData: Partial<IUser> = {
     ...data,
-    updated_by: requesterId,
-  };
+    updated_by: requesterId };
 
   if (data.password) {
     updateData.password = await hashPassword(data.password);
@@ -75,8 +72,7 @@ async function updateUser(
     .update(users)
     .set({
       ...updateData,
-      updated_at: new Date(),
-    })
+      updated_at: new Date() })
     .where(eq(users.id, id))
     .returning();
 
@@ -87,10 +83,16 @@ async function updateUser(
   return result as IUser;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const id = parseIdParam(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+  const id = req.userId;
+  if (!id) {
+    throw new HttpException(401, 'User authentication required');
+  }
   const updateData: UpdateUser = req.body;
-  const userId = getUserId(req);
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
 
   const user = await updateUser(id, updateData, userId);
 
@@ -100,7 +102,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   const userResponse = sanitizeUser(user);
 
   ResponseFormatter.success(res, userResponse, 'User updated successfully');
-});
+};
 
 const router = Router();
 router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), handler);

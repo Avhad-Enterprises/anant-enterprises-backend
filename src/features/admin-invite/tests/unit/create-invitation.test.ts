@@ -5,7 +5,7 @@
 import bcrypt from 'bcrypt';
 import { HttpException } from '../../../../utils';
 import * as inviteQueries from '../../shared/queries';
-import * as sendEmail from '../../../../utils';
+import { sendInvitationEmail } from '../../../../utils/email/sendInvitationEmail';
 import { ICreateInvitation, IInvitation } from '../../shared/interface';
 import { Invitation } from '../../shared/schema';
 import { config } from '../../../../utils/validateEnv';
@@ -33,11 +33,17 @@ jest.mock('../../../../utils', () => ({
     info: jest.fn(),
     warn: jest.fn(),
   },
+  HttpException: class extends Error {
+    constructor(public status: number, message: string) {
+      super(message);
+      this.name = 'HttpException';
+    }
+  },
 }));
 
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockInviteQueries = inviteQueries as jest.Mocked<typeof inviteQueries>;
-const mockSendEmail = sendEmail as jest.Mocked<typeof sendEmail>;
+const mockSendEmail = sendInvitationEmail as jest.MockedFunction<typeof sendInvitationEmail>;
 
 // Recreate the business logic for testing
 async function handleCreateInvitation(
@@ -69,7 +75,7 @@ async function handleCreateInvitation(
   try {
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
-    await sendEmail.sendInvitationEmail({
+    await sendInvitationEmail({
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
@@ -126,7 +132,7 @@ describe('Create Invitation Business Logic', () => {
     jest.clearAllMocks();
     (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword123');
     mockInviteQueries.createInvitation.mockResolvedValue(mockCreatedInvitation);
-    mockSendEmail.sendInvitationEmail.mockResolvedValue(undefined);
+    mockSendEmail.mockResolvedValue(undefined);
   });
 
   describe('handleCreateInvitation', () => {
@@ -224,7 +230,7 @@ describe('Create Invitation Business Logic', () => {
 
       await handleCreateInvitation(mockInvitationData, 1);
 
-      expect(mockSendEmail.sendInvitationEmail).toHaveBeenCalledWith(
+      expect(mockSendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: 'john.doe@example.com',
           firstName: 'John',
@@ -234,7 +240,7 @@ describe('Create Invitation Business Logic', () => {
 
     it('should not fail if email sending fails', async () => {
       mockInviteQueries.findInvitationByEmail.mockResolvedValue(undefined);
-      mockSendEmail.sendInvitationEmail.mockRejectedValue(new Error('Email failed'));
+      mockSendEmail.mockRejectedValue(new Error('Email failed'));
 
       const result = await handleCreateInvitation(mockInvitationData, 1);
 

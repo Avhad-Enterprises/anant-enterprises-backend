@@ -4,12 +4,11 @@
  * User manually enters credentials received via email along with the token from URL
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
 import { verifyPassword } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { generateToken } from '../../../utils';
@@ -113,16 +112,20 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
   };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const acceptData: AcceptInvitationDto = req.body;
-  const user = await handleAcceptInvitation(acceptData);
+const handler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const acceptData: AcceptInvitationDto = req.body;
+    const user = await handleAcceptInvitation(acceptData);
 
-  ResponseFormatter.success(
-    res,
-    user,
-    'Account created successfully. Welcome!'
-  );
-});
+    ResponseFormatter.success(
+      res,
+      user,
+      'Account created successfully. Welcome!'
+    );
+  } catch (error) {
+    next(error);
+  }
+};
 
 const router = Router();
 router.post('/accept', validationMiddleware(schema), handler);

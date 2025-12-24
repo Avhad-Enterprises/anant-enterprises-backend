@@ -3,14 +3,13 @@
  * Create a new permission (requires permissions:assign permission)
  */
 
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { createPermission, findPermissionByName } from '../shared/queries';
 import { Permission } from '../shared/schema';
@@ -59,11 +58,15 @@ async function handleCreatePermission(data: CreatePermissionDto): Promise<Permis
     return newPermission;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  try {
     const permissionData: CreatePermissionDto = req.body;
     const newPermission = await handleCreatePermission(permissionData);
     ResponseFormatter.created(res, newPermission, 'Permission created successfully');
-});
+  } catch (error) {
+    next(error);
+  }
+};
 
 const router = Router();
 router.post('/', requireAuth, requirePermission('permissions:assign'), validationMiddleware(schema), handler);

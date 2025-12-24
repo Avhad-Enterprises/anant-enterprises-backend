@@ -129,7 +129,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
       // Combine text items
       const pageText = textContent.items
-        .map((item: any) => item.str)
+        .map((item: unknown) => (item as { str: string }).str)
         .join(' ');
 
       textParts.push(pageText);

@@ -13,7 +13,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { uploads } from '../shared/schema';
@@ -21,8 +20,7 @@ import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
 import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('Upload ID must be a positive integer'),
-});
+  id: z.coerce.number().int().positive('Upload ID must be a positive integer') });
 
 async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll: boolean): Promise<void> {
   // Find upload based on permission
@@ -42,8 +40,7 @@ async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll
     .set({
       is_deleted: true,
       deleted_by: userId,
-      deleted_at: new Date(),
-    })
+      deleted_at: new Date() })
     .where(eq(uploads.id, uploadId))
     .returning();
 
@@ -52,8 +49,11 @@ async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll
   }
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
   const { id: uploadId } = paramsSchema.parse(req.params);
 
   // Check if user can delete any upload
@@ -62,7 +62,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   await handleDeleteUpload(uploadId, userId, canDeleteAll);
 
   ResponseFormatter.success(res, null, 'Upload deleted successfully');
-});
+};
 
 const router = Router();
 router.delete('/:id', requireAuth, validationMiddleware(paramsSchema, 'params'), handler);

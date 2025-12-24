@@ -12,8 +12,7 @@ import { requireAuth } from '../../../middlewares';
 import { requireOwnerOrPermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, parseIdParam } from '../../../utils';
-import { sanitizeUser } from '../../../utils';
+import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { findUserById } from '../shared/queries';
 import { IUser } from '../shared/interface';
@@ -32,13 +31,16 @@ async function getUserById(id: number): Promise<IUser> {
   return user as IUser;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const id = parseIdParam(req);
-  const user = await getUserById(id);
+const handler = async (req: RequestWithUser, res: Response) => {
+  // Get the ID from the URL params (validated by Zod)
+  const { id } = req.params;
+  const requestedUserId = parseInt(id, 10);
+
+  const user = await getUserById(requestedUserId);
   const userResponse = sanitizeUser(user);
 
   ResponseFormatter.success(res, userResponse, 'User retrieved successfully');
-});
+};
 
 const router = Router();
 router.get(

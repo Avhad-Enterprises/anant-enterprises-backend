@@ -12,7 +12,6 @@ import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { uploadSingleFileMiddleware } from '../../../middlewares';
@@ -20,13 +19,11 @@ import { uploadToS3 } from '../../../utils/s3Upload';
 import {
   createDocument,
   updateDocumentStatus,
-  updateDocumentProcessingResult,
-} from '../shared/queries';
+  updateDocumentProcessingResult } from '../shared/queries';
 import {
   extractTextFromBuffer,
   isValidFileType,
-  isValidFileSize,
-} from '../services/document-processor.service';
+  isValidFileSize } from '../services/document-processor.service';
 import { chunkText } from '../services/chunker.service';
 import { upsertDocumentVectors } from '../services/vector.service';
 import { chatbotConfig } from '../config/chatbot.config';
@@ -35,8 +32,7 @@ import { chatbotCacheService } from '../services/chatbot-cache.service';
 // Validation schema for optional metadata
 const uploadMetadataSchema = z.object({
   name: z.string().min(1).max(255).optional(),
-  description: z.string().max(1000).optional(),
-});
+  description: z.string().max(1000).optional() });
 
 /**
  * Process document: extract text, chunk, and store vectors
@@ -97,7 +93,7 @@ async function processDocument(
 /**
  * Upload document handler
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler =(async (req: Request, res: Response) => {
   const userId = req.userId!;
   const file = req.file;
 
@@ -141,8 +137,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     mime_type: file.mimetype,
     status: 'pending',
     created_by: userId,
-    updated_by: userId,
-  });
+    updated_by: userId });
 
   // Invalidate document caches (new document added)
   await chatbotCacheService.invalidateDocuments();
@@ -173,8 +168,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
       fileSize: document.file_size,
       mimeType: document.mime_type,
       status: document.status,
-      createdAt: document.created_at,
-    },
+      createdAt: document.created_at },
     'Document uploaded successfully. Training started in background.'
   );
 });

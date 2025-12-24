@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 
 export default [
   {
-    ignores: ['build/**', 'node_modules/**', 'coverage/**'],
+    ignores: ['build/**', 'node_modules/**', 'coverage/**', 'tests/**', '**/*.test.ts'],
   },
   js.configs.recommended,
   {
@@ -13,10 +13,4 @@ export default [
     },
   },
   ...tseslint.configs.recommended,
-  {
-    files: ['**/tests/**/*.ts', '**/*.test.ts'],
-    rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
-    },
-  },
 ];

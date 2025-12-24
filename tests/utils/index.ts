@@ -8,6 +8,9 @@
 export { default as createTestApp } from './app.helper';
 export { createTestApp as createTestAppNamed } from './app.helper';
 
+// Export default app for easy import in tests
+export { default } from './app.helper';
+
 // API testing helpers
 export { ApiTestHelper } from './api.helper';
 

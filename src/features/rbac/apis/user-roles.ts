@@ -11,15 +11,13 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission, requireOwnerOrPermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import {
     findRoleById,
     findUserRoles,
     assignRoleToUser,
     removeRoleFromUser,
-    findUserPermissions,
-} from '../shared/queries';
+    findUserPermissions } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 import { findUserById } from '../../user';
 import { Role } from '../shared/schema';
@@ -28,8 +26,7 @@ import { IUserPermissionsResponse } from '../shared/interface';
 // Validation schema
 const assignRoleSchema = z.object({
     role_id: z.number().int().positive('Role ID must be a positive integer'),
-    expires_at: z.string().datetime().optional(),
-});
+    expires_at: z.string().datetime().optional() });
 
 type AssignRoleDto = z.infer<typeof assignRoleSchema>;
 
@@ -47,8 +44,7 @@ async function getUserRoles(userId: number): Promise<UserRolesResult> {
     const roles = userRoles.map((ur) => ({
         ...ur.role,
         assigned_at: ur.assigned_at,
-        expires_at: ur.expires_at,
-    }));
+        expires_at: ur.expires_at }));
 
     return { user_id: userId, roles };
 }
@@ -62,8 +58,7 @@ async function getUserPermissionsData(userId: number): Promise<IUserPermissionsR
         user_id: userId,
         roles: roleNames,
         permissions,
-        has_wildcard: permissions.includes('*'),
-    };
+        has_wildcard: permissions.includes('*') };
 }
 
 async function handleAssignRole(
@@ -98,34 +93,52 @@ async function handleRemoveRole(userId: number, roleId: number): Promise<void> {
 // Handlers
 // ============================================
 
-const getRolesHandler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const userId = parseIdParam(req, 'userId');
+const getRolesHandler = async (req: RequestWithUser, res: Response) => {
+    const userId = Number(req.params.userId);
+  if (isNaN(userId) || userId <= 0) {
+    throw new HttpException(400, 'Invalid userId parameter');
+  }
     const result = await getUserRoles(userId);
     ResponseFormatter.success(res, result, 'User roles retrieved successfully');
-});
+};
 
-const getPermissionsHandler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const userId = parseIdParam(req, 'userId');
+const getPermissionsHandler = async (req: RequestWithUser, res: Response) => {
+    const userId = Number(req.params.userId);
+  if (isNaN(userId) || userId <= 0) {
+    throw new HttpException(400, 'Invalid userId parameter');
+  }
     const result = await getUserPermissionsData(userId);
     ResponseFormatter.success(res, result, 'User permissions retrieved successfully');
-});
+};
 
-const postHandler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const targetUserId = parseIdParam(req, 'userId');
-    const assignedBy = getUserId(req);
+const postHandler = async (req: RequestWithUser, res: Response) => {
+    const tar = Number(req.params.userId);
+  if (isNaN(tar) || tar <= 0) {
+    throw new HttpException(400, 'Invalid userId parameter');
+  }
+    const assignedBy = req.userId;
+  if (!assignedBy) {
+    throw new HttpException(401, 'User authentication required');
+  }
     const { role_id, expires_at }: AssignRoleDto = req.body;
 
-    const result = await handleAssignRole(targetUserId, role_id, assignedBy, expires_at);
+    const result = await handleAssignRole(tar, role_id, assignedBy, expires_at);
     ResponseFormatter.success(res, result, `Role assigned to user successfully`);
-});
+};
 
-const deleteHandler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const userId = parseIdParam(req, 'userId');
-    const roleId = parseIdParam(req, 'roleId');
+const deleteHandler = async (req: RequestWithUser, res: Response) => {
+    const userId = Number(req.params.userId);
+  if (isNaN(userId) || userId <= 0) {
+    throw new HttpException(400, 'Invalid userId parameter');
+  }
+    const roleId = Number(req.params.roleId);
+  if (isNaN(roleId) || roleId <= 0) {
+    throw new HttpException(400, 'Invalid roleId parameter');
+  }
 
     await handleRemoveRole(userId, roleId);
     ResponseFormatter.success(res, null, 'Role removed from user successfully');
-});
+};
 
 // ============================================
 // Router

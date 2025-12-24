@@ -10,10 +10,9 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { asyncHandler } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
-import { AuditAction, AuditResourceType } from '../shared/types';
+import { AuditAction, AuditResourceType, AuditLogFilters } from '../shared/types';
 
 // Validation schema for query parameters
 const querySchema = z.object({
@@ -25,15 +24,13 @@ const querySchema = z.object({
     endDate: z.coerce.date().optional(),
     ipAddress: z.string().optional(),
     limit: z.coerce.number().int().min(1).max(500).default(50),
-    offset: z.coerce.number().int().min(0).default(0),
-});
+    offset: z.coerce.number().int().min(0).default(0) });
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler =(async (req: RequestWithUser, res: Response) => {
     // Validation middleware ensures these are the correct types
-    const filters: any = {
+    const filters: AuditLogFilters = {
         limit: req.query.limit || 50,
-        offset: req.query.offset || 0,
-    };
+        offset: req.query.offset || 0 };
 
     if (req.query.userId) filters.userId = req.query.userId;
     if (req.query.resourceType) filters.resourceType = req.query.resourceType;
@@ -57,9 +54,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
         pagination: {
             limit: filters.limit,
             offset: filters.offset,
-            count: logs.length,
-        },
-    }, 'Audit logs retrieved successfully');
+            count: logs.length } }, 'Audit logs retrieved successfully');
 });
 
 const router = Router();

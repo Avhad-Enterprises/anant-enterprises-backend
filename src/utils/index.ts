@@ -5,8 +5,9 @@
  * Usage: import { logger, HttpException, jwt } from '@/utils' or '../../utils'
  */
 
-// Audit utilities
-export * from './audit/audit-utils';
+// NOTE: audit-utils is NOT exported here to avoid circular dependency
+// audit-utils imports from features/audit, which imports from utils
+// Import audit-utils directly: import { ... } from './utils/audit/audit-utils'
 
 // Auth utilities
 export * from './auth/encryption';
@@ -23,10 +24,8 @@ export * from './email/emailConfig';
 export * from './email/sendInvitationEmail';
 
 // Helper utilities
-export * from './helpers/controllerHelpers';
 export { HttpException } from './helpers/httpException';
 export * from './helpers/responseFormatter';
-export * from './helpers/sanitizeUser';
 export * from './helpers/uuid';
 
 // Logging utilities

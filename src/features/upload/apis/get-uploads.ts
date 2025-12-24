@@ -14,7 +14,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId, parseIdParam } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { uploads } from '../shared/schema';
@@ -30,8 +29,7 @@ const uploadQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
   sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
-  sort_order: z.enum(['asc', 'desc']).optional(),
-});
+  sort_order: z.enum(['asc', 'desc']).optional() });
 
 async function getUploadsWithPagination(
   userId: number,
@@ -44,8 +42,7 @@ async function getUploadsWithPagination(
     page = 1,
     limit = 10,
     sort_by = 'created_at',
-    sort_order = 'desc',
-  } = filters;
+    sort_order = 'desc' } = filters;
 
   // Build conditions - if canViewAll, don't filter by user_id
   const conditions = [eq(uploads.is_deleted, false)];
@@ -81,12 +78,14 @@ async function getUploadsWithPagination(
     uploads: uploadsList.map(convertUpload),
     total: Number(total),
     page,
-    limit,
-  };
+    limit };
 }
 
-const handleGetAllUploads = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
+const handleGetAllUploads = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
   const filters = req.query as z.infer<typeof uploadQuerySchema>;
 
   // Check if user can view all uploads
@@ -100,11 +99,17 @@ const handleGetAllUploads = asyncHandler(async (req: RequestWithUser, res: Respo
     { page: result.page, limit: result.limit, total: result.total },
     canViewAll ? 'All uploads retrieved successfully' : 'Your uploads retrieved successfully'
   );
-});
+};
 
-const handleGetUploadById = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
-  const uploadId = parseIdParam(req);
+const handleGetUploadById = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
+  const uploadId = parseInt(req.params.id);
+  if (!uploadId || isNaN(uploadId)) {
+    throw new HttpException(400, 'Invalid upload ID');
+  }
 
   // Check if user can view all uploads
   const canViewAll = await rbacCacheService.hasPermission(userId, 'uploads:read');
@@ -121,10 +126,13 @@ const handleGetUploadById = asyncHandler(async (req: RequestWithUser, res: Respo
   }
 
   ResponseFormatter.success(res, convertUpload(upload), 'Upload retrieved successfully');
-});
+};
 
-const handleGetUploadsByStatus = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
+const handleGetUploadsByStatus = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
   const { status } = req.params;
 
   const statusResult = uploadStatusSchema.safeParse(status);
@@ -148,7 +156,7 @@ const handleGetUploadsByStatus = asyncHandler(async (req: RequestWithUser, res: 
     uploadsList.map(convertUpload),
     'Uploads retrieved successfully'
   );
-});
+};
 
 const router = Router();
 

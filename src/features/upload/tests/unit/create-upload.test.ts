@@ -20,6 +20,12 @@ jest.mock('../../../../utils', () => ({
     info: jest.fn(),
     warn: jest.fn(),
   },
+  HttpException: class extends Error {
+    constructor(public status: number, message: string) {
+      super(message);
+      this.name = 'HttpException';
+    }
+  },
 }));
 
 const mockDb = db as jest.Mocked<typeof db>;

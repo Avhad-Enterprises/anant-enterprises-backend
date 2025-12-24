@@ -10,7 +10,6 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { createRole, findRoleByName } from '../shared/queries';
 import { Role } from '../shared/schema';
@@ -21,8 +20,7 @@ const schema = z.object({
         .min(2, 'Role name must be at least 2 characters')
         .max(50, 'Role name must be at most 50 characters')
         .regex(/^[a-z_]+$/, 'Role name must be lowercase with underscores only'),
-    description: z.string().max(500).optional(),
-});
+    description: z.string().max(500).optional() });
 
 type CreateRoleDto = z.infer<typeof schema>;
 
@@ -38,18 +36,20 @@ async function handleCreateRole(data: CreateRoleDto, createdBy: number): Promise
         name: data.name,
         description: data.description,
         is_system_role: false,
-        created_by: createdBy,
-    });
+        created_by: createdBy });
 
     return newRole;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const userId = getUserId(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+    const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
     const roleData: CreateRoleDto = req.body;
     const newRole = await handleCreateRole(roleData, userId);
     ResponseFormatter.created(res, newRole, 'Role created successfully');
-});
+};
 
 const router = Router();
 router.post('/', requireAuth, requirePermission('roles:manage'), validationMiddleware(schema), handler);

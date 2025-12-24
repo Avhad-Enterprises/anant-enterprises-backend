@@ -7,8 +7,8 @@ import { requirePermission, requireAnyPermission, requireOwnerOrPermission } fro
 import { HttpException } from '../../src/utils';
 import type { RequestWithUser } from '../../src/interfaces';
 
-// Mock the RBAC cache service
-jest.mock('../../src/features/rbac/services', () => ({
+// Mock the RBAC cache service - updated path to match actual import
+jest.mock('../../src/features/rbac/services/rbac-cache.service', () => ({
     rbacCacheService: {
         hasPermission: jest.fn(),
         hasAllPermissions: jest.fn(),
@@ -16,7 +16,7 @@ jest.mock('../../src/features/rbac/services', () => ({
     },
 }));
 
-import { rbacCacheService } from '../../src/features/rbac';
+import { rbacCacheService } from '../../src/features/rbac/services/rbac-cache.service';
 
 describe('Permission Middleware', () => {
     let mockRequest: Partial<RequestWithUser>;

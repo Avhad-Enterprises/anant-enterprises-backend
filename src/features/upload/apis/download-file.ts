@@ -9,18 +9,19 @@ import { Readable } from 'stream';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { downloadFromS3 } from '../../../utils/s3Upload';
 import { findUploadById } from '../shared/queries';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('Upload ID must be a positive integer'),
-});
+  id: z.coerce.number().int().positive('Upload ID must be a positive integer') });
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
   const { id: uploadId } = paramsSchema.parse(req.params);
-  const userId = getUserId(req);
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
 
   const upload = await findUploadById(uploadId, userId);
 
@@ -36,7 +37,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
 
   // S3 SDK returns a Readable stream
   (stream as Readable).pipe(res);
-});
+};
 
 const router = Router();
 router.get('/:id/download', requireAuth, validationMiddleware(paramsSchema, 'params'), handler);

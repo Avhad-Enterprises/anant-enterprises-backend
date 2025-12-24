@@ -8,7 +8,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { findAllRoles, countRolePermissions, countUsersWithRole } from '../shared/queries';
 import { IRoleResponse } from '../shared/interface';
 
@@ -32,10 +31,10 @@ async function getAllRoles(): Promise<IRoleResponse[]> {
     return enrichedRoles;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
     const roles = await getAllRoles();
     ResponseFormatter.success(res, roles, 'Roles retrieved successfully');
-});
+};
 
 const router = Router();
 router.get('/', requireAuth, requirePermission('roles:read'), handler);

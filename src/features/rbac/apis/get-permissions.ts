@@ -8,7 +8,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { findAllPermissions } from '../shared/queries';
 import { Permission } from '../shared/schema';
 
@@ -35,7 +34,7 @@ async function getAllPermissions(): Promise<PermissionsResponse> {
     return { permissions, by_resource: byResource };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = (async (req: RequestWithUser, res: Response) => {
     const result = await getAllPermissions();
     ResponseFormatter.success(res, result, 'Permissions retrieved successfully');
 });

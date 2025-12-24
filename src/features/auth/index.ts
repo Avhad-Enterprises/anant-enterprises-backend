@@ -1,15 +1,12 @@
 /**
  * Auth Feature Index
  *
- * Central exports for all authentication-related functionality
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all authentication-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import registerRouter from './apis/register';
-import loginRouter from './apis/login';
-import refreshTokenRouter from './apis/refresh-token';
-import logoutRouter from './apis/logout';
 
 class AuthRoute implements Route {
   public path = '/auth';
@@ -19,7 +16,13 @@ class AuthRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: registerRouter } = await import('./apis/register');
+    const { default: loginRouter } = await import('./apis/login');
+    const { default: refreshTokenRouter } = await import('./apis/refresh-token');
+    const { default: logoutRouter } = await import('./apis/logout');
+
     this.router.use(this.path, registerRouter);
     this.router.use(this.path, loginRouter);
     this.router.use(this.path, refreshTokenRouter);
@@ -31,7 +34,3 @@ class AuthRoute implements Route {
 export default AuthRoute;
 
 // Individual API routes
-export { default as registerRouter } from './apis/register';
-export { default as loginRouter } from './apis/login';
-export { default as refreshTokenRouter } from './apis/refresh-token';
-export { default as logoutRouter } from './apis/logout';

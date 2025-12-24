@@ -10,7 +10,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId, parseIdParam } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { uploads } from '../shared/schema';
@@ -22,8 +21,7 @@ const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed
 const updateUploadSchema = z.object({
   filename: z.string().min(1, 'Filename is required').optional(),
   status: uploadStatusSchema.optional(),
-  error_message: z.string().optional(),
-});
+  error_message: z.string().optional() });
 
 async function handleUpdateUpload(
   uploadId: number,
@@ -40,8 +38,7 @@ async function handleUpdateUpload(
     .update(uploads)
     .set({
       ...updateData,
-      updated_at: new Date(),
-    })
+      updated_at: new Date() })
     .where(
       and(eq(uploads.id, uploadId), eq(uploads.user_id, userId), eq(uploads.is_deleted, false))
     )
@@ -54,15 +51,21 @@ async function handleUpdateUpload(
   return convertUpload(updatedUpload);
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
-  const uploadId = parseIdParam(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
+  const uploadId = parseInt(req.params.id);
+  if (!uploadId || isNaN(uploadId)) {
+    throw new HttpException(400, 'Invalid upload ID');
+  }
   const updateData = req.body as UploadUpdateInput;
 
   const updatedUpload = await handleUpdateUpload(uploadId, updateData, userId);
 
   ResponseFormatter.success(res, updatedUpload, 'Upload updated successfully');
-});
+};
 
 const router = Router();
 router.put('/:id', requireAuth, validationMiddleware(updateUploadSchema), handler);

@@ -11,19 +11,17 @@ import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Query params schema
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
+  limit: z.coerce.number().int().min(1).max(100).default(20) });
 
 /**
  * List documents handler - CACHED
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler =(async (req: Request, res: Response) => {
   const { page, limit } = querySchema.parse(req.query);
 
   const { documents, total } = await chatbotCacheService.listDocuments(page, limit);
@@ -40,8 +38,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
       chunkCount: doc.chunk_count,
       errorMessage: doc.error_message,
       createdAt: doc.created_at,
-      updatedAt: doc.updated_at,
-    })),
+      updatedAt: doc.updated_at })),
     { page, limit, total },
     'Documents retrieved successfully'
   );
@@ -50,7 +47,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 /**
  * Get document stats handler - CACHED
  */
-const statsHandler = asyncHandler(async (_req: Request, res: Response) => {
+const statsHandler =(async (_req: Request, res: Response) => {
   const stats = await chatbotCacheService.getDocumentStats();
 
   ResponseFormatter.success(res, stats, 'Document statistics retrieved successfully');

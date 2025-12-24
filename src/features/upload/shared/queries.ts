@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { uploads, type Upload as DrizzleUpload } from './schema';
 
@@ -12,7 +12,7 @@ export const findUploadById = async (
   id: number,
   userId?: number
 ): Promise<DrizzleUpload | undefined> => {
-  const conditions = [eq(uploads.id, id), eq(uploads.is_deleted, false)];
+  const conditions = [eq(uploads.id, id), or(eq(uploads.is_deleted, false), isNull(uploads.is_deleted))];
 
   if (userId !== undefined) {
     conditions.push(eq(uploads.user_id, userId));
@@ -35,7 +35,7 @@ export const findUploadByIdAdmin = async (id: number): Promise<DrizzleUpload | u
   const [upload] = await db
     .select()
     .from(uploads)
-    .where(and(eq(uploads.id, id), eq(uploads.is_deleted, false)))
+    .where(and(eq(uploads.id, id), or(eq(uploads.is_deleted, false), isNull(uploads.is_deleted))))
     .limit(1);
 
   return upload;

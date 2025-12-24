@@ -6,6 +6,7 @@
  */
 
 import { Request } from 'express';
+import { RequestWithUser } from '../../interfaces';
 import { AuditAction, AuditResourceType, AuditContext } from '../../features/audit';
 
 /**
@@ -13,7 +14,7 @@ import { AuditAction, AuditResourceType, AuditContext } from '../../features/aud
  */
 export function extractRequestContext(req: Request): AuditContext {
     return {
-        userId: (req as any).userId, // userId is added by auth middleware
+        userId: (req as RequestWithUser).userId, // userId is added by auth middleware
         ipAddress: req.ip || req.connection?.remoteAddress || undefined,
         userAgent: req.get('User-Agent'),
         sessionId: req.headers['x-session-id'] as string | undefined,
@@ -111,7 +112,7 @@ export function getResourceTypeFromPath(path: string): AuditResourceType {
 
     // Extract first path segment after /api/
     // Example: /api/products/123 → 'products'
-    const match = lowerPath.match(/\/api\/([^\/]+)/);
+    const match = lowerPath.match(/\/api\/([^/]+)/);
     if (!match) return AuditResourceType.SYSTEM;
 
     const resource = match[1];

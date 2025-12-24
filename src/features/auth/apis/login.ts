@@ -3,12 +3,11 @@
  * Login with email and password (Public - no auth)
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
 import { verifyPassword } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { generateToken } from '../../../utils';
 import { findUserByEmail } from '../../user';
@@ -21,7 +20,7 @@ const schema = z.object({
 
 type LoginDto = z.infer<typeof schema>;
 
-async function handleLogin(email: string, password: string): Promise<IAuthUserWithToken> {
+export async function handleLogin(email: string, password: string): Promise<IAuthUserWithToken> {
   if (!email || !password) {
     throw new HttpException(400, 'Email and password are required');
   }
@@ -58,12 +57,16 @@ async function handleLogin(email: string, password: string): Promise<IAuthUserWi
   };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response) => {
-  const loginData: LoginDto = req.body;
-  const user = await handleLogin(loginData.email, loginData.password);
+const handler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const loginData: LoginDto = req.body;
+    const user = await handleLogin(loginData.email, loginData.password);
 
-  ResponseFormatter.success(res, user, 'Login successful');
-});
+    ResponseFormatter.success(res, user, 'Login successful');
+  } catch (error) {
+    next(error);
+  }
+};
 
 const router = Router();
 router.post('/login', validationMiddleware(schema), handler);

@@ -14,7 +14,7 @@ import {
     getAuditActionFromRequest,
     getResourceTypeFromPath,
     getResourceIdFromPath,
-} from '../utils';
+} from '../utils/audit/audit-utils';
 
 /**
  * Audit logging middleware
@@ -40,7 +40,7 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
     let responseCaptured = false;
 
     // Override res.end to capture when response is sent
-    res.end = function (this: Response, ...args: any[]): Response {
+    res.end = function (this: Response, ...args: unknown[]): Response {
         if (!responseCaptured) {
             responseCaptured = true;
 
@@ -90,7 +90,8 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
         }
 
         // Call original end function
-        return originalEnd.apply(this, args as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return originalEnd.apply(this, args as any[]);
     };
 
     next();

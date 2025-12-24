@@ -128,7 +128,7 @@ export async function deleteDocumentVectors(
           },
         });
         logger.info(`✅ Deleted vectors by document ID filter`);
-      } catch (filterError) {
+      } catch {
         // Fallback: Generate expected vector IDs based on pattern
         logger.warn('Metadata filter delete not supported, using ID pattern');
         const estimatedIds = generateEstimatedVectorIds(documentId, 1000);

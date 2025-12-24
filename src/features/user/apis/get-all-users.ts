@@ -10,8 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
-import { sanitizeUsers } from '../../../utils';
+import { sanitizeUsers } from '../shared/sanitizeUser';
 import { db } from '../../../database';
 import { users } from '../shared/schema';
 import { IUser } from '../shared/interface';
@@ -24,7 +23,7 @@ const MAX_LIMIT = 100;
 // Query params validation
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(DEFAULT_PAGE),
-  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT)
 });
 
 interface PaginatedUsers {
@@ -58,11 +57,11 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     users: allUsers as IUser[],
     total,
     page,
-    limit,
+    limit
   };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = (async (req: RequestWithUser, res: Response) => {
   // Parse and validate pagination params
   const { page, limit } = paginationSchema.parse(req.query);
 

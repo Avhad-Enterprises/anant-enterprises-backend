@@ -10,7 +10,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { asyncHandler } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
 import { AuditResourceType } from '../shared/types';
@@ -18,16 +17,14 @@ import { AuditResourceType } from '../shared/types';
 // Validation schema for URL params
 const paramsSchema = z.object({
     type: z.nativeEnum(AuditResourceType),
-    id: z.coerce.number().int().positive('Resource ID must be a positive integer'),
-});
+    id: z.coerce.number().int().positive('Resource ID must be a positive integer') });
 
 // Validation schema for query params
 const querySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(1000).default(100),
-});
+    limit: z.coerce.number().int().min(1).max(1000).default(100) });
 
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler =(async (req: RequestWithUser, res: Response) => {
     const type = req.params.type as AuditResourceType;
     const id = parseInt(req.params.id, 10);
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
@@ -39,8 +36,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
         resourceType: type,
         resourceId: id,
         history,
-        count: history.length,
-    }, 'Resource history retrieved successfully');
+        count: history.length }, 'Resource history retrieved successfully');
 });
 
 const router = Router();

@@ -10,22 +10,19 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import {
     findRoleById,
     findPermissionById,
     assignPermissionsToRole,
-    findRolePermissions,
-} from '../shared/queries';
+    findRolePermissions } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 
 const schema = z.object({
     permission_ids: z
         .array(z.number().int().positive('Permission ID must be a positive integer'))
         .min(1, 'At least one permission ID is required')
-        .max(50, 'Cannot assign more than 50 permissions at once'),
-});
+        .max(50, 'Cannot assign more than 50 permissions at once') });
 
 type BulkAssignDto = z.infer<typeof schema>;
 
@@ -81,13 +78,18 @@ async function handleBulkAssign(
         role_name: role.name,
         assigned_count: newPermissionIds.length,
         skipped_count: skippedCount,
-        permission_ids: newPermissionIds,
-    };
+        permission_ids: newPermissionIds };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const roleId = parseIdParam(req, 'roleId');
-    const userId = getUserId(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+    const roleId = Number(req.params.roleId);
+  if (isNaN(roleId) || roleId <= 0) {
+    throw new HttpException(400, 'Invalid roleId parameter');
+  }
+    const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
     const { permission_ids }: BulkAssignDto = req.body;
 
     const result = await handleBulkAssign(roleId, permission_ids, userId);
@@ -96,7 +98,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
         result,
         `Assigned ${result.assigned_count} permissions (${result.skipped_count} skipped as already assigned)`
     );
-});
+};
 
 const router = Router();
 router.post(

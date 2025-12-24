@@ -5,7 +5,6 @@ interface InvitationEmailParams {
     to: string;
     firstName: string;
     lastName: string;
-    assignedRoleId: number;
     inviteLink: string;
     expiresIn: string;
     tempPassword: string; // Temporary password for first login
@@ -19,7 +18,6 @@ export const sendInvitationEmail = async ({
     to,
     firstName,
     lastName,
-    assignedRoleId,
     inviteLink,
     expiresIn = '24 hours',
     tempPassword,

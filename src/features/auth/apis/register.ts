@@ -5,12 +5,11 @@
  * NOTE: New users are automatically assigned the 'user' role via RBAC system
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
 import { hashPassword } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { generateToken } from '../../../utils';
 import { findUserByEmail, createUser, updateUserById } from '../../user';
@@ -26,7 +25,7 @@ const schema = z.object({
 
 type RegisterDto = z.infer<typeof schema>;
 
-async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
+export async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
   const existingUser = await findUserByEmail(data.email);
   if (existingUser) {
     throw new HttpException(409, 'Email already registered');
@@ -69,12 +68,16 @@ async function handleRegister(data: RegisterDto): Promise<IAuthUserWithToken> {
   };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const userData: RegisterDto = req.body;
-  const user = await handleRegister(userData);
+const handler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userData: RegisterDto = req.body;
+    const user = await handleRegister(userData);
 
-  ResponseFormatter.created(res, user, 'User registered successfully');
-});
+    ResponseFormatter.created(res, user, 'User registered successfully');
+  } catch (error) {
+    next(error);
+  }
+};
 
 const router = Router();
 router.post('/register', validationMiddleware(schema), handler);

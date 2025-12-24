@@ -3,13 +3,12 @@
  * Upload file to S3 and create record (Requires auth)
  */
 
-import { Router, Response, Request } from 'express';
+import { Router, Response, Request, NextFunction } from 'express';
 // Import to ensure global Express interface extension is loaded
 import '../../../interfaces/request.interface';
 import { requireAuth } from '../../../middlewares';
 import { uploadSingleFileMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { uploadToS3 } from '../../../utils/s3Upload';
 import { db } from '../../../database';
@@ -27,7 +26,7 @@ async function handleCreateUpload(file: Express.Multer.File, userId: number): Pr
     file_path: s3Result.key,
     file_url: s3Result.url,
     user_id: userId,
-    created_by: userId,
+    created_by: userId
   }).returning();
 
   if (!upload) {
@@ -38,22 +37,29 @@ async function handleCreateUpload(file: Express.Multer.File, userId: number): Pr
     ...upload,
     created_at: upload.created_at.toISOString(),
     updated_at: upload.updated_at.toISOString(),
-    deleted_at: upload.deleted_at?.toISOString(),
+    deleted_at: upload.deleted_at?.toISOString()
   } as Upload;
 }
 
-const handler = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req);
-  const file = req.file;
+const handler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      throw new HttpException(401, 'User authentication required');
+    }
+    const file = req.file;
 
-  if (!file) {
-    throw new HttpException(400, 'No file uploaded');
+    if (!file) {
+      throw new HttpException(400, 'No file uploaded');
+    }
+
+    const upload = await handleCreateUpload(file, userId);
+
+    ResponseFormatter.created(res, upload, 'File uploaded successfully');
+  } catch (error) {
+    next(error);
   }
-
-  const upload = await handleCreateUpload(file, userId);
-
-  ResponseFormatter.created(res, upload, 'File uploaded successfully');
-});
+};
 
 const router = Router();
 router.post('/', requireAuth, uploadSingleFileMiddleware, handler);

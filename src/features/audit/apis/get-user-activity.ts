@@ -10,23 +10,20 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { asyncHandler } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
 
 // Validation schema for URL params
 const paramsSchema = z.object({
-    userId: z.coerce.number().int().positive('User ID must be a positive integer'),
-});
+    userId: z.coerce.number().int().positive('User ID must be a positive integer') });
 
 // Validation schema for query params
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(1000).default(100),
     startDate: z.coerce.date().optional(),
-    endDate: z.coerce.date().optional(),
-});
+    endDate: z.coerce.date().optional() });
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler =(async (req: RequestWithUser, res: Response) => {
     const userId = parseInt(req.params.userId, 10);
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
@@ -50,8 +47,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
     ResponseFormatter.success(res, {
         userId,
         activity,
-        count: activity.length,
-    }, 'User activity retrieved successfully');
+        count: activity.length }, 'User activity retrieved successfully');
 });
 
 const router = Router();

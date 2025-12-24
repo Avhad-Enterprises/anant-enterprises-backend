@@ -1,17 +1,12 @@
 /**
  * Upload Feature Index
  *
- * Central exports for all upload-related functionality
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all upload-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import createUploadRouter from './apis/create-upload';
-import getUploadsRouter from './apis/get-uploads';
-import updateUploadRouter from './apis/update-upload';
-import deleteUploadRouter from './apis/delete-upload';
-import uploadStatsRouter from './apis/upload-stats';
-import downloadFileRouter from './apis/download-file';
 
 class UploadRoute implements Route {
   public path = '/uploads';
@@ -21,7 +16,15 @@ class UploadRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: uploadStatsRouter } = await import('./apis/upload-stats');
+    const { default: createUploadRouter } = await import('./apis/create-upload');
+    const { default: getUploadsRouter } = await import('./apis/get-uploads');
+    const { default: updateUploadRouter } = await import('./apis/update-upload');
+    const { default: deleteUploadRouter } = await import('./apis/delete-upload');
+    const { default: downloadFileRouter } = await import('./apis/download-file');
+
     // Mount all upload routes
     // Note: stats must be before /:id routes to match /stats correctly
     this.router.use(this.path, uploadStatsRouter);
@@ -37,14 +40,8 @@ class UploadRoute implements Route {
 export default UploadRoute;
 
 // Individual API routes
-export { default as createUploadRouter } from './apis/create-upload';
-export { default as getUploadsRouter } from './apis/get-uploads';
-export { default as updateUploadRouter } from './apis/update-upload';
-export { default as deleteUploadRouter } from './apis/delete-upload';
-export { default as uploadStatsRouter } from './apis/upload-stats';
-export { default as downloadFileRouter } from './apis/download-file';
 
-// Shared resources
+// Shared resources - SAFE to export
 export {
   uploads,
   uploadStatuses,

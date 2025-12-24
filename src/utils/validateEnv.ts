@@ -14,7 +14,6 @@ if (nodeEnv === 'development') {
 dotenv.config();
 
 import { cleanEnv, port, str, num } from 'envalid';
-import { logger } from './logging/logger';
 
 /**
  * Validate all required environment variables for the application
@@ -73,7 +72,8 @@ export const validateEnv = () => {
     throw new Error('JWT_SECRET must be at least 32 characters long for security');
   }
 
-  logger.info('✅ Environment variables validated.');
+  // Use console.log to avoid circular dependency with logger
+  console.log('info: ✅ Environment variables validated.');
   return env;
 };
 

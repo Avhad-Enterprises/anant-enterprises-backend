@@ -1,20 +1,14 @@
 /**
  * Chatbot Feature Index
  *
- * Central exports for all chatbot-related functionality
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all chatbot-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
 
 // Import API routers
-import uploadDocumentRouter from './apis/upload-document';
-import listDocumentsRouter from './apis/list-documents';
-import deleteDocumentRouter from './apis/delete-document';
-import sendMessageRouter from './apis/send-message';
-import listSessionsRouter from './apis/list-sessions';
-import getSessionRouter from './apis/get-session';
-import deleteSessionRouter from './apis/delete-session';
 
 /**
  * Chatbot Route
@@ -32,7 +26,16 @@ class ChatbotRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes(): void {
+  private async initializeRoutes(): Promise<void> {
+    // Dynamic imports to avoid circular dependency
+    const { default: uploadDocumentRouter } = await import('./apis/upload-document');
+    const { default: listDocumentsRouter } = await import('./apis/list-documents');
+    const { default: deleteDocumentRouter } = await import('./apis/delete-document');
+    const { default: sendMessageRouter } = await import('./apis/send-message');
+    const { default: listSessionsRouter } = await import('./apis/list-sessions');
+    const { default: getSessionRouter } = await import('./apis/get-session');
+    const { default: deleteSessionRouter } = await import('./apis/delete-session');
+
     // Document management (admin only)
     this.router.use(this.path, uploadDocumentRouter);   // POST /chatbot/documents
     this.router.use(this.path, listDocumentsRouter);    // GET /chatbot/documents, GET /chatbot/documents/stats
@@ -50,18 +53,11 @@ class ChatbotRoute implements Route {
 export default ChatbotRoute;
 
 // Individual API routes
-export { default as uploadDocumentRouter } from './apis/upload-document';
-export { default as listDocumentsRouter } from './apis/list-documents';
-export { default as deleteDocumentRouter } from './apis/delete-document';
-export { default as sendMessageRouter } from './apis/send-message';
-export { default as listSessionsRouter } from './apis/list-sessions';
-export { default as getSessionRouter } from './apis/get-session';
-export { default as deleteSessionRouter } from './apis/delete-session';
 
 // Configuration
 export { chatbotConfig, general, chunking, embedding, search, llm, chat, rateLimit, systemPrompt } from './config/chatbot.config';
 
-// Services
+// Services - SAFE to export
 export {
   pineconeIndex,
   niraNamespace,
@@ -120,7 +116,7 @@ export {
 
 export { chatbotCacheService, ChatbotCacheService } from './services/chatbot-cache.service';
 
-// Shared resources
+// Shared resources - SAFE to export
 export {
   documentStatuses,
   type DocumentStatus,

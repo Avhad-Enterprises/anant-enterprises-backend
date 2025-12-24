@@ -2,19 +2,11 @@
  * RBAC Feature Index
  *
  * Central exports for all RBAC-related functionality
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import getRolesRouter from './apis/get-roles';
-import createRoleRouter from './apis/create-role';
-import updateRoleRouter from './apis/update-role';
-import deleteRoleRouter from './apis/delete-role';
-import getPermissionsRouter from './apis/get-permissions';
-import createPermissionRouter from './apis/create-permission';
-import rolePermissionsRouter from './apis/role-permissions';
-import bulkPermissionsRouter from './apis/bulk-permissions';
-import userRolesRouter from './apis/user-roles';
 
 class RBACRoute implements Route {
     public path = '/rbac';
@@ -24,7 +16,18 @@ class RBACRoute implements Route {
         this.initializeRoutes();
     }
 
-    private initializeRoutes() {
+    private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: getRolesRouter } = await import('./apis/get-roles');
+    const { default: createRoleRouter } = await import('./apis/create-role');
+    const { default: updateRoleRouter } = await import('./apis/update-role');
+    const { default: deleteRoleRouter } = await import('./apis/delete-role');
+    const { default: rolePermissionsRouter } = await import('./apis/role-permissions');
+    const { default: bulkPermissionsRouter } = await import('./apis/bulk-permissions');
+    const { default: getPermissionsRouter } = await import('./apis/get-permissions');
+    const { default: createPermissionRouter } = await import('./apis/create-permission');
+    const { default: userRolesRouter } = await import('./apis/user-roles');
+
         // Role management: /api/rbac/roles
         this.router.use(`${this.path}/roles`, getRolesRouter);
         this.router.use(`${this.path}/roles`, createRoleRouter);
@@ -45,29 +48,19 @@ class RBACRoute implements Route {
 // Main route export
 export default RBACRoute;
 
-// Individual API routes
-export { default as getRolesRouter } from './apis/get-roles';
-export { default as createRoleRouter } from './apis/create-role';
-export { default as updateRoleRouter } from './apis/update-role';
-export { default as deleteRoleRouter } from './apis/delete-role';
-export { default as getPermissionsRouter } from './apis/get-permissions';
-export { default as createPermissionRouter } from './apis/create-permission';
-export { default as rolePermissionsRouter } from './apis/role-permissions';
-export { default as bulkPermissionsRouter } from './apis/bulk-permissions';
-export { default as userRolesRouter } from './apis/user-roles';
-
-// Services
+// Services - SAFE to export (no circular dependency)
 export { rbacCacheService, RBACCacheService } from './services/rbac-cache.service';
 
-// Shared resources
+// Shared resources - SAFE to export
 export * from './shared/schema';
 export * from './shared/interface';
 export * from './shared/queries';
 
-// Seed data and functions
+// Seed data and functions - SAFE to export
 export {
     SYSTEM_ROLES,
     INITIAL_PERMISSIONS,
     ROLE_PERMISSIONS_MAP,
     seedRBAC
 } from './seed';
+

@@ -14,10 +14,6 @@ jest.mock('../../../../utils', () => ({
         keys: jest.fn().mockResolvedValue([]),
     },
     isRedisReady: jest.fn().mockReturnValue(false), // Disable Redis for unit tests
-}));
-
-// Mock logger to avoid console noise
-jest.mock('../../../../utils', () => ({
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

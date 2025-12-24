@@ -111,8 +111,8 @@ export interface AuditLogData {
     resourceId?: number | string;
 
     // Before/After state
-    oldValues?: Record<string, any>;
-    newValues?: Record<string, any>;
+    oldValues?: Record<string, unknown>;
+    newValues?: Record<string, unknown>;
 
     // Context information
     ipAddress?: string;
@@ -120,7 +120,7 @@ export interface AuditLogData {
     sessionId?: string;
 
     // Additional metadata
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     reason?: string;
 }
 
@@ -142,8 +142,8 @@ export interface AuditLog {
     resourceId: number | null;
 
     // Changes
-    oldValues: Record<string, any> | null;
-    newValues: Record<string, any> | null;
+    oldValues: Record<string, unknown> | null;
+    newValues: Record<string, unknown> | null;
 
     // Context
     ipAddress: string | null;
@@ -151,7 +151,7 @@ export interface AuditLog {
     sessionId: string | null;
 
     // Metadata
-    metadata: Record<string, any> | null;
+    metadata: Record<string, unknown> | null;
     reason: string | null;
 
     createdAt: Date;
@@ -176,7 +176,7 @@ export interface AuditLogFilters {
  * Sanitized audit data (removes sensitive information)
  */
 export interface SanitizedAuditData {
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 /**

@@ -1,15 +1,12 @@
 /**
  * Admin Invite Feature Index
  *
- * Central exports for all admin invitation-related functionality
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all admin invitation-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import createInvitationRouter from './apis/create-invitation';
-import getInvitationsRouter from './apis/get-invitations';
-import verifyInvitationRouter from './apis/verify-invitation';
-import acceptInvitationRouter from './apis/accept-invitation';
 
 class AdminInviteRoute implements Route {
   public path = '/admin/invitations';
@@ -19,7 +16,13 @@ class AdminInviteRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: createInvitationRouter } = await import('./apis/create-invitation');
+    const { default: getInvitationsRouter } = await import('./apis/get-invitations');
+    const { default: verifyInvitationRouter } = await import('./apis/verify-invitation');
+    const { default: acceptInvitationRouter } = await import('./apis/accept-invitation');
+
     // Mount API routes
     this.router.use(this.path, createInvitationRouter);
     this.router.use(this.path, getInvitationsRouter);
@@ -32,12 +35,8 @@ class AdminInviteRoute implements Route {
 export default AdminInviteRoute;
 
 // Individual API routes
-export { default as createInvitationRouter } from './apis/create-invitation';
-export { default as getInvitationsRouter } from './apis/get-invitations';
-export { default as verifyInvitationRouter } from './apis/verify-invitation';
-export { default as acceptInvitationRouter } from './apis/accept-invitation';
 
-// Shared resources
+// Shared resources - SAFE to export
 export {
   invitations,
   invitationStatuses,

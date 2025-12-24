@@ -12,7 +12,6 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/schema';
@@ -20,8 +19,7 @@ import { findUserById } from '../shared/queries';
 import { userCacheService } from '../services/user-cache.service';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('User ID must be a positive integer'),
-});
+  id: z.coerce.number().int().positive('User ID must be a positive integer') });
 
 async function deleteUser(id: number, deletedBy: number): Promise<{ email: string }> {
   // Prevent self-deletion
@@ -39,16 +37,18 @@ async function deleteUser(id: number, deletedBy: number): Promise<{ email: strin
     .set({
       is_deleted: true,
       deleted_by: deletedBy,
-      deleted_at: new Date(),
-    })
+      deleted_at: new Date() })
     .where(eq(users.id, id));
 
   return { email: existingUser.email };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
   const { id } = paramsSchema.parse(req.params);
-  const userId = getUserId(req);
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
 
   const { email } = await deleteUser(id, userId);
 
@@ -56,7 +56,7 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
   await userCacheService.invalidateUser(id, email);
 
   ResponseFormatter.success(res, null, 'User deleted successfully');
-});
+};
 
 const router = Router();
 router.delete('/:id', requireAuth, requirePermission('users:delete'), validationMiddleware(paramsSchema, 'params'), handler);

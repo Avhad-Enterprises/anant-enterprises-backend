@@ -10,7 +10,6 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler, parseIdParam, getUserId } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { findRoleById, findRoleByName, updateRole } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
@@ -24,8 +23,7 @@ const schema = z.object({
         .regex(/^[a-z_]+$/, 'Role name must be lowercase with underscores only')
         .optional(),
     description: z.string().max(500).optional(),
-    is_active: z.boolean().optional(),
-});
+    is_active: z.boolean().optional() });
 
 type UpdateRoleDto = z.infer<typeof schema>;
 
@@ -54,8 +52,7 @@ async function handleUpdateRole(
 
     const updatedRole = await updateRole(roleId, {
         ...data,
-        updated_by: updatedBy,
-    });
+        updated_by: updatedBy });
 
     // Invalidate cache since role might have changed
     rbacCacheService.invalidateAll();
@@ -63,14 +60,20 @@ async function handleUpdateRole(
     return updatedRole;
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-    const roleId = parseIdParam(req, 'roleId');
-    const userId = getUserId(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+    const roleId = Number(req.params.roleId);
+  if (isNaN(roleId) || roleId <= 0) {
+    throw new HttpException(400, 'Invalid roleId parameter');
+  }
+    const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
     const updateData: UpdateRoleDto = req.body;
 
     const updatedRole = await handleUpdateRole(roleId, updateData, userId);
     ResponseFormatter.success(res, updatedRole, 'Role updated successfully');
-});
+};
 
 const router = Router();
 router.put('/:roleId', requireAuth, requirePermission('roles:manage'), validationMiddleware(schema), handler);

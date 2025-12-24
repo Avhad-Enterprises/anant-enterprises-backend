@@ -1,4 +1,4 @@
-import { IUser } from '../../features/user';
+import { IUser } from './interface';
 
 /**
  * Sanitized user type without sensitive fields

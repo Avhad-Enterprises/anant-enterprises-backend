@@ -305,15 +305,15 @@ class AuditService {
      * @param data - Data object to sanitize
      * @returns Sanitized data
      */
-    private sanitizeData(data: Record<string, any>): Record<string, any> {
-        const sanitized: Record<string, any> = {};
+    private sanitizeData(data: Record<string, unknown>): Record<string, unknown> {
+        const sanitized: Record<string, unknown> = {};
 
         for (const [key, value] of Object.entries(data)) {
             if (SENSITIVE_FIELDS.includes(key.toLowerCase())) {
                 sanitized[key] = '[REDACTED]';
             } else if (value && typeof value === 'object' && !Array.isArray(value)) {
                 // Recursively sanitize nested objects
-                sanitized[key] = this.sanitizeData(value);
+                sanitized[key] = this.sanitizeData(value as Record<string, unknown>);
             } else {
                 sanitized[key] = value;
             }

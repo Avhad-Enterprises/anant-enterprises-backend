@@ -9,7 +9,6 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { asyncHandler } from '../../../utils';
 import { getInvitations } from '../shared/queries';
 import { InvitationStatus, invitationStatuses } from '../shared/schema';
 import { IInvitation } from '../shared/interface';
@@ -17,8 +16,7 @@ import { IInvitation } from '../shared/interface';
 const querySchema = z.object({
   status: z.enum(invitationStatuses).optional(),
   page: z.string().transform(val => parseInt(val)).refine(val => val > 0, 'Page must be positive').optional(),
-  limit: z.string().transform(val => parseInt(val)).refine(val => val > 0 && val <= 100, 'Limit must be between 1 and 100').optional(),
-});
+  limit: z.string().transform(val => parseInt(val)).refine(val => val > 0 && val <= 100, 'Limit must be between 1 and 100').optional() });
 
 type QueryParams = z.infer<typeof querySchema>;
 
@@ -33,11 +31,10 @@ async function handleGetInvitations(
     invitations: result.invitations as IInvitation[],
     total: result.total,
     page,
-    limit,
-  };
+    limit };
 }
 
-const handler = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+const handler =(async (req: Request, res: Response): Promise<void> => {
   const query: QueryParams = req.query;
   const result = await handleGetInvitations(
     { status: query.status },

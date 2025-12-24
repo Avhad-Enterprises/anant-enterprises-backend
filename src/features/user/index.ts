@@ -2,14 +2,11 @@
  * User Feature Index
  *
  * Central exports for all user-related functionality
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import getAllUsersRouter from './apis/get-all-users';
-import getUserByIdRouter from './apis/get-user-by-id';
-import updateUserRouter from './apis/update-user';
-import deleteUserRouter from './apis/delete-user';
 
 class UserRoute implements Route {
   public path = '/users';
@@ -19,7 +16,13 @@ class UserRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: getAllUsersRouter } = await import('./apis/get-all-users');
+    const { default: getUserByIdRouter } = await import('./apis/get-user-by-id');
+    const { default: updateUserRouter } = await import('./apis/update-user');
+    const { default: deleteUserRouter } = await import('./apis/delete-user');
+
     this.router.use(this.path, getAllUsersRouter);
     this.router.use(this.path, getUserByIdRouter);
     this.router.use(this.path, updateUserRouter);
@@ -30,16 +33,13 @@ class UserRoute implements Route {
 // Main route export
 export default UserRoute;
 
-// Individual API routes
-export { default as getAllUsersRouter } from './apis/get-all-users';
-export { default as getUserByIdRouter } from './apis/get-user-by-id';
-export { default as updateUserRouter } from './apis/update-user';
-export { default as deleteUserRouter } from './apis/delete-user';
-
-// Services
+// Services - SAFE to export
 export { userCacheService, UserCacheService } from './services/user-cache.service';
 
-// Shared resources
+// Shared resources - SAFE to export  
 export * from './shared/schema';
 export * from './shared/interface';
 export * from './shared/queries';
+export * from './shared/sanitizeUser';
+
+
