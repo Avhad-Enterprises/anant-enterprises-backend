@@ -79,7 +79,6 @@ async function handleCreateInvitation(
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
-      assignedRoleId: invitationData.assigned_role_id,
       inviteLink,
       expiresIn: '24 hours',
       tempPassword, // Include credentials in email
