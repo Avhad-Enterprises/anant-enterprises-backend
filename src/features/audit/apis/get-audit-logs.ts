@@ -28,20 +28,24 @@ const querySchema = z.object({
 
 const handler =(async (req: RequestWithUser, res: Response) => {
     // Validation middleware ensures these are the correct types
+    // Cast to validated type after validation middleware
+    type ValidatedQuery = z.infer<typeof querySchema>;
+    const query = req.query as unknown as ValidatedQuery;
+    
     const filters: AuditLogFilters = {
-        limit: req.query.limit || 50,
-        offset: req.query.offset || 0 };
+        limit: query.limit,
+        offset: query.offset };
 
-    if (req.query.userId) filters.userId = req.query.userId;
-    if (req.query.resourceType) filters.resourceType = req.query.resourceType;
-    if (req.query.resourceId) filters.resourceId = req.query.resourceId;
-    if (req.query.startDate) filters.startDate = req.query.startDate;
-    if (req.query.endDate) filters.endDate = req.query.endDate;
-    if (req.query.ipAddress) filters.ipAddress = req.query.ipAddress;
+    if (query.userId) filters.userId = query.userId;
+    if (query.resourceType) filters.resourceType = query.resourceType;
+    if (query.resourceId) filters.resourceId = query.resourceId;
+    if (query.startDate) filters.startDate = query.startDate;
+    if (query.endDate) filters.endDate = query.endDate;
+    if (query.ipAddress) filters.ipAddress = query.ipAddress;
 
     // Handle multiple actions (comma-separated)
-    if (req.query.action) {
-        const actionStr = req.query.action as string;
+    if (query.action) {
+        const actionStr = query.action;
         const actions = actionStr.split(',').map((a: string) => a.trim());
         filters.action = actions.length === 1 ? actions[0] as AuditAction : actions as AuditAction[];
     }

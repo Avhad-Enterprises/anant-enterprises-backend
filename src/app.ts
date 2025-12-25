@@ -1,7 +1,7 @@
 import express from 'express';
 import hpp from 'hpp';
 import compression from 'compression';
-// import { authRateLimit, apiRateLimit } from './middlewares'; // DISABLED
+import { authRateLimit, apiRateLimit } from './middlewares';
 import { requestIdMiddleware } from './middlewares';
 import { securityMiddleware } from './middlewares';
 import { corsMiddleware } from './middlewares';
@@ -13,6 +13,7 @@ import { logger } from './utils';
 import { config } from './utils/validateEnv';
 import { checkDatabaseHealth } from './database';
 import { isRedisReady } from './utils';
+import { isProduction } from './utils/validateEnv';
 
 class App {
   public app: express.Application;
@@ -107,11 +108,20 @@ class App {
     // Compression
     this.app.use(compression());
 
-    // Rate limiting - DISABLED
-    // this.app.use('/api/auth/login', authRateLimit);
-    // this.app.use('/api/auth/register', authRateLimit);
-    // this.app.use('/api/auth/refresh-token', authRateLimit);
-    // this.app.use('/api/', apiRateLimit);
+    // Rate limiting - ENABLED ONLY IN PRODUCTION
+    if (isProduction) {
+      // Strict rate limiting for authentication endpoints
+      this.app.use('/api/v1/auth/login', authRateLimit);
+      this.app.use('/api/v1/auth/register', authRateLimit);
+      this.app.use('/api/v1/auth/refresh-token', authRateLimit);
+
+      // Moderate rate limiting for all other API endpoints
+      this.app.use('/api/v1', apiRateLimit);
+
+      logger.info('🔒 Rate limiting enabled for production environment');
+    } else {
+      logger.info('⚠️ Rate limiting disabled for development/test environment');
+    }
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
