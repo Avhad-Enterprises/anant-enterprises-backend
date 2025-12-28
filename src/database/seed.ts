@@ -35,28 +35,27 @@ async function seed() {
         .insert(users)
         .values([
           {
-            name: 'Test User',
             email: 'test@example.com',
-            password: hashedPassword,
+            password_hash: hashedPassword,
             phone_number: '+1234567890',
             created_by: 1,
           },
           {
-            name: 'Admin User',
             email: 'admin@example.com',
-            password: hashedPassword,
+            password_hash: hashedPassword,
             phone_number: '+1234567891',
             created_by: 1,
           },
           {
-            name: 'Super Admin',
             email: 'superadmin@example.com',
-            password: hashedPassword,
+            password_hash: hashedPassword,
             phone_number: '+1234567892',
             created_by: 1,
           },
         ])
         .returning();
+
+      // TODO: Create user_profiles and admin_profiles for these users
 
       logger.info(`✅ Created ${createdUsers.length} test users`);
 

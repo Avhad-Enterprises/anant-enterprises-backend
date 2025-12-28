@@ -65,7 +65,8 @@ async function updateUser(
     updated_by: requesterId };
 
   if (data.password) {
-    updateData.password = await hashPassword(data.password);
+    (updateData as any).password_hash = await hashPassword(data.password);
+    delete (updateData as any).password;
   }
 
   const [result] = await db

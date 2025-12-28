@@ -33,8 +33,9 @@ export async function handleRegister(data: RegisterDto): Promise<IAuthUserWithTo
 
   const hashedPassword = await hashPassword(data.password);
   const userData = {
-    ...data,
-    password: hashedPassword,
+    email: data.email,
+    phone_number: data.phone_number,
+    password_hash: hashedPassword,
   };
 
   const newUser = await createUser(userData);
@@ -52,14 +53,14 @@ export async function handleRegister(data: RegisterDto): Promise<IAuthUserWithTo
     {
       id: newUser.id,
       email: newUser.email,
-      name: newUser.name,
     },
     '24h'
   );
 
+  // TODO: Create user_profile record with name from data.name
+
   return {
     id: newUser.id,
-    name: newUser.name,
     email: newUser.email,
     phone_number: newUser.phone_number || undefined,
     created_at: newUser.created_at,

@@ -27,11 +27,10 @@ export interface RequestWithUser extends Request {
 }
 
 /**
- * Authenticated user data structure
+ * Authenticated user data structure (without name - name is in profiles tables)
  */
 export interface IAuthUser {
   id: number;
-  name: string;
   email: string;
   phone_number?: string;
   created_at: Date;
@@ -52,5 +51,4 @@ export interface IAuthUserWithToken extends IAuthUser {
 export interface DataStoredInToken {
   id: number;
   email?: string;
-  name?: string;
 }

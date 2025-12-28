@@ -33,7 +33,6 @@ export async function handleRefreshToken(refreshToken: string): Promise<IAuthUse
     {
       id: user.id,
       email: user.email,
-      name: user.name,
     },
     '24h'
   );
@@ -43,7 +42,6 @@ export async function handleRefreshToken(refreshToken: string): Promise<IAuthUse
 
   return {
     id: user.id,
-    name: user.name,
     email: user.email,
     phone_number: user.phone_number || undefined,
     created_at: user.created_at,

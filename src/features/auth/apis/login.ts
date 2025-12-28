@@ -31,7 +31,11 @@ export async function handleLogin(email: string, password: string): Promise<IAut
     throw new HttpException(401, 'Invalid credentials');
   }
 
-  const isPasswordValid = await verifyPassword(password, user.password);
+  if (!user.password_hash) {
+    throw new HttpException(401, 'Invalid credentials');
+  }
+
+  const isPasswordValid = await verifyPassword(password, user.password_hash);
   if (!isPasswordValid) {
     // Same error message for wrong password
     throw new HttpException(401, 'Invalid credentials');
@@ -41,14 +45,12 @@ export async function handleLogin(email: string, password: string): Promise<IAut
     {
       id: user.id,
       email: user.email,
-      name: user.name,
     },
     '24h'
   );
 
   return {
     id: user.id,
-    name: user.name,
     email: user.email,
     phone_number: user.phone_number || undefined,
     created_at: user.created_at,

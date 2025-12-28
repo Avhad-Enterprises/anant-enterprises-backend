@@ -67,11 +67,12 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
 
   // Create the user account with the same hashed password
   const newUser = await createUser({
-    name: `${invitation.first_name} ${invitation.last_name}`,
     email: invitation.email,
-    password: invitation.password_hash, // Use the same hash
+    password_hash: invitation.password_hash, // Use the same hash
     created_by: invitation.invited_by,
   });
+
+  // TODO: Create admin_profile record with first_name, middle_name, last_name from invitation
 
   // Assign role via RBAC system
   if (invitation.assigned_role_id) {
@@ -91,7 +92,6 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
     {
       id: newUser.id,
       email: newUser.email,
-      name: newUser.name,
     },
     '24h'
   );
@@ -104,7 +104,6 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
 
   return {
     id: newUser.id,
-    name: newUser.name,
     email: newUser.email,
     created_at: newUser.created_at,
     updated_at: newUser.updated_at,

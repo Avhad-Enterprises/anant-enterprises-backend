@@ -7,7 +7,7 @@ import { db, pool } from './drizzle';
 import { checkDatabaseHealth } from './health';
 import { users } from '../features/user';
 import { uploads } from '../features/upload';
-import { eq, and, or, like, desc } from 'drizzle-orm';
+import { eq, and, like, desc } from 'drizzle-orm';
 import { logger } from '../utils';
 
 // ============================================
@@ -31,7 +31,7 @@ async function searchUsers(search: string, page: number = 1, limit: number = 10)
     .from(users)
     .where(
       and(
-        or(like(users.name, `%${search}%`), like(users.email, `%${search}%`)),
+        like(users.email, `%${search}%`),
         eq(users.is_deleted, false)
       )
     )
