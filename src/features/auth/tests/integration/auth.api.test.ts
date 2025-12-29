@@ -2,9 +2,9 @@ import { Application } from 'express';
 import App from '../../../../app';
 import UserRoute from '../../../user';
 import AuthRoute from '../../index';
-import { dbHelper } from '@tests/utils';
-import { SupabaseAuthHelper } from '@tests/utils';
-import { ApiTestHelper } from '@tests/utils';
+import { dbHelper } from '../../../../../tests/utils';
+import { SupabaseAuthHelper } from '../../../../../tests/utils';
+import { ApiTestHelper } from '../../../../../tests/utils';
 
 describe('User Authentication Integration Tests', () => {
   let app: Application;

@@ -16,15 +16,26 @@ The Audit feature provides comprehensive audit logging capabilities for tracking
 
 ```
 audit/
-├── index.ts               # Feature exports
-├── services/              # Business logic
-│   └── audit.service.ts   # Core audit logging service
-├── shared/                # Shared resources
-│   ├── schema.ts          # Database schema (audit_logs table)
-│   └── types.ts           # TypeScript types and enums
-└── tests/                 # Test files
-    └── unit/              # Unit tests
-        └── audit.service.test.ts
+├── index.ts                      # Feature exports and routes
+├── README.md                     # This documentation
+├── apis/                         # REST API endpoints
+│   ├── get-audit-logs.ts         # GET /api/admin/audit/logs
+│   ├── get-resource-history.ts   # GET /api/admin/audit/resource/:type/:id
+│   └── get-user-activity.ts      # GET /api/admin/audit/user/:userId/activity
+├── services/                     # Business logic
+│   └── audit.service.ts          # Core audit logging service
+├── shared/                       # Shared resources
+│   ├── schema.ts                 # Database schema (audit_logs table)
+│   ├── queries.ts                # Database queries
+│   └── types.ts                  # TypeScript types and enums
+└── tests/                        # Test files
+    ├── integration/              # Integration tests
+    │   └── audit.api.test.ts     # HTTP endpoint tests
+    └── unit/                     # Unit tests
+        ├── audit.service.test.ts
+        ├── get-audit-logs.test.ts
+        ├── get-resource-history.test.ts
+        └── get-user-activity.test.ts
 ```
 
 ## Database Schema
@@ -197,19 +208,22 @@ Advanced filtering of audit logs.
 
 ## Testing
 
-Comprehensive unit tests cover all major functionality:
+Comprehensive unit and integration tests cover all functionality:
 
 ```bash
-npm test -- audit.service.test.ts
+# Run unit tests
+npm run test:unit src/features/audit/tests/unit
+
+# Run integration tests
+npm run test:integration src/features/audit/tests/integration
 ```
 
-**Test Coverage:**
-- ✅ 21/21 tests passing
-- Log method (6 tests)
-- getAuditTrail (3 tests)
-- getUserActivity (3 tests)
-- queryLogs (6 tests)
-- Data sanitization (2 tests)
+**Test Results:**
+- ✅ Unit Tests: 50/50 passing
+- ✅ Integration Tests: 26/26 passing
+- Full API endpoint coverage
+- Data sanitization tests
+- RBAC permission tests
 
 ## Migration
 

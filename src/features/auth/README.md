@@ -154,7 +154,7 @@ async function callBackendAPI(endpoint: string, method: string = 'GET', body?: a
 | `password` | string | ✅ | Password (min 8 characters) |
 | `phone_number` | string | ❌ | Phone number (optional) |
 
-> **Note:** The `role` field is not accepted in registration requests for security. All public registrations receive the `scientist` role.
+> **Note:** The `role` field is not accepted in registration requests for security. All public registrations receive the `user` role via RBAC.
 
 #### Success Response
 
@@ -486,14 +486,3 @@ FRONTEND_URL=http://localhost:3001
 - [Supabase JS Client](https://supabase.com/docs/reference/javascript/auth-signup)
 - [RBAC Feature](../rbac/README.md)
 - [User Feature](../user/README.md)
-
-  const response = await fetch(`${API_BASE}/refresh-token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: storedRefreshToken }),
-  });
-
-  if (!response.ok) {
-    // Refresh failed - clear tokens and redirect to login
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
