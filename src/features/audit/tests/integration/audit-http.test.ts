@@ -10,7 +10,7 @@ import { auditLogs } from '../../shared/schema';
 import { users } from '../../../user';
 import { userRoles } from '../../../rbac';
 import { eq } from 'drizzle-orm';
-import { SupabaseAuthHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { auditService } from '../../services/audit.service';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 import UserRoute from '../../../user';
