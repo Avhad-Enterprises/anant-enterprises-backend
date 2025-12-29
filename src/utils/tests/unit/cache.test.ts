@@ -1,30 +1,42 @@
-// Mock dependencies before importing the module
-jest.mock('../../database/redis', () => ({
-    redisClient: {
-        get: jest.fn(),
-        setEx: jest.fn(),
-        del: jest.fn(),
-        keys: jest.fn(),
-        dbSize: jest.fn(),
-        info: jest.fn(),
-    },
-    isRedisReady: jest.fn(),
-}));
-
-jest.mock('../../logging/logger', () => ({
-    logger: {
-        warn: jest.fn(),
-    },
-}));
-
-import { redisClient, isRedisReady } from '../../database/redis';
-import cacheService, { cacheKeys } from '../../database/cache';
-
-const mockRedisClient = redisClient as jest.Mocked<typeof redisClient>;
-const mockIsRedisReady = isRedisReady as jest.MockedFunction<typeof isRedisReady>;
-
 describe('Cache Service', () => {
+    let cacheService: any;
+    let cacheKeys: any;
+    let mockRedisClient: any;
+    let mockIsRedisReady: any;
+
     beforeEach(() => {
+        jest.isolateModules(() => {
+            // Mock dependencies
+            jest.doMock('../../database/redis', () => ({
+                redisClient: {
+                    get: jest.fn(),
+                    setEx: jest.fn(),
+                    del: jest.fn(),
+                    keys: jest.fn(),
+                    dbSize: jest.fn(),
+                    info: jest.fn(),
+                },
+                isRedisReady: jest.fn(),
+            }));
+
+            jest.doMock('../../logging/logger', () => ({
+                logger: {
+                    warn: jest.fn(),
+                },
+            }));
+
+            // Import after mocks are set up
+            const cacheModule = require('../../database/cache');
+            cacheService = cacheModule.cacheService;
+            cacheKeys = cacheModule.cacheKeys;
+
+            const redisModule = require('../../database/redis');
+            mockRedisClient = redisModule.redisClient;
+            mockIsRedisReady = redisModule.isRedisReady;
+        });
+    });
+
+    afterEach(() => {
         jest.clearAllMocks();
     });
 
@@ -227,6 +239,13 @@ describe('Cache Service', () => {
 });
 
 describe('Cache Keys', () => {
+    let cacheKeys: any;
+
+    beforeAll(() => {
+        const cacheModule = require('../../database/cache');
+        cacheKeys = cacheModule.cacheKeys;
+    });
+
     describe('User keys', () => {
         it('should generate user cache key', () => {
             expect(cacheKeys.user(123)).toBe('user:123');

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import errorMiddleware from '../../error.middleware';
 import { HttpException } from '../../../utils/helpers/httpException';
+import { createMockRequest, createMockResponse } from '../../../utils/tests/test-utils';
 
 // Mock dependencies
 jest.mock('../../../utils/logging/logger', () => ({
@@ -23,20 +24,15 @@ describe('Error Middleware', () => {
     let mockStatus: jest.Mock;
 
     beforeEach(() => {
-        mockJson = jest.fn();
-        mockStatus = jest.fn().mockReturnValue({ json: mockJson });
-        mockRequest = {
-            requestId: 'test-request-123',
+        const { mockResponse: response, mockJson: json, mockStatus: status } = createMockResponse();
+        mockResponse = response;
+        mockJson = json;
+        mockStatus = status;
+        mockRequest = createMockRequest({
             method: 'POST',
             url: '/api/users',
-            ip: '127.0.0.1',
-            get: jest.fn().mockReturnValue('TestAgent/1.0'),
             userId: 42,
-        };
-        mockResponse = {
-            status: mockStatus,
-            json: mockJson,
-        };
+        });
         jest.clearAllMocks();
     });
 
@@ -49,7 +45,7 @@ describe('Error Middleware', () => {
                     received: 'number',
                     path: ['name'],
                     message: 'Expected string, received number',
-                },
+                } as any,
                 {
                     code: 'too_small',
                     minimum: 1,
@@ -57,7 +53,7 @@ describe('Error Middleware', () => {
                     inclusive: true,
                     path: ['email'],
                     message: 'String must contain at least 1 character(s)',
-                },
+                } as any,
             ]);
 
             errorMiddleware(zodError, mockRequest as Request, mockResponse as Response, jest.fn());
@@ -192,7 +188,7 @@ describe('Error Middleware', () => {
                     received: 'number',
                     path: ['age'],
                     message: 'Expected string, received number',
-                },
+                } as any,
             ]);
 
             errorMiddleware(zodError, mockRequest as Request, mockResponse as Response, jest.fn());
@@ -211,7 +207,7 @@ describe('Error Middleware', () => {
             mockRequest.requestId = undefined;
 
             const error = new HttpException(404, 'Not found');
-            errorMiddleware(error, mockRequest as Request, mockResponse as Response, jest.fn());
+            errorMiddleware(error, mockRequest as RequestWithId, mockResponse as Response, jest.fn());
 
             expect(mockJson).toHaveBeenCalledWith({
                 success: false,
@@ -225,7 +221,7 @@ describe('Error Middleware', () => {
             mockRequest.userId = undefined;
 
             const error = new HttpException(403, 'Forbidden');
-            errorMiddleware(error, mockRequest as Request, mockResponse as Response, jest.fn());
+            errorMiddleware(error, mockRequest as RequestWithId, mockResponse as Response, jest.fn());
 
             expect(mockJson).toHaveBeenCalledWith({
                 success: false,

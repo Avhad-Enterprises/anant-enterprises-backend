@@ -1,23 +1,26 @@
 /**
  * Test Users Creation Script
  *
- * This script creates test users for the remaining roles:
- * - Scientist: scientist@example.test / scientist123
- * - Researcher: researcher@example.test / researcher123
- * - Policymaker: policymaker@example.test / policymaker123
+ * This script creates test users for different roles:
+ * - Regular User: user@gmail.com / 12345678 (role: user)
+ * - Admin User: admin2@gmail.com / 12345678 (role: admin)
+ * - Super Admin: superadmin@gmail.com / 12345678 (role: superadmin)
  *
  * Usage:
- * - npx tsx scripts/create-test-users.ts
+ * - npm run create-test-users
+ * - or: npx tsx scripts/create-test-users.ts
  *
  * The script will:
  * 1. Check if test users already exist
  * 2. Create missing test users with hashed passwords
  * 3. Display created user details
  *
- * Environment Requirements:
- * - DATABASE_URL environment variable must be set
+ * Prerequisites:
  * - Database must be running and accessible
- * - Admin user should exist (created_by reference)
+ * - DATABASE_URL environment variable must be set
+ * - RBAC roles must be seeded first (run: npm run db:seed)
+ * - Admin user should exist (run: npm run create-admin)
+ *   The script uses an existing admin user as the creator reference
  */
 
 import dotenv from 'dotenv';
@@ -102,7 +105,11 @@ async function createTestUsers() {
       .limit(1);
 
     if (!adminUserRole) {
-      throw new Error('Admin user not found. Please run create-admin.ts first.');
+      throw new Error(
+        'Admin user not found.\n' +
+        'Please run: npm run create-admin\n' +
+        'This will create an admin user that can be used as the creator reference.'
+      );
     }
 
     const adminUser = { id: adminUserRole.user_id };
@@ -144,9 +151,14 @@ async function createTestUsers() {
 
       // Get role ID from RBAC
       const [roleRecord] = await db.select().from(roles).where(eq(roles.name, userData.role)).limit(1);
-      
+
       if (!roleRecord) {
-        throw new Error(`Role '${userData.role}' not found in RBAC system. Please run migrations and seed RBAC data first.`);
+        throw new Error(
+          `Role '${userData.role}' not found in RBAC system.\n` +
+          'Please run the following commands first:\n' +
+          '  1. npm run db:migrate (to create tables)\n' +
+          '  2. npm run db:seed (to seed RBAC roles and permissions)'
+        );
       }
 
       // Assign role via RBAC
