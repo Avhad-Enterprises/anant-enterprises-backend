@@ -10,21 +10,21 @@ import { requireAuth } from '../../../middlewares';
 import { uploadSingleFileMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { uploadToS3 } from '../../../utils/s3Upload';
+import { uploadToStorage } from '../../../utils/supabaseStorage';
 import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { Upload } from '../shared/interface';
 
 async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
-  const s3Result = await uploadToS3(file.buffer, file.originalname, file.mimetype, userId);
+  const storageResult = await uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
 
   const [upload] = await db.insert(uploads).values({
     filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
     original_filename: file.originalname,
     mime_type: file.mimetype,
     file_size: file.size,
-    file_path: s3Result.key,
-    file_url: s3Result.url,
+    file_path: storageResult.key,
+    file_url: storageResult.url,
     user_id: userId,
     created_by: userId
   }).returning();

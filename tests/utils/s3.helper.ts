@@ -1,27 +1,27 @@
 /**
- * S3 Test Helper
- * Utility for cleaning up S3 test uploads after tests
+ * Supabase Storage Test Helper
+ * Utility for cleaning up Supabase Storage test uploads after tests
  */
-import { deleteByPrefixFromS3, deleteFromS3, logger } from '../../src/utils';
+import { deleteByPrefixFromStorage, deleteFromStorage, logger } from '../../src/utils';
 
-class S3TestHelper {
+class SupabaseStorageTestHelper {
   private uploadedKeys: string[] = [];
 
   /**
-   * Track an S3 key for cleanup after test
+   * Track a Supabase Storage key for cleanup after test
    */
   public trackUpload(key: string): void {
     this.uploadedKeys.push(key);
   }
 
   /**
-   * Delete a specific S3 object
+   * Delete a specific Supabase Storage object
    */
   public async delete(key: string): Promise<void> {
     try {
-      await deleteFromS3(key);
+      await deleteFromStorage(key);
     } catch (error) {
-      logger.warn(`Failed to delete S3 object: ${key}`, { error });
+      logger.warn(`Failed to delete Supabase Storage object: ${key}`, { error });
     }
   }
 
@@ -31,9 +31,9 @@ class S3TestHelper {
    */
   public async deleteByPrefix(prefix: string): Promise<number> {
     try {
-      return await deleteByPrefixFromS3(prefix);
+      return await deleteByPrefixFromStorage(prefix);
     } catch (error) {
-      logger.warn(`Failed to delete S3 objects by prefix: ${prefix}`, { error });
+      logger.warn(`Failed to delete Supabase Storage objects by prefix: ${prefix}`, { error });
       return 0;
     }
   }
@@ -71,10 +71,10 @@ class S3TestHelper {
     try {
       return await this.deleteByPrefix('chatbot-documents/');
     } catch (error) {
-      logger.warn('Failed to cleanup chatbot documents from S3', { error });
+      logger.warn('Failed to cleanup chatbot documents from Supabase Storage', { error });
       return 0;
     }
   }
 }
 
-export const s3Helper = new S3TestHelper();
+export const s3Helper = new SupabaseStorageTestHelper();

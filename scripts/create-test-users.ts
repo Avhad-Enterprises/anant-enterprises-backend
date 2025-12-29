@@ -31,7 +31,7 @@ if (nodeEnv === 'development') {
 } else if (nodeEnv === 'production') {
   dotenv.config({ path: '.env.prod' });
 } else if (nodeEnv === 'test') {
-  dotenv.config({ path: '.env.test' });
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
 }
 dotenv.config();
 

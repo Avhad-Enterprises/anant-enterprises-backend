@@ -4,28 +4,26 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { dbHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/roles - Create Role', () => {
     let superadminToken: string;
-    let superadminUserId: number;
     let regularUserToken: string;
     let testRoleIds: number[] = [];
 
     beforeAll(async () => {
         
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
-        const { token, userId } = await AuthTestHelper.createTestSuperadminUser();
-        superadminUserId = userId;
+        const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = token;
 
-        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = uToken;
     });
 

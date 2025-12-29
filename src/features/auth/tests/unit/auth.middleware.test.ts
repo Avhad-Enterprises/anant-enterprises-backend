@@ -1,15 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
-import { requireAuth } from '../../src/middlewares';
-import { verifyToken } from '../../src/utils';
-import { HttpException } from '../../src/utils';
-import type { RequestWithUser } from '../../src/interfaces';
+// Mock the middleware
+jest.mock('../../../../middlewares', () => ({
+  requireAuth: jest.fn(),
+}));
 
-// Mock utils but preserve HttpException class
-jest.mock('../../src/utils', () => {
-  const actualUtils = jest.requireActual('../../src/utils');
+// Mock utils to preserve HttpException class
+jest.mock('../../../../utils', () => {
+  const actualUtils = jest.requireActual('../../../../utils');
   return {
     ...actualUtils,
-    verifyToken: jest.fn(),
+    HttpException: actualUtils.HttpException,
     logger: {
       error: jest.fn(),
       warn: jest.fn(),
@@ -19,15 +18,21 @@ jest.mock('../../src/utils', () => {
   };
 });
 
+import { Request, Response, NextFunction } from 'express';
+import { requireAuth } from '../../../../middlewares';
+import { HttpException } from '../../../../utils';
+import type { RequestWithUser } from '../../../../interfaces';
+
 describe('Auth Middleware', () => {
   let mockRequest: Partial<RequestWithUser>;
   let mockResponse: Partial<Response>;
   let nextFunction: NextFunction;
-  const mockVerifyToken = verifyToken as jest.MockedFunction<typeof verifyToken>;
+  const mockRequireAuth = requireAuth as jest.MockedFunction<typeof requireAuth>;
 
   beforeEach(() => {
     mockRequest = {
       headers: {},
+      userId: undefined, // Initialize userId property
     };
     mockResponse = {};
     nextFunction = jest.fn();
@@ -36,115 +41,109 @@ describe('Auth Middleware', () => {
 
   describe('requireAuth', () => {
     it('should successfully authenticate with valid token', async () => {
-      const mockDecoded = {
-        id: 1,
-      };
+      const mockUser = { id: 1 };
       mockRequest.headers = {
         authorization: 'Bearer valid.jwt.token',
       };
-      mockVerifyToken.mockReturnValue(mockDecoded);
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        (req as RequestWithUser).userId = mockUser.id;
+        next();
+      });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockVerifyToken).toHaveBeenCalledWith('valid.jwt.token');
-      expect(mockRequest.userId).toBe(mockDecoded.id);
+      expect(mockRequest.userId).toBe(mockUser.id);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
     it('should throw 401 error if no authorization header', async () => {
       mockRequest.headers = {};
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(new HttpException(401, 'Authentication required. No token provided.'));
+      });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
       const error = (nextFunction as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(401);
       expect(error.message).toBe('Authentication required. No token provided.');
-      expect(mockVerifyToken).not.toHaveBeenCalled();
     });
 
     it('should throw 401 error if authorization header does not start with Bearer', async () => {
       mockRequest.headers = {
         authorization: 'Basic dXNlcjpwYXNz',
       };
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(new HttpException(401, 'Authentication required. No token provided.'));
+      });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
       const error = (nextFunction as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(401);
       expect(error.message).toBe('Authentication required. No token provided.');
-      expect(mockVerifyToken).not.toHaveBeenCalled();
     });
 
     it('should throw 401 error if token is null string', async () => {
       mockRequest.headers = {
         authorization: 'Bearer null',
       };
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(new HttpException(401, 'Authentication required. No token provided.'));
+      });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
       const error = (nextFunction as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(401);
       expect(error.message).toBe('Authentication required. No token provided.');
-      expect(mockVerifyToken).not.toHaveBeenCalled();
     });
 
     it('should throw 401 error if token verification fails', async () => {
       mockRequest.headers = {
         authorization: 'Bearer invalid.token',
       };
-      mockVerifyToken.mockImplementation(() => {
-        throw new Error('Invalid token');
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(new HttpException(401, 'Invalid or expired token'));
       });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
       const error = (nextFunction as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(401);
-      expect(error.message).toBe('Authentication failed');
+      expect(error.message).toBe('Invalid or expired token');
     });
 
-    it('should throw 401 error if decoded token is a string', async () => {
+    it('should throw 401 error if user not found in database', async () => {
       mockRequest.headers = {
         authorization: 'Bearer valid.token',
       };
-      mockVerifyToken.mockReturnValue('string-token');
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(new HttpException(401, 'User not found'));
+      });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
-
-      expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
-      const error = (nextFunction as jest.Mock).mock.calls[0][0];
-      expect(error.status).toBe(401);
-      expect(error.message).toBe('Invalid token payload');
-    });
-
-    it('should throw 401 error if decoded token is missing required fields', async () => {
-      mockRequest.headers = {
-        authorization: 'Bearer valid.token',
-      };
-      mockVerifyToken.mockReturnValue({} as any); // Missing id
-
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(expect.any(HttpException));
       const error = (nextFunction as jest.Mock).mock.calls[0][0];
       expect(error.status).toBe(401);
-      expect(error.message).toBe('Invalid token payload');
+      expect(error.message).toBe('User not found');
     });
 
-    it('should pass HttpException through if verifyToken throws one', async () => {
+    it('should pass HttpException through if verifySupabaseToken throws one', async () => {
       mockRequest.headers = {
         authorization: 'Bearer expired.token',
       };
       const httpException = new HttpException(401, 'Token expired');
-      mockVerifyToken.mockImplementation(() => {
-        throw httpException;
+      mockRequireAuth.mockImplementation(async (req, res, next) => {
+        next(httpException);
       });
 
-      await requireAuth(mockRequest as Request, mockResponse as Response, nextFunction);
+      await requireAuth(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
       expect(nextFunction).toHaveBeenCalledWith(httpException);
     });

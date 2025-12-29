@@ -1,13 +1,11 @@
 /**
  * Audit Service Unit Tests
- * 
+ *
  * Tests the audit logging service functionality using mocked database
- * 
+ *
  * Note: TypeScript errors related to mocked database methods are expected
  * and can be safely ignored. The mocks work correctly at runtime.
  */
-
-// @ts-nocheck - Disable type checking for mock types in this test file
 
 // Mock database module
 jest.mock('../../../../database/drizzle', () => ({

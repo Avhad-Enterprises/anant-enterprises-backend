@@ -15,7 +15,7 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { uploadSingleFileMiddleware } from '../../../middlewares';
-import { uploadToS3 } from '../../../utils/s3Upload';
+import { uploadToStorage } from '../../../utils/supabaseStorage';
 import {
   createDocument,
   updateDocumentStatus,
@@ -125,7 +125,7 @@ const handler =(async (req: Request, res: Response) => {
 
   // Upload file to S3
   logger.info(`📤 Uploading document to S3: ${documentName}`);
-  const uploadResult = await uploadToS3(file.buffer, file.originalname, file.mimetype, userId);
+  const uploadResult = await uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
 
   // Create document record
   const document = await createDocument({

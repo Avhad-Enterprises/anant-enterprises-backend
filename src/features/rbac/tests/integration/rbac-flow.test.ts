@@ -7,8 +7,7 @@ import { db } from '../../../../database';
 import { users } from '../../../user';
 import { roles, permissions, userRoles, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils';
-import { generateToken } from '../../../../utils';
+import { SupabaseAuthHelper } from '@tests/utils/supabase-auth.helper';
 
 describe('RBAC Integration Tests', () => {
     let testUser: any;
@@ -17,20 +16,23 @@ describe('RBAC Integration Tests', () => {
     let testPermission: any;
     let userToken: string;
     let adminToken: string;
+    const testAuthIds: string[] = []; // Track auth IDs for cleanup
 
     beforeEach(async () => {
         // Clean up test data - using proper schema imports
         await db.delete(rolePermissions);
         await db.delete(userRoles);
 
-        // Delete test users
+        // Delete test users if they exist
         const testUsers = await db.select().from(users).where(eq(users.email, 'testuser@test.com'));
         if (testUsers.length > 0) {
+            if (testUsers[0].auth_id) testAuthIds.push(testUsers[0].auth_id);
             await db.delete(users).where(eq(users.id, testUsers[0].id));
         }
 
         const adminUsers = await db.select().from(users).where(eq(users.email, 'admin@test.com'));
         if (adminUsers.length > 0) {
+            if (adminUsers[0].auth_id) testAuthIds.push(adminUsers[0].auth_id);
             await db.delete(users).where(eq(users.id, adminUsers[0].id));
         }
 
@@ -46,28 +48,25 @@ describe('RBAC Integration Tests', () => {
             await db.delete(permissions).where(eq(permissions.id, testPermissions[0].id));
         }
 
-        // Create test user
-        const hashedPassword = await hashPassword('password123');
-        const [createdUser] = await db
-            .insert(users)
-            .values({
-                name: 'Test User',
-                email: 'testuser@test.com',
-                password: hashedPassword,
-            })
-            .returning();
-        testUser = createdUser;
+        // Create test user via Supabase Auth
+        const testUserData = await SupabaseAuthHelper.registerTestUser(
+            'testuser@test.com',
+            'password123',
+            'Test User'
+        );
+        testUser = testUserData.publicUser;
+        userToken = testUserData.session.access_token;
+        testAuthIds.push(testUserData.authUser.id);
 
-        // Create admin user
-        const [createdAdmin] = await db
-            .insert(users)
-            .values({
-                name: 'Admin User',
-                email: 'admin@test.com',
-                password: hashedPassword,
-            })
-            .returning();
-        adminUser = createdAdmin;
+        // Create admin user via Supabase Auth
+        const adminUserData = await SupabaseAuthHelper.registerTestUser(
+            'admin@test.com',
+            'password123',
+            'Admin User'
+        );
+        adminUser = adminUserData.publicUser;
+        adminToken = adminUserData.session.access_token;
+        testAuthIds.push(adminUserData.authUser.id);
 
         // Assign admin role
         const adminRoles = await db.select().from(roles).where(eq(roles.name, 'admin'));
@@ -78,10 +77,6 @@ describe('RBAC Integration Tests', () => {
                 assigned_by: adminUser.id,
             });
         }
-
-        // Generate tokens
-        userToken = generateToken({ id: testUser.id, email: testUser.email, name: testUser.name });
-        adminToken = generateToken({ id: adminUser.id, email: adminUser.email, name: adminUser.name });
     });
 
     afterEach(async () => {
@@ -98,6 +93,9 @@ describe('RBAC Integration Tests', () => {
             await db.delete(rolePermissions).where(eq(rolePermissions.role_id, testRole.id));
             await db.delete(roles).where(eq(roles.id, testRole.id));
         }
+
+        // Cleanup Supabase Auth users
+        await SupabaseAuthHelper.cleanupTestUsers(testAuthIds);
         if (testPermission?.id) {
             await db.delete(permissions).where(eq(permissions.id, testPermission.id));
         }

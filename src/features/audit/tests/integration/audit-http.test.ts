@@ -8,9 +8,9 @@ import App from '../../../../app';
 import { db } from '../../../../database';
 import { auditLogs } from '../../shared/schema';
 import { users } from '../../../user';
-import { roles, permissions, userRoles, rolePermissions } from '../../../rbac';
+import { userRoles } from '../../../rbac';
 import { eq } from 'drizzle-orm';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { auditService } from '../../services/audit.service';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 import UserRoute from '../../../user';
@@ -24,7 +24,6 @@ describe('Audit API - Supertest Integration Tests', () => {
     let adminToken: string;
     let regularUser: any;
     let regularToken: string;
-    let auditPermission: any;
 
     beforeAll(async () => {
         // Initialize app with routes
@@ -36,7 +35,7 @@ describe('Audit API - Supertest Integration Tests', () => {
         server = app.getServer();
 
         // Seed RBAC data (now includes audit:read permission for admin)
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
     });
 
     beforeEach(async () => {
@@ -44,12 +43,12 @@ describe('Audit API - Supertest Integration Tests', () => {
         await db.delete(auditLogs);
 
         // Create admin user with audit:read permission
-        const adminData = await AuthTestHelper.createTestAdminUser();
+        const adminData = await SupabaseAuthHelper.createTestAdminUser();
         adminUser = adminData.user;
         adminToken = adminData.token;
 
         // Create regular user
-        const userData = await AuthTestHelper.createTestUser({
+        const userData = await SupabaseAuthHelper.createTestUser({
             email: `user-${Date.now()}@test.com`,
             password: 'password123',
             name: 'Regular User',

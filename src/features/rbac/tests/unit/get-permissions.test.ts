@@ -4,9 +4,8 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { permissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
@@ -20,15 +19,15 @@ describe('GET /api/rbac/permissions - Get All Permissions', () => {
 
     beforeAll(async () => {
         
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
-        const { token: saToken } = await AuthTestHelper.createTestSuperadminUser();
+        const { token: saToken } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = saToken;
 
-        const { token: aToken } = await AuthTestHelper.createTestAdminUser();
+        const { token: aToken } = await SupabaseAuthHelper.createTestAdminUser();
         adminToken = aToken;
 
-        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = uToken;
     });
 

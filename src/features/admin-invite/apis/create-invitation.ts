@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/invitations
- * Create invitation with auto-generated secure password (Admin only)
- * User will receive email with invite link, credentials shown on verification
+ * Create invitation using Supabase Auth Admin API (Admin only)
+ * User will receive email with invite link and temporary password
  */
 
 import { Router, Response } from 'express';
@@ -17,7 +17,9 @@ import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
 import { encrypt, generateSecurePassword } from '../../../utils';
-import { hashPassword } from '../../../utils';
+import { supabase } from '../../../utils/supabase';
+import { db } from '../../../database';
+import { users } from '../../user/shared/schema';
 
 import { createInvitation, findInvitationByEmail } from '../shared/queries';
 import { findUserByEmail } from '../../user';
@@ -56,11 +58,42 @@ async function handleCreateInvitation(
   // Generate secure temporary password
   const tempPassword = generateSecurePassword(16);
 
-  // Encrypt temp password (for retrieval during verification)
+  // Encrypt temp password (for email)
   const tempPasswordEncrypted = encrypt(tempPassword);
 
-  // Hash password (for actual login verification)
-  const passwordHash = await hashPassword(tempPassword);
+  // Create user in Supabase Auth using Admin API
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email: invitationData.email,
+    password: tempPassword,
+    email_confirm: true, // Auto-confirm invited users
+    user_metadata: {
+      first_name: invitationData.first_name,
+      last_name: invitationData.last_name,
+      invited_by: invitedBy,
+    },
+  });
+
+  if (authError || !authUser?.user) {
+    logger.error('Failed to create Supabase Auth user for invitation', {
+      email: invitationData.email,
+      error: authError,
+    });
+    throw new HttpException(500, 'Failed to create user account');
+  }
+
+  // Sync to public.users table
+  await db.insert(users).values({
+    auth_id: authUser.user.id,
+    name: `${invitationData.first_name} ${invitationData.last_name}`,
+    email: invitationData.email,
+    password: '', // Managed by Supabase
+    phone_number: '',
+    created_by: invitedBy,
+    updated_by: invitedBy,
+    is_deleted: false,
+    created_at: new Date(),
+    updated_at: new Date(),
+  }).returning();
 
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + INVITATION_EXPIRY_HOURS);
@@ -72,7 +105,7 @@ async function handleCreateInvitation(
     assigned_role_id: invitationData.assigned_role_id,
     invite_token: inviteToken,
     temp_password_encrypted: tempPasswordEncrypted,
-    password_hash: passwordHash,
+    password_hash: '', // No longer needed
     invited_by: invitedBy,
     expires_at: expiresAt,
     status: 'pending' });

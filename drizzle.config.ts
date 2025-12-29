@@ -8,23 +8,15 @@ if (nodeEnv === 'development') {
 } else if (nodeEnv === 'production') {
   dotenv.config({ path: '.env.prod' });
 } else if (nodeEnv === 'test') {
-  dotenv.config({ path: '.env.test' });
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
 }
 dotenv.config();
 
 /**
- * Get database URL with Docker hostname converted to localhost
- * Port mapping: dev=5434, test=5433
+ * Get database URL from environment
  */
 function getDatabaseUrl(): string {
-  let dbUrl = process.env.DATABASE_URL || '';
-
-  if (dbUrl.includes('@postgres:5432')) {
-    const hostPort = nodeEnv === 'development' ? 5434 : nodeEnv === 'test' ? 5433 : 5432;
-    dbUrl = dbUrl.replace('@postgres:5432', `@localhost:${hostPort}`);
-  }
-
-  return dbUrl;
+  return process.env.DATABASE_URL || '';
 }
 
 export default defineConfig({

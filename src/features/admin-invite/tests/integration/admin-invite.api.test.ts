@@ -2,9 +2,9 @@ import { Application } from 'express';
 import App from '../../../../app';
 import AdminInviteRoute from '../../index';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
-import { ApiTestHelper } from '../../../../../tests/utils';
+import { dbHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
+import { ApiTestHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { invitations } from '../../shared/schema';
 import { users } from '../../../user';
@@ -15,6 +15,10 @@ import crypto from 'crypto';
 
 // Helper to generate valid 64-char invite tokens
 const generateInviteToken = () => crypto.randomBytes(32).toString('hex');
+
+// Helper to generate unique test emails
+const generateTestEmail = (prefix: string = 'test') => 
+  `${prefix}-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
 
 // Helper to get role ID by name
 async function getRoleId(roleName: string): Promise<number> {
@@ -46,12 +50,12 @@ describe('Admin Invite API Integration Tests', () => {
     await dbHelper.resetSequences();
 
     // Create admin user with proper RBAC permissions
-    const { user: admin, token } = await AuthTestHelper.createTestAdminUser();
+    const { user: admin, token } = await SupabaseAuthHelper.createTestAdminUser();
     adminUserId = admin.id;
     adminToken = token;
 
     // Create scientist user for authorization tests
-    const { token: sciToken } = await AuthTestHelper.createTestUserWithToken();
+    const { token: sciToken } = await SupabaseAuthHelper.createTestUserWithToken();
     scientistToken = sciToken;
 
     // Get role IDs for tests
@@ -66,10 +70,11 @@ describe('Admin Invite API Integration Tests', () => {
 
   describe('POST /api/admin/invitations', () => {
     it('should create invitation successfully with admin role', async () => {
+      const testEmail = generateTestEmail('harshal');
       const invitationData = {
         first_name: 'Harshal',
         last_name: 'Patil',
-        email: 'harshalpatilself@gmail.com',
+        email: testEmail,
         assigned_role_id: scientistRoleId,
       };
 
@@ -82,7 +87,7 @@ describe('Admin Invite API Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body.data.first_name).toBe('Harshal');
       expect(response.body.data.last_name).toBe('Patil');
-      expect(response.body.data.email).toBe('harshalpatilself@gmail.com');
+      expect(response.body.data.email).toBe(testEmail);
       expect(response.body.data.assigned_role_id).toBe(scientistRoleId);
       expect(response.body.data.status).toBe('pending');
       // invite_token is intentionally not returned for security - token is only sent via email
@@ -145,10 +150,11 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should fail with duplicate active invitation', async () => {
+      const testEmail = generateTestEmail('john');
       const invitationData = {
         first_name: 'John',
         last_name: 'Doe',
-        email: 'john.doe@example.com',
+        email: testEmail,
         assigned_role_id: scientistRoleId,
       };
 
@@ -163,14 +169,15 @@ describe('Admin Invite API Integration Tests', () => {
       );
 
       expect(response.status).toBe(409);
-      expect(response.body.error.message).toContain('active invitation already exists');
+      expect(response.body.error.message).toContain('A user with this email already exists');
     });
 
     it('should require admin role', async () => {
+      const testEmail = generateTestEmail('scientist');
       const invitationData = {
         first_name: 'John',
         last_name: 'Doe',
-        email: 'john.doe@example.com',
+        email: testEmail,
         assigned_role_id: scientistRoleId,
       };
 
@@ -206,10 +213,11 @@ describe('Admin Invite API Integration Tests', () => {
       ];
 
       for (const role of roles) {
+        const testEmail = generateTestEmail(`test-${role.name}`);
         const invitationData = {
           first_name: 'Test',
           last_name: 'User',
-          email: `test.${role.name}@example.com`,
+          email: testEmail,
           assigned_role_id: role.id,
         };
 
@@ -229,11 +237,15 @@ describe('Admin Invite API Integration Tests', () => {
     beforeEach(async () => {
       // Create test invitations
       const hashedPassword = await bcrypt.hash('TempPass123!', 12);
+      const pendingEmail = generateTestEmail('john-pending');
+      const acceptedEmail = generateTestEmail('jane-accepted');
+      const expiredEmail = generateTestEmail('bob-expired');
+      
       await db.insert(invitations).values([
         {
           first_name: 'John',
           last_name: 'Doe',
-          email: 'john.pending@example.com',
+          email: pendingEmail,
           invite_token: generateInviteToken(),
           status: 'pending',
           assigned_role_id: scientistRoleId,
@@ -244,7 +256,7 @@ describe('Admin Invite API Integration Tests', () => {
         {
           first_name: 'Jane',
           last_name: 'Smith',
-          email: 'jane.accepted@example.com',
+          email: acceptedEmail,
           invite_token: generateInviteToken(),
           status: 'accepted',
           assigned_role_id: adminRoleId,
@@ -256,7 +268,7 @@ describe('Admin Invite API Integration Tests', () => {
         {
           first_name: 'Bob',
           last_name: 'Wilson',
-          email: 'bob.expired@example.com',
+          email: expiredEmail,
           invite_token: generateInviteToken(),
           status: 'expired',
           assigned_role_id: superadminRoleId,
@@ -317,38 +329,48 @@ describe('Admin Invite API Integration Tests', () => {
 
   describe('POST /api/admin/invitations/accept', () => {
     it('should accept invitation and create user account', async () => {
-      const inviteToken = generateInviteToken();
-      const invitationEmail = `newuser-${Date.now()}@example.com`;
-      const tempPassword = 'TempPass123!';
-      const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-      await db.insert(invitations).values({
+      const invitationEmail = generateTestEmail('accept-test');
+      
+      // Create invitation using the API
+      const invitationData = {
         first_name: 'New',
         last_name: 'User',
         email: invitationEmail,
-        invite_token: inviteToken,
-        status: 'pending',
         assigned_role_id: scientistRoleId,
-        password_hash: hashedPassword,
-        invited_by: adminUserId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      });
+      };
+
+      const createResponse = await apiHelper.post(
+        '/api/admin/invitations',
+        invitationData,
+        adminToken
+      );
+
+      expect(createResponse.status).toBe(200);
+      
+      // Get the invitation token from the response or database
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.email, invitationEmail))
+        .limit(1);
+
+      expect(invitation).toBeDefined();
 
       const acceptData = {
-        token: inviteToken,
+        token: invitation.invite_token,
         email: invitationEmail,
-        password: tempPassword,
+        password: 'NewSecurePassword123!', // User provides new password
       };
 
       const response = await apiHelper.post('/api/admin/invitations/accept', acceptData);
 
       expect(response.status).toBe(200);
-      expect(response.body.data.email).toBe(invitationEmail);
-      expect(response.body.data.name).toBe('New User');
-      expect(response.body.data.token).toBeDefined();
+      expect(response.body.data.user.email).toBe(invitationEmail);
+      expect(response.body.data.user.name).toBe('New User');
+      expect(response.body.data.session.access_token).toBeDefined();
       expect(response.body.message).toContain('Account created successfully');
 
-      // Verify user was created
+      // Verify user was updated in database
       const [createdUser] = await db
         .select()
         .from(users)
@@ -356,7 +378,6 @@ describe('Admin Invite API Integration Tests', () => {
 
       expect(createdUser).toBeDefined();
       expect(createdUser.name).toBe('New User');
-      // Note: role is managed via RBAC (userRoles table), not users table
     });
 
     it('should fail with invalid token', async () => {
@@ -387,35 +408,37 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should fail if invitation already accepted', async () => {
-      const inviteToken = generateInviteToken();
-      const invitationEmail = `newuser-accepted-${Date.now()}@example.com`;
-      const tempPassword = 'TempPass123!';
-      const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-      await db.insert(invitations).values({
+      const invitationEmail = generateTestEmail('already-accepted');
+      
+      // Create invitation using the API
+      const invitationData = {
         first_name: 'New',
         last_name: 'User',
         email: invitationEmail,
-        invite_token: inviteToken,
-        status: 'pending',
         assigned_role_id: scientistRoleId,
-        password_hash: hashedPassword,
-        invited_by: adminUserId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      });
+      };
+
+      await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
+
+      // Get the invitation token
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.email, invitationEmail))
+        .limit(1);
 
       // Accept invitation first time
       await apiHelper.post('/api/admin/invitations/accept', {
-        token: inviteToken,
+        token: invitation.invite_token,
         email: invitationEmail,
-        password: tempPassword,
+        password: 'NewSecurePassword123!',
       });
 
       // Try to accept again
       const response = await apiHelper.post('/api/admin/invitations/accept', {
-        token: inviteToken,
+        token: invitation.invite_token,
         email: invitationEmail,
-        password: tempPassword,
+        password: 'AnotherPassword123!',
       });
 
       expect(response.status).toBe(400);
@@ -452,27 +475,29 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should not require authentication (public endpoint)', async () => {
-      const inviteToken = generateInviteToken();
-      const invitationEmail = `public-${Date.now()}@example.com`;
-      const tempPassword = 'TempPass123!';
-      const hashedPassword = await bcrypt.hash(tempPassword, 12);
-
-      await db.insert(invitations).values({
+      const invitationEmail = generateTestEmail('public-endpoint');
+      
+      // Create invitation using the API
+      const invitationData = {
         first_name: 'Public',
         last_name: 'User',
         email: invitationEmail,
-        invite_token: inviteToken,
-        status: 'pending',
         assigned_role_id: scientistRoleId,
-        password_hash: hashedPassword,
-        invited_by: adminUserId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      });
+      };
+
+      await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
+
+      // Get the invitation token
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.email, invitationEmail))
+        .limit(1);
 
       const acceptData = {
-        token: inviteToken,
+        token: invitation.invite_token,
         email: invitationEmail,
-        password: tempPassword,
+        password: 'NewSecurePassword123!',
       };
 
       const response = await apiHelper.post('/api/admin/invitations/accept', acceptData);
@@ -482,11 +507,12 @@ describe('Admin Invite API Integration Tests', () => {
   });
 
   describe('Email Sending - Real Test', () => {
-    it('should send invitation email to harshalpatilself@gmail.com', async () => {
+    it('should send invitation email successfully', async () => {
+      const testEmail = generateTestEmail('email-test');
       const invitationData = {
         first_name: 'Harshal',
         last_name: 'Patil',
-        email: 'harshalpatilself@gmail.com',
+        email: testEmail,
         assigned_role_id: adminRoleId,
       };
 
@@ -497,7 +523,7 @@ describe('Admin Invite API Integration Tests', () => {
       );
 
       expect(response.status).toBe(200);
-      expect(response.body.data.email).toBe('harshalpatilself@gmail.com');
+      expect(response.body.data.email).toBe(testEmail);
       
       // Note: Email verification should be done manually by checking the inbox
       // Invitation ID: ${response.body.data.id}, Status: ${response.body.data.status}

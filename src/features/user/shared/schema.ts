@@ -1,23 +1,26 @@
-import { pgTable, serial, timestamp, boolean, integer, varchar, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, timestamp, boolean, integer, varchar, uuid, index } from 'drizzle-orm/pg-core';
 
 /**
  * Users table schema
  * Stores user account information
  *
  * NOTE: Roles are now managed via the dynamic RBAC system (user_roles table)
+ * NOTE: auth_id links to Supabase Auth (auth.users.id) - Migration 0006
  *
  * Indexes:
  * - email_is_deleted_idx: Composite index for email lookups (most queries filter by is_deleted)
  * - is_deleted_idx: Partial index for active user queries
  * - created_at_idx: For sorting/pagination
+ * - auth_id_idx: For Supabase Auth lookups
  */
 export const users = pgTable(
   'users',
   {
     id: serial('id').primaryKey(),
+    auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
     name: varchar('name', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).unique().notNull(),
-    password: varchar('password', { length: 255 }).notNull(), // bcrypt hashes are ~60 chars
+    password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
     phone_number: varchar('phone_number', { length: 20 }),
 
     // Audit fields - self-referential FKs added via raw SQL migration
@@ -34,6 +37,8 @@ export const users = pgTable(
     emailIsDeletedIdx: index('users_email_is_deleted_idx').on(table.email, table.is_deleted),
     // Index for sorting/pagination
     createdAtIdx: index('users_created_at_idx').on(table.created_at),
+    // Index for Supabase Auth lookups
+    authIdIdx: index('users_auth_id_idx').on(table.auth_id),
   })
 );
 

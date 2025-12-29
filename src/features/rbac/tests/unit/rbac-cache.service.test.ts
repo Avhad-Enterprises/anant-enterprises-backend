@@ -33,7 +33,6 @@ import { isRedisReady } from '../../../../utils';
 
 const mockFindUserPermissions = findUserPermissions as jest.MockedFunction<typeof findUserPermissions>;
 const mockFindUserRoles = findUserRoles as jest.MockedFunction<typeof findUserRoles>;
-const mockIsRedisReady = isRedisReady as jest.MockedFunction<typeof isRedisReady>;
 
 describe('RBACCacheService', () => {
     let cacheService: RBACCacheService;

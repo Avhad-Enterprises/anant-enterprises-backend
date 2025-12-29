@@ -1,5 +1,5 @@
 import { pgTable, serial, text, timestamp, integer, boolean, varchar, index } from 'drizzle-orm/pg-core';
-import { users } from '../../user';
+import { users } from '../../user/shared/schema';
 
 export const invitationStatuses = ['pending', 'accepted', 'revoked', 'expired'] as const;
 export type InvitationStatus = (typeof invitationStatuses)[number];

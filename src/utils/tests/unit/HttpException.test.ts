@@ -1,4 +1,4 @@
-import { HttpException } from '../../src/utils';
+import { HttpException } from '../../helpers/httpException';
 
 describe('HttpException', () => {
   it('should create basic exception', () => {

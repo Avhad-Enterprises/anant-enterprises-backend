@@ -4,30 +4,28 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, rolePermissions, userRoles } from '../../shared/schema';
+import { roles } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { rbacCacheService } from '../../services/rbac-cache.service';
 
 describe('RBAC Role APIs - Integration Tests', () => {
     let superadminToken: string;
-    let superadminUserId: number;
     let adminToken: string;
     let regularUserToken: string;
 
     beforeAll(async () => {
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
-        const { token: saToken, userId: saUserId } = await AuthTestHelper.createTestSuperadminUser();
+        const { token: saToken, userId: saUserId } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = saToken;
-        superadminUserId = saUserId;
 
-        const { token: aToken } = await AuthTestHelper.createTestAdminUser();
+        const { token: aToken } = await SupabaseAuthHelper.createTestAdminUser();
         adminToken = aToken;
 
-        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = uToken;
     });
 

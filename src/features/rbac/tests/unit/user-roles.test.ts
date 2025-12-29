@@ -4,9 +4,9 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { dbHelper } from '@tests/utils';
+import { SupabaseAuthHelper, AuthTestHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles, permissions, rolePermissions, userRoles } from '../../shared/schema';
 import { eq, and } from 'drizzle-orm';
@@ -23,16 +23,16 @@ describe('User Roles API - GET/POST/DELETE', () => {
 
     beforeAll(async () => {
 
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
-        const { token: saToken, userId: saUserId } = await AuthTestHelper.createTestSuperadminUser();
+        const { token: saToken, userId: saUserId } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = saToken;
         superadminUserId = saUserId;
 
-        const { token: aToken } = await AuthTestHelper.createTestAdminUser();
+        const { token: aToken } = await SupabaseAuthHelper.createTestAdminUser();
         adminToken = aToken;
 
-        const { token: uToken, user } = await AuthTestHelper.createTestUserWithToken();
+        const { token: uToken, user } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = uToken;
         regularUserId = user.id;
     });
@@ -144,7 +144,7 @@ describe('User Roles API - GET/POST/DELETE', () => {
 
         it('should require users:read permission to read others roles', async () => {
             // Create another user
-            const { token: otherToken } = await AuthTestHelper.createTestUserWithToken();
+            const { token: otherToken } = await SupabaseAuthHelper.createTestUserWithToken();
 
             const response = await request(app)
                 .get(`/api/rbac/users/${regularUserId}/roles`)
@@ -217,7 +217,7 @@ describe('User Roles API - GET/POST/DELETE', () => {
 
         it('should require users:read permission to read others permissions', async () => {
             // Create another user
-            const { token: otherToken } = await AuthTestHelper.createTestUserWithToken();
+            const { token: otherToken } = await SupabaseAuthHelper.createTestUserWithToken();
 
             const response = await request(app)
                 .get(`/api/rbac/users/${regularUserId}/permissions`)

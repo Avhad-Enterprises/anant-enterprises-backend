@@ -13,18 +13,20 @@ import { sql } from 'drizzle-orm';
 import App from '../../../../app';
 import ChatbotRoute from '../../index';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils';
-import { ApiTestHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import { dbHelper } from '@tests/utils';
+import { ApiTestHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { chatbotSessions, chatbotMessages, chatbotDocuments } from '../../shared/schema';
+import { chatbotSessions, chatbotMessages } from '../../shared/schema';
+
+const generateTestEmail = (prefix: string = 'test') =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}@example.com`;
 
 describe('Sessions & Chat API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let userToken: string;
   let userId: number;
-  let otherUserToken: string;
   let otherUserId: number;
 
   beforeAll(async () => {
@@ -48,8 +50,8 @@ describe('Sessions & Chat API Integration Tests', () => {
     await db.execute(sql`ALTER SEQUENCE chatbot_messages_id_seq RESTART WITH 1`);
 
     // Create user and get token
-    const { user, token } = await AuthTestHelper.createTestUser({
-      email: 'user@example.com',
+    const { user, token } = await SupabaseAuthHelper.createTestUser({
+      email: generateTestEmail('user'),
       password: 'UserPass123!',
       name: 'Test User',
       role: 'user',
@@ -58,13 +60,12 @@ describe('Sessions & Chat API Integration Tests', () => {
     userId = user.id;
 
     // Create another user for isolation tests
-    const { user: other, token: otherToken } = await AuthTestHelper.createTestUser({
-      email: 'other@example.com',
+    const { user: other } = await SupabaseAuthHelper.createTestUser({
+      email: generateTestEmail('other'),
       password: 'OtherPass123!',
       name: 'Other User',
       role: 'user',
     });
-    otherUserToken = otherToken;
     otherUserId = other.id;
   });
 

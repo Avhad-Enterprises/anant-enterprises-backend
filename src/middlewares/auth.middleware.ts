@@ -1,11 +1,14 @@
 import { NextFunction, Response, Request } from 'express';
 import { HttpException } from '../utils';
 import { logger } from '../utils';
-import { DataStoredInToken } from '../interfaces';
-import { verifyToken } from '../utils';
+import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
+import { db } from '../database';
+import { users } from '../features/user/shared/schema';
+import { eq } from 'drizzle-orm';
 
 /**
- * Authentication middleware - requires valid JWT token
+ * Authentication middleware - requires valid Supabase JWT token
+ * Verifies the token and attaches the user ID (integer) to the request
  */
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -35,41 +38,46 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(new HttpException(401, 'Authentication required. No token provided.'));
     }
 
-    const verificationResponse = verifyToken(token);
+    // Verify Supabase JWT token
+    const authUser = await verifySupabaseToken(token);
 
-    // Validate token payload structure
-    if (typeof verificationResponse === 'string') {
-      logger.warn('Authentication failed: Invalid token payload structure', {
+    if (!authUser) {
+      logger.warn('Authentication failed: Invalid Supabase token', {
         ip: clientIP,
         userAgent,
         url: req.originalUrl,
         method: req.method,
       });
-      return next(new HttpException(401, 'Invalid token payload'));
+      return next(new HttpException(401, 'Invalid or expired token'));
     }
 
-    const decoded = verificationResponse as DataStoredInToken;
+    // Get the public.users record via auth_id (UUID from Supabase)
+    const publicUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.auth_id, authUser.id))
+      .limit(1);
 
-    // Validate required fields exist
-    if (!decoded.id) {
-      logger.warn('Authentication failed: Missing required token fields', {
+    if (!publicUser[0]) {
+      logger.warn('Authentication failed: User sync not found', {
         ip: clientIP,
         userAgent,
         url: req.originalUrl,
         method: req.method,
-        decodedFields: Object.keys(decoded),
+        authId: authUser.id,
       });
-      return next(new HttpException(401, 'Invalid token payload'));
+      return next(new HttpException(401, 'User not found'));
     }
 
-    // Attach user information to request
-    req.userId = decoded.id;
+    // Attach user information to request (use integer ID for RBAC)
+    req.userId = publicUser[0].id;
     req.userAgent = userAgent;
     req.clientIP = clientIP;
 
     // Log successful authentication
     logger.info('Authentication successful', {
-      userId: decoded.id,
+      userId: publicUser[0].id,
+      authId: authUser.id,
       ip: clientIP,
       userAgent: userAgent.substring(0, 100), // Truncate for logging
       url: req.originalUrl,
@@ -92,21 +100,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(error);
     }
 
-    // Handle specific JWT errors
-    if (error instanceof Error && error.name === 'TokenExpiredError') {
-      return next(new HttpException(401, 'Token expired'));
-    }
-
-    if (error instanceof Error && error.name === 'JsonWebTokenError') {
-      return next(new HttpException(401, 'Invalid token'));
-    }
-
-    if (error instanceof Error && error.name === 'NotBeforeError') {
-      return next(new HttpException(401, 'Token not active'));
-    }
-
-    // Generic auth error for other cases
-    next(new HttpException(401, 'Authentication failed'));
+    return next(new HttpException(500, 'Authentication error'));
   }
 };
 

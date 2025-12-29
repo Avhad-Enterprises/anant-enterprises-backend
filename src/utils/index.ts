@@ -2,17 +2,15 @@
  * Central Utils Index
  * 
  * Single point of export for all utility modules
- * Usage: import { logger, HttpException, jwt } from '@/utils' or '../../utils'
+ * Usage: import { logger, HttpException } from '@/utils' or '../../utils'
  */
 
 // NOTE: audit-utils is NOT exported here to avoid circular dependency
 // audit-utils imports from features/audit, which imports from utils
 // Import audit-utils directly: import { ... } from './utils/audit/audit-utils'
 
-// Auth utilities
+// Auth utilities (encryption only - JWT/password moved to Supabase Auth)
 export * from './auth/encryption';
-export * from './auth/jwt';
-export * from './auth/password';
 
 // Database utilities
 export * from './database/cache';
@@ -34,5 +32,6 @@ export * from './logging/logger';
 // Top-level utilities
 export * from './gracefulShutdown';
 export * from './loadEnv';
-export * from './s3Upload';
+export * from './supabaseStorage';
+export * from './supabase';
 export * from './validateEnv';

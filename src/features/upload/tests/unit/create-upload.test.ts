@@ -3,7 +3,7 @@
  */
 
 import { HttpException } from '../../../../utils';
-import * as s3Upload from '../../../../utils/s3Upload';
+import * as s3Upload from '../../../../utils/supabaseStorage';
 import { db } from '../../../../database';
 import { Upload } from '../../shared/interface';
 
@@ -13,7 +13,7 @@ jest.mock('../../../../database/drizzle', () => ({
     insert: jest.fn().mockReturnThis(),
   },
 }));
-jest.mock('../../../../utils/s3Upload');
+jest.mock('../../../../utils/supabaseStorage');
 jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),

@@ -1,21 +1,22 @@
 /**
  * POST /api/admin/invitations/accept
- * Accept invitation - creates user account and returns auth token (Public - no auth)
+ * Accept invitation - verifies credentials via Supabase Auth (Public - no auth)
  * User manually enters credentials received via email along with the token from URL
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
-import { verifyPassword } from '../../../utils';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
-import { generateToken } from '../../../utils';
+import { supabase } from '../../../utils/supabase';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
-import { findUserByEmail, createUser } from '../../user';
 import { assignRoleToUser } from '../../rbac';
-import { IAuthUserWithToken } from '../../../interfaces';
+import { db } from '../../../database';
+import { users } from '../../user/shared/schema';
+import { eq } from 'drizzle-orm';
+import { loginWithSupabase } from '../../auth/services/supabase-auth.service';
 
 const schema = z.object({
   token: z.string().length(64, 'Invalid invitation token'),
@@ -25,7 +26,7 @@ const schema = z.object({
 
 type AcceptInvitationDto = z.infer<typeof schema>;
 
-async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<IAuthUserWithToken> {
+async function handleAcceptInvitation(acceptData: AcceptInvitationDto) {
   const invitation = await findInvitationByToken(acceptData.token);
 
   if (!invitation) {
@@ -49,66 +50,88 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
     throw new HttpException(400, 'Email does not match invitation');
   }
 
-  // Verify password against stored hash
-  if (!invitation.password_hash) {
-    throw new HttpException(500, 'Invitation data is corrupted');
+  // Get the user from public.users table to find auth_id
+  const [existingUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, acceptData.email))
+    .limit(1);
+
+  if (!existingUser) {
+    throw new HttpException(500, 'User not found in database');
   }
 
-  const isPasswordValid = await verifyPassword(acceptData.password, invitation.password_hash);
-  if (!isPasswordValid) {
-    throw new HttpException(401, 'Invalid credentials');
+  if (!existingUser.auth_id) {
+    throw new HttpException(500, 'User auth_id is missing');
   }
 
-  // Check if user already exists
-  const existingUser = await findUserByEmail(invitation.email);
-  if (existingUser) {
-    throw new HttpException(409, 'User account already exists for this email');
+  // Update user password in Supabase Auth
+  const { error: updateError } = await supabase.auth.admin.updateUserById(
+    existingUser.auth_id,
+    { password: acceptData.password }
+  );
+
+  if (updateError) {
+    logger.error('Failed to update user password', { error: updateError });
+    throw new HttpException(500, 'Failed to update password');
   }
 
-  // Create the user account with the same hashed password
-  const newUser = await createUser({
-    name: `${invitation.first_name} ${invitation.last_name}`,
-    email: invitation.email,
-    password: invitation.password_hash, // Use the same hash
-    created_by: invitation.invited_by,
+  // Now login with the new password
+  const { data: authData, error: authError } = await loginWithSupabase({
+    email: acceptData.email,
+    password: acceptData.password,
   });
+
+  if (authError || !authData?.user || !authData?.session) {
+    throw new HttpException(401, 'Login failed after password update');
+  }
+
+  // Get the public.users record (again, in case it was updated)
+  const publicUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, acceptData.email)) // Use email instead of auth_id until migration
+    .limit(1);
+
+  if (!publicUser[0]) {
+    throw new HttpException(500, 'User sync failed');
+  }
 
   // Assign role via RBAC system
   if (invitation.assigned_role_id) {
-    await assignRoleToUser(newUser.id, invitation.assigned_role_id, invitation.invited_by);
+    await assignRoleToUser(publicUser[0].id, invitation.assigned_role_id, invitation.invited_by);
   }
 
   // Mark invitation as accepted
   await updateInvitation(invitation.id, {
     status: 'accepted',
     accepted_at: new Date(),
-    // Clear encrypted password for security
-    temp_password_encrypted: null,
+    temp_password_encrypted: null, // Clear for security
   });
 
-  // Generate auth token for immediate login
-  const token = generateToken(
-    {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-    },
-    '24h'
-  );
-
-  logger.info('Invitation accepted, user created', {
+  logger.info('Invitation accepted successfully', {
     email: invitation.email,
-    userId: newUser.id,
+    userId: publicUser[0].id,
+    authId: authData.user.id,
     invitationId: invitation.id
   });
 
   return {
-    id: newUser.id,
-    name: newUser.name,
-    email: newUser.email,
-    created_at: newUser.created_at,
-    updated_at: newUser.updated_at,
-    token,
+    user: {
+      id: publicUser[0].id,
+      auth_id: authData.user.id,
+      name: publicUser[0].name,
+      email: publicUser[0].email,
+      phone_number: publicUser[0].phone_number || undefined,
+      created_at: publicUser[0].created_at,
+      updated_at: publicUser[0].updated_at,
+    },
+    session: {
+      access_token: authData.session.access_token,
+      refresh_token: authData.session.refresh_token,
+      expires_in: authData.session.expires_in,
+      token_type: authData.session.token_type,
+    },
   };
 }
 

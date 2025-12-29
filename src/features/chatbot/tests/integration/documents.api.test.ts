@@ -13,9 +13,9 @@ import { sql } from 'drizzle-orm';
 import App from '../../../../app';
 import ChatbotRoute from '../../index';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils';
-import { ApiTestHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import { dbHelper } from '@tests/utils';
+import { ApiTestHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { chatbotDocuments } from '../../shared/schema';
 import { chatbotCacheService } from '../../services/chatbot-cache.service';
@@ -58,13 +58,13 @@ describe('Documents API Integration Tests', () => {
     await db.execute(sql`ALTER SEQUENCE chatbot_documents_id_seq RESTART WITH 1`);
 
     // Create admin user with full permissions
-    const { token: aToken, userId: aId } = await AuthTestHelper.createTestAdminUser();
+    const { token: aToken, userId: aId } = await SupabaseAuthHelper.createTestAdminUser();
     adminToken = aToken;
     adminUserId = aId;
 
     // Create regular user (uses 'user' role which exists in RBAC)
     const uniqueUserEmail = `user-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
-    const { token: uToken } = await AuthTestHelper.createTestUser({
+    const { token: uToken } = await SupabaseAuthHelper.createTestUser({
       email: uniqueUserEmail,
       password: 'UserPass123!',
       name: 'Regular User',

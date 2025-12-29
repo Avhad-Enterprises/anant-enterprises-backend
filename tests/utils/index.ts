@@ -14,7 +14,10 @@ export { default } from './app.helper';
 // API testing helpers
 export { ApiTestHelper } from './api.helper';
 
-// Authentication testing helpers
+// Supabase Auth testing helpers (preferred)
+export { SupabaseAuthHelper } from './supabase-auth.helper';
+
+// Legacy auth helpers (deprecated - migrate to SupabaseAuthTestHelper)
 export { AuthTestHelper } from './auth.helper';
 
 // Database testing helpers
@@ -26,7 +29,7 @@ export { TestUser, TestDataFactory } from './factories';
 // Database migrations for tests
 export { runMigrations } from './migrations';
 
-// S3 testing helpers
+// Supabase Storage testing helpers
 export { s3Helper } from './s3.helper';
 
 // Setup utilities

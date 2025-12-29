@@ -2,39 +2,61 @@
  * Unit tests for refresh-token business logic
  */
 
-import * as jwt from '../../../../utils';
-import * as userQueries from '../../../user';
 import { handleRefreshToken } from '../../apis/refresh-token';
+import { db } from '../../../../database';
 
-// Preserve HttpException class
-jest.mock('../../../../utils', () => {
-  const actualUtils = jest.requireActual('../../../../utils');
-  return {
-    ...actualUtils,
-    verifyToken: jest.fn(),
-    generateToken: jest.fn(),
-  };
-});
+// Mock Supabase client
+jest.mock('../../../../utils/supabase', () => ({
+  supabaseAnon: {
+    auth: {
+      refreshSession: jest.fn(),
+    },
+  },
+}));
 
-jest.mock('../../../user/shared/queries');
+// Mock database
+jest.mock('../../../../database', () => ({
+  db: {
+    select: jest.fn().mockReturnThis(),
+    from: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockResolvedValue([]),
+  },
+}));
 
-const mockJwt = jwt as jest.Mocked<typeof jwt>;
-const mockUserQueries = userQueries as jest.Mocked<typeof userQueries>;
+// Mock drizzle-orm eq function
+jest.mock('drizzle-orm', () => ({
+  eq: jest.fn(),
+}));
+
+import { supabaseAnon } from '../../../../utils/supabase';
+import { eq } from 'drizzle-orm';
+
+const mockSupabaseAnon = supabaseAnon as jest.Mocked<typeof supabaseAnon>;
+const mockRefreshSession = mockSupabaseAnon.auth.refreshSession as jest.MockedFunction<any>;
+const mockDb = db as jest.Mocked<typeof db>;
+const mockEq = eq as jest.MockedFunction<typeof eq>;
 
 describe('Refresh Token Business Logic', () => {
   const mockUser = {
     id: 1,
+    auth_id: 'supabase-user-id-123',
     name: 'Test User',
     email: 'test@example.com',
     phone_number: '1234567890',
-    password: 'hashedPassword123',
-    created_by: 1,
     created_at: new Date('2024-01-01'),
-    updated_by: null,
     updated_at: new Date('2024-01-01'),
-    is_deleted: false,
-    deleted_by: null,
-    deleted_at: null,
+  };
+
+  const mockSupabaseUser = {
+    id: 'supabase-user-id-123',
+    email: 'test@example.com',
+  };
+
+  const mockSupabaseSession = {
+    access_token: 'new.access.token',
+    refresh_token: 'new.refresh.token',
+    expires_at: 1234567890,
   };
 
   beforeEach(() => {
@@ -43,92 +65,125 @@ describe('Refresh Token Business Logic', () => {
 
   describe('handleRefreshToken', () => {
     it('should successfully refresh tokens with valid refresh token', async () => {
-      const decodedToken = { id: 1, iat: 1234567890, exp: 1234567890 };
-      mockJwt.verifyToken.mockReturnValue(decodedToken);
-      mockUserQueries.findUserById.mockResolvedValue(mockUser);
-      mockJwt.generateToken.mockReturnValue('new.access.token');
+      // Mock Supabase refreshSession success
+      mockRefreshSession.mockResolvedValue({
+        data: {
+          user: mockSupabaseUser,
+          session: mockSupabaseSession,
+        },
+        error: null,
+      });
+
+      // Mock database query
+      const mockSelectChain = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([mockUser]),
+      };
+      mockDb.select.mockReturnValue(mockSelectChain as any);
+      mockEq.mockReturnValue('auth_id_condition' as any);
 
       const result = await handleRefreshToken('valid.refresh.token');
 
-      expect(mockJwt.verifyToken).toHaveBeenCalledWith('valid.refresh.token');
-      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(1);
-      expect(result).toMatchObject({
-        id: 1,
-        name: 'Test User',
-        email: 'test@example.com',
-        phone_number: '1234567890',
-        token: 'new.access.token',
+      expect(mockSupabaseAnon.auth.refreshSession).toHaveBeenCalledWith({
+        refresh_token: 'valid.refresh.token',
+      });
+      expect(result).toEqual({
+        user: {
+          id: mockUser.id,
+          auth_id: mockUser.auth_id,
+          name: mockUser.name,
+          email: mockUser.email,
+          phone_number: mockUser.phone_number,
+          created_at: mockUser.created_at,
+          updated_at: mockUser.updated_at,
+        },
+        token: mockSupabaseSession.access_token,
+        refreshToken: mockSupabaseSession.refresh_token,
       });
     });
 
-    it('should throw 401 if decoded token is a string', async () => {
-      mockJwt.verifyToken.mockReturnValue('invalid-string-token');
+    it('should throw 401 if refresh session fails', async () => {
+      mockRefreshSession.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { message: 'Invalid refresh token' },
+      });
 
-      await expect(handleRefreshToken('bad.token')).rejects.toMatchObject({
+      await expect(handleRefreshToken('invalid.token')).rejects.toMatchObject({
         status: 401,
-        message: 'Invalid refresh token format',
+        message: 'Invalid refresh token',
       });
     });
 
-    it('should throw 401 if decoded token has no id', async () => {
-      mockJwt.verifyToken.mockReturnValue({ email: 'test@example.com' });
-
-      await expect(handleRefreshToken('no-id.token')).rejects.toMatchObject({
-        status: 401,
-        message: 'Invalid refresh token format',
+    it('should throw 500 if user sync failed', async () => {
+      mockRefreshSession.mockResolvedValue({
+        data: {
+          user: mockSupabaseUser,
+          session: mockSupabaseSession,
+        },
+        error: null,
       });
-    });
 
-    it('should throw 404 if user not found', async () => {
-      const decodedToken = { id: 999, iat: 1234567890, exp: 1234567890 };
-      mockJwt.verifyToken.mockReturnValue(decodedToken);
-      mockUserQueries.findUserById.mockResolvedValue(undefined);
+      // Mock database query returning empty result
+      const mockSelectChain = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([]),
+      };
+      mockDb.select.mockReturnValue(mockSelectChain as any);
 
-      await expect(handleRefreshToken('valid.token.deleted.user')).rejects.toMatchObject({
-        status: 404,
-        message: 'User not found',
+      await expect(handleRefreshToken('valid.token')).rejects.toMatchObject({
+        status: 500,
+        message: 'User sync failed',
       });
     });
 
     it('should return undefined phone_number if user has no phone', async () => {
       const userWithoutPhone = { ...mockUser, phone_number: null };
-      const decodedToken = { id: 1, iat: 1234567890, exp: 1234567890 };
-      mockJwt.verifyToken.mockReturnValue(decodedToken);
-      mockUserQueries.findUserById.mockResolvedValue(userWithoutPhone);
-      mockJwt.generateToken.mockReturnValue('new.access.token');
 
-      const result = await handleRefreshToken('valid.refresh.token');
-
-      expect(result.phone_number).toBeUndefined();
-    });
-
-    it('should propagate HttpException from verifyToken', async () => {
-      const HttpException = require('../../../../utils').HttpException;
-      const tokenExpiredError = new HttpException(401, 'Token has expired');
-      mockJwt.verifyToken.mockImplementation(() => {
-        throw tokenExpiredError;
+      mockRefreshSession.mockResolvedValue({
+        data: {
+          user: mockSupabaseUser,
+          session: mockSupabaseSession,
+        },
+        error: null,
       });
 
-      await expect(handleRefreshToken('expired.token')).rejects.toThrow(tokenExpiredError);
+      const mockSelectChain = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([userWithoutPhone]),
+      };
+      mockDb.select.mockReturnValue(mockSelectChain as any);
+
+      const result = await handleRefreshToken('valid.token');
+
+      expect(result.user.phone_number).toBeUndefined();
     });
 
     it('should handle different user roles correctly', async () => {
-      const decodedToken = { id: 1, iat: 1234567890, exp: 1234567890 };
-      mockJwt.verifyToken.mockReturnValue(decodedToken);
-      mockUserQueries.findUserById.mockResolvedValue(mockUser);
-      mockJwt.generateToken.mockReturnValue('new.access.token');
+      // Test with admin user
+      const adminUser = { ...mockUser, name: 'Admin User' };
 
-      const result = await handleRefreshToken('valid.refresh.token');
+      mockRefreshSession.mockResolvedValue({
+        data: {
+          user: mockSupabaseUser,
+          session: mockSupabaseSession,
+        },
+        error: null,
+      });
 
-      expect(result.id).toBe(1);
-      expect(mockJwt.generateToken).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 1,
-          email: 'test@example.com',
-          name: 'Test User',
-        }),
-        '24h'
-      );
+      const mockSelectChain = {
+        from: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue([adminUser]),
+      };
+      mockDb.select.mockReturnValue(mockSelectChain as any);
+
+      const result = await handleRefreshToken('admin.token');
+
+      expect(result.user.name).toBe('Admin User');
+      expect(result.token).toBe(mockSupabaseSession.access_token);
     });
   });
 });

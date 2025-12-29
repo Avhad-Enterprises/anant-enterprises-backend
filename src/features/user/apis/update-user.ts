@@ -1,15 +1,16 @@
 /**
  * PUT /api/users/:id
  * Update user
- * - Users can update their own profile (name, email, phone, password)
+ * - Users can update their own profile (name, email, phone)
  * - Users with users:update permission can update any user
+ * 
+ * NOTE: Password updates are handled via password reset flow
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
-import { hashPassword } from '../../../utils';
 import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
@@ -26,7 +27,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   email: z.string().email('Invalid email format').optional(),
   phone_number: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters long').optional() });
+});
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
 
@@ -63,10 +64,6 @@ async function updateUser(
   const updateData: Partial<IUser> = {
     ...data,
     updated_by: requesterId };
-
-  if (data.password) {
-    updateData.password = await hashPassword(data.password);
-  }
 
   const [result] = await db
     .update(users)

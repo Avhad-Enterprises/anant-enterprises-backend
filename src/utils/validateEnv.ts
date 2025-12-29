@@ -8,7 +8,7 @@ if (nodeEnv === 'development') {
 } else if (nodeEnv === 'production') {
   dotenv.config({ path: '.env.prod' });
 } else if (nodeEnv === 'test') {
-  dotenv.config({ path: '.env.test' });
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
 }
 // Fallback to default .env only for missing values
 dotenv.config();
@@ -37,12 +37,12 @@ export const validateEnv = () => {
     REDIS_PASSWORD: str({ default: '' }),
     REDIS_URL: str({ default: '' }),
 
-    // AWS S3 configuration
-    AWS_ACCESS_KEY: str(),
-    AWS_SECRET_KEY: str(),
-    AWS_REGION: str({ default: 'us-east-1' }),
-    AWS_ENDPOINT: str(),
-    AWS_BUCKET_NAME: str(),
+    // Supabase configuration
+    SUPABASE_URL: str({ desc: 'Supabase project URL' }),
+    SUPABASE_ANON_KEY: str({ default: '', desc: 'Legacy: Supabase anonymous key (JWT-based)' }),
+    SUPABASE_SERVICE_ROLE_KEY: str({ default: '', desc: 'Legacy: Supabase service role key (JWT-based)' }),
+    SUPABASE_PUBLISHABLE_KEY: str({ default: '', desc: 'New: Supabase publishable key' }),
+    SUPABASE_SECRET_KEY: str({ default: '', desc: 'New: Supabase secret key' }),
 
     // Email configuration
     EMAIL_USER: str(),

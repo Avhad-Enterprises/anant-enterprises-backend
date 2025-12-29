@@ -1,7 +1,7 @@
 // Set test environment FIRST
 process.env.NODE_ENV = 'test';
 
-// Load environment from .env.test
+// Load environment from .env.dev (same as development)
 import { loadEnv, getDatabaseUrl } from '../../src/utils';
 loadEnv();
 
@@ -15,4 +15,8 @@ jest.setTimeout(30000);
 beforeAll(async () => {
   const { runMigrations } = await import('./migrations');
   await runMigrations();
+  
+  // Seed RBAC data for all tests
+  const { SupabaseAuthHelper } = await import('./supabase-auth.helper');
+  await SupabaseAuthHelper.seedRBACData();
 });

@@ -2,14 +2,15 @@ import { Application } from 'express';
 import App from '../../../../app';
 import UserRoute from '../..';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
-import { ApiTestHelper } from '../../../../../tests/utils';
-import { TestDataFactory } from '../../../../../tests/utils';
+import { dbHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
+import { ApiTestHelper } from '@tests/utils';
+import { TestDataFactory } from '@tests/utils';
 
 describe('User API Integration Tests', () => {
   let app: Application;
   let authToken: string;
+  let testUserId: number;
   let apiHelper: ApiTestHelper;
 
   beforeAll(async () => {
@@ -24,25 +25,10 @@ describe('User API Integration Tests', () => {
     await dbHelper.cleanup();
     await dbHelper.resetSequences();
 
-    // Create a test user with unique email to avoid conflicts
-    const uniqueEmail = `testuser-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
-    const userData = TestDataFactory.createUser({
-      email: uniqueEmail,
-      password: 'TestPassword123!',
-      name: 'Test User',
-    });
-
-    const registerResponse = await apiHelper.post(
-      '/api/auth/register',
-      userData as unknown as Record<string, unknown>
-    );
-
-    // Ensure registration succeeded
-    expect(registerResponse.status).toBe(201);
-    expect(registerResponse.body.data).toBeDefined();
-    expect(registerResponse.body.data.token).toBeDefined();
-
-    authToken = registerResponse.body.data.token;
+    // Create a test user using SupabaseAuthHelper
+    const { token, user } = await SupabaseAuthHelper.createTestUserWithToken();
+    authToken = token;
+    testUserId = user.id;
   });
 
   afterAll(async () => {
@@ -67,14 +53,10 @@ describe('User API Integration Tests', () => {
 
   describe('GET /api/users/:id', () => {
     it('should get user by ID for authenticated user', async () => {
-      // First get the user ID from the token
-      const userInfo = AuthTestHelper.verifyToken(authToken);
-      const userId = userInfo.id;
-
-      const response = await apiHelper.get(`/api/users/${userId}`, authToken);
+      const response = await apiHelper.get(`/api/users/${testUserId}`, authToken);
 
       expect(response.status).toBe(200);
-      expect(response.body.data.id).toBe(userId);
+      expect(response.body.data.id).toBe(testUserId);
       expect(response.body.data).toHaveProperty('name');
       expect(response.body.data).toHaveProperty('email');
       expect(response.body.data).not.toHaveProperty('password');

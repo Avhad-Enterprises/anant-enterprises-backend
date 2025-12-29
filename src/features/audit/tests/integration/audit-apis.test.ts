@@ -1,87 +1,44 @@
 /**
- * Integration tests for Audit API Endpoints
+ * Integration tests for Audit Service
  * Tests with real database calls using the test database
  */
 
 import { db } from '../../../../database';
-import { users } from '../../../user';
-import { roles, permissions, userRoles } from '../../../rbac';
 import { auditLogs } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
-import { hashPassword } from '../../../../utils';
-import { generateToken } from '../../../../utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { auditService } from '../../services/audit.service';
 import { AuditAction, AuditResourceType } from '../../shared/types';
 
-describe('Audit API Integration Tests', () => {
+describe('Audit Service Integration Tests', () => {
     let testUser: any;
     let adminUser: any;
     let userToken: string;
     let adminToken: string;
-    let auditPermission: any;
 
     beforeAll(async () => {
-        // Create audit:read permission if it doesn't exist
-        const existingPermission = await db.select().from(permissions).where(eq(permissions.name, 'audit:read'));
-        if (existingPermission.length === 0) {
-            [auditPermission] = await db.insert(permissions).values({
-                name: 'audit:read',
-                resource: 'audit',
-                action: 'read',
-                description: 'Read audit logs',
-            }).returning();
-        } else {
-            auditPermission = existingPermission[0];
-        }
+        // Seed RBAC data
+        await SupabaseAuthHelper.seedRBACData();
     });
 
     beforeEach(async () => {
         // Clean up test data
         await db.delete(auditLogs);
 
-        // Delete test users if they exist
-        const testUsers = await db.select().from(users).where(eq(users.email, 'testuser@audit.com'));
-        if (testUsers.length > 0) {
-            await db.delete(userRoles).where(eq(userRoles.user_id, testUsers[0].id));
-            await db.delete(users).where(eq(users.id, testUsers[0].id));
-        }
-
-        const adminUsers = await db.select().from(users).where(eq(users.email, 'admin@audit.com'));
-        if (adminUsers.length > 0) {
-            await db.delete(userRoles).where(eq(userRoles.user_id, adminUsers[0].id));
-            await db.delete(users).where(eq(users.id, adminUsers[0].id));
-        }
-
-        // Create test user
-        const hashedPassword = await hashPassword('password123');
-        const [createdUser] = await db.insert(users).values({
+        // Create test users using Supabase Auth
+        const userData = await SupabaseAuthHelper.createTestUser({
+            email: `testuser-${Date.now()}@audit.com`,
+            password: 'password123',
             name: 'Test User',
-            email: 'testuser@audit.com',
-            password: hashedPassword,
-        }).returning();
-        testUser = createdUser;
+            role: 'user',
+        });
+        testUser = userData.user;
+        userToken = userData.token;
 
-        // Create admin user
-        const [createdAdmin] = await db.insert(users).values({
-            name: 'Admin User',
-            email: 'admin@audit.com',
-            password: hashedPassword,
-        }).returning();
-        adminUser = createdAdmin;
-
-        // Assign admin role with audit:read permission
-        const adminRoles = await db.select().from(roles).where(eq(roles.name, 'admin'));
-        if (adminRoles.length > 0) {
-            await db.insert(userRoles).values({
-                user_id: adminUser.id,
-                role_id: adminRoles[0].id,
-                assigned_by: adminUser.id,
-            });
-        }
-
-        // Generate tokens
-        userToken = generateToken({ id: testUser.id, email: testUser.email, name: testUser.name });
-        adminToken = generateToken({ id: adminUser.id, email: adminUser.email, name: adminUser.name });
+        const adminData = await SupabaseAuthHelper.createTestAdminUser({
+            email: `admin-${Date.now()}@audit.com`
+        });
+        adminUser = adminData.user;
+        adminToken = adminData.token;
 
         // Create some test audit logs
         await auditService.log({
@@ -115,14 +72,6 @@ describe('Audit API Integration Tests', () => {
     afterEach(async () => {
         // Cleanup
         await db.delete(auditLogs);
-        if (testUser?.id) {
-            await db.delete(userRoles).where(eq(userRoles.user_id, testUser.id));
-            await db.delete(users).where(eq(users.id, testUser.id));
-        }
-        if (adminUser?.id) {
-            await db.delete(userRoles).where(eq(userRoles.user_id, adminUser.id));
-            await db.delete(users).where(eq(users.id, adminUser.id));
-        }
     });
 
     describe('GET /api/admin/audit/logs', () => {
@@ -367,9 +316,9 @@ describe('Audit API Integration Tests', () => {
     describe('Test Setup Validation', () => {
         it('should have created test users successfully', () => {
             expect(testUser).toBeDefined();
-            expect(testUser.email).toBe('testuser@audit.com');
+            expect(testUser.email).toMatch(/^testuser-\d+@audit\.com$/);
             expect(adminUser).toBeDefined();
-            expect(adminUser.email).toBe('admin@audit.com');
+            expect(adminUser.email).toMatch(/^admin-\d+@audit\.com$/);
         });
 
         it('should have generated valid tokens', () => {

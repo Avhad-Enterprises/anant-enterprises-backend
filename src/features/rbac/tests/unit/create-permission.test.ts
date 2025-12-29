@@ -4,9 +4,9 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { dbHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { permissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
@@ -18,15 +18,19 @@ describe('POST /api/rbac/permissions - Create Permission', () => {
 
     beforeAll(async () => {
         
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
         // Create superadmin with permissions:assign permission
-        const { token, userId } = await AuthTestHelper.createTestSuperadminUser();
+        const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = token;
         superadminUserId = userId;
 
+        // Debug: Check what permissions the superadmin has
+        const { rbacCacheService } = await import('../../../../features/rbac/services/rbac-cache.service');
+        const roles = await rbacCacheService.getUserRoles(superadminUserId);
+
         // Create regular user without permissions
-        const { token: userToken } = await AuthTestHelper.createTestUserWithToken();
+        const { token: userToken } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = userToken;
     });
 

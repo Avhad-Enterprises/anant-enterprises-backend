@@ -3,7 +3,7 @@
  */
 
 import { Response } from 'express';
-import { ResponseFormatter } from '../../src/utils';
+import { ResponseFormatter } from '../../helpers/responseFormatter';
 
 describe('ResponseFormatter', () => {
   let mockRes: Partial<Response>;
