@@ -28,14 +28,3 @@ export interface ICreateInvitation {
   assigned_role_id: number;
 }
 
-/**
- * Response returned when verifying an invitation token
- * Contains credentials for auto-login on frontend
- */
-export interface IInvitationVerifyResponse {
-  email: string;
-  password: string; // Plain text temp password for frontend pre-fill
-  first_name: string;
-  last_name: string;
-  assigned_role_id: number;
-}

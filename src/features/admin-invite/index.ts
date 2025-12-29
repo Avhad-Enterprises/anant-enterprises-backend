@@ -20,14 +20,14 @@ class AdminInviteRoute implements Route {
     // Dynamic imports to avoid circular dependency
     const { default: createInvitationRouter } = await import('./apis/create-invitation');
     const { default: getInvitationsRouter } = await import('./apis/get-invitations');
-    const { default: verifyInvitationRouter } = await import('./apis/verify-invitation');
+    const { default: getInvitationDetailsRouter } = await import('./apis/get-invitation-details');
     const { default: acceptInvitationRouter } = await import('./apis/accept-invitation');
 
     // Mount API routes
-    this.router.use(this.path, createInvitationRouter);
-    this.router.use(this.path, getInvitationsRouter);
-    this.router.use(this.path, verifyInvitationRouter); // POST /verify - public, rate-limited
-    this.router.use(this.path, acceptInvitationRouter); // POST /accept - public, rate-limited
+    this.router.use(this.path, createInvitationRouter); // POST / - admin only
+    this.router.use(this.path, getInvitationsRouter); // GET / - admin only
+    this.router.use(this.path, getInvitationDetailsRouter); // GET /details - public
+    this.router.use(this.path, acceptInvitationRouter); // POST /accept - public
   }
 }
 
@@ -48,7 +48,6 @@ export {
 export type {
   IInvitation,
   ICreateInvitation,
-  IInvitationVerifyResponse,
 } from './shared/interface';
 
 export {

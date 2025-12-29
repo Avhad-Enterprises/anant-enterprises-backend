@@ -1,7 +1,8 @@
 /**
  * POST /api/admin/invitations
- * Create invitation using Supabase Auth Admin API (Admin only)
- * User will receive email with invite link and temporary password
+ * Create invitation and send email with accept link (Admin only)
+ * User will receive email with accept invitation button ONLY
+ * NO temporary password is generated - user creates their own password on registration
  */
 
 import { Router, Response } from 'express';
@@ -16,10 +17,6 @@ import { HttpException } from '../../../utils';
 import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
-import { encrypt, generateSecurePassword } from '../../../utils';
-import { supabase } from '../../../utils/supabase';
-import { db } from '../../../database';
-import { users } from '../../user/shared/schema';
 
 import { createInvitation, findInvitationByEmail } from '../shared/queries';
 import { findUserByEmail } from '../../user';
@@ -29,7 +26,8 @@ const schema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
   last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
   email: z.string().email('Invalid email format'),
-  assigned_role_id: z.number().int().positive('Role ID must be a positive integer') });
+  assigned_role_id: z.number().int().positive('Role ID must be a positive integer'),
+});
 
 type CreateInvitationDto = z.infer<typeof schema>;
 
@@ -55,62 +53,24 @@ async function handleCreateInvitation(
   // Generate secure random token (64 chars hex)
   const inviteToken = randomBytes(32).toString('hex');
 
-  // Generate secure temporary password
-  const tempPassword = generateSecurePassword(16);
-
-  // Encrypt temp password (for email)
-  const tempPasswordEncrypted = encrypt(tempPassword);
-
-  // Create user in Supabase Auth using Admin API
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: invitationData.email,
-    password: tempPassword,
-    email_confirm: true, // Auto-confirm invited users
-    user_metadata: {
-      first_name: invitationData.first_name,
-      last_name: invitationData.last_name,
-      invited_by: invitedBy,
-    },
-  });
-
-  if (authError || !authUser?.user) {
-    logger.error('Failed to create Supabase Auth user for invitation', {
-      email: invitationData.email,
-      error: authError,
-    });
-    throw new HttpException(500, 'Failed to create user account');
-  }
-
-  // Sync to public.users table
-  await db.insert(users).values({
-    auth_id: authUser.user.id,
-    name: `${invitationData.first_name} ${invitationData.last_name}`,
-    email: invitationData.email,
-    password: '', // Managed by Supabase
-    phone_number: '',
-    created_by: invitedBy,
-    updated_by: invitedBy,
-    is_deleted: false,
-    created_at: new Date(),
-    updated_at: new Date(),
-  }).returning();
-
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + INVITATION_EXPIRY_HOURS);
 
+  // Create invitation record (NO user account created yet)
   const newInvitation = await createInvitation({
     first_name: invitationData.first_name,
     last_name: invitationData.last_name,
     email: invitationData.email,
     assigned_role_id: invitationData.assigned_role_id,
     invite_token: inviteToken,
-    temp_password_encrypted: tempPasswordEncrypted,
-    password_hash: '', // No longer needed
+    temp_password_encrypted: null, // Not used in new flow
+    password_hash: '', // Not used
     invited_by: invitedBy,
     expires_at: expiresAt,
-    status: 'pending' });
+    status: 'pending',
+  });
 
-  // Send invitation email with credentials
+  // Send invitation email with accept link ONLY (NO password)
   try {
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
@@ -121,16 +81,23 @@ async function handleCreateInvitation(
       lastName: invitationData.last_name,
       inviteLink,
       expiresIn: `${INVITATION_EXPIRY_HOURS} hours`,
-      tempPassword, // Include credentials in email
+      // tempPassword intentionally omitted - no longer part of flow
     });
   } catch (emailError) {
     logger.error('Failed to send invitation email', {
       email: invitationData.email,
-      error: emailError
+      error: emailError,
     });
+    // Don't throw - invitation is still created, admin can resend
   }
 
-  // Return response without sensitive fields
+  logger.info('Invitation created successfully', {
+    invitationId: newInvitation.id,
+    email: newInvitation.email,
+    invitedBy,
+  });
+
+  // Return response without sensitive fields (invite_token not included for security)
   return {
     id: newInvitation.id,
     first_name: newInvitation.first_name,
@@ -148,7 +115,8 @@ async function handleCreateInvitation(
     updated_at: newInvitation.updated_at,
     is_deleted: newInvitation.is_deleted,
     deleted_by: newInvitation.deleted_by,
-    deleted_at: newInvitation.deleted_at };
+    deleted_at: newInvitation.deleted_at,
+  };
 }
 
 const handler = async (req: RequestWithUser, res: Response): Promise<void> => {
