@@ -36,10 +36,18 @@ export default UserRoute;
 // Services - SAFE to export
 export { userCacheService, UserCacheService } from './services/user-cache.service';
 
-// Shared resources - SAFE to export  
+// Shared resources - SAFE to export
+// Core user schema and types
 export * from './shared/schema';
 export * from './shared/interface';
 export * from './shared/queries';
 export * from './shared/sanitizeUser';
 
-
+// E-commerce schemas
+export * from './shared/addresses.schema';
+export * from './shared/payment-methods.schema';
+export * from './shared/customer-profiles.schema';
+export * from './shared/business-profiles.schema';
+export * from './shared/admin-profiles.schema';
+// export * from './shared/vendors.schema'; // TODO: Enable when vendor feature is needed
+export * from './shared/customer-statistics.schema';

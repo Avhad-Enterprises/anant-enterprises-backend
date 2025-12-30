@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1765724660904,
-      "tag": "0000_minor_hydra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1766392497927,
-      "tag": "0001_mean_juggernaut",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1766399024000,
-      "tag": "0002_third_sumo",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1766399939715,
-      "tag": "0003_quick_susan_delgado",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1767005027316,
-      "tag": "0004_oval_nightcrawler",
+      "when": 1767091499206,
+      "tag": "0000_black_sugar_man",
       "breakpoints": true
     }
   ]

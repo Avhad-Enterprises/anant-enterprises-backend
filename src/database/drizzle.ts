@@ -7,7 +7,28 @@ import { logger } from '../utils';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas
-import { users } from '../features/user';
+import {
+  users,
+  userTypeEnum,
+  genderEnum,
+  userAddresses,
+  addressTypeEnum,
+  userPaymentMethods,
+  paymentTypeEnum,
+  cardFundingEnum,
+  customerProfiles,
+  customerAccountStatusEnum,
+  customerSegmentEnum,
+  businessCustomerProfiles,
+  businessTypeEnum,
+  paymentTermsEnum,
+  businessTierEnum,
+  businessAccountStatusEnum,
+  adminProfiles,
+  // vendors, // TODO: Enable when vendor feature is needed
+  // vendorTypeEnum,
+  customerStatistics,
+} from '../features/user';
 import { uploads } from '../features/upload';
 import { invitations } from '../features/admin-invite';
 import {
@@ -21,6 +42,14 @@ import {
   rolePermissions,
   userRoles,
 } from '../features/rbac';
+import {
+  currencies,
+  taxRules,
+  taxTypeEnum,
+  taxAppliesToEnum,
+  countries,
+  regions,
+} from '../features/settings';
 
 /**
  * Database connection configuration
@@ -86,18 +115,57 @@ export async function connectWithRetry(maxRetries: number = 5, baseDelayMs: numb
 
 /**
  * Combined schema for Drizzle
+ * Includes all tables and enums for migrations
  */
 export const schema = {
+  // User feature - core
   users,
+  userTypeEnum,
+  genderEnum,
+  // User feature - addresses
+  userAddresses,
+  addressTypeEnum,
+  // User feature - payments
+  userPaymentMethods,
+  paymentTypeEnum,
+  cardFundingEnum,
+  // User feature - customer profiles
+  customerProfiles,
+  customerAccountStatusEnum,
+  customerSegmentEnum,
+  // User feature - business profiles (B2B)
+  businessCustomerProfiles,
+  businessTypeEnum,
+  paymentTermsEnum,
+  businessTierEnum,
+  businessAccountStatusEnum,
+  // User feature - admin profiles
+  adminProfiles,
+  // User feature - vendors (TODO: Enable when vendor feature is needed)
+  // vendors,
+  // vendorTypeEnum,
+  // User feature - statistics
+  customerStatistics,
+  // Upload feature
   uploads,
+  // Admin invite feature
   invitations,
+  // Chatbot feature
   chatbotDocuments,
   chatbotSessions,
   chatbotMessages,
+  // RBAC feature
   roles,
   permissions,
   rolePermissions,
   userRoles,
+  // Settings feature
+  currencies,
+  taxRules,
+  taxTypeEnum,
+  taxAppliesToEnum,
+  countries,
+  regions,
 };
 
 /**
