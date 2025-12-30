@@ -26,18 +26,19 @@ const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(500).default(50),
     offset: z.coerce.number().int().min(0).default(0) });
 
-const handler =(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
     // Validation middleware ensures these are the correct types
     const filters: AuditLogFilters = {
-        limit: req.query.limit || 50,
-        offset: req.query.offset || 0 };
+        limit: req.query.limit ? Number(req.query.limit) : 50,
+        offset: req.query.offset ? Number(req.query.offset) : 0,
+    };
 
-    if (req.query.userId) filters.userId = req.query.userId;
-    if (req.query.resourceType) filters.resourceType = req.query.resourceType;
-    if (req.query.resourceId) filters.resourceId = req.query.resourceId;
-    if (req.query.startDate) filters.startDate = req.query.startDate;
-    if (req.query.endDate) filters.endDate = req.query.endDate;
-    if (req.query.ipAddress) filters.ipAddress = req.query.ipAddress;
+    if (req.query.userId) filters.userId = Number(req.query.userId);
+    if (req.query.resourceType) filters.resourceType = req.query.resourceType as AuditResourceType;
+    if (req.query.resourceId) filters.resourceId = String(req.query.resourceId);
+    if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
+    if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+    if (req.query.ipAddress) filters.ipAddress = String(req.query.ipAddress);
 
     // Handle multiple actions (comma-separated)
     if (req.query.action) {
@@ -54,8 +55,10 @@ const handler =(async (req: RequestWithUser, res: Response) => {
         pagination: {
             limit: filters.limit,
             offset: filters.offset,
-            count: logs.length } }, 'Audit logs retrieved successfully');
-});
+            count: logs.length,
+        },
+    }, 'Audit logs retrieved successfully');
+};
 
 const router = Router();
 router.get(

@@ -3,28 +3,25 @@ import App from '../../../../app';
 import UploadRoute from '../..';
 import AuthRoute from '../../../auth';
 import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { ApiTestHelper } from '../../../../../tests/utils';
 import { TestDataFactory } from '../../../../../tests/utils';
 
-// Run S3 tests if credentials are configured (regardless of NODE_ENV)
-const isS3Available = !!(
-  process.env.AWS_ACCESS_KEY && 
-  process.env.AWS_SECRET_KEY && 
-  process.env.AWS_BUCKET_NAME &&
-  process.env.AWS_ENDPOINT
-);
-
-// PDF magic bytes (%PDF-1.4) + minimal PDF content
-const createTestPdfBuffer = (content: string = 'Test PDF content') => {
+// Helper function to create test PDF buffer
+function createTestPdfBuffer(content: string = 'Test PDF content'): Buffer {
+  // Create a minimal valid PDF structure
   const pdfHeader = '%PDF-1.4\n';
-  const pdfContent = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000206 00000 n \ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n292\n%%EOF`;
-  return Buffer.from(pdfHeader + pdfContent);
-};
+  const pdfBody = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`;
+  const pdfFooter = 'xref\n0 5\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n%%EOF';
+  return Buffer.from(pdfHeader + pdfBody + pdfFooter);
+}
 
-const describeS3 = isS3Available ? describe : describe.skip;
+// Enable storage tests if Supabase storage is configured
+const isStorageAvailable = process.env.SUPABASE_URL ? true : false;
 
-describeS3('Upload API Integration Tests', () => {
+const describeStorage = isStorageAvailable ? describe : describe.skip;
+
+describeStorage('Upload API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let authToken: string;
@@ -43,20 +40,13 @@ describeS3('Upload API Integration Tests', () => {
     await dbHelper.resetSequences();
 
     // Create a test user and get auth token
-    const userData = TestDataFactory.createUser({
-      email: 'testuser@example.com',
+    const { user: testUser, token } = await SupabaseAuthHelper.createTestUser({
+      email: `upload-test-${Date.now()}@example.com`,
       password: 'TestPassword123!',
       name: 'Test User',
     });
-
-    const registerResponse = await apiHelper.post(
-      '/api/auth/register',
-      userData as unknown as Record<string, unknown>
-    );
-
-    authToken = registerResponse.body.data.token;
-    const userInfo = AuthTestHelper.verifyToken(authToken);
-    testUserId = userInfo.id;
+    authToken = token;
+    testUserId = testUser.id;
   });
 
   afterAll(async () => {

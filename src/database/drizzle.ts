@@ -15,6 +15,12 @@ import {
   chatbotSessions,
   chatbotMessages,
 } from '../features/chatbot';
+import {
+  roles,
+  permissions,
+  rolePermissions,
+  userRoles,
+} from '../features/rbac';
 
 /**
  * Database connection configuration
@@ -37,10 +43,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-      rejectUnauthorized: true, // Always validate certificates in production
-      // If using self-signed certs, set DATABASE_SSL_CA env var
-      ca: process.env.DATABASE_SSL_CA || undefined,
-    }
+    rejectUnauthorized: true, // Always validate certificates in production
+    // If using self-signed certs, set DATABASE_SSL_CA env var
+    ca: process.env.DATABASE_SSL_CA || undefined,
+  }
   : undefined;
 
 export const pool = new Pool({
@@ -67,13 +73,13 @@ export async function connectWithRetry(maxRetries: number = 5, baseDelayMs: numb
       logger.warn(`Database connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delay}ms...`, {
         error: error instanceof Error ? error.message : String(error)
       });
-      
+
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   logger.error(`Failed to connect to database after ${maxRetries} attempts`);
   return false;
 }
@@ -88,6 +94,10 @@ export const schema = {
   chatbotDocuments,
   chatbotSessions,
   chatbotMessages,
+  roles,
+  permissions,
+  rolePermissions,
+  userRoles,
 };
 
 /**

@@ -6,28 +6,23 @@
 # Development (with hot reload)
 npm run docker:dev
 
-# Test environment (auto-migrates on startup)
-npm run docker:test
-
 # Production
 npm run docker:prod
 ```
 
-## Database Migrations
+## Tests
 
-### Test Environment
-Migrations run **automatically via Jest setup** (`tests/utils/setup.ts`) when you run tests.
+Tests run on the **host machine** (not in Docker) using the same local Supabase instance as development. See [TESTING.md](../TESTING.md) for detailed testing guide.
 
 ```bash
-# Start test containers (DB + Redis only, no API needed for tests)
-npm run docker:test:up
+# Ensure Supabase is running
+supabase start
 
-# Run tests (migrations happen automatically)
-npm run test
-
-# Fresh start (wipe data)
-npm run docker:test:clean && npm run docker:test:up
+# Run tests
+npm test
 ```
+
+## Database Migrations
 
 ### Development Environment
 Migrations are run **manually** from host machine:
@@ -41,6 +36,14 @@ npm run db:migrate:dev
 
 # Or use Drizzle Studio to inspect DB
 npm run db:studio:dev
+```
+
+### Test Environment
+Migrations run **automatically** before tests via Jest setup (`tests/utils/setup.ts`):
+
+```bash
+# Migrations happen automatically when you run tests
+npm test
 ```
 
 ### Production Environment
@@ -70,17 +73,10 @@ npm run db:push:prod
 
 ### Development (`docker/compose.dev.yaml`)
 - **Backend**: Hot reload enabled, source mounted
-- **PostgreSQL**: Local container on port 5432
 - **Redis**: Local container on port 6379
+- **Supabase**: Running on host machine (ports 54321, 54322)
 - **Migrations**: Manual (`npm run db:migrate:dev`)
-- **Use case**: Local development with full stack
-
-### Test (`docker/compose.test.yaml`)
-- **Backend**: Test configuration with auto-migrations
-- **PostgreSQL**: Local container on port 5433
-- **Redis**: Local container on port 6380
-- **Migrations**: Automatic on startup
-- **Use case**: Running integration tests in isolation
+- **Use case**: Local development with Docker backend + host Supabase
 
 ### Production (`docker/compose.prod.yaml`)
 - **Backend only**: Optimized production build
@@ -93,7 +89,6 @@ npm run db:push:prod
 ```bash
 # Start services
 docker compose -f docker/compose.dev.yaml up -d
-docker compose -f docker/compose.test.yaml up -d
 docker compose -f docker/compose.prod.yaml up -d
 
 # Stop services
@@ -117,21 +112,32 @@ docker compose -f docker/compose.dev.yaml down -v
 ┌─────────────────────────────────────────────────────────────┐
 │                      Development                             │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────┐     ┌─────────────┐     ┌─────────┐           │
-│  │   API   │────▶│  PostgreSQL │     │  Redis  │           │
-│  │ :8000   │     │   :5432     │     │  :6379  │           │
-│  └─────────┘     └─────────────┘     └─────────┘           │
-│                  express-backend-dev network                │
+│  Host Machine:                                              │
+│  ┌──────────────┐                                           │
+│  │  Supabase    │  Ports: 54321 (API), 54322 (DB)          │
+│  │  Local       │                                           │
+│  └──────────────┘                                           │
+│         ▲                                                    │
+│         │ (host.docker.internal)                           │
+│  Docker Network:                                            │
+│  ┌─────────────────────────────────────────────────┐       │
+│  │  ┌─────────┐                    ┌─────────┐     │       │
+│  │  │   API   │◀──────────────────▶│  Redis  │     │       │
+│  │  │ :8001   │                    │  :6379  │     │       │
+│  │  └─────────┘                    └─────────┘     │       │
+│  │           anant-enterprises-dev network         │       │
+│  └─────────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│                         Test                                 │
+│                         Tests                                │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────┐     ┌─────────────┐     ┌─────────┐           │
-│  │   API   │────▶│  PostgreSQL │     │  Redis  │           │
-│  │ :8001   │     │   :5433     │     │  :6380  │           │
-│  └─────────┘     └─────────────┘     └─────────┘           │
-│                 express-backend-test network                │
+│  Host Machine:                                              │
+│  ┌──────────────┐                    ┌─────────┐           │
+│  │  Supabase    │  (Ports: 54321/2)  │  Tests  │           │
+│  │  Local       │◀───────────────────│  (Jest) │           │
+│  └──────────────┘                    └─────────┘           │
+│  Same Supabase instance as Development                     │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -156,10 +162,10 @@ The Dockerfile uses multi-stage builds:
 
 ## Ports
 
-| Environment | API   | PostgreSQL (Host) | Redis (Host) |
-|-------------|-------|-------------------|--------------|
-| Development | 8000  | 5434              | 6379         |
-| Test        | 8001  | 5433              | 6380         |
-| Production  | 8000  | External          | External     |
+| Environment | API   | Supabase (Host) | Redis       |
+|-------------|-------|-----------------|-------------|
+| Development | 8001  | 54321/54322     | 6379 (Docker)|
+| Tests       | N/A   | 54321/54322     | N/A         |
+| Production  | 8000  | External        | External    |
 
-> **Note**: Dev uses port 5434 to avoid conflict with local PostgreSQL on 5432.
+> **Note**: Development and tests share the same local Supabase instance running on the host machine.

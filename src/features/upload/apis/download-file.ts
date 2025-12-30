@@ -5,12 +5,11 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { Readable } from 'stream';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { HttpException } from '../../../utils';
-import { downloadFromS3 } from '../../../utils/s3Upload';
+import { downloadFromStorage } from '../../../utils/supabaseStorage';
 import { findUploadById } from '../shared/queries';
 
 const paramsSchema = z.object({
@@ -29,14 +28,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(404, 'Upload not found');
   }
 
-  const { stream, contentType, contentLength } = await downloadFromS3(upload.file_path);
+  const { blob, contentType, contentLength } = await downloadFromStorage(upload.file_path);
 
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Length', contentLength);
   res.setHeader('Content-Disposition', `attachment; filename="${upload.original_filename}"`);
 
-  // S3 SDK returns a Readable stream
-  (stream as Readable).pipe(res);
+  // Convert Blob to Buffer and send
+  const arrayBuffer = await blob.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  res.send(buffer);
 };
 
 const router = Router();

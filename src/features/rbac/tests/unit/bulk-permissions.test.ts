@@ -4,9 +4,8 @@
  */
 
 import request from 'supertest';
-import app from '../../../../../tests/utils';
-import { dbHelper } from '../../../../../tests/utils';
-import { AuthTestHelper } from '../../../../../tests/utils';
+import app from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles, permissions, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
@@ -20,13 +19,13 @@ describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permission
 
     beforeAll(async () => {
 
-        await AuthTestHelper.seedRBACData();
+        await SupabaseAuthHelper.seedRBACData();
 
-        const { token, userId } = await AuthTestHelper.createTestSuperadminUser();
+        const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
         superadminToken = token;
         superadminUserId = userId;
 
-        const { token: uToken } = await AuthTestHelper.createTestUserWithToken();
+        const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
         regularUserToken = uToken;
     });
 

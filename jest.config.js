@@ -36,4 +36,7 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  moduleNameMapper: {
+    '^@tests/(.*)$': '<rootDir>/tests/$1',
+  },
 };

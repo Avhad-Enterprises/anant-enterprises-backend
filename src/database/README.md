@@ -32,7 +32,7 @@ npm run db:seed      # Add test data
 DATABASE_URL="postgresql://user:password@host:port/database"
 ```
 
-**Schemas:** Located in `src/features/**/*.schema.ts`
+**Schemas:** Located in `src/features/**/shared/schema.ts`
 
 ## Basic Usage
 

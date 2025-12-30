@@ -17,7 +17,7 @@ import dotenv from 'dotenv';
  * 
  * - development → .env.dev
  * - production → .env.prod  
- * - test → .env.test
+ * - test → .env.dev (same as development)
  * - fallback → .env
  */
 export function loadEnv(): string {
@@ -26,7 +26,7 @@ export function loadEnv(): string {
   const envFiles: Record<string, string> = {
     development: '.env.dev',
     production: '.env.prod',
-    test: '.env.test',
+    test: '.env.dev', // Use same env as development
   };
   
   const envFile = envFiles[nodeEnv];

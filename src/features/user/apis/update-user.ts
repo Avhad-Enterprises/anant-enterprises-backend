@@ -1,15 +1,16 @@
 /**
  * PUT /api/users/:id
  * Update user
- * - Users can update their own profile (name, email, phone, password)
+ * - Users can update their own profile (name, email, phone)
  * - Users with users:update permission can update any user
+ * 
+ * NOTE: Password updates are handled via password reset flow
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
-import { hashPassword } from '../../../utils';
 import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
@@ -26,7 +27,7 @@ const updateUserSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   email: z.string().email('Invalid email format').optional(),
   phone_number: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters long').optional() });
+});
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
 
@@ -62,17 +63,15 @@ async function updateUser(
 
   const updateData: Partial<IUser> = {
     ...data,
-    updated_by: requesterId };
-
-  if (data.password) {
-    updateData.password = await hashPassword(data.password);
-  }
+    updated_by: requesterId
+  };
 
   const [result] = await db
     .update(users)
     .set({
       ...updateData,
-      updated_at: new Date() })
+      updated_at: new Date()
+    })
     .where(eq(users.id, id))
     .returning();
 
@@ -84,15 +83,17 @@ async function updateUser(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const id = req.userId;
-  if (!id) {
-    throw new HttpException(401, 'User authentication required');
-  }
-  const updateData: UpdateUser = req.body;
   const userId = req.userId;
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
+
+  const paramsSchema = z.object({
+    id: z.coerce.number().int().positive('User ID must be a positive integer'),
+  });
+
+  const { id } = paramsSchema.parse(req.params);
+  const updateData: UpdateUser = req.body;
 
   const user = await updateUser(id, updateData, userId);
 
@@ -105,6 +106,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), handler);
+
+const paramsSchema = z.object({
+  id: z.coerce.number().int().positive('User ID must be a positive integer'),
+});
+
+router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), validationMiddleware(paramsSchema, 'params'), handler);
 
 export default router;

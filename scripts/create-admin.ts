@@ -2,9 +2,9 @@
  * Admin User Creation Script
  *
  * This script creates an admin user with the following credentials:
- * - Email: harshal@gmail.com
+ * - Email: admin@gmail.com
  * - Password: 12345678
- * - Name: Harshal Admin
+ * - Name: Admin User
  * - Role: admin
  *
  * Usage:
@@ -16,9 +16,11 @@
  * 2. If not, create the admin user with hashed password
  * 3. If exists, display the existing user details
  *
- * Environment Requirements:
- * - DATABASE_URL environment variable must be set
+ * Prerequisites:
  * - Database must be running and accessible
+ * - DATABASE_URL environment variable must be set
+ * - RBAC roles must be seeded first (run: npm run db:seed)
+ *   The script will fail if the 'admin' role doesn't exist in the roles table
  */
 
 import dotenv from 'dotenv';
@@ -32,7 +34,7 @@ if (nodeEnv === 'development') {
 } else if (nodeEnv === 'production') {
   dotenv.config({ path: '.env.prod' });
 } else if (nodeEnv === 'test') {
-  dotenv.config({ path: '.env.test' });
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
 }
 dotenv.config();
 
@@ -42,12 +44,12 @@ dotenv.config();
  */
 function getDatabaseUrl(): string {
   let dbUrl = process.env.DATABASE_URL || '';
-  
+
   if (dbUrl.includes('@postgres:5432')) {
     const hostPort = nodeEnv === 'development' ? 5434 : nodeEnv === 'test' ? 5433 : 5432;
     dbUrl = dbUrl.replace('@postgres:5432', `@localhost:${hostPort}`);
   }
-  
+
   return dbUrl;
 }
 
@@ -61,7 +63,7 @@ const ADMIN_NAME = 'Admin User';
 
 async function createAdminUser() {
   const dbUrl = getDatabaseUrl();
-  
+
   console.log('🚀 Starting admin user creation script...');
   console.log(`📍 Environment: ${nodeEnv}`);
   console.log(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
@@ -105,9 +107,9 @@ async function createAdminUser() {
     console.log('🔐 Hashing password...');
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
-      // Create admin user with self-reference for first admin
+    // Create admin user with self-reference for first admin
     console.log('📝 Creating admin user...');
-    
+
     // Use raw SQL to handle self-referential first user
     const result = await pool.query(`
       INSERT INTO users (name, email, password, created_by)
@@ -123,15 +125,20 @@ async function createAdminUser() {
     }
 
     const newUser = result.rows[0];
-    
+
     // Update created_by to self-reference
     await pool.query('UPDATE users SET created_by = $1 WHERE id = $1', [newUser.id]);
 
     // Get admin role ID from RBAC
     const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
-    
+
     if (!adminRole) {
-      throw new Error('Admin role not found in RBAC system. Please run migrations and seed RBAC data first.');
+      throw new Error(
+        'Admin role not found in RBAC system.\n' +
+        'Please run the following commands first:\n' +
+        '  1. npm run db:migrate (to create tables)\n' +
+        '  2. npm run db:seed (to seed RBAC roles and permissions)'
+      );
     }
 
     // Assign admin role via RBAC

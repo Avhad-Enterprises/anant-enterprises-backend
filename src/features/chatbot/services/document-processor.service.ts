@@ -11,7 +11,7 @@
 import mammoth from 'mammoth';
 import { logger } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { downloadAsBuffer } from '../../../utils/s3Upload';
+import { downloadFromStorageAsBuffer } from '../../../utils/supabaseStorage';
 
 // pdfjs-dist is ESM-only in v5+, use dynamic import
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
@@ -33,8 +33,8 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
   try {
     logger.info(`📄 Extracting text from document: ${filePath} (${mimeType})`);
 
-    // Download file from S3
-    const fileBuffer = await downloadAsBuffer(filePath);
+    // Download file from Supabase Storage
+    const fileBuffer = await downloadFromStorageAsBuffer(filePath);
 
     let text: string;
 

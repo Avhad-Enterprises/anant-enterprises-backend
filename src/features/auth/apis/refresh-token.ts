@@ -1,6 +1,6 @@
 /**
  * POST /api/auth/refresh-token
- * Refresh access token (Requires auth)
+ * Refresh access token using Supabase Auth (Public - no auth)
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
@@ -9,47 +9,48 @@ import { validationMiddleware } from '../../../middlewares';
 import { authRateLimit } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { verifyToken, generateToken, generateRefreshToken } from '../../../utils';
-import { findUserById } from '../../user';
-import { IAuthUserWithToken } from '../../../interfaces';
+import { supabaseAnon } from '../../../utils/supabase';
+import { db } from '../../../database';
+import { users } from '../../user/shared/schema';
+import { eq } from 'drizzle-orm';
 
 const schema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
-export async function handleRefreshToken(refreshToken: string): Promise<IAuthUserWithToken> {
-  const decoded = verifyToken(refreshToken);
-
-  if (typeof decoded === 'string' || !decoded.id) {
-    throw new HttpException(401, 'Invalid refresh token format');
-  }
-
-  const user = await findUserById(decoded.id);
-  if (!user) {
-    throw new HttpException(404, 'User not found');
-  }
-
-  const newToken = generateToken(
-    {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
-    '24h'
-  );
-  const newRefreshToken = generateRefreshToken({
-    id: user.id,
+export async function handleRefreshToken(refreshToken: string) {
+  // Refresh session with Supabase Auth
+  const { data: authData, error } = await supabaseAnon.auth.refreshSession({
+    refresh_token: refreshToken,
   });
 
+  if (error || !authData?.user || !authData?.session) {
+    throw new HttpException(401, 'Invalid refresh token');
+  }
+
+  // Get the public.users record
+  const publicUser = await db
+    .select()
+    .from(users)
+    .where(eq(users.auth_id, authData.user.id))
+    .limit(1);
+
+  if (!publicUser[0]) {
+    throw new HttpException(500, 'User sync failed');
+  }
+
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone_number: user.phone_number || undefined,
-    created_at: user.created_at,
-    updated_at: user.updated_at,
-    token: newToken,
-    refreshToken: newRefreshToken,
+    user: {
+      id: publicUser[0].id,
+      auth_id: authData.user.id,
+      name: publicUser[0].name,
+      email: publicUser[0].email,
+      phone_number: publicUser[0].phone_number || undefined,
+      created_at: publicUser[0].created_at,
+      updated_at: publicUser[0].updated_at,
+    },
+    token: authData.session.access_token,
+    refreshToken: authData.session.refresh_token,
   };
 }
 
