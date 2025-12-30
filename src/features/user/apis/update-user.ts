@@ -63,13 +63,15 @@ async function updateUser(
 
   const updateData: Partial<IUser> = {
     ...data,
-    updated_by: requesterId };
+    updated_by: requesterId
+  };
 
   const [result] = await db
     .update(users)
     .set({
       ...updateData,
-      updated_at: new Date() })
+      updated_at: new Date()
+    })
     .where(eq(users.id, id))
     .returning();
 
@@ -81,15 +83,17 @@ async function updateUser(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const id = req.userId;
-  if (!id) {
-    throw new HttpException(401, 'User authentication required');
-  }
-  const updateData: UpdateUser = req.body;
   const userId = req.userId;
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
+
+  const paramsSchema = z.object({
+    id: z.coerce.number().int().positive('User ID must be a positive integer'),
+  });
+
+  const { id } = paramsSchema.parse(req.params);
+  const updateData: UpdateUser = req.body;
 
   const user = await updateUser(id, updateData, userId);
 
@@ -102,6 +106,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), handler);
+
+const paramsSchema = z.object({
+  id: z.coerce.number().int().positive('User ID must be a positive integer'),
+});
+
+router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), validationMiddleware(paramsSchema, 'params'), handler);
 
 export default router;

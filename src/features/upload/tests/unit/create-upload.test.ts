@@ -33,15 +33,15 @@ const mockS3Upload = s3Upload as jest.Mocked<typeof s3Upload>;
 
 // Recreate the business logic for testing
 async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
-  const s3Result = await s3Upload.uploadToS3(file.buffer, file.originalname, file.mimetype, userId);
+  const storageResult = await s3Upload.uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
 
   const [upload] = await (db.insert({} as any).values({
     filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
     original_filename: file.originalname,
     mime_type: file.mimetype,
     file_size: file.size,
-    file_path: s3Result.key,
-    file_url: s3Result.url,
+    file_path: storageResult.key,
+    file_url: storageResult.url,
     user_id: userId,
     created_by: userId,
   }) as any).returning();
@@ -72,9 +72,9 @@ describe('Create Upload Business Logic', () => {
     stream: {} as any,
   };
 
-  const mockS3Result = {
+  const mockStorageResult = {
     key: 'uploads/1/test-file.pdf',
-    url: 'https://s3.example.com/uploads/1/test-file.pdf',
+    url: 'https://storage.example.com/uploads/1/test-file.pdf',
     bucket: 'test-bucket',
     size: 1024,
     contentType: 'application/pdf',
@@ -88,7 +88,7 @@ describe('Create Upload Business Logic', () => {
     mime_type: 'application/pdf',
     file_size: 1024,
     file_path: 'uploads/1/test-file.pdf',
-    file_url: 'https://s3.example.com/uploads/1/test-file.pdf',
+    file_url: 'https://storage.example.com/uploads/1/test-file.pdf',
     status: 'pending' as const,
     error_message: null,
     created_by: 1,
@@ -102,7 +102,7 @@ describe('Create Upload Business Logic', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockS3Upload.uploadToS3.mockResolvedValue(mockS3Result);
+    mockS3Upload.uploadToStorage.mockResolvedValue(mockStorageResult);
 
     const mockReturning = jest.fn().mockResolvedValue([mockCreatedUpload]);
     const mockValues = jest.fn().mockReturnValue({ returning: mockReturning });
@@ -113,7 +113,7 @@ describe('Create Upload Business Logic', () => {
     it('should successfully upload file and create record', async () => {
       const result = await handleCreateUpload(mockFile, 1);
 
-      expect(mockS3Upload.uploadToS3).toHaveBeenCalledWith(
+      expect(mockS3Upload.uploadToStorage).toHaveBeenCalledWith(
         mockFile.buffer,
         mockFile.originalname,
         mockFile.mimetype,
@@ -121,7 +121,7 @@ describe('Create Upload Business Logic', () => {
       );
       expect(result.id).toBe(1);
       expect(result.filename).toBe('test-file.pdf');
-      expect(result.file_url).toBe('https://s3.example.com/uploads/1/test-file.pdf');
+      expect(result.file_url).toBe('https://storage.example.com/uploads/1/test-file.pdf');
     });
 
     it('should sanitize filename by replacing special characters', async () => {
@@ -164,10 +164,10 @@ describe('Create Upload Business Logic', () => {
       });
     });
 
-    it('should propagate S3 upload errors', async () => {
-      mockS3Upload.uploadToS3.mockRejectedValue(new Error('S3 upload failed'));
+    it('should propagate storage upload errors', async () => {
+      mockS3Upload.uploadToStorage.mockRejectedValue(new Error('Storage upload failed'));
 
-      await expect(handleCreateUpload(mockFile, 1)).rejects.toThrow('S3 upload failed');
+      await expect(handleCreateUpload(mockFile, 1)).rejects.toThrow('Storage upload failed');
     });
 
     it('should store file metadata correctly', async () => {
@@ -207,14 +207,14 @@ describe('Create Upload Business Logic', () => {
       );
     });
 
-    it('should use S3 result for file_path and file_url', async () => {
+    it('should use storage result for file_path and file_url', async () => {
       await handleCreateUpload(mockFile, 1);
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(
         expect.objectContaining({
           file_path: 'uploads/1/test-file.pdf',
-          file_url: 'https://s3.example.com/uploads/1/test-file.pdf',
+          file_url: 'https://storage.example.com/uploads/1/test-file.pdf',
         })
       );
     });

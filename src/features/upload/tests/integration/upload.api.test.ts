@@ -2,13 +2,22 @@ import { Application } from 'express';
 import App from '../../../../app';
 import UploadRoute from '../..';
 import AuthRoute from '../../../auth';
-import { dbHelper } from '@tests/utils';
-import { SupabaseAuthHelper } from '@tests/utils';
-import { ApiTestHelper } from '@tests/utils';
-import { TestDataFactory } from '@tests/utils';
+import { dbHelper } from '../../../../../tests/utils';
+import { SupabaseAuthHelper } from '../../../../../tests/utils';
+import { ApiTestHelper } from '../../../../../tests/utils';
+import { TestDataFactory } from '../../../../../tests/utils';
 
-// Skip upload tests since Supabase Storage bucket is not configured in test environment
-const isStorageAvailable = false; // Set to false to skip storage-dependent tests
+// Helper function to create test PDF buffer
+function createTestPdfBuffer(content: string = 'Test PDF content'): Buffer {
+  // Create a minimal valid PDF structure
+  const pdfHeader = '%PDF-1.4\n';
+  const pdfBody = `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length ${content.length} >>\nstream\n${content}\nendstream\nendobj\n`;
+  const pdfFooter = 'xref\n0 5\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n%%EOF';
+  return Buffer.from(pdfHeader + pdfBody + pdfFooter);
+}
+
+// Enable storage tests if Supabase storage is configured
+const isStorageAvailable = process.env.SUPABASE_URL ? true : false;
 
 const describeStorage = isStorageAvailable ? describe : describe.skip;
 
