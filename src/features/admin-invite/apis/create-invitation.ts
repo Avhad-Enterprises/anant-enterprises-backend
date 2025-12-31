@@ -132,6 +132,12 @@ const handler = async (req: RequestWithUser, res: Response): Promise<void> => {
 };
 
 const router = Router();
-router.post('/', requireAuth, requirePermission('admin:invitations'), validationMiddleware(schema), handler);
+router.post(
+  '/',
+  requireAuth,
+  requirePermission('admin:invitations'),
+  validationMiddleware(schema),
+  handler
+);
 
 export default router;

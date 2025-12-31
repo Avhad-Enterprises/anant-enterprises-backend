@@ -12,32 +12,32 @@ import { findAllPermissions } from '../shared/queries';
 import { Permission } from '../shared/schema';
 
 interface PermissionsResponse {
-    permissions: Permission[];
-    by_resource: Record<string, Permission[]>;
+  permissions: Permission[];
+  by_resource: Record<string, Permission[]>;
 }
 
 async function getAllPermissions(): Promise<PermissionsResponse> {
-    const permissions = await findAllPermissions();
+  const permissions = await findAllPermissions();
 
-    // Group by resource
-    const byResource = permissions.reduce(
-        (acc, perm) => {
-            if (!acc[perm.resource]) {
-                acc[perm.resource] = [];
-            }
-            acc[perm.resource].push(perm);
-            return acc;
-        },
-        {} as Record<string, Permission[]>
-    );
+  // Group by resource
+  const byResource = permissions.reduce(
+    (acc, perm) => {
+      if (!acc[perm.resource]) {
+        acc[perm.resource] = [];
+      }
+      acc[perm.resource].push(perm);
+      return acc;
+    },
+    {} as Record<string, Permission[]>
+  );
 
-    return { permissions, by_resource: byResource };
+  return { permissions, by_resource: byResource };
 }
 
-const handler = (async (req: RequestWithUser, res: Response) => {
-    const result = await getAllPermissions();
-    ResponseFormatter.success(res, result, 'Permissions retrieved successfully');
-});
+const handler = async (req: RequestWithUser, res: Response) => {
+  const result = await getAllPermissions();
+  ResponseFormatter.success(res, result, 'Permissions retrieved successfully');
+};
 
 const router = Router();
 router.get('/', requireAuth, requirePermission('permissions:read'), handler);

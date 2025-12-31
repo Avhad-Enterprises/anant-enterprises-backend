@@ -16,18 +16,26 @@ import { uploads } from '../shared/schema';
 import { Upload } from '../shared/interface';
 
 async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
-  const storageResult = await uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
+  const storageResult = await uploadToStorage(
+    file.buffer,
+    file.originalname,
+    file.mimetype,
+    userId
+  );
 
-  const [upload] = await db.insert(uploads).values({
-    filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
-    original_filename: file.originalname,
-    mime_type: file.mimetype,
-    file_size: file.size,
-    file_path: storageResult.key,
-    file_url: storageResult.url,
-    user_id: userId,
-    created_by: userId
-  }).returning();
+  const [upload] = await db
+    .insert(uploads)
+    .values({
+      filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
+      original_filename: file.originalname,
+      mime_type: file.mimetype,
+      file_size: file.size,
+      file_path: storageResult.key,
+      file_url: storageResult.url,
+      user_id: userId,
+      created_by: userId,
+    })
+    .returning();
 
   if (!upload) {
     throw new HttpException(500, 'Failed to create upload record');
@@ -37,7 +45,7 @@ async function handleCreateUpload(file: Express.Multer.File, userId: number): Pr
     ...upload,
     created_at: upload.created_at.toISOString(),
     updated_at: upload.updated_at.toISOString(),
-    deleted_at: upload.deleted_at?.toISOString()
+    deleted_at: upload.deleted_at?.toISOString(),
   } as Upload;
 }
 

@@ -67,10 +67,7 @@ export const getInvitations = async (
       .orderBy(desc(invitations.created_at))
       .limit(limit)
       .offset(offset),
-    db
-      .select({ count: invitations.id })
-      .from(invitations)
-      .where(whereClause),
+    db.select({ count: invitations.id }).from(invitations).where(whereClause),
   ]);
 
   return {
@@ -83,10 +80,7 @@ export const getInvitations = async (
  * Create a new invitation
  */
 export const createInvitation = async (invitationData: NewInvitation): Promise<Invitation> => {
-  const [newInvitation] = await db
-    .insert(invitations)
-    .values(invitationData)
-    .returning();
+  const [newInvitation] = await db.insert(invitations).values(invitationData).returning();
 
   return newInvitation;
 };

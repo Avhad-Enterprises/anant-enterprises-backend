@@ -3,12 +3,7 @@ import bcrypt from 'bcrypt';
 import { dbHelper } from './database.helper';
 import { TestUser } from './factories';
 import { users } from '../../src/features/user';
-import {
-  roles,
-  userRoles,
-  permissions,
-  rolePermissions
-} from '../../src/features/rbac';
+import { roles, userRoles, permissions, rolePermissions } from '../../src/features/rbac';
 import { eq } from 'drizzle-orm';
 
 export class AuthTestHelper {
@@ -36,36 +31,42 @@ export class AuthTestHelper {
     const db = dbHelper.getDb();
 
     // Seed system roles (onConflictDoNothing handles existing)
-    await db.insert(roles).values([
-      { name: 'user', description: 'Standard user', is_system_role: true },
-      { name: 'admin', description: 'Administrator', is_system_role: true },
-      { name: 'superadmin', description: 'Super administrator', is_system_role: true },
-    ]).onConflictDoNothing();
+    await db
+      .insert(roles)
+      .values([
+        { name: 'user', description: 'Standard user', is_system_role: true },
+        { name: 'admin', description: 'Administrator', is_system_role: true },
+        { name: 'superadmin', description: 'Super administrator', is_system_role: true },
+      ])
+      .onConflictDoNothing();
 
     // Seed permissions (onConflictDoNothing handles existing)
-    await db.insert(permissions).values([
-      { name: 'users:read', resource: 'users', action: 'read' },
-      { name: 'users:read:own', resource: 'users', action: 'read:own' },
-      { name: 'users:create', resource: 'users', action: 'create' },
-      { name: 'users:update', resource: 'users', action: 'update' },
-      { name: 'users:update:own', resource: 'users', action: 'update:own' },
-      { name: 'users:delete', resource: 'users', action: 'delete' },
-      { name: 'roles:read', resource: 'roles', action: 'read' },
-      { name: 'roles:manage', resource: 'roles', action: 'manage' },
-      { name: 'permissions:read', resource: 'permissions', action: 'read' },
-      { name: 'permissions:assign', resource: 'permissions', action: 'assign' },
-      { name: 'uploads:read', resource: 'uploads', action: 'read' },
-      { name: 'uploads:read:own', resource: 'uploads', action: 'read:own' },
-      { name: 'uploads:create', resource: 'uploads', action: 'create' },
-      { name: 'uploads:delete', resource: 'uploads', action: 'delete' },
-      { name: 'uploads:delete:own', resource: 'uploads', action: 'delete:own' },
-      { name: 'admin:invitations', resource: 'admin', action: 'invitations' },
-      { name: 'admin:system', resource: 'admin', action: 'system' },
-      { name: 'audit:read', resource: 'audit', action: 'read' },
-      { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
-      { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
-      { name: '*', resource: '*', action: '*' },
-    ]).onConflictDoNothing();
+    await db
+      .insert(permissions)
+      .values([
+        { name: 'users:read', resource: 'users', action: 'read' },
+        { name: 'users:read:own', resource: 'users', action: 'read:own' },
+        { name: 'users:create', resource: 'users', action: 'create' },
+        { name: 'users:update', resource: 'users', action: 'update' },
+        { name: 'users:update:own', resource: 'users', action: 'update:own' },
+        { name: 'users:delete', resource: 'users', action: 'delete' },
+        { name: 'roles:read', resource: 'roles', action: 'read' },
+        { name: 'roles:manage', resource: 'roles', action: 'manage' },
+        { name: 'permissions:read', resource: 'permissions', action: 'read' },
+        { name: 'permissions:assign', resource: 'permissions', action: 'assign' },
+        { name: 'uploads:read', resource: 'uploads', action: 'read' },
+        { name: 'uploads:read:own', resource: 'uploads', action: 'read:own' },
+        { name: 'uploads:create', resource: 'uploads', action: 'create' },
+        { name: 'uploads:delete', resource: 'uploads', action: 'delete' },
+        { name: 'uploads:delete:own', resource: 'uploads', action: 'delete:own' },
+        { name: 'admin:invitations', resource: 'admin', action: 'invitations' },
+        { name: 'admin:system', resource: 'admin', action: 'system' },
+        { name: 'audit:read', resource: 'audit', action: 'read' },
+        { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
+        { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
+        { name: '*', resource: '*', action: '*' },
+      ])
+      .onConflictDoNothing();
 
     // Fetch all roles and permissions to build mappings
     const allRoles = await db.select().from(roles);
@@ -76,10 +77,31 @@ export class AuthTestHelper {
     const permIdMap = new Map(allPermissions.map(p => [p.name, p.id]));
 
     const rolePermissionMappings: Record<string, string[]> = {
-      user: ['users:read:own', 'users:update:own', 'uploads:read:own', 'uploads:create', 'uploads:delete:own', 'chatbot:use'],
-      admin: ['users:read', 'users:create', 'users:update', 'users:delete', 'users:read:own', 'users:update:own',
-        'roles:read', 'permissions:read', 'uploads:read', 'uploads:create', 'uploads:delete',
-        'admin:invitations', 'audit:read', 'chatbot:use', 'chatbot:documents'],
+      user: [
+        'users:read:own',
+        'users:update:own',
+        'uploads:read:own',
+        'uploads:create',
+        'uploads:delete:own',
+        'chatbot:use',
+      ],
+      admin: [
+        'users:read',
+        'users:create',
+        'users:update',
+        'users:delete',
+        'users:read:own',
+        'users:update:own',
+        'roles:read',
+        'permissions:read',
+        'uploads:read',
+        'uploads:create',
+        'uploads:delete',
+        'admin:invitations',
+        'audit:read',
+        'chatbot:use',
+        'chatbot:documents',
+      ],
       superadmin: ['*'],
     };
 
@@ -118,10 +140,13 @@ export class AuthTestHelper {
     if (!roleId) {
       throw new Error(`Role '${roleName}' not found. Did you call seedRBACData()?`);
     }
-    await db.insert(userRoles).values({
-      user_id: userId,
-      role_id: roleId,
-    }).onConflictDoNothing();
+    await db
+      .insert(userRoles)
+      .values({
+        user_id: userId,
+        role_id: roleId,
+      })
+      .onConflictDoNothing();
   }
 
   /**
@@ -161,7 +186,7 @@ export class AuthTestHelper {
     return {
       user: { ...user, role: roleName },
       token,
-      userId: user.id
+      userId: user.id,
     };
   }
 
@@ -230,8 +255,20 @@ export class AuthTestHelper {
   /**
    * Verify and decode a JWT token
    */
-  static verifyToken(token: string): { id: number; email: string; role: string; iat: number; exp: number } {
+  static verifyToken(token: string): {
+    id: number;
+    email: string;
+    role: string;
+    iat: number;
+    exp: number;
+  } {
     const secret = process.env.JWT_SECRET || 'test-jwt-secret';
-    return jwt.verify(token, secret) as { id: number; email: string; role: string; iat: number; exp: number };
+    return jwt.verify(token, secret) as {
+      id: number;
+      email: string;
+      role: string;
+      iat: number;
+      exp: number;
+    };
   }
 }

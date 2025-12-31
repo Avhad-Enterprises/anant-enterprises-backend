@@ -170,13 +170,15 @@ async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
  * Clean extracted text
  */
 function cleanText(text: string): string {
-  return text
-    // Normalize whitespace
-    .replace(/\s+/g, ' ')
-    // Remove excessive newlines
-    .replace(/\n{3,}/g, '\n\n')
-    // Trim
-    .trim();
+  return (
+    text
+      // Normalize whitespace
+      .replace(/\s+/g, ' ')
+      // Remove excessive newlines
+      .replace(/\n{3,}/g, '\n\n')
+      // Trim
+      .trim()
+  );
 }
 
 // Re-export utility functions for backwards compatibility

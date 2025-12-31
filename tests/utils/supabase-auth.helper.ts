@@ -1,6 +1,6 @@
 /**
  * Supabase Auth Test Helper
- * 
+ *
  * Utilities for testing with Supabase Auth instead of custom JWT
  * Replaces the deprecated AuthTestHelper.ts
  */
@@ -8,7 +8,12 @@
 import { supabaseAnon, supabase } from '../../src/utils/supabase';
 import { db } from '../../src/database';
 import { users } from '../../src/features/user/shared/schema';
-import { roles, permissions, userRoles, rolePermissions } from '../../src/features/rbac/shared/schema';
+import {
+  roles,
+  permissions,
+  userRoles,
+  rolePermissions,
+} from '../../src/features/rbac/shared/schema';
 import { eq } from 'drizzle-orm';
 
 export interface TestUser {
@@ -162,10 +167,10 @@ export class SupabaseAuthHelper {
         id: testUser.publicUser.id,
         email: testUser.publicUser.email,
         name: testUser.publicUser.name,
-        role: roleName
+        role: roleName,
       },
       token: testUser.session.access_token,
-      userId: testUser.publicUser.id
+      userId: testUser.publicUser.id,
     };
   }
 
@@ -183,7 +188,7 @@ export class SupabaseAuthHelper {
     const { user, token } = await this.createTestUser({
       email,
       password: rawPassword,
-      name: 'Test User'
+      name: 'Test User',
     });
 
     return { user, token, rawPassword };
@@ -192,11 +197,13 @@ export class SupabaseAuthHelper {
   /**
    * Create a test admin user with full permissions (compatibility method)
    */
-  static async createTestAdminUser(overrides?: Partial<{
-    email: string;
-    password: string;
-    name: string;
-  }>): Promise<{
+  static async createTestAdminUser(
+    overrides?: Partial<{
+      email: string;
+      password: string;
+      name: string;
+    }>
+  ): Promise<{
     user: { id: number; email: string; name: string; role: string };
     token: string;
     userId: number;
@@ -278,10 +285,31 @@ export class SupabaseAuthHelper {
           const permIdMap = new Map(allPermissions.map(p => [p.name, p.id]));
 
           const rolePermissionMappings: Record<string, string[]> = {
-            user: ['users:read:own', 'users:update:own', 'uploads:read:own', 'uploads:create', 'uploads:delete:own', 'chatbot:use'],
-            admin: ['users:read', 'users:create', 'users:update', 'users:delete', 'users:read:own', 'users:update:own',
-              'roles:read', 'permissions:read', 'uploads:read', 'uploads:create', 'uploads:delete',
-              'admin:invitations', 'audit:read', 'chatbot:use', 'chatbot:documents'],
+            user: [
+              'users:read:own',
+              'users:update:own',
+              'uploads:read:own',
+              'uploads:create',
+              'uploads:delete:own',
+              'chatbot:use',
+            ],
+            admin: [
+              'users:read',
+              'users:create',
+              'users:update',
+              'users:delete',
+              'users:read:own',
+              'users:update:own',
+              'roles:read',
+              'permissions:read',
+              'uploads:read',
+              'uploads:create',
+              'uploads:delete',
+              'admin:invitations',
+              'audit:read',
+              'chatbot:use',
+              'chatbot:documents',
+            ],
             superadmin: ['*'],
           };
 
@@ -312,62 +340,83 @@ export class SupabaseAuthHelper {
         { name: 'superadmin', description: 'Super administrator', is_system_role: true },
       ]);
 
-    // Seed permissions
-    await db.insert(permissions).values([
-      { name: 'users:read', resource: 'users', action: 'read' },
-      { name: 'users:read:own', resource: 'users', action: 'read:own' },
-      { name: 'users:create', resource: 'users', action: 'create' },
-      { name: 'users:update', resource: 'users', action: 'update' },
-      { name: 'users:update:own', resource: 'users', action: 'update:own' },
-      { name: 'users:delete', resource: 'users', action: 'delete' },
-      { name: 'roles:read', resource: 'roles', action: 'read' },
-      { name: 'roles:manage', resource: 'roles', action: 'manage' },
-      { name: 'permissions:read', resource: 'permissions', action: 'read' },
-      { name: 'permissions:assign', resource: 'permissions', action: 'assign' },
-      { name: 'uploads:read', resource: 'uploads', action: 'read' },
-      { name: 'uploads:read:own', resource: 'uploads', action: 'read:own' },
-      { name: 'uploads:create', resource: 'uploads', action: 'create' },
-      { name: 'uploads:delete', resource: 'uploads', action: 'delete' },
-      { name: 'uploads:delete:own', resource: 'uploads', action: 'delete:own' },
-      { name: 'admin:invitations', resource: 'admin', action: 'invitations' },
-      { name: 'admin:system', resource: 'admin', action: 'system' },
-      { name: 'audit:read', resource: 'audit', action: 'read' },
-      { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
-      { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
-      { name: '*', resource: '*', action: '*' },
-    ]);
+      // Seed permissions
+      await db.insert(permissions).values([
+        { name: 'users:read', resource: 'users', action: 'read' },
+        { name: 'users:read:own', resource: 'users', action: 'read:own' },
+        { name: 'users:create', resource: 'users', action: 'create' },
+        { name: 'users:update', resource: 'users', action: 'update' },
+        { name: 'users:update:own', resource: 'users', action: 'update:own' },
+        { name: 'users:delete', resource: 'users', action: 'delete' },
+        { name: 'roles:read', resource: 'roles', action: 'read' },
+        { name: 'roles:manage', resource: 'roles', action: 'manage' },
+        { name: 'permissions:read', resource: 'permissions', action: 'read' },
+        { name: 'permissions:assign', resource: 'permissions', action: 'assign' },
+        { name: 'uploads:read', resource: 'uploads', action: 'read' },
+        { name: 'uploads:read:own', resource: 'uploads', action: 'read:own' },
+        { name: 'uploads:create', resource: 'uploads', action: 'create' },
+        { name: 'uploads:delete', resource: 'uploads', action: 'delete' },
+        { name: 'uploads:delete:own', resource: 'uploads', action: 'delete:own' },
+        { name: 'admin:invitations', resource: 'admin', action: 'invitations' },
+        { name: 'admin:system', resource: 'admin', action: 'system' },
+        { name: 'audit:read', resource: 'audit', action: 'read' },
+        { name: 'chatbot:use', resource: 'chatbot', action: 'use' },
+        { name: 'chatbot:documents', resource: 'chatbot', action: 'documents' },
+        { name: '*', resource: '*', action: '*' },
+      ]);
 
-    // Fetch all roles and permissions to build mappings
-    const allRoles = await db.select().from(roles);
-    const allPermissions = await db.select().from(permissions);
+      // Fetch all roles and permissions to build mappings
+      const allRoles = await db.select().from(roles);
+      const allPermissions = await db.select().from(permissions);
 
-    // Create role-permission mappings
-    const roleIdMap = new Map(allRoles.map(r => [r.name, r.id]));
-    const permIdMap = new Map(allPermissions.map(p => [p.name, p.id]));
+      // Create role-permission mappings
+      const roleIdMap = new Map(allRoles.map(r => [r.name, r.id]));
+      const permIdMap = new Map(allPermissions.map(p => [p.name, p.id]));
 
-    const rolePermissionMappings: Record<string, string[]> = {
-      user: ['users:read:own', 'users:update:own', 'uploads:read:own', 'uploads:create', 'uploads:delete:own', 'chatbot:use'],
-      admin: ['users:read', 'users:create', 'users:update', 'users:delete', 'users:read:own', 'users:update:own',
-        'roles:read', 'permissions:read', 'uploads:read', 'uploads:create', 'uploads:delete',
-        'admin:invitations', 'audit:read', 'chatbot:use', 'chatbot:documents'],
-      superadmin: ['*'],
-    };
+      const rolePermissionMappings: Record<string, string[]> = {
+        user: [
+          'users:read:own',
+          'users:update:own',
+          'uploads:read:own',
+          'uploads:create',
+          'uploads:delete:own',
+          'chatbot:use',
+        ],
+        admin: [
+          'users:read',
+          'users:create',
+          'users:update',
+          'users:delete',
+          'users:read:own',
+          'users:update:own',
+          'roles:read',
+          'permissions:read',
+          'uploads:read',
+          'uploads:create',
+          'uploads:delete',
+          'admin:invitations',
+          'audit:read',
+          'chatbot:use',
+          'chatbot:documents',
+        ],
+        superadmin: ['*'],
+      };
 
-    const mappings: { role_id: number; permission_id: number }[] = [];
-    for (const [roleName, perms] of Object.entries(rolePermissionMappings)) {
-      const roleId = roleIdMap.get(roleName);
-      if (!roleId) continue;
-      for (const permName of perms) {
-        const permId = permIdMap.get(permName);
-        if (permId) {
-          mappings.push({ role_id: roleId, permission_id: permId });
+      const mappings: { role_id: number; permission_id: number }[] = [];
+      for (const [roleName, perms] of Object.entries(rolePermissionMappings)) {
+        const roleId = roleIdMap.get(roleName);
+        if (!roleId) continue;
+        for (const permName of perms) {
+          const permId = permIdMap.get(permName);
+          if (permId) {
+            mappings.push({ role_id: roleId, permission_id: permId });
+          }
         }
       }
-    }
 
-    if (mappings.length > 0) {
-      await db.insert(rolePermissions).values(mappings).onConflictDoNothing();
-    }
+      if (mappings.length > 0) {
+        await db.insert(rolePermissions).values(mappings).onConflictDoNothing();
+      }
     } catch (error) {
       // Ignore errors in unit tests where database is mocked
       if (process.env.NODE_ENV === 'test') {
@@ -430,7 +479,9 @@ export class SupabaseAuthHelper {
   /**
    * Refresh access token using refresh token
    */
-  static async refreshToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
+  static async refreshToken(
+    refreshToken: string
+  ): Promise<{ access_token: string; refresh_token: string }> {
     const { data, error } = await supabaseAnon.auth.refreshSession({
       refresh_token: refreshToken,
     });

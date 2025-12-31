@@ -24,10 +24,7 @@ export const findUserByEmail = async (email: string): Promise<User | undefined> 
  * Shared query used across services
  */
 export const createUser = async (userData: NewUser): Promise<User> => {
-  const [newUser] = await db
-    .insert(users)
-    .values(userData)
-    .returning();
+  const [newUser] = await db.insert(users).values(userData).returning();
 
   return newUser;
 };

@@ -15,7 +15,7 @@ jest.setTimeout(30000);
 beforeAll(async () => {
   const { runMigrations } = await import('./migrations');
   await runMigrations();
-  
+
   // Seed RBAC data for all tests
   const { SupabaseAuthHelper } = await import('./supabase-auth.helper');
   await SupabaseAuthHelper.seedRBACData();

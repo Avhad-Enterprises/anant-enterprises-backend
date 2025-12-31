@@ -26,11 +26,13 @@ async function deleteUser(id: number, deletedBy: number): Promise<void> {
     throw new HttpException(404, 'User not found');
   }
 
-  await (db.update(users).set({
-    is_deleted: true,
-    deleted_by: deletedBy,
-    deleted_at: new Date(),
-  }) as any).where();
+  await (
+    db.update(users).set({
+      is_deleted: true,
+      deleted_by: deletedBy,
+      deleted_at: new Date(),
+    }) as any
+  ).where();
 }
 
 describe('Delete User Business Logic', () => {

@@ -12,7 +12,10 @@ export const findUploadById = async (
   id: number,
   userId?: number
 ): Promise<DrizzleUpload | undefined> => {
-  const conditions = [eq(uploads.id, id), or(eq(uploads.is_deleted, false), isNull(uploads.is_deleted))];
+  const conditions = [
+    eq(uploads.id, id),
+    or(eq(uploads.is_deleted, false), isNull(uploads.is_deleted)),
+  ];
 
   if (userId !== undefined) {
     conditions.push(eq(uploads.user_id, userId));

@@ -21,7 +21,10 @@ jest.mock('../../../../utils', () => ({
     warn: jest.fn(),
   },
   HttpException: class extends Error {
-    constructor(public status: number, message: string) {
+    constructor(
+      public status: number,
+      message: string
+    ) {
       super(message);
       this.name = 'HttpException';
     }
@@ -33,18 +36,25 @@ const mockS3Upload = s3Upload as jest.Mocked<typeof s3Upload>;
 
 // Recreate the business logic for testing
 async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
-  const storageResult = await s3Upload.uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
+  const storageResult = await s3Upload.uploadToStorage(
+    file.buffer,
+    file.originalname,
+    file.mimetype,
+    userId
+  );
 
-  const [upload] = await (db.insert({} as any).values({
-    filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
-    original_filename: file.originalname,
-    mime_type: file.mimetype,
-    file_size: file.size,
-    file_path: storageResult.key,
-    file_url: storageResult.url,
-    user_id: userId,
-    created_by: userId,
-  }) as any).returning();
+  const [upload] = await (
+    db.insert({} as any).values({
+      filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
+      original_filename: file.originalname,
+      mime_type: file.mimetype,
+      file_size: file.size,
+      file_path: storageResult.key,
+      file_url: storageResult.url,
+      user_id: userId,
+      created_by: userId,
+    }) as any
+  ).returning();
 
   if (!upload) {
     throw new HttpException(500, 'Failed to create upload record');

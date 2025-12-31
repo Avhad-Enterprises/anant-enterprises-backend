@@ -15,7 +15,7 @@ export {
   checkOwnershipOrPermission,
   requireOwnerOrPermission,
   userHasPermission,
-  getUserPermissions
+  getUserPermissions,
 } from './permission.middleware';
 
 // CORS middleware
@@ -34,19 +34,13 @@ export { requestIdMiddleware } from './request-id.middleware';
 export { securityMiddleware } from './security.middleware';
 
 // Upload middleware
-export {
-  uploadSingleFileMiddleware,
-  uploadCsvMiddleware
-} from './upload.middleware';
+export { uploadSingleFileMiddleware, uploadCsvMiddleware } from './upload.middleware';
 
 // Validation middleware
 export { default as validationMiddleware } from './validation.middleware';
 
 // Rate limiting middleware
-export {
-  authRateLimit,
-  apiRateLimit
-} from './rate-limit.middleware';
+export { authRateLimit, apiRateLimit } from './rate-limit.middleware';
 
 // Audit middleware
 export { default as auditMiddleware } from './audit.middleware';

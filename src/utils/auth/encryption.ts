@@ -1,7 +1,7 @@
 /**
  * Encryption Utility for Sensitive Data
  * Uses AES-256-GCM for encrypting temporary passwords in invitations
- * 
+ *
  * Note: This is for reversible encryption (not hashing) of temp passwords
  * so they can be shown to invited users during first login
  */
@@ -29,14 +29,15 @@ function getEncryptionKey(): Buffer {
   if (cachedEncryptionKey) {
     return cachedEncryptionKey;
   }
-  
+
   // Derive salt from JWT_SECRET using SHA-256 hash (first 16 bytes)
   // This avoids hardcoded salt while maintaining deterministic key derivation
-  const derivedSalt = crypto.createHash('sha256')
+  const derivedSalt = crypto
+    .createHash('sha256')
     .update(config.JWT_SECRET + '-express-template-key-salt')
     .digest()
     .subarray(0, 16);
-  
+
   // Derive a 256-bit key from JWT_SECRET using PBKDF2
   cachedEncryptionKey = crypto.pbkdf2Sync(
     config.JWT_SECRET,
@@ -45,7 +46,7 @@ function getEncryptionKey(): Buffer {
     32, // Key length (256 bits)
     'sha256'
   );
-  
+
   return cachedEncryptionKey;
 }
 
@@ -59,24 +60,22 @@ export function encrypt(plainText: string): string {
   try {
     const key = getEncryptionKey();
     const iv = crypto.randomBytes(IV_LENGTH);
-    
+
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    
+
     let encrypted = cipher.update(plainText, 'utf8', 'base64');
     encrypted += cipher.final('base64');
-    
+
     const authTag = cipher.getAuthTag();
-    
+
     // Combine IV + authTag + encrypted data
-    const combined = Buffer.concat([
-      iv,
-      authTag,
-      Buffer.from(encrypted, 'base64')
-    ]);
-    
+    const combined = Buffer.concat([iv, authTag, Buffer.from(encrypted, 'base64')]);
+
     return combined.toString('base64');
   } catch (error) {
-    logger.error('Encryption failed:', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('Encryption failed:', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw new Error('Failed to encrypt data');
   }
 }
@@ -90,21 +89,23 @@ export function decrypt(encryptedText: string): string {
   try {
     const key = getEncryptionKey();
     const combined = Buffer.from(encryptedText, 'base64');
-    
+
     // Extract IV, auth tag, and encrypted data
     const iv = combined.subarray(0, IV_LENGTH);
     const authTag = combined.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
     const encrypted = combined.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
-    
+
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
-    
+
     let decrypted = decipher.update(encrypted.toString('base64'), 'base64', 'utf8');
     decrypted += decipher.final('utf8');
-    
+
     return decrypted;
   } catch (error) {
-    logger.error('Decryption failed:', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('Decryption failed:', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     throw new Error('Failed to decrypt data');
   }
 }
@@ -119,27 +120,27 @@ export function generateSecurePassword(length: number = 16): string {
   const lowercase = 'abcdefghjkmnpqrstuvwxyz';
   const numbers = '23456789';
   const special = '@#$%&*!';
-  
+
   const allChars = uppercase + lowercase + numbers + special;
-  
+
   // Ensure at least one of each type
   let password = '';
   password += uppercase[crypto.randomInt(uppercase.length)];
   password += lowercase[crypto.randomInt(lowercase.length)];
   password += numbers[crypto.randomInt(numbers.length)];
   password += special[crypto.randomInt(special.length)];
-  
+
   // Fill remaining length
   for (let i = password.length; i < length; i++) {
     password += allChars[crypto.randomInt(allChars.length)];
   }
-  
+
   // Shuffle the password
   const passwordArray = password.split('');
   for (let i = passwordArray.length - 1; i > 0; i--) {
     const j = crypto.randomInt(i + 1);
     [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
   }
-  
+
   return passwordArray.join('');
 }

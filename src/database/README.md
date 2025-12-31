@@ -28,6 +28,7 @@ npm run db:seed      # Add test data
 ## Setup
 
 **Environment Variable:**
+
 ```
 DATABASE_URL="postgresql://user:password@host:port/database"
 ```
@@ -45,17 +46,20 @@ import { eq } from 'drizzle-orm';
 const user = await db.select().from(users).where(eq(users.id, 1));
 
 // Insert
-const [newUser] = await db.insert(users).values({
-  name: 'John',
-  email: 'john@example.com',
-  created_by: 1
-}).returning();
+const [newUser] = await db
+  .insert(users)
+  .values({
+    name: 'John',
+    email: 'john@example.com',
+    created_by: 1,
+  })
+  .returning();
 
 // Update
 await db.update(users).set({ name: 'Jane' }).where(eq(users.id, 1));
 
 // Transaction
-await db.transaction(async (tx) => {
+await db.transaction(async tx => {
   // Multiple operations here
 });
 ```

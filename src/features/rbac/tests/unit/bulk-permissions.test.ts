@@ -11,171 +11,184 @@ import { roles, permissions, rolePermissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permissions', () => {
-    let superadminToken: string;
-    let superadminUserId: number;
-    let regularUserToken: string;
-    let testRole: any;
-    let testPermissions: any[] = [];
+  let superadminToken: string;
+  let superadminUserId: number;
+  let regularUserToken: string;
+  let testRole: any;
+  let testPermissions: any[] = [];
 
-    beforeAll(async () => {
+  beforeAll(async () => {
+    await SupabaseAuthHelper.seedRBACData();
 
-        await SupabaseAuthHelper.seedRBACData();
+    const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
+    superadminToken = token;
+    superadminUserId = userId;
 
-        const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
-        superadminToken = token;
-        superadminUserId = userId;
+    const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
+    regularUserToken = uToken;
+  });
 
-        const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
-        regularUserToken = uToken;
+  afterAll(async () => {});
+
+  beforeEach(async () => {
+    // Create test role
+    const [role] = await db
+      .insert(roles)
+      .values({
+        name: 'test_bulk_role',
+        description: 'Test role for bulk operations',
+        is_system_role: false,
+        created_by: superadminUserId,
+      })
+      .returning();
+    testRole = role;
+
+    // Create test permissions
+    const perms = await db
+      .insert(permissions)
+      .values([
+        { name: 'bulk:read', resource: 'bulk', action: 'read' },
+        { name: 'bulk:write', resource: 'bulk', action: 'write' },
+        { name: 'bulk:delete', resource: 'bulk', action: 'delete' },
+      ])
+      .returning();
+    testPermissions = perms;
+  });
+
+  afterEach(async () => {
+    // Clean up
+    if (testRole) {
+      await db.delete(rolePermissions).where(eq(rolePermissions.role_id, testRole.id));
+      await db.delete(roles).where(eq(roles.id, testRole.id));
+    }
+    for (const perm of testPermissions) {
+      await db.delete(permissions).where(eq(permissions.id, perm.id));
+    }
+    testPermissions = [];
+  });
+
+  describe('Successful Bulk Assignment', () => {
+    it('should assign multiple permissions to role', async () => {
+      const permissionIds = testPermissions.map(p => p.id);
+
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: permissionIds });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.assigned_count).toBe(3);
+      expect(response.body.data.skipped_count).toBe(0);
+      expect(response.body.data.role_id).toBe(testRole.id);
     });
 
-    afterAll(async () => {
+    it('should skip already assigned permissions', async () => {
+      const permissionIds = testPermissions.map(p => p.id);
 
+      // Assign first two permissions manually
+      await db.insert(rolePermissions).values([
+        {
+          role_id: testRole.id,
+          permission_id: testPermissions[0].id,
+          assigned_by: superadminUserId,
+        },
+        {
+          role_id: testRole.id,
+          permission_id: testPermissions[1].id,
+          assigned_by: superadminUserId,
+        },
+      ]);
+
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: permissionIds });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.assigned_count).toBe(1); // Only third permission
+      expect(response.body.data.skipped_count).toBe(2); // First two skipped
+    });
+  });
+
+  describe('Validation Errors', () => {
+    it('should reject non-existent role ID', async () => {
+      const response = await request(app)
+        .post('/api/rbac/roles/99999/permissions/bulk')
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: [testPermissions[0].id] });
+
+      expect(response.status).toBe(404);
+      expect(response.body.error?.message || response.body.message).toContain('Role not found');
     });
 
-    beforeEach(async () => {
-        // Create test role
-        const [role] = await db.insert(roles).values({
-            name: 'test_bulk_role',
-            description: 'Test role for bulk operations',
-            is_system_role: false,
-            created_by: superadminUserId,
-        }).returning();
-        testRole = role;
+    it('should reject empty permission array', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: [] });
 
-        // Create test permissions
-        const perms = await db.insert(permissions).values([
-            { name: 'bulk:read', resource: 'bulk', action: 'read' },
-            { name: 'bulk:write', resource: 'bulk', action: 'write' },
-            { name: 'bulk:delete', resource: 'bulk', action: 'delete' },
-        ]).returning();
-        testPermissions = perms;
+      expect(response.status).toBe(400);
     });
 
-    afterEach(async () => {
-        // Clean up
-        if (testRole) {
-            await db.delete(rolePermissions).where(eq(rolePermissions.role_id, testRole.id));
-            await db.delete(roles).where(eq(roles.id, testRole.id));
-        }
-        for (const perm of testPermissions) {
-            await db.delete(permissions).where(eq(permissions.id, perm.id));
-        }
-        testPermissions = [];
+    it('should reject more than 50 permissions', async () => {
+      const tooManyIds = Array.from({ length: 51 }, (_, i) => i + 1);
+
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: tooManyIds });
+
+      expect(response.status).toBe(400);
     });
 
-    describe('Successful Bulk Assignment', () => {
-        it('should assign multiple permissions to role', async () => {
-            const permissionIds = testPermissions.map(p => p.id);
+    it('should reject invalid permission IDs (not integers)', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: ['invalid', 'ids'] });
 
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: permissionIds });
-
-            expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(response.body.data.assigned_count).toBe(3);
-            expect(response.body.data.skipped_count).toBe(0);
-            expect(response.body.data.role_id).toBe(testRole.id);
-        });
-
-        it('should skip already assigned permissions', async () => {
-            const permissionIds = testPermissions.map(p => p.id);
-
-            // Assign first two permissions manually
-            await db.insert(rolePermissions).values([
-                { role_id: testRole.id, permission_id: testPermissions[0].id, assigned_by: superadminUserId },
-                { role_id: testRole.id, permission_id: testPermissions[1].id, assigned_by: superadminUserId },
-            ]);
-
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: permissionIds });
-
-            expect(response.status).toBe(200);
-            expect(response.body.data.assigned_count).toBe(1); // Only third permission
-            expect(response.body.data.skipped_count).toBe(2); // First two skipped
-        });
+      expect(response.status).toBe(400);
     });
 
-    describe('Validation Errors', () => {
-        it('should reject non-existent role ID', async () => {
-            const response = await request(app)
-                .post('/api/rbac/roles/99999/permissions/bulk')
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: [testPermissions[0].id] });
+    it('should reject negative permission IDs', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: [-1, -2] });
 
-            expect(response.status).toBe(404);
-            expect(response.body.error?.message || response.body.message).toContain('Role not found');
-        });
-
-        it('should reject empty permission array', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: [] });
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should reject more than 50 permissions', async () => {
-            const tooManyIds = Array.from({ length: 51 }, (_, i) => i + 1);
-
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: tooManyIds });
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should reject invalid permission IDs (not integers)', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: ['invalid', 'ids'] });
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should reject negative permission IDs', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: [-1, -2] });
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should handle non-existent permission IDs gracefully', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${superadminToken}`)
-                .send({ permission_ids: [99999, 99998] });
-
-            expect(response.status).toBe(400);
-            expect(response.body.error?.message || response.body.message).toContain('No valid permission IDs');
-        });
+      expect(response.status).toBe(400);
     });
 
-    describe('Authentication & Authorization', () => {
-        it('should reject unauthenticated requests', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .send({ permission_ids: [testPermissions[0].id] });
+    it('should handle non-existent permission IDs gracefully', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${superadminToken}`)
+        .send({ permission_ids: [99999, 99998] });
 
-            expect(response.status).toBe(401);
-        });
-
-        it('should reject requests without permissions:assign permission', async () => {
-            const response = await request(app)
-                .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
-                .set('Authorization', `Bearer ${regularUserToken}`)
-                .send({ permission_ids: [testPermissions[0].id] });
-
-            expect(response.status).toBe(403);
-        });
+      expect(response.status).toBe(400);
+      expect(response.body.error?.message || response.body.message).toContain(
+        'No valid permission IDs'
+      );
     });
+  });
+
+  describe('Authentication & Authorization', () => {
+    it('should reject unauthenticated requests', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .send({ permission_ids: [testPermissions[0].id] });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should reject requests without permissions:assign permission', async () => {
+      const response = await request(app)
+        .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
+        .set('Authorization', `Bearer ${regularUserToken}`)
+        .send({ permission_ids: [testPermissions[0].id] });
+
+      expect(response.status).toBe(403);
+    });
+  });
 });

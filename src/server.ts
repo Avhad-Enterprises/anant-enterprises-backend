@@ -56,7 +56,7 @@ async function bootstrap() {
   } catch (error) {
     logger.error('App failed to start', {
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
     });
     process.exit(1); // Stop if critical services fail
   }

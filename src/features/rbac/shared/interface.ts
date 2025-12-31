@@ -11,32 +11,32 @@ import { Role, Permission, UserRole, RolePermission } from './schema';
 // ============================================
 
 export interface IRole {
-    id: number;
-    name: string;
-    description?: string | null;
-    is_system_role: boolean;
-    is_active: boolean;
-    created_by?: number | null;
-    created_at: Date;
-    updated_by?: number | null;
-    updated_at: Date;
-    is_deleted: boolean;
+  id: number;
+  name: string;
+  description?: string | null;
+  is_system_role: boolean;
+  is_active: boolean;
+  created_by?: number | null;
+  created_at: Date;
+  updated_by?: number | null;
+  updated_at: Date;
+  is_deleted: boolean;
 }
 
 export interface ICreateRole {
-    name: string;
-    description?: string;
-    is_system_role?: boolean;
+  name: string;
+  description?: string;
+  is_system_role?: boolean;
 }
 
 export interface IUpdateRole {
-    name?: string;
-    description?: string;
-    is_active?: boolean;
+  name?: string;
+  description?: string;
+  is_active?: boolean;
 }
 
 export interface IRoleWithPermissions extends IRole {
-    permissions: IPermission[];
+  permissions: IPermission[];
 }
 
 // ============================================
@@ -44,19 +44,19 @@ export interface IRoleWithPermissions extends IRole {
 // ============================================
 
 export interface IPermission {
-    id: number;
-    name: string;
-    resource: string;
-    action: string;
-    description?: string | null;
-    created_at: Date;
+  id: number;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string | null;
+  created_at: Date;
 }
 
 export interface ICreatePermission {
-    name: string;
-    resource: string;
-    action: string;
-    description?: string;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string;
 }
 
 // ============================================
@@ -64,25 +64,25 @@ export interface ICreatePermission {
 // ============================================
 
 export interface IUserRole {
-    user_id: number;
-    role_id: number;
-    assigned_by?: number | null;
-    assigned_at: Date;
-    expires_at?: Date | null;
+  user_id: number;
+  role_id: number;
+  assigned_by?: number | null;
+  assigned_at: Date;
+  expires_at?: Date | null;
 }
 
 export interface IAssignRoleToUser {
-    user_id: number;
-    role_id: number;
-    expires_at?: Date;
+  user_id: number;
+  role_id: number;
+  expires_at?: Date;
 }
 
 export interface IUserWithRoles {
-    id: number;
-    name: string;
-    email: string;
-    roles: IRole[];
-    permissions: string[]; // Aggregated permission names
+  id: number;
+  name: string;
+  email: string;
+  roles: IRole[];
+  permissions: string[]; // Aggregated permission names
 }
 
 // ============================================
@@ -90,14 +90,14 @@ export interface IUserWithRoles {
 // ============================================
 
 export interface ICachedPermissions {
-    permissions: string[];
-    roleIds: number[];
-    expiresAt: number;
+  permissions: string[];
+  roleIds: number[];
+  expiresAt: number;
 }
 
 export interface IPermissionCheck {
-    resource: string;
-    action: string;
+  resource: string;
+  action: string;
 }
 
 // ============================================
@@ -105,29 +105,29 @@ export interface IPermissionCheck {
 // ============================================
 
 export interface IRoleResponse {
-    id: number;
-    name: string;
-    description?: string | null;
-    is_system_role: boolean;
-    is_active: boolean;
-    permissions_count?: number;
-    users_count?: number;
-    created_at: Date;
+  id: number;
+  name: string;
+  description?: string | null;
+  is_system_role: boolean;
+  is_active: boolean;
+  permissions_count?: number;
+  users_count?: number;
+  created_at: Date;
 }
 
 export interface IPermissionResponse {
-    id: number;
-    name: string;
-    resource: string;
-    action: string;
-    description?: string | null;
+  id: number;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string | null;
 }
 
 export interface IUserPermissionsResponse {
-    user_id: number;
-    roles: string[];
-    permissions: string[];
-    has_wildcard: boolean;
+  user_id: number;
+  roles: string[];
+  permissions: string[];
+  has_wildcard: boolean;
 }
 
 // Re-export schema types for convenience

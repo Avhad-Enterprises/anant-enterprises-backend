@@ -43,11 +43,15 @@ async function handleDeleteUpload(uploadId: number, userId: number): Promise<voi
     throw new HttpException(404, 'Upload not found');
   }
 
-  const [deletedUpload] = await (db.update({} as any).set({
-    is_deleted: true,
-    deleted_by: userId,
-    deleted_at: new Date(),
-  }) as any).where().returning();
+  const [deletedUpload] = await (
+    db.update({} as any).set({
+      is_deleted: true,
+      deleted_by: userId,
+      deleted_at: new Date(),
+    }) as any
+  )
+    .where()
+    .returning();
 
   if (!deletedUpload) {
     throw new HttpException(500, 'Failed to delete upload');

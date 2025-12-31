@@ -72,7 +72,7 @@ export const users = pgTable(
     deleted_by: integer('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
-  (table) => ({
+  table => ({
     // Composite index for email lookups (queries always filter by is_deleted)
     emailIsDeletedIdx: index('users_email_is_deleted_idx').on(table.email, table.is_deleted),
     // Index for sorting/pagination
@@ -89,4 +89,3 @@ export const users = pgTable(
 // User type is kept for Drizzle internal usage only
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
-

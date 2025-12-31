@@ -13,17 +13,19 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import {
-    findRoleById,
-    findPermissionById,
-    findRolePermissions,
-    assignPermissionToRole,
-    removePermissionFromRole } from '../shared/queries';
+  findRoleById,
+  findPermissionById,
+  findRolePermissions,
+  assignPermissionToRole,
+  removePermissionFromRole,
+} from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 import { Permission } from '../shared/schema';
 
 // Validation schema
 const assignPermissionSchema = z.object({
-    permission_id: z.number().int().positive('Permission ID must be a positive integer') });
+  permission_id: z.number().int().positive('Permission ID must be a positive integer'),
+});
 
 type AssignPermissionDto = z.infer<typeof assignPermissionSchema>;
 
@@ -32,53 +34,54 @@ type AssignPermissionDto = z.infer<typeof assignPermissionSchema>;
 // ============================================
 
 interface RolePermissionsResult {
-    role: { id: number; name: string };
-    permissions: Permission[];
+  role: { id: number; name: string };
+  permissions: Permission[];
 }
 
 async function getRolePermissions(roleId: number): Promise<RolePermissionsResult> {
-    const role = await findRoleById(roleId);
-    if (!role) {
-        throw new HttpException(404, 'Role not found');
-    }
+  const role = await findRoleById(roleId);
+  if (!role) {
+    throw new HttpException(404, 'Role not found');
+  }
 
-    const rolePermissions = await findRolePermissions(roleId);
-    const permissions = rolePermissions.map((rp) => rp.permission);
+  const rolePermissions = await findRolePermissions(roleId);
+  const permissions = rolePermissions.map(rp => rp.permission);
 
-    return {
-        role: { id: role.id, name: role.name },
-        permissions };
+  return {
+    role: { id: role.id, name: role.name },
+    permissions,
+  };
 }
 
 async function handleAssignPermission(
-    roleId: number,
-    permissionId: number,
-    assignedBy: number
+  roleId: number,
+  permissionId: number,
+  assignedBy: number
 ): Promise<{ role_id: number; permission: Permission }> {
-    const role = await findRoleById(roleId);
-    if (!role) {
-        throw new HttpException(404, 'Role not found');
-    }
+  const role = await findRoleById(roleId);
+  if (!role) {
+    throw new HttpException(404, 'Role not found');
+  }
 
-    const permission = await findPermissionById(permissionId);
-    if (!permission) {
-        throw new HttpException(404, 'Permission not found');
-    }
+  const permission = await findPermissionById(permissionId);
+  if (!permission) {
+    throw new HttpException(404, 'Permission not found');
+  }
 
-    await assignPermissionToRole(roleId, permissionId, assignedBy);
-    rbacCacheService.invalidateAll();
+  await assignPermissionToRole(roleId, permissionId, assignedBy);
+  rbacCacheService.invalidateAll();
 
-    return { role_id: roleId, permission };
+  return { role_id: roleId, permission };
 }
 
 async function handleRemovePermission(roleId: number, permissionId: number): Promise<void> {
-    const role = await findRoleById(roleId);
-    if (!role) {
-        throw new HttpException(404, 'Role not found');
-    }
+  const role = await findRoleById(roleId);
+  if (!role) {
+    throw new HttpException(404, 'Role not found');
+  }
 
-    await removePermissionFromRole(roleId, permissionId);
-    rbacCacheService.invalidateAll();
+  await removePermissionFromRole(roleId, permissionId);
+  rbacCacheService.invalidateAll();
 }
 
 // ============================================
@@ -86,41 +89,41 @@ async function handleRemovePermission(roleId: number, permissionId: number): Pro
 // ============================================
 
 const getHandler = async (req: RequestWithUser, res: Response) => {
-    const roleId = Number(req.params.roleId);
+  const roleId = Number(req.params.roleId);
   if (isNaN(roleId) || roleId <= 0) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-    const result = await getRolePermissions(roleId);
-    ResponseFormatter.success(res, result, 'Role permissions retrieved successfully');
+  const result = await getRolePermissions(roleId);
+  ResponseFormatter.success(res, result, 'Role permissions retrieved successfully');
 };
 
 const postHandler = async (req: RequestWithUser, res: Response) => {
-    const roleId = Number(req.params.roleId);
+  const roleId = Number(req.params.roleId);
   if (isNaN(roleId) || roleId <= 0) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-    const userId = req.userId;
+  const userId = req.userId;
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
-    const { permission_id }: AssignPermissionDto = req.body;
+  const { permission_id }: AssignPermissionDto = req.body;
 
-    const result = await handleAssignPermission(roleId, permission_id, userId);
-    ResponseFormatter.success(res, result, `Permission assigned to role successfully`);
+  const result = await handleAssignPermission(roleId, permission_id, userId);
+  ResponseFormatter.success(res, result, `Permission assigned to role successfully`);
 };
 
 const deleteHandler = async (req: RequestWithUser, res: Response) => {
-    const roleId = Number(req.params.roleId);
+  const roleId = Number(req.params.roleId);
   if (isNaN(roleId) || roleId <= 0) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-    const permissionId = Number(req.params.permissionId);
+  const permissionId = Number(req.params.permissionId);
   if (isNaN(permissionId) || permissionId <= 0) {
     throw new HttpException(400, 'Invalid permissionId parameter');
   }
 
-    await handleRemovePermission(roleId, permissionId);
-    ResponseFormatter.success(res, null, 'Permission removed from role successfully');
+  await handleRemovePermission(roleId, permissionId);
+  ResponseFormatter.success(res, null, 'Permission removed from role successfully');
 };
 
 // ============================================
@@ -129,7 +132,18 @@ const deleteHandler = async (req: RequestWithUser, res: Response) => {
 
 const router = Router();
 router.get('/:roleId/permissions', requireAuth, requirePermission('roles:read'), getHandler);
-router.post('/:roleId/permissions', requireAuth, requirePermission('permissions:assign'), validationMiddleware(assignPermissionSchema), postHandler);
-router.delete('/:roleId/permissions/:permissionId', requireAuth, requirePermission('permissions:assign'), deleteHandler);
+router.post(
+  '/:roleId/permissions',
+  requireAuth,
+  requirePermission('permissions:assign'),
+  validationMiddleware(assignPermissionSchema),
+  postHandler
+);
+router.delete(
+  '/:roleId/permissions/:permissionId',
+  requireAuth,
+  requirePermission('permissions:assign'),
+  deleteHandler
+);
 
 export default router;

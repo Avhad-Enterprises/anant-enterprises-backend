@@ -13,43 +13,43 @@ import { findRoleById, deleteRole, countUsersWithRole } from '../shared/queries'
 import { rbacCacheService } from '../services/rbac-cache.service';
 
 async function handleDeleteRole(roleId: number, deletedBy: number): Promise<void> {
-    const existingRole = await findRoleById(roleId);
-    if (!existingRole) {
-        throw new HttpException(404, 'Role not found');
-    }
+  const existingRole = await findRoleById(roleId);
+  if (!existingRole) {
+    throw new HttpException(404, 'Role not found');
+  }
 
-    // Cannot delete system roles
-    if (existingRole.is_system_role) {
-        throw new HttpException(400, 'Cannot delete system roles');
-    }
+  // Cannot delete system roles
+  if (existingRole.is_system_role) {
+    throw new HttpException(400, 'Cannot delete system roles');
+  }
 
-    // Check if any users have this role
-    const usersWithRole = await countUsersWithRole(roleId);
-    if (usersWithRole > 0) {
-        throw new HttpException(
-            400,
-            `Cannot delete role: ${usersWithRole} user(s) are currently assigned to this role`
-        );
-    }
+  // Check if any users have this role
+  const usersWithRole = await countUsersWithRole(roleId);
+  if (usersWithRole > 0) {
+    throw new HttpException(
+      400,
+      `Cannot delete role: ${usersWithRole} user(s) are currently assigned to this role`
+    );
+  }
 
-    await deleteRole(roleId, deletedBy);
+  await deleteRole(roleId, deletedBy);
 
-    // Invalidate all cache since role is deleted
-    rbacCacheService.invalidateAll();
+  // Invalidate all cache since role is deleted
+  rbacCacheService.invalidateAll();
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const roleId = Number(req.params.roleId);
+  const roleId = Number(req.params.roleId);
   if (isNaN(roleId) || roleId <= 0) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-    const userId = req.userId;
+  const userId = req.userId;
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
 
-    await handleDeleteRole(roleId, userId);
-    ResponseFormatter.success(res, null, 'Role deleted successfully');
+  await handleDeleteRole(roleId, userId);
+  ResponseFormatter.success(res, null, 'Role deleted successfully');
 };
 
 const router = Router();

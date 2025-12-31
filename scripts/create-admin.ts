@@ -111,12 +111,15 @@ async function createAdminUser() {
     console.log('📝 Creating admin user...');
 
     // Use raw SQL to handle self-referential first user
-    const result = await pool.query(`
+    const result = await pool.query(
+      `
       INSERT INTO users (name, email, password, created_by)
       VALUES ($1, $2, $3, NULL)
       ON CONFLICT (email) DO NOTHING
       RETURNING id, name, email, created_at
-    `, [ADMIN_NAME, ADMIN_EMAIL, hashedPassword]);
+    `,
+      [ADMIN_NAME, ADMIN_EMAIL, hashedPassword]
+    );
 
     if (result.rows.length === 0) {
       // User already exists (conflict)
@@ -135,18 +138,21 @@ async function createAdminUser() {
     if (!adminRole) {
       throw new Error(
         'Admin role not found in RBAC system.\n' +
-        'Please run the following commands first:\n' +
-        '  1. npm run db:migrate (to create tables)\n' +
-        '  2. npm run db:seed (to seed RBAC roles and permissions)'
+          'Please run the following commands first:\n' +
+          '  1. npm run db:migrate (to create tables)\n' +
+          '  2. npm run db:seed (to seed RBAC roles and permissions)'
       );
     }
 
     // Assign admin role via RBAC
-    await db.insert(userRoles).values({
-      user_id: newUser.id,
-      role_id: adminRole.id,
-      assigned_by: newUser.id, // Self-assigned
-    }).onConflictDoNothing();
+    await db
+      .insert(userRoles)
+      .values({
+        user_id: newUser.id,
+        role_id: adminRole.id,
+        assigned_by: newUser.id, // Self-assigned
+      })
+      .onConflictDoNothing();
 
     console.log('✅ Admin user created successfully!');
     console.log(`   ID: ${newUser.id}`);
@@ -154,7 +160,6 @@ async function createAdminUser() {
     console.log(`   Email: ${newUser.email}`);
     console.log(`   Role: admin (assigned via RBAC)`);
     console.log(`   Created at: ${newUser.created_at}`);
-
   } catch (error) {
     console.error('❌ Error creating admin user:', error);
     throw error;
@@ -170,7 +175,7 @@ createAdminUser()
     console.log('✅ Script completed successfully');
     process.exit(0);
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('❌ Script failed:', error.message);
     process.exit(1);
   });

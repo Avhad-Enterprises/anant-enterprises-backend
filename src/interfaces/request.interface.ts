@@ -2,7 +2,7 @@ import { Request } from 'express';
 
 /**
  * Extended Request interfaces for type-safe middleware handling
- * 
+ *
  * Note: Base Express.Request is augmented in src/interfaces/express.d.ts
  * These interfaces provide stricter typing for specific middleware contexts
  */
@@ -17,7 +17,7 @@ export interface RequestWithId extends Request {
 /**
  * Request with guaranteed user authentication (after auth middleware)
  * Use this type in handlers that require authentication
- * 
+ *
  * Note: User roles are now managed via dynamic RBAC system
  */
 export interface RequestWithUser extends Request {

@@ -8,8 +8,8 @@ export const seed = async (dropFirst = false) => {
       await DB.schema.dropTableIfExists(EMAIL_LOG_TABLE);
     }
 
-    await DB.schema.createTable(EMAIL_LOG_TABLE, (table) => {
-      table.increments('id').primary(); 
+    await DB.schema.createTable(EMAIL_LOG_TABLE, table => {
+      table.increments('id').primary();
       table
         .integer('ticket_id')
         .unsigned()
@@ -18,13 +18,13 @@ export const seed = async (dropFirst = false) => {
         .inTable('support_tickets')
         .onDelete('CASCADE');
 
-      table.string('to_email').notNullable(); 
+      table.string('to_email').notNullable();
 
-      table.string('subject').notNullable(); 
+      table.string('subject').notNullable();
 
-      table.text('body').notNullable(); 
+      table.text('body').notNullable();
 
-      table.enu('status', ['sent', 'failed']).notNullable(); 
+      table.enu('status', ['sent', 'failed']).notNullable();
       table.timestamp('sent_at').defaultTo(DB.fn.now());
     });
 

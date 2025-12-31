@@ -13,7 +13,7 @@ export type {
   RequestWithUser,
   IAuthUser,
   IAuthUserWithToken,
-  DataStoredInToken
+  DataStoredInToken,
 } from './request.interface';
 
 // Express type declarations (global namespace extensions)

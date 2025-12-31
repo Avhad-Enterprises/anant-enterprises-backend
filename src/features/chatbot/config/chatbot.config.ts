@@ -62,11 +62,7 @@ export const chatbotConfig = {
   llm: {
     provider: 'groq',
     defaultModel: 'llama-3.3-70b-versatile',
-    availableModels: [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'mixtral-8x7b-32768',
-    ],
+    availableModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
     maxTokens: 2048,
     temperature: 0.7,
   },

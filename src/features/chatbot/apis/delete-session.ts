@@ -17,12 +17,13 @@ import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Params schema
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive() });
+  id: z.coerce.number().int().positive(),
+});
 
 /**
  * Delete session handler
  */
-const handler =(async (req: Request, res: Response) => {
+const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { id } = paramsSchema.parse(req.params);
 
@@ -42,7 +43,7 @@ const handler =(async (req: Request, res: Response) => {
   logger.info(`✅ Session ${id} deleted by user ${userId}`);
 
   ResponseFormatter.noContent(res);
-});
+};
 
 const router = Router();
 

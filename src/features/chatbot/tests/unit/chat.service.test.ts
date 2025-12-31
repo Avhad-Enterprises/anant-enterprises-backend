@@ -43,7 +43,8 @@ describe('Chat Service - Pure Functions', () => {
 
     it('should truncate title if it exceeds max length', async () => {
       // Create a message with very long words
-      const longWordMessage = 'Supercalifragilisticexpialidocious Pneumonoultramicroscopicsilicovolcanoconiosis';
+      const longWordMessage =
+        'Supercalifragilisticexpialidocious Pneumonoultramicroscopicsilicovolcanoconiosis';
       const title = await generateSessionTitle(longWordMessage);
 
       expect(title.length).toBeLessThanOrEqual(103); // 100 max + "..."

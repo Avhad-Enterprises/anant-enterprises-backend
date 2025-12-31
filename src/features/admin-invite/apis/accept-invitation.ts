@@ -125,7 +125,10 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto) {
       email: acceptData.email,
       error: loginError,
     });
-    throw new HttpException(500, 'Account created but login failed. Please try logging in manually.');
+    throw new HttpException(
+      500,
+      'Account created but login failed. Please try logging in manually.'
+    );
   }
 
   // Mark invitation as accepted

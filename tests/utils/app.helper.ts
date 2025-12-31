@@ -14,20 +14,19 @@ import RBACRoute from '../../src/features/rbac';
 let appInstance: Application | null = null;
 
 export function createTestApp(): Application {
-    if (!appInstance) {
-        const app = new App([
-            new AuthRoute(),
-            new UserRoute(),
-            new UploadRoute(),
-            new AdminInviteRoute(),
-            new ChatbotRoute(),
-            new RBACRoute(),
-        ]);
-        appInstance = app.getServer();
-    }
-    return appInstance;
+  if (!appInstance) {
+    const app = new App([
+      new AuthRoute(),
+      new UserRoute(),
+      new UploadRoute(),
+      new AdminInviteRoute(),
+      new ChatbotRoute(),
+      new RBACRoute(),
+    ]);
+    appInstance = app.getServer();
+  }
+  return appInstance;
 }
 
 // Export default app for easy import in tests
 export default createTestApp();
-

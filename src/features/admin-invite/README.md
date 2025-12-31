@@ -12,12 +12,12 @@ The Admin Invite feature allows administrators to invite users by sending them a
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Authorization |
-|----------|----------------|---------------|
-| `POST /` | ✅ Required (JWT) | Admin only |
-| `GET /` | ✅ Required (JWT) | Admin only |
-| `GET /details` | ❌ Public | None |
-| `POST /accept` | ❌ Public | None |
+| Endpoint       | Authentication    | Authorization |
+| -------------- | ----------------- | ------------- |
+| `POST /`       | ✅ Required (JWT) | Admin only    |
+| `GET /`        | ✅ Required (JWT) | Admin only    |
+| `GET /details` | ❌ Public         | None          |
+| `POST /accept` | ❌ Public         | None          |
 
 ---
 
@@ -53,12 +53,12 @@ Content-Type: application/json
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `first_name` | string | ✅ | Invitee's first name (1-100 chars) |
-| `last_name` | string | ✅ | Invitee's last name (1-100 chars) |
-| `email` | string | ✅ | Valid email address |
-| `assigned_role_id` | number | ✅ | Role ID from RBAC system (1=superadmin, 2=admin, 3=user) |
+| Field              | Type   | Required | Description                                              |
+| ------------------ | ------ | -------- | -------------------------------------------------------- |
+| `first_name`       | string | ✅       | Invitee's first name (1-100 chars)                       |
+| `last_name`        | string | ✅       | Invitee's last name (1-100 chars)                        |
+| `email`            | string | ✅       | Valid email address                                      |
+| `assigned_role_id` | number | ✅       | Role ID from RBAC system (1=superadmin, 2=admin, 3=user) |
 
 #### Success Response
 
@@ -87,13 +87,13 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | User is not an admin |
-| `409` | Conflict | User with this email already exists |
-| `409` | Conflict | Pending invitation already exists for this email |
+| Status | Error            | Description                                      |
+| ------ | ---------------- | ------------------------------------------------ |
+| `400`  | Validation Error | Invalid request body                             |
+| `401`  | Unauthorized     | Missing or invalid JWT token                     |
+| `403`  | Forbidden        | User is not an admin                             |
+| `409`  | Conflict         | User with this email already exists              |
+| `409`  | Conflict         | Pending invitation already exists for this email |
 
 ---
 
@@ -115,11 +115,11 @@ Authorization: Bearer <jwt_token>
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `status` | string | - | Filter by status: `pending`, `accepted`, `revoked`, `expired` |
-| `page` | number | `1` | Page number (min: 1) |
-| `limit` | number | `10` | Items per page (min: 1, max: 100) |
+| Parameter | Type   | Default | Description                                                   |
+| --------- | ------ | ------- | ------------------------------------------------------------- |
+| `status`  | string | -       | Filter by status: `pending`, `accepted`, `revoked`, `expired` |
+| `page`    | number | `1`     | Page number (min: 1)                                          |
+| `limit`   | number | `10`    | Items per page (min: 1, max: 100)                             |
 
 #### Example Request
 
@@ -172,9 +172,9 @@ Retrieves invitation details for pre-filling the registration form. **Public end
 
 #### Query Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `token` | string | ✅ | 64-character hex invitation token from email link |
+| Parameter | Type   | Required | Description                                       |
+| --------- | ------ | -------- | ------------------------------------------------- |
+| `token`   | string | ✅       | 64-character hex invitation token from email link |
 
 #### Example Request
 
@@ -202,12 +202,12 @@ GET /api/admin/invitations/details?token=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid token format (must be 64 hex chars) |
-| `400` | Bad Request | Invitation already accepted/expired/revoked |
-| `404` | Not Found | Invalid or expired invitation token |
-| `429` | Too Many Requests | Max verification attempts exceeded (brute force protection) |
+| Status | Error             | Description                                                 |
+| ------ | ----------------- | ----------------------------------------------------------- |
+| `400`  | Validation Error  | Invalid token format (must be 64 hex chars)                 |
+| `400`  | Bad Request       | Invitation already accepted/expired/revoked                 |
+| `404`  | Not Found         | Invalid or expired invitation token                         |
+| `429`  | Too Many Requests | Max verification attempts exceeded (brute force protection) |
 
 ---
 
@@ -231,11 +231,11 @@ Accepts an invitation and creates the user account with the password provided by
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `token` | string | ✅ | 64-character hex invitation token from URL |
-| `email` | string | ✅ | Email address (must match invitation) |
-| `password` | string | ✅ | User's chosen password (min 8 chars, must contain uppercase, lowercase, number) |
+| Field      | Type   | Required | Description                                                                     |
+| ---------- | ------ | -------- | ------------------------------------------------------------------------------- |
+| `token`    | string | ✅       | 64-character hex invitation token from URL                                      |
+| `email`    | string | ✅       | Email address (must match invitation)                                           |
+| `password` | string | ✅       | User's chosen password (min 8 chars, must contain uppercase, lowercase, number) |
 
 > **Important:** User creates their OWN password - no temp password needed!
 
@@ -271,13 +271,13 @@ Accepts an invitation and creates the user account with the password provided by
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body or password requirements not met |
-| `400` | Bad Request | Invalid or expired invitation |
-| `400` | Bad Request | Email does not match invitation |
-| `400` | Bad Request | Invitation already accepted |
-| `404` | Not Found | Invalid invitation token |
+| Status | Error            | Description                                           |
+| ------ | ---------------- | ----------------------------------------------------- |
+| `400`  | Validation Error | Invalid request body or password requirements not met |
+| `400`  | Bad Request      | Invalid or expired invitation                         |
+| `400`  | Bad Request      | Email does not match invitation                       |
+| `400`  | Bad Request      | Invitation already accepted                           |
+| `404`  | Not Found        | Invalid invitation token                              |
 
 ---
 
@@ -377,7 +377,7 @@ const AcceptInvitationPage = () => {
     try {
       const response = await fetch(`/api/admin/invitations/details?token=${token}`);
       if (!response.ok) throw new Error('Invalid invitation');
-      
+
       const { data } = await response.json();
       setInvitationDetails(data);
     } catch (err) {
@@ -388,15 +388,15 @@ const AcceptInvitationPage = () => {
   // 3. Accept invitation with user's chosen password
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await fetch('/api/admin/invitations/accept', {
         method: 'POST',
@@ -407,18 +407,18 @@ const AcceptInvitationPage = () => {
           password,
         }),
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error.message);
       }
-      
+
       const { data } = await response.json();
-      
+
       // Store auth tokens
       localStorage.setItem('access_token', data.session.access_token);
       localStorage.setItem('refresh_token', data.session.refresh_token);
-      
+
       // Redirect to dashboard
       window.location.href = '/dashboard';
     } catch (err) {
@@ -436,7 +436,7 @@ const AcceptInvitationPage = () => {
     <form onSubmit={handleSubmit}>
       <h2>Accept Invitation</h2>
       <p>Create your account password</p>
-      
+
       {/* Pre-filled fields (read-only) */}
       <input
         type="text"
@@ -444,21 +444,21 @@ const AcceptInvitationPage = () => {
         readOnly
         disabled
       />
-      
+
       <input
         type="text"
         value={invitationDetails.last_name}
         readOnly
         disabled
       />
-      
+
       <input
         type="email"
         value={invitationDetails.email}
         readOnly
         disabled
       />
-      
+
       {/* User creates password */}
       <input
         type="password"
@@ -468,7 +468,7 @@ const AcceptInvitationPage = () => {
         required
         minLength={8}
       />
-      
+
       <input
         type="password"
         placeholder="Confirm password"
@@ -476,11 +476,11 @@ const AcceptInvitationPage = () => {
         onChange={(e) => setConfirmPassword(e.target.value)}
         required
       />
-      
+
       <button type="submit" disabled={loading}>
         {loading ? 'Creating Account...' : 'Create Account'}
       </button>
-      
+
       {error && <div className="error">{error}</div>}
     </form>
   );
@@ -493,20 +493,20 @@ const AcceptInvitationPage = () => {
 
 ### Invitation Status
 
-| Status | Description |
-|--------|-------------|
-| `pending` | Invitation sent, waiting for acceptance |
-| `accepted` | User accepted and account created |
-| `revoked` | Admin revoked the invitation |
-| `expired` | Invitation expired (24 hours) |
+| Status     | Description                             |
+| ---------- | --------------------------------------- |
+| `pending`  | Invitation sent, waiting for acceptance |
+| `accepted` | User accepted and account created       |
+| `revoked`  | Admin revoked the invitation            |
+| `expired`  | Invitation expired (24 hours)           |
 
 ### RBAC Roles
 
-| Role ID | Role Name | Description |
-|---------|-----------|-------------|
-| 1 | `superadmin` | Full system access |
-| 2 | `admin` | Administrative access |
-| 3 | `user` | Standard user access |
+| Role ID | Role Name    | Description           |
+| ------- | ------------ | --------------------- |
+| 1       | `superadmin` | Full system access    |
+| 2       | `admin`      | Administrative access |
+| 3       | `user`       | Standard user access  |
 
 > **Note:** Role IDs come from the RBAC system. Use the appropriate ID when creating invitations.
 

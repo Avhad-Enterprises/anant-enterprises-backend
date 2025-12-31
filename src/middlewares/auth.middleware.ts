@@ -52,11 +52,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Get the public.users record via auth_id (UUID from Supabase)
-    const publicUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.auth_id, authUser.id))
-      .limit(1);
+    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
 
     if (!publicUser[0]) {
       logger.warn('Authentication failed: User sync not found', {

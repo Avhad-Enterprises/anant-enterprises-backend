@@ -54,10 +54,7 @@ const errorMiddleware = (
       name: error.name,
       message: error.message,
       status: status,
-      stack:
-        isDevelopment
-          ? error.stack
-          : undefined,
+      stack: isDevelopment ? error.stack : undefined,
     },
   };
 

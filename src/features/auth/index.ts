@@ -2,10 +2,10 @@
  * Auth Feature Index
  *
  * Central exports for all authentication-related functionality
- * 
+ *
  * IMPORTANT: Authentication (sign up, sign in, sign out) is handled by the FRONTEND
  * using Supabase client libraries (@supabase/supabase-js).
- * 
+ *
  * Backend provides:
  * - Token verification (middleware)
  * - Password reset endpoints

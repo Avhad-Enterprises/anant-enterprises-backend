@@ -45,9 +45,7 @@ export async function getPresignedDownloadUrl(
   try {
     const bucket = getBucketName();
 
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(key, expiresIn);
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(key, expiresIn);
 
     if (error) {
       logger.error(`Failed to generate pre-signed URL: ${error.message}`, { key, error });
@@ -61,7 +59,9 @@ export async function getPresignedDownloadUrl(
     logger.info(`Generated pre-signed URL for: ${key}`, { expiresIn });
     return data.signedUrl;
   } catch (error) {
-    logger.error(`Failed to generate pre-signed URL: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `Failed to generate pre-signed URL: ${error instanceof Error ? error.message : String(error)}`
+    );
     if (error instanceof HttpException) throw error;
     throw new HttpException(500, 'Failed to generate download URL');
   }
@@ -94,7 +94,9 @@ export async function getTransformedImageUrl(
     logger.info(`Generated transformed image URL for: ${key}`, { options, expiresIn });
     return url.toString();
   } catch (error) {
-    logger.error(`Failed to generate transformed image URL: ${error instanceof Error ? error.message : String(error)}`);
+    logger.error(
+      `Failed to generate transformed image URL: ${error instanceof Error ? error.message : String(error)}`
+    );
     if (error instanceof HttpException) throw error;
     throw new HttpException(500, 'Failed to generate transformed image URL');
   }
@@ -123,13 +125,11 @@ export async function uploadToStorage(
     const key = `uploads/${userId}/${timestamp}_${sanitizedFilename}`;
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(key, buffer, {
-        contentType: mimetype,
-        cacheControl: '3600',
-        upsert: false, // Don't overwrite existing files
-      });
+    const { data, error } = await supabase.storage.from(bucket).upload(key, buffer, {
+      contentType: mimetype,
+      cacheControl: '3600',
+      upsert: false, // Don't overwrite existing files
+    });
 
     if (error) {
       logger.error('Supabase Storage upload error', { error: error.message });
@@ -269,12 +269,10 @@ export async function deleteByPrefixFromStorage(prefix: string): Promise<number>
     const bucket = getBucketName();
 
     // List all files with the prefix
-    const { data: files, error: listError } = await supabase.storage
-      .from(bucket)
-      .list(prefix, {
-        limit: 1000, // Supabase limit
-        sortBy: { column: 'name', order: 'asc' },
-      });
+    const { data: files, error: listError } = await supabase.storage.from(bucket).list(prefix, {
+      limit: 1000, // Supabase limit
+      sortBy: { column: 'name', order: 'asc' },
+    });
 
     if (listError) {
       logger.error('Supabase Storage list error', { error: listError.message, prefix });
@@ -287,7 +285,7 @@ export async function deleteByPrefixFromStorage(prefix: string): Promise<number>
     }
 
     // Extract full paths
-    const filePaths = files.map((file) => `${prefix}${file.name}`);
+    const filePaths = files.map(file => `${prefix}${file.name}`);
 
     // Delete all files
     const { error: deleteError } = await supabase.storage.from(bucket).remove(filePaths);

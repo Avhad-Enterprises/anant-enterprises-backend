@@ -13,7 +13,8 @@ import { downloadFromStorage } from '../../../utils/supabaseStorage';
 import { findUploadById } from '../shared/queries';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('Upload ID must be a positive integer') });
+  id: z.coerce.number().int().positive('Upload ID must be a positive integer'),
+});
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const { id: uploadId } = paramsSchema.parse(req.params);

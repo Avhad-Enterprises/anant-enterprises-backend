@@ -1,10 +1,8 @@
 import DB from './index.schema';
-import knex from 'knex';
 
 export const PRODUCT_BUNDLES = 'product_bundles';
 
 export const seed = async (dropFirst = false) => {
-
   try {
     if (dropFirst) {
       console.log('Dropping Tables');
@@ -51,9 +49,9 @@ export const seed = async (dropFirst = false) => {
   }
 };
 
-  // exports.seed = seed;
-  // const run = async () => {
-  //    //createProcedure();
-  //     seed();
-  // };
-  // run();
+// exports.seed = seed;
+// const run = async () => {
+//    //createProcedure();
+//     seed();
+// };
+// run();

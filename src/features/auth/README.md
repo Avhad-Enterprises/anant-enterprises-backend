@@ -17,11 +17,11 @@ The Auth feature integrates with **Supabase Auth** for user authentication. Auth
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Description |
-|----------|----------------|-------------|
-| `POST /request-password-reset` | ❌ Public | Request password reset email |
-| `POST /reset-password` | ❌ Public | Reset password with token |
-| `POST /refresh-token` | ❌ Public | Refresh access token |
+| Endpoint                       | Authentication | Description                  |
+| ------------------------------ | -------------- | ---------------------------- |
+| `POST /request-password-reset` | ❌ Public      | Request password reset email |
+| `POST /reset-password`         | ❌ Public      | Reset password with token    |
+| `POST /refresh-token`          | ❌ Public      | Refresh access token         |
 
 ---
 
@@ -122,8 +122,10 @@ import { supabase } from '@/lib/supabase';
 
 async function callBackendAPI(endpoint: string, method: string = 'GET', body?: any) {
   // Get current session
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -132,7 +134,7 @@ async function callBackendAPI(endpoint: string, method: string = 'GET', body?: a
     method,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -147,12 +149,12 @@ async function callBackendAPI(endpoint: string, method: string = 'GET', body?: a
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✅ | User's full name (min 1 char) |
-| `email` | string | ✅ | Valid email address |
-| `password` | string | ✅ | Password (min 8 characters) |
-| `phone_number` | string | ❌ | Phone number (optional) |
+| Field          | Type   | Required | Description                   |
+| -------------- | ------ | -------- | ----------------------------- |
+| `name`         | string | ✅       | User's full name (min 1 char) |
+| `email`        | string | ✅       | Valid email address           |
+| `password`     | string | ✅       | Password (min 8 characters)   |
+| `phone_number` | string | ❌       | Phone number (optional)       |
 
 > **Note:** The `role` field is not accepted in registration requests for security. All public registrations receive the `user` role via RBAC.
 
@@ -181,10 +183,10 @@ async function callBackendAPI(endpoint: string, method: string = 'GET', body?: a
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body (e.g., short password) |
-| `409` | Conflict | Email already registered |
+| Status | Error            | Description                                 |
+| ------ | ---------------- | ------------------------------------------- |
+| `400`  | Validation Error | Invalid request body (e.g., short password) |
+| `409`  | Conflict         | Email already registered                    |
 
 ---
 
@@ -234,10 +236,10 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid email format |
-| `500` | Server Error | Failed to send reset email |
+| Status | Error            | Description                |
+| ------ | ---------------- | -------------------------- |
+| `400`  | Validation Error | Invalid email format       |
+| `500`  | Server Error     | Failed to send reset email |
 
 ---
 
@@ -278,11 +280,11 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid token or weak password |
-| `401` | Unauthorized | Invalid or expired token |
-| `500` | Server Error | Failed to update password |
+| Status | Error            | Description                    |
+| ------ | ---------------- | ------------------------------ |
+| `400`  | Validation Error | Invalid token or weak password |
+| `401`  | Unauthorized     | Invalid or expired token       |
+| `500`  | Server Error     | Failed to update password      |
 
 ---
 
@@ -326,10 +328,10 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Refresh token not provided |
-| `401` | Unauthorized | Invalid or expired refresh token |
+| Status | Error            | Description                      |
+| ------ | ---------------- | -------------------------------- |
+| `400`  | Validation Error | Refresh token not provided       |
+| `401`  | Unauthorized     | Invalid or expired refresh token |
 
 ---
 
@@ -456,6 +458,7 @@ FRONTEND_URL=http://localhost:3001
 **Issue:** Backend returns 401 Unauthorized
 
 **Solutions:**
+
 - Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` match frontend
 - Ensure token is sent as `Bearer <token>` in Authorization header
 - Check token hasn't expired (default: 1 hour)
@@ -465,6 +468,7 @@ FRONTEND_URL=http://localhost:3001
 **Issue:** User exists in Supabase Auth but not in public.users
 
 **Solutions:**
+
 - Make any authenticated API request to trigger sync
 - Check auth middleware is properly configured
 - Verify database migrations have run
@@ -474,6 +478,7 @@ FRONTEND_URL=http://localhost:3001
 **Issue:** Frontend can't reach backend API
 
 **Solutions:**
+
 - Add frontend origin to CORS allowlist
 - Check CORS middleware configuration
 - Ensure OPTIONS requests are handled

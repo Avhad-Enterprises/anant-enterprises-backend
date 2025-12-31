@@ -13,14 +13,14 @@
  */
 
 import {
-    pgTable,
-    serial,
-    varchar,
-    boolean,
-    integer,
-    timestamp,
-    index,
-    pgEnum,
+  pgTable,
+  serial,
+  varchar,
+  boolean,
+  integer,
+  timestamp,
+  index,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 import { users } from './schema';
 import { userAddresses } from './addresses.schema';
@@ -42,69 +42,70 @@ export const cardFundingEnum = pgEnum('card_funding', ['credit', 'debit', 'prepa
  * NEVER stores actual card numbers or CVV
  */
 export const userPaymentMethods = pgTable(
-    'user_payment_methods',
-    {
-        id: serial('id').primaryKey(),
-        user_id: integer('user_id')
-            .references(() => users.id, { onDelete: 'cascade' })
-            .notNull(),
-        payment_type: paymentTypeEnum('payment_type').notNull(),
-        is_default: boolean('is_default').default(false).notNull(),
+  'user_payment_methods',
+  {
+    id: serial('id').primaryKey(),
+    user_id: integer('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    payment_type: paymentTypeEnum('payment_type').notNull(),
+    is_default: boolean('is_default').default(false).notNull(),
 
-        // Razorpay tokens (primary payment gateway)
-        razorpay_customer_id: varchar('razorpay_customer_id', { length: 100 }), // cust_xxxxx
-        razorpay_token_id: varchar('razorpay_token_id', { length: 100 }), // token_xxxxx
+    // Razorpay tokens (primary payment gateway)
+    razorpay_customer_id: varchar('razorpay_customer_id', { length: 100 }), // cust_xxxxx
+    razorpay_token_id: varchar('razorpay_token_id', { length: 100 }), // token_xxxxx
 
-        // Display info (safe to store)
-        display_name: varchar('display_name', { length: 100 }), // "Visa •••• 4242"
+    // Display info (safe to store)
+    display_name: varchar('display_name', { length: 100 }), // "Visa •••• 4242"
 
-        // Card metadata (from Razorpay, no sensitive data)
-        card_last4: varchar('card_last4', { length: 4 }),
-        card_brand: varchar('card_brand', { length: 20 }), // Visa, Mastercard, Amex, RuPay
-        card_network: varchar('card_network', { length: 20 }), // Visa, Mastercard, etc.
-        card_type: cardFundingEnum('card_type'), // credit, debit, prepaid
-        card_issuer: varchar('card_issuer', { length: 100 }), // Bank name
-        card_exp_month: integer('card_exp_month'),
-        card_exp_year: integer('card_exp_year'),
+    // Card metadata (from Razorpay, no sensitive data)
+    card_last4: varchar('card_last4', { length: 4 }),
+    card_brand: varchar('card_brand', { length: 20 }), // Visa, Mastercard, Amex, RuPay
+    card_network: varchar('card_network', { length: 20 }), // Visa, Mastercard, etc.
+    card_type: cardFundingEnum('card_type'), // credit, debit, prepaid
+    card_issuer: varchar('card_issuer', { length: 100 }), // Bank name
+    card_exp_month: integer('card_exp_month'),
+    card_exp_year: integer('card_exp_year'),
 
-        // UPI info
-        upi_id: varchar('upi_id', { length: 100 }), // name@upi
+    // UPI info
+    upi_id: varchar('upi_id', { length: 100 }), // name@upi
 
-        // Wallet info
-        wallet_type: varchar('wallet_type', { length: 50 }), // Paytm, PhonePe, Freecharge
+    // Wallet info
+    wallet_type: varchar('wallet_type', { length: 50 }), // Paytm, PhonePe, Freecharge
 
-        // Netbanking info
-        netbanking_bank_code: varchar('netbanking_bank_code', { length: 20 }), // Bank code
-        netbanking_bank_name: varchar('netbanking_bank_name', { length: 100 }), // Bank name
+    // Netbanking info
+    netbanking_bank_code: varchar('netbanking_bank_code', { length: 20 }), // Bank code
+    netbanking_bank_name: varchar('netbanking_bank_name', { length: 100 }), // Bank name
 
-        // Billing address reference
-        billing_address_id: integer('billing_address_id')
-            .references(() => userAddresses.id, { onDelete: 'set null' }),
+    // Billing address reference
+    billing_address_id: integer('billing_address_id').references(() => userAddresses.id, {
+      onDelete: 'set null',
+    }),
 
-        // Verification status
-        is_verified: boolean('is_verified').default(false).notNull(),
-        verified_at: timestamp('verified_at'),
-        last_used_at: timestamp('last_used_at'),
+    // Verification status
+    is_verified: boolean('is_verified').default(false).notNull(),
+    verified_at: timestamp('verified_at'),
+    last_used_at: timestamp('last_used_at'),
 
-        // Audit fields
-        created_at: timestamp('created_at').defaultNow().notNull(),
-        updated_at: timestamp('updated_at').defaultNow().notNull(),
-        is_deleted: boolean('is_deleted').default(false).notNull(),
-    },
-    (table) => ({
-        // User's payment methods lookup
-        userIdIdx: index('user_payment_methods_user_id_idx').on(table.user_id, table.is_deleted),
-        // Default payment method lookup
-        userDefaultIdx: index('user_payment_methods_user_default_idx').on(
-            table.user_id,
-            table.is_default,
-            table.is_deleted
-        ),
-        // Razorpay customer lookup
-        razorpayCustomerIdx: index('user_payment_methods_razorpay_customer_idx').on(
-            table.razorpay_customer_id
-        ),
-    })
+    // Audit fields
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+    is_deleted: boolean('is_deleted').default(false).notNull(),
+  },
+  table => ({
+    // User's payment methods lookup
+    userIdIdx: index('user_payment_methods_user_id_idx').on(table.user_id, table.is_deleted),
+    // Default payment method lookup
+    userDefaultIdx: index('user_payment_methods_user_default_idx').on(
+      table.user_id,
+      table.is_default,
+      table.is_deleted
+    ),
+    // Razorpay customer lookup
+    razorpayCustomerIdx: index('user_payment_methods_razorpay_customer_idx').on(
+      table.razorpay_customer_id
+    ),
+  })
 );
 
 // Export types for TypeScript

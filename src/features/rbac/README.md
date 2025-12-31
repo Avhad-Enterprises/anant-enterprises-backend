@@ -81,14 +81,14 @@ Create a helper to check permissions in UI components.
 
 ```javascript
 // Example helper
-const can = (permission) => {
+const can = permission => {
   return userPermissions.includes('*') || userPermissions.includes(permission);
 };
 
 // Usage in React
-{can('users:create') && (
-  <CreateButton />
-)}
+{
+  can('users:create') && <CreateButton />;
+}
 ```
 
 ## Testing
@@ -97,7 +97,7 @@ Use `AuthTestHelper` to seed RBAC data in tests.
 
 ```typescript
 beforeEach(async () => {
-    // Seeds default roles (admin, user) and permissions
-    await AuthTestHelper.seedRBACData();
+  // Seeds default roles (admin, user) and permissions
+  await AuthTestHelper.seedRBACData();
 });
 ```

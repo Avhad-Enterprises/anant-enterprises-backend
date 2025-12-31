@@ -47,15 +47,12 @@ export {
   uploadStatuses,
   type UploadStatus,
   type Upload as DrizzleUpload,
-  type NewUpload
+  type NewUpload,
 } from './shared/schema';
 export {
   type Upload,
   type UploadUpdateInput,
   type UploadStats,
-  convertUpload
+  convertUpload,
 } from './shared/interface';
-export {
-  findUploadById,
-  findUploadByIdAdmin
-} from './shared/queries';
+export { findUploadById, findUploadByIdAdmin } from './shared/queries';

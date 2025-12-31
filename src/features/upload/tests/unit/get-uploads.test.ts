@@ -141,7 +141,11 @@ describe('Get Uploads Business Logic', () => {
     });
 
     it('should handle upload with error message', async () => {
-      const failedUpload = { ...mockUpload, status: 'failed' as const, error_message: 'Processing failed' };
+      const failedUpload = {
+        ...mockUpload,
+        status: 'failed' as const,
+        error_message: 'Processing failed',
+      };
       mockUploadQueries.findUploadById.mockResolvedValue(failedUpload);
 
       const result = await getUserById(1, 1);

@@ -31,7 +31,7 @@ export function chunkText(text: string): IChunkingResult {
 
     // Split into sentences first
     const sentences = splitIntoSentences(text);
-    
+
     // Build chunks from sentences
     const chunks = buildChunksFromSentences(sentences);
 
@@ -54,13 +54,11 @@ export function chunkText(text: string): IChunkingResult {
 function splitIntoSentences(text: string): string[] {
   // Split by sentence-ending punctuation followed by space or newline
   const sentenceRegex = /(?<=[.!?])\s+(?=[A-Z])|(?<=\n\n)/g;
-  
+
   const rawSentences = text.split(sentenceRegex);
-  
+
   // Filter out empty sentences and trim
-  const sentences = rawSentences
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+  const sentences = rawSentences.map(s => s.trim()).filter(s => s.length > 0);
 
   return sentences;
 }
@@ -92,7 +90,7 @@ function buildChunksFromSentences(sentences: string[]): IChunk[] {
 
       // Calculate overlap - keep some sentences for context
       const overlapSentences = calculateOverlapSentences(currentChunk);
-      
+
       // Start new chunk with overlap
       currentChunk = overlapSentences;
       currentLength = overlapSentences.join(' ').length;
@@ -108,7 +106,7 @@ function buildChunksFromSentences(sentences: string[]): IChunk[] {
   // Don't forget the last chunk
   if (currentChunk.length > 0) {
     const chunkText = currentChunk.join(' ');
-    
+
     // Only add if it meets minimum size or it's the only content
     if (chunkText.length >= chunkingConfig.minChunkSize || chunks.length === 0) {
       chunks.push({
@@ -136,9 +134,7 @@ function buildChunksFromSentences(sentences: string[]): IChunk[] {
  */
 function calculateOverlapSentences(sentences: string[]): string[] {
   const overlapRatio = chunkingConfig.overlapPercentage / 100;
-  const targetOverlapLength = Math.floor(
-    sentences.join(' ').length * overlapRatio
-  );
+  const targetOverlapLength = Math.floor(sentences.join(' ').length * overlapRatio);
 
   const overlapSentences: string[] = [];
   let overlapLength = 0;
@@ -155,7 +151,11 @@ function calculateOverlapSentences(sentences: string[]): string[] {
 /**
  * Chunk text with fixed size (alternative simpler method)
  */
-export function chunkTextFixed(text: string, chunkSize?: number, overlap?: number): IChunkingResult {
+export function chunkTextFixed(
+  text: string,
+  chunkSize?: number,
+  overlap?: number
+): IChunkingResult {
   const size = chunkSize || chunkingConfig.targetChunkSize;
   const overlapSize = overlap || Math.floor(size * (chunkingConfig.overlapPercentage / 100));
 
@@ -169,7 +169,7 @@ export function chunkTextFixed(text: string, chunkSize?: number, overlap?: numbe
     if (endPosition < text.length) {
       const searchStart = Math.max(position + size - 100, position);
       const searchText = text.substring(searchStart, endPosition + 50);
-      
+
       // Look for sentence end markers
       const boundaryMatch = searchText.match(/[.!?]\s+/);
       if (boundaryMatch && boundaryMatch.index !== undefined) {
@@ -210,6 +210,7 @@ export function chunkTextFixed(text: string, chunkSize?: number, overlap?: numbe
  * Estimate number of chunks for a text
  */
 export function estimateChunkCount(textLength: number): number {
-  const effectiveChunkSize = chunkingConfig.targetChunkSize * (1 - chunkingConfig.overlapPercentage / 100);
+  const effectiveChunkSize =
+    chunkingConfig.targetChunkSize * (1 - chunkingConfig.overlapPercentage / 100);
   return Math.ceil(textLength / effectiveChunkSize);
 }

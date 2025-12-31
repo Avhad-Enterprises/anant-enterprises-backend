@@ -14,6 +14,9 @@ import { config } from '../../../../utils/validateEnv';
 jest.mock('../../shared/queries');
 jest.mock('../../../user');
 jest.mock('../../../../utils/email/sendInvitationEmail');
+jest.mock('../../../../database', () => ({
+  db: jest.fn(),
+}));
 jest.mock('../../../../utils/validateEnv', () => ({
   config: {
     ALLOWED_ORIGINS: 'http://localhost:3000',
@@ -27,7 +30,10 @@ jest.mock('../../../../utils', () => ({
     warn: jest.fn(),
   },
   HttpException: class extends Error {
-    constructor(public status: number, message: string) {
+    constructor(
+      public status: number,
+      message: string
+    ) {
       super(message);
       this.name = 'HttpException';
     }
@@ -177,7 +183,10 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     });
 
     it('should throw 409 if user already exists', async () => {
-      mockUserQueries.findUserByEmail.mockResolvedValue({ id: 1, email: 'john.doe@example.com' } as any);
+      mockUserQueries.findUserByEmail.mockResolvedValue({
+        id: 1,
+        email: 'john.doe@example.com',
+      } as any);
 
       await expect(handleCreateInvitation(mockInvitationData, 1)).rejects.toThrow(HttpException);
       await expect(handleCreateInvitation(mockInvitationData, 1)).rejects.toMatchObject({

@@ -55,10 +55,14 @@ async function updateUser(id: number, data: UpdateUserData, updatedBy: number): 
     updateData.password = await bcrypt.hash(data.password, 10);
   }
 
-  const [result] = await (db.update(users).set({
-    ...updateData,
-    updated_at: new Date(),
-  }) as any).where().returning();
+  const [result] = await (
+    db.update(users).set({
+      ...updateData,
+      updated_at: new Date(),
+    }) as any
+  )
+    .where()
+    .returning();
 
   if (!result) {
     throw new HttpException(500, 'Failed to update user');
@@ -126,7 +130,9 @@ describe('Update User Business Logic', () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
       mockUserQueries.findUserByEmail.mockResolvedValue(anotherUser);
 
-      await expect(updateUser(1, { email: 'existing@example.com' }, 2)).rejects.toThrow(HttpException);
+      await expect(updateUser(1, { email: 'existing@example.com' }, 2)).rejects.toThrow(
+        HttpException
+      );
       await expect(updateUser(1, { email: 'existing@example.com' }, 2)).rejects.toMatchObject({
         status: 409,
         message: 'Email already exists',

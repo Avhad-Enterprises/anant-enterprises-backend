@@ -20,7 +20,7 @@ async function getUserUploadStats(userId: number): Promise<UploadStats> {
       pending_count: sql<number>`COUNT(CASE WHEN ${uploads.status} = 'pending' THEN 1 END)`,
       processing_count: sql<number>`COUNT(CASE WHEN ${uploads.status} = 'processing' THEN 1 END)`,
       completed_count: sql<number>`COUNT(CASE WHEN ${uploads.status} = 'completed' THEN 1 END)`,
-      failed_count: sql<number>`COUNT(CASE WHEN ${uploads.status} = 'failed' THEN 1 END)`
+      failed_count: sql<number>`COUNT(CASE WHEN ${uploads.status} = 'failed' THEN 1 END)`,
     })
     .from(uploads)
     .where(and(eq(uploads.user_id, userId), eq(uploads.is_deleted, false)));
@@ -28,7 +28,7 @@ async function getUserUploadStats(userId: number): Promise<UploadStats> {
   const uploadsByType = await db
     .select({
       mime_type: uploads.mime_type,
-      count: count()
+      count: count(),
     })
     .from(uploads)
     .where(and(eq(uploads.user_id, userId), eq(uploads.is_deleted, false)))
@@ -49,9 +49,9 @@ async function getUserUploadStats(userId: number): Promise<UploadStats> {
       pending: Number(stats.pending_count),
       processing: Number(stats.processing_count),
       completed: Number(stats.completed_count),
-      failed: Number(stats.failed_count)
+      failed: Number(stats.failed_count),
     },
-    uploads_by_type: uploadsByTypeMap
+    uploads_by_type: uploadsByTypeMap,
   };
 }
 

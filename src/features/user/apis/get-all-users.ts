@@ -23,7 +23,7 @@ const MAX_LIMIT = 100;
 // Query params validation
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(DEFAULT_PAGE),
-  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT)
+  limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
 });
 
 interface PaginatedUsers {
@@ -57,11 +57,11 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     users: allUsers as IUser[],
     total,
     page,
-    limit
+    limit,
   };
 }
 
-const handler = (async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
   // Parse and validate pagination params
   const { page, limit } = paginationSchema.parse(req.query);
 
@@ -74,7 +74,7 @@ const handler = (async (req: RequestWithUser, res: Response) => {
     { page: result.page, limit: result.limit, total: result.total },
     'Users retrieved successfully'
   );
-});
+};
 
 const router = Router();
 router.get('/', requireAuth, requirePermission('users:read'), handler);

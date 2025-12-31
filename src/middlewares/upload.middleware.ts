@@ -22,21 +22,34 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
   // Images
   'image/jpeg': [[0xff, 0xd8, 0xff]],
   'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
-  'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]],
+  'image/gif': [
+    [0x47, 0x49, 0x46, 0x38, 0x37, 0x61],
+    [0x47, 0x49, 0x46, 0x38, 0x39, 0x61],
+  ],
   'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF header (WebP starts with RIFF)
-  'image/svg+xml': [[0x3c, 0x3f, 0x78, 0x6d, 0x6c], [0x3c, 0x73, 0x76, 0x67]], // <?xml or <svg
-  
+  'image/svg+xml': [
+    [0x3c, 0x3f, 0x78, 0x6d, 0x6c],
+    [0x3c, 0x73, 0x76, 0x67],
+  ], // <?xml or <svg
+
   // Documents
   'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
-  
+
   // Archives
-  'application/zip': [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06]],
-  
+  'application/zip': [
+    [0x50, 0x4b, 0x03, 0x04],
+    [0x50, 0x4b, 0x05, 0x06],
+  ],
+
   // Office documents (OOXML - same as ZIP)
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4b, 0x03, 0x04]],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [[0x50, 0x4b, 0x03, 0x04]],
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [[0x50, 0x4b, 0x03, 0x04]],
-  
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+
   // CSV/Text files don't have magic numbers - validated by MIME only
 };
 
@@ -46,13 +59,13 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
  */
 function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
   const signatures = FILE_SIGNATURES[mimeType];
-  
+
   // If no signature defined for this type, allow based on MIME check only
   // (e.g., CSV, plain text files)
   if (!signatures) {
     return true;
   }
-  
+
   // Check if buffer starts with any of the valid signatures
   return signatures.some(signature => {
     if (buffer.length < signature.length) {
@@ -154,11 +167,7 @@ const ALLOWED_CSV_TYPES = [
 ];
 
 // File filter function to validate CSV files
-const csvFileFilter = (
-  req: Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
-) => {
+const csvFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Check MIME type
   if (ALLOWED_CSV_TYPES.includes(file.mimetype)) {
     cb(null, true);
@@ -171,11 +180,7 @@ const csvFileFilter = (
     return;
   }
 
-  cb(
-    new Error(
-      `File type ${file.mimetype} is not allowed. Only CSV files are accepted.`
-    )
-  );
+  cb(new Error(`File type ${file.mimetype} is not allowed. Only CSV files are accepted.`));
 };
 
 // Configure multer for CSV uploads
@@ -235,10 +240,7 @@ export const uploadCsvMiddleware = (req: Request, res: Response, next: NextFunct
     // Validate CSV content structure
     if (!validateCsvContent(req.file.buffer)) {
       return next(
-        new HttpException(
-          400,
-          'Invalid CSV file. File does not appear to contain valid CSV data.'
-        )
+        new HttpException(400, 'Invalid CSV file. File does not appear to contain valid CSV data.')
       );
     }
 

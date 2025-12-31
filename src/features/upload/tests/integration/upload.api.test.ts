@@ -247,11 +247,7 @@ describeStorage('Upload API Integration Tests', () => {
       const updateData = { status: 'completed' };
       const nonExistentId = 99999;
 
-      const response = await apiHelper.put(
-        `/api/uploads/${nonExistentId}`,
-        updateData,
-        authToken
-      );
+      const response = await apiHelper.put(`/api/uploads/${nonExistentId}`, updateData, authToken);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('not found');

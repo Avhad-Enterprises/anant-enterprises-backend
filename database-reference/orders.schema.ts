@@ -15,12 +15,14 @@ export const seed = async (dropFirst = false) => {
     await DB.schema.createTable(ORDERS, table => {
       table.bigIncrements('order_id').primary().comment('Primary key');
 
-      table.string("order_number", 40)
+      table
+        .string('order_number', 40)
         .unique()
         .notNullable()
-        .comment("Human-friendly code (e.g., #123456)");
+        .comment('Human-friendly code (e.g., #123456)');
 
-      table.bigInteger('user_id')
+      table
+        .bigInteger('user_id')
         .unsigned()
         .nullable()
         .references('user_id')
@@ -28,13 +30,23 @@ export const seed = async (dropFirst = false) => {
         .onDelete('SET NULL')
         .comment('FK to users (nullable for guest checkout)');
 
-      table.enu('channel', ['web', 'app', 'pos', 'marketplace', 'other'])
+      table
+        .enu('channel', ['web', 'app', 'pos', 'marketplace', 'other'])
         .defaultTo('web')
         .comment('Order source');
 
       table.boolean('is_draft').defaultTo(false).comment('Draft/quote before payment');
       table.string('payment_method', 60).comment('e.g., card, upi, cod');
-      table.enu('payment_status', ['pending', 'authorized', 'partially_paid', 'paid', 'refunded', 'failed', 'partially_refunded'])
+      table
+        .enu('payment_status', [
+          'pending',
+          'authorized',
+          'partially_paid',
+          'paid',
+          'refunded',
+          'failed',
+          'partially_refunded',
+        ])
         .defaultTo('pending')
         .comment('Payment state');
       table.string('payment_ref', 120).nullable().comment('PSP payment intent/id');
@@ -42,29 +54,41 @@ export const seed = async (dropFirst = false) => {
       table.dateTime('paid_at').nullable().comment('When payment completed');
       table.string('currency', 3).defaultTo('INR').comment('ISO currency');
 
-      table.decimal('subtotal', 12, 2).notNullable().defaultTo(0.00).comment('Sum of line totals');
-      table.enu('discount_type', ['percent', 'amount', 'none']).defaultTo('none').comment('Cart-level discount type');
-      table.decimal('discount_value', 12, 2).notNullable().defaultTo(0.00).comment('% or amount value');
-      table.decimal('discount_amount', 12, 2).notNullable().defaultTo(0.00).comment('Final discounted amount');
+      table.decimal('subtotal', 12, 2).notNullable().defaultTo(0.0).comment('Sum of line totals');
+      table
+        .enu('discount_type', ['percent', 'amount', 'none'])
+        .defaultTo('none')
+        .comment('Cart-level discount type');
+      table
+        .decimal('discount_value', 12, 2)
+        .notNullable()
+        .defaultTo(0.0)
+        .comment('% or amount value');
+      table
+        .decimal('discount_amount', 12, 2)
+        .notNullable()
+        .defaultTo(0.0)
+        .comment('Final discounted amount');
       table.string('discount_code', 80).nullable();
       table.string('giftcard_code', 80).nullable();
-      table.decimal('giftcard_amount', 12, 2).notNullable().defaultTo(0.00);
+      table.decimal('giftcard_amount', 12, 2).notNullable().defaultTo(0.0);
 
       table.string('shipping_method', 120).nullable();
       table.string('shipping_option', 120).nullable();
-      table.decimal('shipping_amount', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('partial_cod_charges', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('advance_paid_amount', 12, 2).defaultTo(0.00);
-      table.decimal('cod_due_amount', 12, 2).defaultTo(0.00);
+      table.decimal('shipping_amount', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('partial_cod_charges', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('advance_paid_amount', 12, 2).defaultTo(0.0);
+      table.decimal('cod_due_amount', 12, 2).defaultTo(0.0);
 
-      table.decimal('tax_amount', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('cgst', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('sgst', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('igst', 12, 2).notNullable().defaultTo(0.00);
-      table.decimal('total_amount', 12, 2).notNullable().defaultTo(0.00).comment('Grand total');
+      table.decimal('tax_amount', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('cgst', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('sgst', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('igst', 12, 2).notNullable().defaultTo(0.0);
+      table.decimal('total_amount', 12, 2).notNullable().defaultTo(0.0).comment('Grand total');
       table.integer('total_quantity').notNullable().defaultTo(0);
 
-      table.enu('fulfillment_status', ['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled'])
+      table
+        .enu('fulfillment_status', ['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled'])
         .defaultTo('unfulfilled')
         .comment('Ship state');
       table.dateTime('fulfillment_date').nullable();
@@ -87,7 +111,6 @@ export const seed = async (dropFirst = false) => {
       table.timestamp('deleted_at').nullable();
       table.bigInteger('deleted_by').nullable();
     });
-
 
     console.log('Finished Seeding Tables');
 

@@ -12,15 +12,15 @@ The Upload feature provides file management capabilities for users. Files are st
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Authorization |
-|----------|----------------|---------------|
-| `POST /` | ✅ Required | Owner only |
-| `GET /` | ✅ Required | Owner only |
-| `GET /stats` | ✅ Required | Owner only |
-| `GET /:id` | ✅ Required | Owner only |
-| `GET /:id/download` | ✅ Required | Owner only |
-| `PUT /:id` | ✅ Required | Owner only |
-| `DELETE /:id` | ✅ Required | Owner only |
+| Endpoint            | Authentication | Authorization |
+| ------------------- | -------------- | ------------- |
+| `POST /`            | ✅ Required    | Owner only    |
+| `GET /`             | ✅ Required    | Owner only    |
+| `GET /stats`        | ✅ Required    | Owner only    |
+| `GET /:id`          | ✅ Required    | Owner only    |
+| `GET /:id/download` | ✅ Required    | Owner only    |
+| `PUT /:id`          | ✅ Required    | Owner only    |
+| `DELETE /:id`       | ✅ Required    | Owner only    |
 
 > **Note:** All upload endpoints are user-scoped. Users can only access their own uploads.
 
@@ -45,13 +45,14 @@ Content-Type: multipart/form-data
 
 #### Request Body (Form Data)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `file` | File | ✅ | File to upload |
+| Field  | Type | Required | Description    |
+| ------ | ---- | -------- | -------------- |
+| `file` | File | ✅       | File to upload |
 
 #### Supported File Types
 
 All common file types are supported including:
+
 - Documents: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX
 - Images: JPG, PNG, GIF, SVG, WebP
 - Data: JSON, XML, CSV
@@ -85,11 +86,11 @@ All common file types are supported including:
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Bad Request | No file uploaded |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `413` | Payload Too Large | File exceeds size limit |
+| Status | Error             | Description                  |
+| ------ | ----------------- | ---------------------------- |
+| `400`  | Bad Request       | No file uploaded             |
+| `401`  | Unauthorized      | Missing or invalid JWT token |
+| `413`  | Payload Too Large | File exceeds size limit      |
 
 ---
 
@@ -109,14 +110,14 @@ Authorization: Bearer <jwt_token>
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | `1` | Page number |
-| `limit` | number | `10` | Items per page |
-| `status` | string | - | Filter by status: `pending`, `processing`, `completed`, `failed` |
-| `mime_type` | string | - | Filter by MIME type (e.g., `text/csv`) |
-| `sort_by` | string | `created_at` | Sort field: `created_at`, `file_size`, `original_filename` |
-| `sort_order` | string | `desc` | Sort order: `asc`, `desc` |
+| Parameter    | Type   | Default      | Description                                                      |
+| ------------ | ------ | ------------ | ---------------------------------------------------------------- |
+| `page`       | number | `1`          | Page number                                                      |
+| `limit`      | number | `10`         | Items per page                                                   |
+| `status`     | string | -            | Filter by status: `pending`, `processing`, `completed`, `failed` |
+| `mime_type`  | string | -            | Filter by MIME type (e.g., `text/csv`)                           |
+| `sort_by`    | string | `created_at` | Sort field: `created_at`, `file_size`, `original_filename`       |
+| `sort_order` | string | `desc`       | Sort order: `asc`, `desc`                                        |
 
 #### Example Request
 
@@ -176,9 +177,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Upload ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Upload ID   |
 
 #### Success Response
 
@@ -209,10 +210,10 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Upload not found or belongs to another user |
+| Status | Error        | Description                                 |
+| ------ | ------------ | ------------------------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token                |
+| `404`  | Not Found    | Upload not found or belongs to another user |
 
 ---
 
@@ -232,9 +233,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Upload ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Upload ID   |
 
 #### Success Response
 
@@ -248,10 +249,10 @@ The response body contains the raw file data.
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Upload not found or belongs to another user |
+| Status | Error        | Description                                 |
+| ------ | ------------ | ------------------------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token                |
+| `404`  | Not Found    | Upload not found or belongs to another user |
 
 ---
 
@@ -272,9 +273,9 @@ Content-Type: application/json
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Upload ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Upload ID   |
 
 #### Request Body
 
@@ -288,11 +289,11 @@ Content-Type: application/json
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `filename` | string | ❌ | New filename (min 1 char) |
-| `status` | string | ❌ | Status: `pending`, `processing`, `completed`, `failed` |
-| `error_message` | string | ❌ | Error message (for failed status) |
+| Field           | Type   | Required | Description                                            |
+| --------------- | ------ | -------- | ------------------------------------------------------ |
+| `filename`      | string | ❌       | New filename (min 1 char)                              |
+| `status`        | string | ❌       | Status: `pending`, `processing`, `completed`, `failed` |
+| `error_message` | string | ❌       | Error message (for failed status)                      |
 
 #### Success Response
 
@@ -323,11 +324,11 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Upload not found or belongs to another user |
+| Status | Error            | Description                                 |
+| ------ | ---------------- | ------------------------------------------- |
+| `400`  | Validation Error | Invalid request body                        |
+| `401`  | Unauthorized     | Missing or invalid JWT token                |
+| `404`  | Not Found        | Upload not found or belongs to another user |
 
 ---
 
@@ -347,9 +348,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Upload ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Upload ID   |
 
 #### Success Response
 
@@ -365,10 +366,10 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Upload not found or belongs to another user |
+| Status | Error        | Description                                 |
+| ------ | ------------ | ------------------------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token                |
+| `404`  | Not Found    | Upload not found or belongs to another user |
 
 ---
 
@@ -415,12 +416,12 @@ Authorization: Bearer <jwt_token>
 
 #### Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_uploads` | number | Total number of uploads |
-| `total_size` | number | Total size in bytes |
-| `uploads_by_status` | object | Count by status |
-| `uploads_by_type` | object | Count by MIME type |
+| Field               | Type   | Description             |
+| ------------------- | ------ | ----------------------- |
+| `total_uploads`     | number | Total number of uploads |
+| `total_size`        | number | Total size in bytes     |
+| `uploads_by_status` | object | Count by status         |
+| `uploads_by_type`   | object | Count by MIME type      |
 
 ---
 
@@ -448,12 +449,12 @@ Authorization: Bearer <jwt_token>
 
 ### Status Descriptions
 
-| Status | Description |
-|--------|-------------|
-| `pending` | File uploaded, waiting for processing |
-| `processing` | File is being processed |
-| `completed` | Processing completed successfully |
-| `failed` | Processing failed (check `error_message`) |
+| Status       | Description                               |
+| ------------ | ----------------------------------------- |
+| `pending`    | File uploaded, waiting for processing     |
+| `processing` | File is being processed                   |
+| `completed`  | Processing completed successfully         |
+| `failed`     | Processing failed (check `error_message`) |
 
 ---
 
@@ -505,7 +506,7 @@ interface ListParams {
 // Get auth header
 const getAuthHeader = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 // Upload a file
@@ -693,14 +694,14 @@ export function FileUploader({ onUploadComplete, accept }: FileUploaderProps) {
         onChange={handleFileSelect}
         disabled={uploading}
       />
-      
+
       {uploading && (
         <div className="upload-progress">
           <div className="progress-bar" style={{ width: `${progress}%` }} />
           <span>Uploading...</span>
         </div>
       )}
-      
+
       {error && <p className="error">{error}</p>}
     </div>
   );
@@ -750,7 +751,7 @@ export function UploadList() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this file?')) return;
-    
+
     try {
       await deleteUpload(id);
       setUploads(uploads.filter(u => u.id !== id));
@@ -802,17 +803,13 @@ export function UploadList() {
       </table>
 
       <div className="pagination">
-        <button 
-          disabled={page === 1} 
-          onClick={() => setPage(p => p - 1)}
-        >
+        <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>
           Previous
         </button>
-        <span>Page {page} of {Math.ceil(total / limit)}</span>
-        <button 
-          disabled={page >= Math.ceil(total / limit)} 
-          onClick={() => setPage(p => p + 1)}
-        >
+        <span>
+          Page {page} of {Math.ceil(total / limit)}
+        </span>
+        <button disabled={page >= Math.ceil(total / limit)} onClick={() => setPage(p => p + 1)}>
           Next
         </button>
       </div>
@@ -827,24 +824,24 @@ export function UploadList() {
 
 ### Upload Status
 
-| Status | Description |
-|--------|-------------|
-| `pending` | File uploaded, waiting for processing |
-| `processing` | File is being processed |
-| `completed` | Processing completed successfully |
-| `failed` | Processing failed |
+| Status       | Description                           |
+| ------------ | ------------------------------------- |
+| `pending`    | File uploaded, waiting for processing |
+| `processing` | File is being processed               |
+| `completed`  | Processing completed successfully     |
+| `failed`     | Processing failed                     |
 
 ### Common MIME Types
 
-| Type | MIME Type |
-|------|-----------|
-| CSV | `text/csv` |
-| PDF | `application/pdf` |
-| JSON | `application/json` |
-| PNG | `image/png` |
-| JPEG | `image/jpeg` |
-| Word | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
-| Excel | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
+| Type  | MIME Type                                                                 |
+| ----- | ------------------------------------------------------------------------- |
+| CSV   | `text/csv`                                                                |
+| PDF   | `application/pdf`                                                         |
+| JSON  | `application/json`                                                        |
+| PNG   | `image/png`                                                               |
+| JPEG  | `image/jpeg`                                                              |
+| Word  | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
+| Excel | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`       |
 
 ---
 

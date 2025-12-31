@@ -57,10 +57,14 @@ async function handleUpdateUpload(
     throw new HttpException(404, 'Upload not found');
   }
 
-  const [updatedUpload] = await (db.update({} as any).set({
-    ...updateData,
-    updated_at: new Date(),
-  }) as any).where().returning();
+  const [updatedUpload] = await (
+    db.update({} as any).set({
+      ...updateData,
+      updated_at: new Date(),
+    }) as any
+  )
+    .where()
+    .returning();
 
   if (!updatedUpload) {
     throw new HttpException(500, 'Failed to update upload');
@@ -118,7 +122,9 @@ describe('Update Upload Business Logic', () => {
     it('should throw 404 when upload not found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(undefined);
 
-      await expect(handleUpdateUpload(999, { status: 'completed' }, 1)).rejects.toThrow(HttpException);
+      await expect(handleUpdateUpload(999, { status: 'completed' }, 1)).rejects.toThrow(
+        HttpException
+      );
       await expect(handleUpdateUpload(999, { status: 'completed' }, 1)).rejects.toMatchObject({
         status: 404,
         message: 'Upload not found',
@@ -133,7 +139,9 @@ describe('Update Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(handleUpdateUpload(1, { status: 'completed' }, 1)).rejects.toThrow(HttpException);
+      await expect(handleUpdateUpload(1, { status: 'completed' }, 1)).rejects.toThrow(
+        HttpException
+      );
       await expect(handleUpdateUpload(1, { status: 'completed' }, 1)).rejects.toMatchObject({
         status: 500,
         message: 'Failed to update upload',
@@ -157,13 +165,21 @@ describe('Update Upload Business Logic', () => {
     it('should update error_message for failed uploads', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const failedUpload = { ...updatedMockUpload, status: 'failed' as const, error_message: 'Processing error' };
+      const failedUpload = {
+        ...updatedMockUpload,
+        status: 'failed' as const,
+        error_message: 'Processing error',
+      };
       const mockReturning = jest.fn().mockResolvedValue([failedUpload]);
       const mockWhere = jest.fn().mockReturnValue({ returning: mockReturning });
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await handleUpdateUpload(1, { status: 'failed', error_message: 'Processing error' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { status: 'failed', error_message: 'Processing error' },
+        1
+      );
 
       expect(result.status).toBe('failed');
       expect(result.error_message).toBe('Processing error');

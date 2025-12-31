@@ -8,15 +8,7 @@
  * (all handled by RBAC or authentication systems)
  */
 
-import {
-    pgTable,
-    serial,
-    varchar,
-    boolean,
-    integer,
-    timestamp,
-    index,
-} from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, boolean, integer, timestamp, index } from 'drizzle-orm/pg-core';
 import { users } from './schema';
 
 // ============================================
@@ -29,35 +21,35 @@ import { users } from './schema';
  * Permissions managed via RBAC
  */
 export const adminProfiles = pgTable(
-    'admin_profiles',
-    {
-        id: serial('id').primaryKey(),
-        user_id: integer('user_id')
-            .references(() => users.id, { onDelete: 'cascade' })
-            .unique()
-            .notNull(),
+  'admin_profiles',
+  {
+    id: serial('id').primaryKey(),
+    user_id: integer('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .unique()
+      .notNull(),
 
-        // Employee info
-        employee_id: varchar('employee_id', { length: 50 }).unique(), // Company employee ID
-        department: varchar('department', { length: 100 }), // Sales, Support, Inventory, Finance
-        job_title: varchar('job_title', { length: 100 }), // Manager, Executive, etc.
+    // Employee info
+    employee_id: varchar('employee_id', { length: 50 }).unique(), // Company employee ID
+    department: varchar('department', { length: 100 }), // Sales, Support, Inventory, Finance
+    job_title: varchar('job_title', { length: 100 }), // Manager, Executive, etc.
 
-        // Status
-        is_active: boolean('is_active').default(true).notNull(),
+    // Status
+    is_active: boolean('is_active').default(true).notNull(),
 
-        // Audit fields
-        created_at: timestamp('created_at').defaultNow().notNull(),
-        updated_at: timestamp('updated_at').defaultNow().notNull(),
-        is_deleted: boolean('is_deleted').default(false).notNull(),
-    },
-    (table) => ({
-        // Department filtering
-        departmentIdx: index('admin_profiles_department_idx').on(table.department, table.is_active),
-        // Active admins
-        isActiveIdx: index('admin_profiles_is_active_idx').on(table.is_active, table.is_deleted),
-        // Employee ID lookup
-        employeeIdIdx: index('admin_profiles_employee_id_idx').on(table.employee_id),
-    })
+    // Audit fields
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+    is_deleted: boolean('is_deleted').default(false).notNull(),
+  },
+  table => ({
+    // Department filtering
+    departmentIdx: index('admin_profiles_department_idx').on(table.department, table.is_active),
+    // Active admins
+    isActiveIdx: index('admin_profiles_is_active_idx').on(table.is_active, table.is_deleted),
+    // Employee ID lookup
+    employeeIdIdx: index('admin_profiles_employee_id_idx').on(table.employee_id),
+  })
 );
 
 // Export types for TypeScript

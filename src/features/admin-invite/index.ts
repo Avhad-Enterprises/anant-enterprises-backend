@@ -45,10 +45,7 @@ export {
   type NewInvitation,
 } from './shared/schema';
 
-export type {
-  IInvitation,
-  ICreateInvitation,
-} from './shared/interface';
+export type { IInvitation, ICreateInvitation } from './shared/interface';
 
 export {
   findInvitationById,

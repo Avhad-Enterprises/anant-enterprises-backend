@@ -1,4 +1,13 @@
-import { pgTable, serial, text, timestamp, integer, boolean, varchar, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  integer,
+  boolean,
+  varchar,
+  index,
+} from 'drizzle-orm/pg-core';
 import { users } from '../../user/shared/schema';
 
 export const invitationStatuses = ['pending', 'accepted', 'revoked', 'expired'] as const;
@@ -63,7 +72,10 @@ export const invitations = pgTable(
     // Composite index for email lookups
     emailIsDeletedIdx: index('invitation_email_is_deleted_idx').on(table.email, table.is_deleted),
     // Composite index for status filtering
-    statusIsDeletedIdx: index('invitation_status_is_deleted_idx').on(table.status, table.is_deleted),
+    statusIsDeletedIdx: index('invitation_status_is_deleted_idx').on(
+      table.status,
+      table.is_deleted
+    ),
     // For expiration cleanup queries
     expiresAtIdx: index('invitation_expires_at_idx').on(table.expires_at),
     // For admin to list their invitations

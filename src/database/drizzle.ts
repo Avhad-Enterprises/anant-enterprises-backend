@@ -31,17 +31,8 @@ import {
 } from '../features/user';
 import { uploads } from '../features/upload';
 import { invitations } from '../features/admin-invite';
-import {
-  chatbotDocuments,
-  chatbotSessions,
-  chatbotMessages,
-} from '../features/chatbot';
-import {
-  roles,
-  permissions,
-  rolePermissions,
-  userRoles,
-} from '../features/rbac';
+import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../features/chatbot';
+import { roles, permissions, rolePermissions, userRoles } from '../features/rbac';
 import {
   currencies,
   taxRules,
@@ -64,7 +55,7 @@ if (!connectionString) {
 /**
  * PostgreSQL connection pool using node-postgres (pg)
  * More mature and production-ready than postgres-js
- * 
+ *
  * SSL Configuration:
  * - Production: Requires SSL with certificate validation
  * - Set DATABASE_SSL_CA env var for custom CA certificate
@@ -72,10 +63,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-    rejectUnauthorized: true, // Always validate certificates in production
-    // If using self-signed certs, set DATABASE_SSL_CA env var
-    ca: process.env.DATABASE_SSL_CA || undefined,
-  }
+      rejectUnauthorized: true, // Always validate certificates in production
+      // If using self-signed certs, set DATABASE_SSL_CA env var
+      ca: process.env.DATABASE_SSL_CA || undefined,
+    }
   : undefined;
 
 export const pool = new Pool({
@@ -90,7 +81,10 @@ export const pool = new Pool({
  * Retry database connection with exponential backoff
  * Useful in containerized environments where DB may not be ready immediately
  */
-export async function connectWithRetry(maxRetries: number = 5, baseDelayMs: number = 1000): Promise<boolean> {
+export async function connectWithRetry(
+  maxRetries: number = 5,
+  baseDelayMs: number = 1000
+): Promise<boolean> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const client = await pool.connect();
@@ -99,9 +93,12 @@ export async function connectWithRetry(maxRetries: number = 5, baseDelayMs: numb
       return true;
     } catch (error) {
       const delay = baseDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
-      logger.warn(`Database connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delay}ms...`, {
-        error: error instanceof Error ? error.message : String(error)
-      });
+      logger.warn(
+        `Database connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delay}ms...`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
 
       if (attempt < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, delay));

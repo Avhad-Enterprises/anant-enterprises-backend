@@ -20,9 +20,14 @@ import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
 import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('Upload ID must be a positive integer') });
+  id: z.coerce.number().int().positive('Upload ID must be a positive integer'),
+});
 
-async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll: boolean): Promise<void> {
+async function handleDeleteUpload(
+  uploadId: number,
+  userId: number,
+  canDeleteAll: boolean
+): Promise<void> {
   // Find upload based on permission
   let existingUpload;
   if (canDeleteAll) {
@@ -40,7 +45,8 @@ async function handleDeleteUpload(uploadId: number, userId: number, canDeleteAll
     .set({
       is_deleted: true,
       deleted_by: userId,
-      deleted_at: new Date() })
+      deleted_at: new Date(),
+    })
     .where(eq(uploads.id, uploadId))
     .returning();
 

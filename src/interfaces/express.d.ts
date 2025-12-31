@@ -22,4 +22,4 @@ declare global {
 }
 
 // Required to make this a module
-export { };
+export {};

@@ -78,11 +78,7 @@ describe('Admin Invite API Integration Tests', () => {
         assigned_role_id: userRoleId,
       };
 
-      const response = await apiHelper.post(
-        '/api/admin/invitations',
-        invitationData,
-        adminToken
-      );
+      const response = await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
       expect(response.status).toBe(200);
       expect(response.body.data.first_name).toBe('Harshal');
@@ -104,11 +100,7 @@ describe('Admin Invite API Integration Tests', () => {
         assigned_role_id: userRoleId,
       };
 
-      const response = await apiHelper.post(
-        '/api/admin/invitations',
-        invitationData,
-        adminToken
-      );
+      const response = await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
       expect(response.status).toBe(400);
       expect(response.body.error.message).toContain('email');
@@ -162,14 +154,12 @@ describe('Admin Invite API Integration Tests', () => {
       await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
       // Try to create duplicate
-      const response = await apiHelper.post(
-        '/api/admin/invitations',
-        invitationData,
-        adminToken
-      );
+      const response = await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
       expect(response.status).toBe(409);
-      expect(response.body.error.message).toContain('An active invitation already exists for this email');
+      expect(response.body.error.message).toContain(
+        'An active invitation already exists for this email'
+      );
     });
 
     it('should require admin role', async () => {
@@ -221,11 +211,7 @@ describe('Admin Invite API Integration Tests', () => {
           assigned_role_id: role.id,
         };
 
-        const response = await apiHelper.post(
-          '/api/admin/invitations',
-          invitationData,
-          adminToken
-        );
+        const response = await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
         expect(response.status).toBe(200);
         expect(response.body.data.assigned_role_id).toBe(role.id);
@@ -290,10 +276,7 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should filter invitations by status', async () => {
-      const response = await apiHelper.get(
-        '/api/admin/invitations?status=pending',
-        adminToken
-      );
+      const response = await apiHelper.get('/api/admin/invitations?status=pending', adminToken);
 
       expect(response.status).toBe(200);
       expect(response.body.data.invitations).toHaveLength(1);
@@ -301,10 +284,7 @@ describe('Admin Invite API Integration Tests', () => {
     });
 
     it('should support pagination', async () => {
-      const response = await apiHelper.get(
-        '/api/admin/invitations?page=1&limit=2',
-        adminToken
-      );
+      const response = await apiHelper.get('/api/admin/invitations?page=1&limit=2', adminToken);
 
       expect(response.status).toBe(200);
       expect(response.body.data.invitations).toHaveLength(2);
@@ -387,9 +367,7 @@ describe('Admin Invite API Integration Tests', () => {
 
     it('should fail with non-existent token', async () => {
       const fakeToken = generateInviteToken();
-      const response = await apiHelper.get(
-        `/api/admin/invitations/details?token=${fakeToken}`
-      );
+      const response = await apiHelper.get(`/api/admin/invitations/details?token=${fakeToken}`);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('Invalid or expired invitation');
@@ -428,9 +406,7 @@ describe('Admin Invite API Integration Tests', () => {
         expires_at: new Date(Date.now() - 1000), // Already expired
       });
 
-      const response = await apiHelper.get(
-        `/api/admin/invitations/details?token=${expiredToken}`
-      );
+      const response = await apiHelper.get(`/api/admin/invitations/details?token=${expiredToken}`);
 
       expect(response.status).toBe(400);
       expect(response.body.error.message).toContain('expired');
@@ -504,10 +480,7 @@ describe('Admin Invite API Integration Tests', () => {
       expect(response.body.message).toContain('Account created successfully');
 
       // Verify user was updated in database
-      const [createdUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, invitationEmail));
+      const [createdUser] = await db.select().from(users).where(eq(users.email, invitationEmail));
 
       expect(createdUser).toBeDefined();
       expect(createdUser.name).toBe('New User');
@@ -649,11 +622,7 @@ describe('Admin Invite API Integration Tests', () => {
         assigned_role_id: adminRoleId,
       };
 
-      const response = await apiHelper.post(
-        '/api/admin/invitations',
-        invitationData,
-        adminToken
-      );
+      const response = await apiHelper.post('/api/admin/invitations', invitationData, adminToken);
 
       expect(response.status).toBe(200);
       expect(response.body.data.email).toBe(testEmail);

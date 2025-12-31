@@ -5,13 +5,7 @@
  */
 
 // Core database connection and configuration
-export {
-  pool,
-  connectWithRetry,
-  schema,
-  db,
-  closeDatabase
-} from './drizzle';
+export { pool, connectWithRetry, schema, db, closeDatabase } from './drizzle';
 
 // Database health checks
 export type { HealthCheckResult } from './health';

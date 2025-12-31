@@ -1,9 +1,9 @@
 /**
  * Database URL Configuration Utility
- * 
+ *
  * Handles the conversion of Docker container hostnames to localhost
  * for scripts/tests running on the host machine.
- * 
+ *
  * Usage:
  *   import { getDatabaseUrl } from '../utils';
  *   const dbUrl = getDatabaseUrl();
@@ -21,7 +21,7 @@ const HOST_PORTS: Record<string, number> = {
 
 /**
  * Get the correct DATABASE_URL based on environment
- * 
+ *
  * - Inside Docker: Uses container hostname (postgres:5432)
  * - On Host: Converts to localhost with mapped port
  */

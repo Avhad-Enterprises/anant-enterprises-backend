@@ -8,20 +8,20 @@ import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
 
 class SettingsRoute implements Route {
-    public path = '/settings';
-    public router = Router();
+  public path = '/settings';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private async initializeRoutes() {
-        // TODO: Add settings APIs
-        // Currencies CRUD
-        // Tax Rules CRUD
-        // Countries reference
-        // Regions reference
-    }
+  private async initializeRoutes() {
+    // TODO: Add settings APIs
+    // Currencies CRUD
+    // Tax Rules CRUD
+    // Countries reference
+    // Regions reference
+  }
 }
 
 // Main route export

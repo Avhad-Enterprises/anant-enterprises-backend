@@ -107,8 +107,8 @@ async function createTestUsers() {
     if (!adminUserRole) {
       throw new Error(
         'Admin user not found.\n' +
-        'Please run: npm run create-admin\n' +
-        'This will create an admin user that can be used as the creator reference.'
+          'Please run: npm run create-admin\n' +
+          'This will create an admin user that can be used as the creator reference.'
       );
     }
 
@@ -141,32 +141,42 @@ async function createTestUsers() {
       // Create test user (no role column)
       console.log(`📝 Creating ${userData.role} user...`);
 
-      const result = await pool.query(`
+      const result = await pool.query(
+        `
         INSERT INTO users (name, email, password, created_by)
         VALUES ($1, $2, $3, $4)
         RETURNING id, name, email, created_at
-      `, [userData.name, userData.email, hashedPassword, adminUser.id]);
+      `,
+        [userData.name, userData.email, hashedPassword, adminUser.id]
+      );
 
       const newUser = result.rows[0];
 
       // Get role ID from RBAC
-      const [roleRecord] = await db.select().from(roles).where(eq(roles.name, userData.role)).limit(1);
+      const [roleRecord] = await db
+        .select()
+        .from(roles)
+        .where(eq(roles.name, userData.role))
+        .limit(1);
 
       if (!roleRecord) {
         throw new Error(
           `Role '${userData.role}' not found in RBAC system.\n` +
-          'Please run the following commands first:\n' +
-          '  1. npm run db:migrate (to create tables)\n' +
-          '  2. npm run db:seed (to seed RBAC roles and permissions)'
+            'Please run the following commands first:\n' +
+            '  1. npm run db:migrate (to create tables)\n' +
+            '  2. npm run db:seed (to seed RBAC roles and permissions)'
         );
       }
 
       // Assign role via RBAC
-      await db.insert(userRoles).values({
-        user_id: newUser.id,
-        role_id: roleRecord.id,
-        assigned_by: adminUser.id,
-      }).onConflictDoNothing();
+      await db
+        .insert(userRoles)
+        .values({
+          user_id: newUser.id,
+          role_id: roleRecord.id,
+          assigned_by: adminUser.id,
+        })
+        .onConflictDoNothing();
 
       console.log(`✅ ${userData.role} user created successfully!`);
       console.log(`   ID: ${newUser.id}`);
@@ -178,7 +188,6 @@ async function createTestUsers() {
     }
 
     console.log('\n🎉 All test users processed successfully!');
-
   } catch (error) {
     console.error('❌ Error creating test users:', error);
     throw error;
@@ -194,7 +203,7 @@ createTestUsers()
     console.log('✅ Script completed successfully');
     process.exit(0);
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('❌ Script failed:', error.message);
     process.exit(1);
   });

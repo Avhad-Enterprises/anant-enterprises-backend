@@ -29,7 +29,8 @@ const uploadQuerySchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).optional(),
   limit: z.string().regex(/^\d+$/).transform(Number).optional(),
   sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
-  sort_order: z.enum(['asc', 'desc']).optional() });
+  sort_order: z.enum(['asc', 'desc']).optional(),
+});
 
 async function getUploadsWithPagination(
   userId: number,
@@ -42,7 +43,8 @@ async function getUploadsWithPagination(
     page = 1,
     limit = 10,
     sort_by = 'created_at',
-    sort_order = 'desc' } = filters;
+    sort_order = 'desc',
+  } = filters;
 
   // Build conditions - if canViewAll, don't filter by user_id
   const conditions = [eq(uploads.is_deleted, false)];
@@ -78,7 +80,8 @@ async function getUploadsWithPagination(
     uploads: uploadsList.map(convertUpload),
     total: Number(total),
     page,
-    limit };
+    limit,
+  };
 }
 
 const handleGetAllUploads = async (req: RequestWithUser, res: Response) => {
@@ -149,13 +152,12 @@ const handleGetUploadsByStatus = async (req: RequestWithUser, res: Response) => 
     conditions.push(eq(uploads.user_id, userId));
   }
 
-  const uploadsList = await db.select().from(uploads).where(and(...conditions));
+  const uploadsList = await db
+    .select()
+    .from(uploads)
+    .where(and(...conditions));
 
-  ResponseFormatter.success(
-    res,
-    uploadsList.map(convertUpload),
-    'Uploads retrieved successfully'
-  );
+  ResponseFormatter.success(res, uploadsList.map(convertUpload), 'Uploads retrieved successfully');
 };
 
 const router = Router();

@@ -11,6 +11,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Product prices, tax calculations, and entire schema design depends on this. Hard to migrate from single currency to multi-currency later.
 
 **Implementation Requirements**:
+
 - Currency table with exchange rates and symbols
 - Price storage strategy (store in base currency vs. multiple currencies)
 - Locale-based content (product names, descriptions in multiple languages)
@@ -24,6 +25,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Ecommerce requires strict audit trails (price changes, inventory, orders). Basic audit fields exist but need event-sourcing.
 
 **Implementation Requirements**:
+
 - Audit trail table for critical operations
 - Track all inventory changes with before/after values
 - Track all price changes with timestamps
@@ -38,6 +40,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Fundamental to data isolation and access control. Nearly impossible to retrofit later.
 
 **Implementation Requirements**:
+
 - Organization/Store/Vendor tables
 - Tenant-scoped queries (every query needs tenant context)
 - Row-level security vs. schema-per-tenant decision
@@ -51,6 +54,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Ecommerce has many async workflows (order processing, inventory sync, emails). Hard to move from synchronous to async later.
 
 **Implementation Requirements**:
+
 - Event bus (Bull/BullMQ with Redis - already available)
 - Event types: OrderCreated, PaymentProcessed, InventoryUpdated, etc.
 - Event handlers for async processing
@@ -67,6 +71,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Products need multiple images with variants (thumbnails, zoom, mobile). Current upload system is basic.
 
 **Implementation Requirements**:
+
 - Image processing pipeline (sharp/jimp)
 - Multiple size variants (thumbnail, medium, large, zoom)
 - Image optimization (compression, format conversion)
@@ -82,6 +87,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Payment integration affects order flow design and database schema.
 
 **Implementation Requirements**:
+
 - Payment provider interface (Stripe, Razorpay, PayPal, etc.)
 - Webhook handler architecture for payment status updates
 - Payment status tracking (pending, processing, completed, failed, refunded)
@@ -97,6 +103,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Tax affects pricing display and checkout flow. Complex to add later.
 
 **Implementation Requirements**:
+
 - Tax rules by region/state/country
 - Tax rate tables with effective dates
 - Tax-inclusive vs. tax-exclusive pricing options
@@ -112,6 +119,7 @@ This document outlines the critical foundational systems that should be implemen
 **Why Now**: Determines how you handle stock, reservations, and overselling prevention.
 
 **Implementation Requirements**:
+
 - Stock tracking (available, reserved, sold, damaged)
 - Warehouse/location support (if multi-warehouse)
 - Stock reservation during checkout (with expiration)
@@ -127,6 +135,7 @@ This document outlines the critical foundational systems that should be implemen
 ### 9. Search Infrastructure
 
 **Implementation Requirements**:
+
 - Elasticsearch/Meilisearch/Typesense setup
 - Product indexing strategy with variants
 - Faceted search for filters (price, category, brand, etc.)
@@ -136,6 +145,7 @@ This document outlines the critical foundational systems that should be implemen
 ### 10. Notification System
 
 **Implementation Requirements**:
+
 - Email templates (order confirmation, shipping, returns, etc.)
 - SMS integration for critical notifications
 - Push notification support (if mobile app planned)
@@ -146,6 +156,7 @@ This document outlines the critical foundational systems that should be implemen
 ### 11. API Versioning Strategy
 
 **Implementation Requirements**:
+
 - `/api/v1/` structure with version headers
 - Versioned response schemas
 - Backward compatibility handling
@@ -155,6 +166,7 @@ This document outlines the critical foundational systems that should be implemen
 ### 12. Shipping/Logistics Foundation
 
 **Implementation Requirements**:
+
 - Shipping zones and regions
 - Shipping methods & rate calculations
 - Carrier integration points (FedEx, UPS, etc.)
@@ -178,21 +190,25 @@ This document outlines the critical foundational systems that should be implemen
 ## 🎯 Recommended Implementation Order
 
 ### Phase 1 (Weeks 1-3): Core Infrastructure
+
 1. **Multi-currency setup** - Affects all price-related schemas
 2. **Event system (Bull queue)** - Foundation for async processing
 3. **Comprehensive audit logging** - Required for compliance
 
 ### Phase 2 (Weeks 3-5): Media & Commerce Foundations
+
 4. **Enhanced media management** - Product images are critical
 5. **Inventory management foundation** - Stock tracking basics
 6. **Tax calculation framework** - Pricing and checkout
 
 ### Phase 3 (Weeks 5-7): Payment & Integration
+
 7. **Payment gateway abstraction** - Checkout completion
 8. **Shipping foundation** - Order fulfillment
 9. **Notification system** - Customer communication
 
 ### Phase 4 (Weeks 7-9): Advanced Features
+
 10. **Search infrastructure** - Product discovery
 11. **API versioning** - Future-proofing
 12. **Multi-tenancy** - If B2B/multi-vendor needed
@@ -200,24 +216,29 @@ This document outlines the critical foundational systems that should be implemen
 ## 💡 Key Decision Points
 
 ### Currency Strategy
+
 - **Single Base Currency**: Store all prices in USD/EUR, convert at display time
 - **Multi-Currency Storage**: Store prices in multiple currencies (more complex but accurate)
 
 ### Inventory Approach
+
 - **Simple**: Single warehouse, basic stock tracking
 - **Advanced**: Multi-warehouse, stock reservations, backorders
 
 ### Payment Strategy
+
 - **Single Provider**: Start with one (Stripe) for simplicity
 - **Multi-Provider**: Abstract layer for multiple payment methods
 
 ### Architecture Decisions
+
 - **Monolithic**: Keep everything in one codebase (current approach)
 - **Microservices**: Split payment, inventory, etc. (complex but scalable)
 
 ## 🚀 Next Steps
 
 Choose your first implementation based on:
+
 1. **Business requirements** (B2B? International? Multi-vendor?)
 2. **Technical constraints** (team size, timeline, budget)
 3. **Market needs** (what will give you competitive advantage)
@@ -226,5 +247,5 @@ Choose your first implementation based on:
 
 ---
 
-*This foundation will give you a robust, scalable ecommerce backend that can handle growth and complex business requirements.*</content>
+_This foundation will give you a robust, scalable ecommerce backend that can handle growth and complex business requirements._</content>
 <parameter name="filePath">/Users/harshalpatil/Documents/Avhad Enterprises/Anant-Enterprises/anant-enterprises-backend/ECOMMERCE_FOUNDATION_README.md

@@ -21,9 +21,10 @@ export async function handleResetPassword(accessToken: string, newPassword: stri
   const { error } = await updatePassword(accessToken, newPassword);
 
   if (error) {
-    const errorMessage = error && typeof error === 'object' && 'message' in error
-      ? String(error.message)
-      : 'Password reset failed';
+    const errorMessage =
+      error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : 'Password reset failed';
     throw new HttpException(400, errorMessage);
   }
 

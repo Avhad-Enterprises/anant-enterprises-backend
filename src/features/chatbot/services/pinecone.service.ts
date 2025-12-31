@@ -4,22 +4,67 @@
  * Handles connection and operations with Pinecone vector database.
  */
 
-import { Pinecone } from '@pinecone-database/pinecone';
+import { Pinecone, Index } from '@pinecone-database/pinecone';
 import { logger } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { chatbotConfig } from '../config/chatbot.config';
 
-// Initialize Pinecone client
-const pinecone = new Pinecone({
-  apiKey: config.PINECONE_API_KEY,
+// Lazy initialization of Pinecone client
+let pineconeClient: Pinecone | null = null;
+let pineconeIndexInstance: Index | null = null;
+let niraNamespaceInstance: Index | null = null;
+
+function getPineconeClient(): Pinecone {
+  if (!pineconeClient) {
+    if (!config.PINECONE_API_KEY) {
+      throw new Error('PINECONE_API_KEY is required but not configured');
+    }
+    pineconeClient = new Pinecone({
+      apiKey: config.PINECONE_API_KEY,
+    });
+  }
+  return pineconeClient;
+}
+
+function getPineconeIndex(): Index {
+  if (!pineconeIndexInstance) {
+    const client = getPineconeClient();
+    const indexName = config.PINECONE_INDEX_NAME;
+    pineconeIndexInstance = client.index(indexName);
+  }
+  return pineconeIndexInstance;
+}
+
+function getNiraNamespace(): Index {
+  if (!niraNamespaceInstance) {
+    const index = getPineconeIndex();
+    niraNamespaceInstance = index.namespace(chatbotConfig.general.namespace);
+  }
+  return niraNamespaceInstance;
+}
+
+// Create lazy-initialized proxy objects
+export const pineconeIndex: Index = new Proxy({} as Index, {
+  get(target, prop) {
+    const index = getPineconeIndex();
+    const value = (index as unknown as Record<string, unknown>)[prop as string];
+    if (typeof value === 'function') {
+      return value.bind(index);
+    }
+    return value;
+  },
 });
 
-// Get the index
-const indexName = config.PINECONE_INDEX_NAME;
-export const pineconeIndex = pinecone.index(indexName);
-
-// Get the namespace for NIRA AI (single global namespace)
-export const niraNamespace = pineconeIndex.namespace(chatbotConfig.general.namespace);
+export const niraNamespace: Index = new Proxy({} as Index, {
+  get(target, prop) {
+    const namespace = getNiraNamespace();
+    const value = (namespace as unknown as Record<string, unknown>)[prop as string];
+    if (typeof value === 'function') {
+      return value.bind(namespace);
+    }
+    return value;
+  },
+});
 
 /**
  * Initialize and test Pinecone connection
@@ -32,7 +77,9 @@ export async function initializePinecone(): Promise<boolean> {
     const stats = await pineconeIndex.describeIndexStats();
 
     logger.info('✅ Pinecone connection successful');
-    logger.info(`📊 Pinecone index stats - Total records: ${stats.totalRecordCount}, Dimension: ${stats.dimension}`);
+    logger.info(
+      `📊 Pinecone index stats - Total records: ${stats.totalRecordCount}, Dimension: ${stats.dimension}`
+    );
 
     return true;
   } catch (error) {
@@ -81,4 +128,4 @@ export async function pineconeHealthCheck(): Promise<{
   }
 }
 
-export default pinecone;
+export default getPineconeClient;

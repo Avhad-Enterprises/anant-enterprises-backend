@@ -57,7 +57,11 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
 
   // Assign role via RBAC system if specified
   if (invitation.assigned_role_id) {
-    await rbacQueries.assignRoleToUser(newUser.id, invitation.assigned_role_id, invitation.invited_by);
+    await rbacQueries.assignRoleToUser(
+      newUser.id,
+      invitation.assigned_role_id,
+      invitation.invited_by
+    );
   }
 
   const updatedInvitation = await inviteQueries.updateInvitation(invitation.id, {

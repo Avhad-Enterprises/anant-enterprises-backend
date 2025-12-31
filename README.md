@@ -36,45 +36,45 @@ Each feature is self-contained with its own APIs, schema, queries, and tests.
 
 ## API Endpoints
 
-| Method | Endpoint | Access | Description |
-|--------|----------|--------|-------------|
-| POST | `/auth/register` | Public | User registration |
-| POST | `/auth/login` | Public | User login |
-| POST | `/auth/refresh-token` | Public | Refresh JWT |
-| GET | `/users/:id` | Auth | Get user profile |
-| PUT | `/users/:id` | Auth | Update profile |
-| GET | `/users` | Admin | List all users |
-| DELETE | `/users/:id` | Admin | Delete user |
-| POST | `/uploads` | Auth | Upload file (PDF/DOC) |
-| GET | `/uploads` | Auth | List uploads |
-| GET | `/uploads/:id/download` | Auth | Download file |
-| POST | `/admin/invitations` | Admin | Send user invite |
-| POST | `/chatbot/documents` | Admin | Upload training document |
-| POST | `/chatbot/sessions` | Auth | Create chat session |
-| POST | `/chatbot/sessions/:id/messages` | Auth | Send message |
-| GET | `/health` | Public | Health check |
+| Method | Endpoint                         | Access | Description              |
+| ------ | -------------------------------- | ------ | ------------------------ |
+| POST   | `/auth/register`                 | Public | User registration        |
+| POST   | `/auth/login`                    | Public | User login               |
+| POST   | `/auth/refresh-token`            | Public | Refresh JWT              |
+| GET    | `/users/:id`                     | Auth   | Get user profile         |
+| PUT    | `/users/:id`                     | Auth   | Update profile           |
+| GET    | `/users`                         | Admin  | List all users           |
+| DELETE | `/users/:id`                     | Admin  | Delete user              |
+| POST   | `/uploads`                       | Auth   | Upload file (PDF/DOC)    |
+| GET    | `/uploads`                       | Auth   | List uploads             |
+| GET    | `/uploads/:id/download`          | Auth   | Download file            |
+| POST   | `/admin/invitations`             | Admin  | Send user invite         |
+| POST   | `/chatbot/documents`             | Admin  | Upload training document |
+| POST   | `/chatbot/sessions`              | Auth   | Create chat session      |
+| POST   | `/chatbot/sessions/:id/messages` | Auth   | Send message             |
+| GET    | `/health`                        | Public | Health check             |
 
 All protected endpoints require `Authorization: Bearer <token>` header.
 
 ## User Roles
 
-| Role | Access Level |
-|------|--------------|
-| `admin` | Full access, user management |
-| `scientist` | Data access, file uploads |
-| `researcher` | Limited data access |
-| `policymaker` | Read-only access |
+| Role          | Access Level                 |
+| ------------- | ---------------------------- |
+| `admin`       | Full access, user management |
+| `scientist`   | Data access, file uploads    |
+| `researcher`  | Limited data access          |
+| `policymaker` | Read-only access             |
 
 ## Common Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm test` | Run all tests |
-| `npm run db:migrate` | Apply database migrations |
-| `npm run db:studio` | Open Drizzle Studio GUI |
+| Command              | Description                |
+| -------------------- | -------------------------- |
+| `npm run dev`        | Start development server   |
+| `npm test`           | Run all tests              |
+| `npm run db:migrate` | Apply database migrations  |
+| `npm run db:studio`  | Open Drizzle Studio GUI    |
 | `npm run docker:dev` | Run full stack with Docker |
-| `npm run build` | Build for production |
+| `npm run build`      | Build for production       |
 
 ## Environment Variables
 
@@ -92,21 +92,25 @@ See `.env.example` for the complete list.
 ## Features
 
 ### Authentication & Authorization
+
 - JWT-based authentication with refresh tokens
 - Role-based access control (RBAC)
 - Secure password hashing with bcrypt
 
 ### User Management
+
 - User registration and profile management
 - Admin invitation system with temporary passwords
 - Soft delete functionality
 
 ### File Upload
+
 - S3-compatible file storage
 - Support for PDF, DOC, DOCX, images
 - File metadata tracking
 
 ### AI Chatbot
+
 - RAG (Retrieval-Augmented Generation) chatbot
 - Document upload and vectorization
 - Context-aware responses using Pinecone + Groq

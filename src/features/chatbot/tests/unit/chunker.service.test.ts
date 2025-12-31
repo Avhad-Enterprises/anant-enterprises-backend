@@ -58,7 +58,8 @@ describe('Chunker Service', () => {
     });
 
     it('should have start and end positions for each chunk', () => {
-      const text = 'First sentence here. Second sentence here. Third sentence here. Fourth sentence.';
+      const text =
+        'First sentence here. Second sentence here. Third sentence here. Fourth sentence.';
       const result = chunkText(text);
 
       result.chunks.forEach((chunk: IChunk) => {
@@ -100,9 +101,7 @@ describe('Chunker Service', () => {
     });
 
     it('should handle overlap parameter', () => {
-      const text = Array(10)
-        .fill('Testing overlap functionality in text chunking. ')
-        .join('');
+      const text = Array(10).fill('Testing overlap functionality in text chunking. ').join('');
 
       const resultWithOverlap = chunkTextFixed(text, 100, 20);
       const resultWithoutOverlap = chunkTextFixed(text, 100, 0);

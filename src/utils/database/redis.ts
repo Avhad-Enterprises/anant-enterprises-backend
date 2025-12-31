@@ -45,11 +45,11 @@ export const testRedisConnection = async (): Promise<boolean> => {
     const host = config.REDIS_HOST;
     const port = config.REDIS_PORT;
     logger.info(`🔄 Testing Redis connection to ${host}:${port}...`);
-    
+
     if (!redisClient.isReady) {
       await redisClient.connect();
     }
-    
+
     const result = await redisClient.ping();
     logger.info(`✅ Redis connection test passed: ${result}`);
     return true;

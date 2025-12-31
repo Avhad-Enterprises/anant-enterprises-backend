@@ -1,6 +1,6 @@
 /**
  * Auth Shared Interfaces
- * 
+ *
  * Common interfaces used across the auth feature
  */
 

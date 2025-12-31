@@ -1,6 +1,6 @@
 /**
  * Central Utils Index
- * 
+ *
  * Single point of export for all utility modules
  * Usage: import { logger, HttpException } from '@/utils' or '../../utils'
  */

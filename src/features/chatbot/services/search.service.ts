@@ -147,9 +147,9 @@ export async function hasDocuments(): Promise<boolean> {
   try {
     const { pineconeIndex } = await import('./pinecone.service');
     const stats = await pineconeIndex.describeIndexStats();
-    
+
     const namespaceStats = stats.namespaces?.[chatbotConfig.general.namespace];
-    
+
     return (namespaceStats?.recordCount || 0) > 0;
   } catch (error) {
     logger.error('Error checking for documents:', error);
@@ -173,11 +173,11 @@ export async function searchWithFilters(
 
     // Build filter object
     const filter: Record<string, unknown> = {};
-    
+
     if (filters?.documentIds && filters.documentIds.length > 0) {
       filter.documentId = { $in: filters.documentIds };
     }
-    
+
     if (filters?.mimeTypes && filters.mimeTypes.length > 0) {
       filter.mimeType = { $in: filters.mimeTypes };
     }

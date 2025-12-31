@@ -3,7 +3,7 @@
  * Update user
  * - Users can update their own profile (name, email, phone)
  * - Users with users:update permission can update any user
- * 
+ *
  * NOTE: Password updates are handled via password reset flow
  */
 
@@ -31,11 +31,7 @@ const updateUserSchema = z.object({
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
 
-async function updateUser(
-  id: number,
-  data: UpdateUser,
-  requesterId: number
-): Promise<IUser> {
+async function updateUser(id: number, data: UpdateUser, requesterId: number): Promise<IUser> {
   const existingUser = await findUserById(id);
 
   if (!existingUser) {
@@ -63,14 +59,14 @@ async function updateUser(
 
   const updateData: Partial<IUser> = {
     ...data,
-    updated_by: requesterId
+    updated_by: requesterId,
   };
 
   const [result] = await db
     .update(users)
     .set({
       ...updateData,
-      updated_at: new Date()
+      updated_at: new Date(),
     })
     .where(eq(users.id, id))
     .returning();
@@ -111,6 +107,12 @@ const paramsSchema = z.object({
   id: z.coerce.number().int().positive('User ID must be a positive integer'),
 });
 
-router.put('/:id', requireAuth, validationMiddleware(updateUserSchema), validationMiddleware(paramsSchema, 'params'), handler);
+router.put(
+  '/:id',
+  requireAuth,
+  validationMiddleware(updateUserSchema),
+  validationMiddleware(paramsSchema, 'params'),
+  handler
+);
 
 export default router;

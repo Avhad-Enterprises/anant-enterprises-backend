@@ -40,7 +40,10 @@ export const validateEnv = () => {
     // Supabase configuration
     SUPABASE_URL: str({ desc: 'Supabase project URL' }),
     SUPABASE_ANON_KEY: str({ default: '', desc: 'Legacy: Supabase anonymous key (JWT-based)' }),
-    SUPABASE_SERVICE_ROLE_KEY: str({ default: '', desc: 'Legacy: Supabase service role key (JWT-based)' }),
+    SUPABASE_SERVICE_ROLE_KEY: str({
+      default: '',
+      desc: 'Legacy: Supabase service role key (JWT-based)',
+    }),
     SUPABASE_PUBLISHABLE_KEY: str({ default: '', desc: 'New: Supabase publishable key' }),
     SUPABASE_SECRET_KEY: str({ default: '', desc: 'New: Supabase secret key' }),
 
@@ -54,7 +57,10 @@ export const validateEnv = () => {
     FRONTEND_URL: str({ desc: 'Frontend URL for invitation links' }),
 
     // File upload configuration
-    ALLOWED_FILE_TYPES: str({ default: 'application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    ALLOWED_FILE_TYPES: str({
+      default:
+        'application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }),
 
     // Chatbot - Groq LLM
     GROQ_API_KEY: str({ desc: 'Groq API key for LLM' }),
@@ -80,7 +86,7 @@ export const validateEnv = () => {
 /**
  * Singleton validated environment configuration
  * Import and use this instead of process.env for type safety and validation
- * 
+ *
  * @example
  * import { config } from '@utils/validateEnv';
  * const port = config.PORT;

@@ -27,4 +27,3 @@ export interface ICreateInvitation {
   email: string;
   assigned_role_id: number;
 }
-

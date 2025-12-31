@@ -21,7 +21,8 @@ const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed
 const updateUploadSchema = z.object({
   filename: z.string().min(1, 'Filename is required').optional(),
   status: uploadStatusSchema.optional(),
-  error_message: z.string().optional() });
+  error_message: z.string().optional(),
+});
 
 async function handleUpdateUpload(
   uploadId: number,
@@ -38,7 +39,8 @@ async function handleUpdateUpload(
     .update(uploads)
     .set({
       ...updateData,
-      updated_at: new Date() })
+      updated_at: new Date(),
+    })
     .where(
       and(eq(uploads.id, uploadId), eq(uploads.user_id, userId), eq(uploads.is_deleted, false))
     )

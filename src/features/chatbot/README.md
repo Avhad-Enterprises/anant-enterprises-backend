@@ -12,16 +12,16 @@ The Chatbot feature provides an intelligent AI assistant that enables users to h
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Authorization | Description |
-|----------|----------------|---------------|-------------|
-| `POST /chat` | ✅ Required | All users | Send message to AI |
-| `GET /sessions` | ✅ Required | All users | List user's sessions |
-| `GET /sessions/:id` | ✅ Required | All users | Get session with messages |
-| `DELETE /sessions/:id` | ✅ Required | All users | Delete session |
-| `POST /documents` | ✅ Required | Admin only | Upload document for training |
-| `GET /documents` | ✅ Required | Admin only | List all documents |
-| `GET /documents/stats` | ✅ Required | Admin only | Get document statistics |
-| `DELETE /documents/:id` | ✅ Required | Admin only | Delete document |
+| Endpoint                | Authentication | Authorization | Description                  |
+| ----------------------- | -------------- | ------------- | ---------------------------- |
+| `POST /chat`            | ✅ Required    | All users     | Send message to AI           |
+| `GET /sessions`         | ✅ Required    | All users     | List user's sessions         |
+| `GET /sessions/:id`     | ✅ Required    | All users     | Get session with messages    |
+| `DELETE /sessions/:id`  | ✅ Required    | All users     | Delete session               |
+| `POST /documents`       | ✅ Required    | Admin only    | Upload document for training |
+| `GET /documents`        | ✅ Required    | Admin only    | List all documents           |
+| `GET /documents/stats`  | ✅ Required    | Admin only    | Get document statistics      |
+| `DELETE /documents/:id` | ✅ Required    | Admin only    | Delete document              |
 
 ---
 
@@ -55,10 +55,10 @@ Content-Type: application/json
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `message` | string | ✅ | User's message (1-10,000 chars) |
-| `sessionId` | number | ❌ | Existing session ID. If omitted, creates new session |
+| Field       | Type   | Required | Description                                          |
+| ----------- | ------ | -------- | ---------------------------------------------------- |
+| `message`   | string | ✅       | User's message (1-10,000 chars)                      |
+| `sessionId` | number | ❌       | Existing session ID. If omitted, creates new session |
 
 #### Success Response
 
@@ -97,22 +97,22 @@ Content-Type: application/json
 
 #### Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `sessionId` | number | Session ID (use for follow-up messages) |
-| `sessionTitle` | string | Auto-generated title based on first message |
-| `isNewSession` | boolean | Whether a new session was created |
-| `userMessage` | object | Stored user message |
-| `assistantMessage` | object | AI response with optional sources |
-| `assistantMessage.sources` | array | Documents referenced in the response |
+| Field                      | Type    | Description                                 |
+| -------------------------- | ------- | ------------------------------------------- |
+| `sessionId`                | number  | Session ID (use for follow-up messages)     |
+| `sessionTitle`             | string  | Auto-generated title based on first message |
+| `isNewSession`             | boolean | Whether a new session was created           |
+| `userMessage`              | object  | Stored user message                         |
+| `assistantMessage`         | object  | AI response with optional sources           |
+| `assistantMessage.sources` | array   | Documents referenced in the response        |
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid message or session ID |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Session ID doesn't exist or belongs to another user |
+| Status | Error            | Description                                         |
+| ------ | ---------------- | --------------------------------------------------- |
+| `400`  | Validation Error | Invalid message or session ID                       |
+| `401`  | Unauthorized     | Missing or invalid JWT token                        |
+| `404`  | Not Found        | Session ID doesn't exist or belongs to another user |
 
 ---
 
@@ -132,10 +132,10 @@ Authorization: Bearer <jwt_token>
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | `1` | Page number (min: 1) |
-| `limit` | number | `20` | Items per page (min: 1, max: 100) |
+| Parameter | Type   | Default | Description                       |
+| --------- | ------ | ------- | --------------------------------- |
+| `page`    | number | `1`     | Page number (min: 1)              |
+| `limit`   | number | `20`    | Items per page (min: 1, max: 100) |
 
 #### Example Request
 
@@ -191,16 +191,16 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Session ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Session ID  |
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | `1` | Page number for messages |
-| `limit` | number | `50` | Messages per page (max: 100) |
+| Parameter | Type   | Default | Description                  |
+| --------- | ------ | ------- | ---------------------------- |
+| `page`    | number | `1`     | Page number for messages     |
+| `limit`   | number | `50`    | Messages per page (max: 100) |
 
 #### Success Response
 
@@ -251,10 +251,10 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Session not found or belongs to another user |
+| Status | Error        | Description                                  |
+| ------ | ------------ | -------------------------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token                 |
+| `404`  | Not Found    | Session not found or belongs to another user |
 
 ---
 
@@ -274,9 +274,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Session ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Session ID  |
 
 #### Success Response
 
@@ -286,10 +286,10 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | Session not found or belongs to another user |
+| Status | Error        | Description                                  |
+| ------ | ------------ | -------------------------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token                 |
+| `404`  | Not Found    | Session not found or belongs to another user |
 
 ---
 
@@ -314,20 +314,20 @@ Content-Type: multipart/form-data
 
 #### Request Body (Form Data)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `file` | File | ✅ | Document file to upload |
-| `name` | string | ❌ | Custom document name (defaults to filename) |
-| `description` | string | ❌ | Document description (max 1000 chars) |
+| Field         | Type   | Required | Description                                 |
+| ------------- | ------ | -------- | ------------------------------------------- |
+| `file`        | File   | ✅       | Document file to upload                     |
+| `name`        | string | ❌       | Custom document name (defaults to filename) |
+| `description` | string | ❌       | Document description (max 1000 chars)       |
 
 #### Supported File Types
 
-| Type | MIME Type | Max Size |
-|------|-----------|----------|
-| PDF | `application/pdf` | 20 MB |
-| Plain Text | `text/plain` | 20 MB |
-| Markdown | `text/markdown` | 20 MB |
-| Word Document | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 20 MB |
+| Type          | MIME Type                                                                 | Max Size |
+| ------------- | ------------------------------------------------------------------------- | -------- |
+| PDF           | `application/pdf`                                                         | 20 MB    |
+| Plain Text    | `text/plain`                                                              | 20 MB    |
+| Markdown      | `text/markdown`                                                           | 20 MB    |
+| Word Document | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 20 MB    |
 
 #### Success Response
 
@@ -354,13 +354,13 @@ Content-Type: multipart/form-data
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Bad Request | No file uploaded |
-| `400` | Bad Request | Invalid file type |
-| `400` | Bad Request | File too large (> 20MB) |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | User is not an admin |
+| Status | Error        | Description                  |
+| ------ | ------------ | ---------------------------- |
+| `400`  | Bad Request  | No file uploaded             |
+| `400`  | Bad Request  | Invalid file type            |
+| `400`  | Bad Request  | File too large (> 20MB)      |
+| `401`  | Unauthorized | Missing or invalid JWT token |
+| `403`  | Forbidden    | User is not an admin         |
 
 ---
 
@@ -382,10 +382,10 @@ Authorization: Bearer <jwt_token>
 
 #### Query Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `page` | number | `1` | Page number (min: 1) |
-| `limit` | number | `20` | Items per page (min: 1, max: 100) |
+| Parameter | Type   | Default | Description                       |
+| --------- | ------ | ------- | --------------------------------- |
+| `page`    | number | `1`     | Page number (min: 1)              |
+| `limit`   | number | `20`    | Items per page (min: 1, max: 100) |
 
 #### Success Response
 
@@ -489,9 +489,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | Document ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | Document ID |
 
 #### Success Response
 
@@ -501,11 +501,11 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | User is not an admin |
-| `404` | Not Found | Document not found |
+| Status | Error        | Description                  |
+| ------ | ------------ | ---------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token |
+| `403`  | Forbidden    | User is not an admin         |
+| `404`  | Not Found    | Document not found           |
 
 ---
 
@@ -630,14 +630,11 @@ interface ChatResponse {
 // Get auth header
 const getAuthHeader = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 // Send message to chat
-export const sendMessage = async (
-  message: string,
-  sessionId?: number
-): Promise<ChatResponse> => {
+export const sendMessage = async (message: string, sessionId?: number): Promise<ChatResponse> => {
   const response = await fetch(`${API_BASE}/chat`, {
     method: 'POST',
     headers: {
@@ -661,10 +658,9 @@ export const listSessions = async (
   page = 1,
   limit = 20
 ): Promise<{ sessions: Session[]; total: number }> => {
-  const response = await fetch(
-    `${API_BASE}/sessions?page=${page}&limit=${limit}`,
-    { headers: getAuthHeader() }
-  );
+  const response = await fetch(`${API_BASE}/sessions?page=${page}&limit=${limit}`, {
+    headers: getAuthHeader(),
+  });
 
   if (!response.ok) {
     throw new Error('Failed to load sessions');
@@ -680,10 +676,9 @@ export const getSession = async (
   page = 1,
   limit = 50
 ): Promise<{ session: Session; messages: Message[]; total: number }> => {
-  const response = await fetch(
-    `${API_BASE}/sessions/${sessionId}?page=${page}&limit=${limit}`,
-    { headers: getAuthHeader() }
-  );
+  const response = await fetch(`${API_BASE}/sessions/${sessionId}?page=${page}&limit=${limit}`, {
+    headers: getAuthHeader(),
+  });
 
   if (!response.ok) {
     throw new Error('Session not found');
@@ -770,11 +765,7 @@ export function ChatUI({ sessionId: initialSessionId, onNewSession }: ChatUIProp
       }
 
       // Replace temp message with real one and add assistant response
-      setMessages(prev => [
-        ...prev.slice(0, -1),
-        response.userMessage,
-        response.assistantMessage,
-      ]);
+      setMessages(prev => [...prev.slice(0, -1), response.userMessage, response.assistantMessage]);
     } catch (error) {
       // Remove optimistic message on error
       setMessages(prev => prev.slice(0, -1));
@@ -829,27 +820,27 @@ export function ChatUI({ sessionId: initialSessionId, onNewSession }: ChatUIProp
 
 ### Document Status
 
-| Status | Description |
-|--------|-------------|
-| `pending` | Document uploaded, waiting to be processed |
-| `processing` | Text extraction and embedding in progress |
-| `completed` | Document fully processed and searchable |
-| `failed` | Processing failed (check `errorMessage`) |
+| Status       | Description                                |
+| ------------ | ------------------------------------------ |
+| `pending`    | Document uploaded, waiting to be processed |
+| `processing` | Text extraction and embedding in progress  |
+| `completed`  | Document fully processed and searchable    |
+| `failed`     | Processing failed (check `errorMessage`)   |
 
 ### Message Role
 
-| Role | Description |
-|------|-------------|
-| `user` | Message from the user |
+| Role        | Description           |
+| ----------- | --------------------- |
+| `user`      | Message from the user |
 | `assistant` | Response from NIRA AI |
 
 ### Message Source
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `documentId` | number | ID of the source document |
+| Field          | Type   | Description                 |
+| -------------- | ------ | --------------------------- |
+| `documentId`   | number | ID of the source document   |
 | `documentName` | string | Name of the source document |
-| `relevance` | number | Relevance score (0-1) |
+| `relevance`    | number | Relevance score (0-1)       |
 
 ---
 
@@ -857,28 +848,28 @@ export function ChatUI({ sessionId: initialSessionId, onNewSession }: ChatUIProp
 
 ### LLM Settings
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Provider | Groq | LLM API provider |
-| Model | `llama-3.3-70b-versatile` | Default model |
-| Max Tokens | 2048 | Maximum response length |
-| Temperature | 0.7 | Response creativity |
+| Setting     | Value                     | Description             |
+| ----------- | ------------------------- | ----------------------- |
+| Provider    | Groq                      | LLM API provider        |
+| Model       | `llama-3.3-70b-versatile` | Default model           |
+| Max Tokens  | 2048                      | Maximum response length |
+| Temperature | 0.7                       | Response creativity     |
 
 ### Document Processing
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Max File Size | 20 MB | Maximum upload size |
-| Chunk Size | ~800 chars | Target chunk size |
-| Overlap | 25% | Chunk overlap percentage |
-| Embedding Model | BGE-M3 | Vector embedding model |
+| Setting         | Value      | Description              |
+| --------------- | ---------- | ------------------------ |
+| Max File Size   | 20 MB      | Maximum upload size      |
+| Chunk Size      | ~800 chars | Target chunk size        |
+| Overlap         | 25%        | Chunk overlap percentage |
+| Embedding Model | BGE-M3     | Vector embedding model   |
 
 ### Search Settings
 
-| Setting | Value | Description |
-|---------|-------|-------------|
-| Top K | 5 | Number of chunks to retrieve |
-| Min Similarity | 0.3 | Minimum relevance threshold |
+| Setting        | Value | Description                  |
+| -------------- | ----- | ---------------------------- |
+| Top K          | 5     | Number of chunks to retrieve |
+| Min Similarity | 0.3   | Minimum relevance threshold  |
 
 ---
 

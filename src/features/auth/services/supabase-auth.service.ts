@@ -7,18 +7,18 @@ import type { SyncUserData, AuthResponse } from '../shared/interface';
 
 /**
  * Supabase Auth Service
- * 
+ *
  * This service provides SERVER-SIDE utilities for Supabase Auth integration.
- * 
+ *
  * IMPORTANT: Authentication (sign up, sign in, sign out) should be handled
  * by the FRONTEND using Supabase client libraries (@supabase/supabase-js).
- * 
+ *
  * Backend responsibilities:
  * 1. Verify JWT tokens from Supabase Auth
  * 2. Sync users to public.users table (handled by auth middleware on first API request)
  * 3. Manage RBAC permissions
  * 4. Handle password reset flows
- * 
+ *
  * Frontend responsibilities (using @supabase/supabase-js):
  * 1. supabase.auth.signUp() - User registration
  * 2. supabase.auth.signInWithPassword() - User login
@@ -28,15 +28,15 @@ import type { SyncUserData, AuthResponse } from '../shared/interface';
 
 /**
  * Verify Supabase Auth JWT and get user
- * 
+ *
  * This function verifies the JWT token using Supabase's public keys
  * and returns the user information if valid.
- * 
+ *
  * Used by auth middleware to authenticate API requests.
- * 
+ *
  * @param token - JWT access token from Supabase Auth
  * @returns User object or null
- * 
+ *
  * @example
  * ```typescript
  * const user = await verifySupabaseToken(token);
@@ -48,7 +48,10 @@ import type { SyncUserData, AuthResponse } from '../shared/interface';
  */
 export async function verifySupabaseToken(token: string) {
   try {
-    const { data: { user }, error } = await supabaseAnon.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseAnon.auth.getUser(token);
 
     if (error || !user) {
       logger.warn('Invalid Supabase token:', error?.message);
@@ -69,7 +72,7 @@ export async function verifySupabaseToken(token: string) {
 
 /**
  * Request password reset for Supabase Auth user
- * 
+ *
  * @param email - User's email address
  * @returns Success or error
  */
@@ -94,12 +97,15 @@ export async function requestPasswordReset(email: string): Promise<AuthResponse>
 
 /**
  * Update password for authenticated Supabase Auth user
- * 
+ *
  * @param accessToken - User's current access token
  * @param newPassword - New password
  * @returns Success or error
  */
-export async function updatePassword(accessToken: string, newPassword: string): Promise<AuthResponse> {
+export async function updatePassword(
+  accessToken: string,
+  newPassword: string
+): Promise<AuthResponse> {
   try {
     // Create client with user's token
     const { data, error } = await supabaseAnon.auth.updateUser({
@@ -124,19 +130,16 @@ export async function updatePassword(accessToken: string, newPassword: string): 
 
 /**
  * Sync Supabase Auth user to public.users table
- * 
+ *
  * This creates/updates a record in public.users table that matches
  * the Supabase Auth user, enabling RBAC integration.
- * 
+ *
  * Called by auth middleware when a user makes their first API request.
- * 
+ *
  * @param authId - Supabase Auth user ID (UUID)
  * @param userData - User data to sync
  */
-export async function syncUserToPublicTable(
-  authId: string,
-  userData: SyncUserData
-): Promise<void> {
+export async function syncUserToPublicTable(authId: string, userData: SyncUserData): Promise<void> {
   try {
     // Check if user already exists with this email
     const existingUser = await db
@@ -185,7 +188,7 @@ export async function syncUserToPublicTable(
 
 /**
  * Get user from public.users table by Supabase Auth ID
- * 
+ *
  * @param authId - Supabase Auth user ID (UUID)
  * @returns User record or null
  */
@@ -206,14 +209,17 @@ export async function getUserByAuthId(authId: string) {
 
 /**
  * Login with Supabase Auth (for admin invite acceptance)
- * 
+ *
  * NOTE: This is a temporary function for backward compatibility.
  * In frontend-first auth, login should be handled by the frontend.
- * 
+ *
  * @param credentials - Email and password
  * @returns Auth data or error
  */
-export async function loginWithSupabase(credentials: { email: string; password: string }): Promise<AuthResponse> {
+export async function loginWithSupabase(credentials: {
+  email: string;
+  password: string;
+}): Promise<AuthResponse> {
   try {
     const { data, error } = await supabaseAnon.auth.signInWithPassword({
       email: credentials.email,
@@ -236,14 +242,13 @@ export async function loginWithSupabase(credentials: { email: string; password: 
     return { data: null, error };
   }
 }
-export async function migrateUserToSupabaseAuth(userId: number, password: string): Promise<AuthResponse> {
+export async function migrateUserToSupabaseAuth(
+  userId: number,
+  password: string
+): Promise<AuthResponse> {
   try {
     // Get existing user
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    const existingUser = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
     if (!existingUser[0]) {
       throw new Error('User not found');

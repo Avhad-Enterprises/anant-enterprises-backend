@@ -19,223 +19,219 @@ const USER_CACHE_PREFIX = 'rbac:user:';
 const CACHE_TTL = 5 * 60;
 
 class RBACCacheService {
-    // Fallback in-memory cache when Redis is unavailable
-    private memoryCache: Map<number, ICachedPermissions> = new Map();
-    private readonly TTL = CACHE_TTL * 1000; // milliseconds for memory cache
+  // Fallback in-memory cache when Redis is unavailable
+  private memoryCache: Map<number, ICachedPermissions> = new Map();
+  private readonly TTL = CACHE_TTL * 1000; // milliseconds for memory cache
 
-    /**
-     * Get user permissions from cache or database
-     */
-    async getUserPermissions(userId: number): Promise<string[]> {
-        // Try Redis first
-        if (isRedisReady()) {
-            try {
-                const cached = await redisClient.get(`${PERMISSIONS_PREFIX}${userId}`);
-                if (cached) {
-                    logger.debug(`RBAC Redis cache hit for user ${userId}`);
-                    return JSON.parse(cached);
-                }
-            } catch (error) {
-                logger.warn(`Redis error in getUserPermissions for user ${userId}:`, error);
-            }
+  /**
+   * Get user permissions from cache or database
+   */
+  async getUserPermissions(userId: number): Promise<string[]> {
+    // Try Redis first
+    if (isRedisReady()) {
+      try {
+        const cached = await redisClient.get(`${PERMISSIONS_PREFIX}${userId}`);
+        if (cached) {
+          logger.debug(`RBAC Redis cache hit for user ${userId}`);
+          return JSON.parse(cached);
         }
-
-        // Check memory cache as fallback
-        const memoryCached = this.memoryCache.get(userId);
-        if (memoryCached && Date.now() < memoryCached.expiresAt) {
-            logger.debug(`RBAC memory cache hit for user ${userId}`);
-            return memoryCached.permissions;
-        }
-
-        // Cache miss - load from database
-        logger.debug(`RBAC cache miss for user ${userId}, loading from database`);
-        const permissions = await this.loadAndCachePermissions(userId);
-        return permissions;
+      } catch (error) {
+        logger.warn(`Redis error in getUserPermissions for user ${userId}:`, error);
+      }
     }
 
-    /**
-     * Load permissions from DB and cache them
-     */
-    private async loadAndCachePermissions(userId: number): Promise<string[]> {
-        const permissions = await findUserPermissions(userId);
-        const userRolesData = await findUserRoles(userId);
-        const roleIds = userRolesData.map(r => r.role.id);
-
-        // Try to cache in Redis first
-        if (isRedisReady()) {
-            try {
-                await redisClient.setEx(
-                    `${PERMISSIONS_PREFIX}${userId}`,
-                    CACHE_TTL,
-                    JSON.stringify(permissions)
-                );
-                logger.debug(`Cached permissions for user ${userId} in Redis`);
-            } catch (error) {
-                logger.warn(`Failed to cache permissions in Redis for user ${userId}:`, error);
-            }
-        }
-
-        // Also cache in memory as fallback
-        this.memoryCache.set(userId, {
-            permissions,
-            roleIds,
-            expiresAt: Date.now() + this.TTL,
-        });
-
-        return permissions;
+    // Check memory cache as fallback
+    const memoryCached = this.memoryCache.get(userId);
+    if (memoryCached && Date.now() < memoryCached.expiresAt) {
+      logger.debug(`RBAC memory cache hit for user ${userId}`);
+      return memoryCached.permissions;
     }
 
-    /**
-     * Check if user has a specific permission
-     */
-    async hasPermission(userId: number, permission: string): Promise<boolean> {
-        const permissions = await this.getUserPermissions(userId);
+    // Cache miss - load from database
+    logger.debug(`RBAC cache miss for user ${userId}, loading from database`);
+    const permissions = await this.loadAndCachePermissions(userId);
+    return permissions;
+  }
 
-        // Check for wildcard permission (superadmin)
-        if (permissions.includes('*')) {
-            return true;
-        }
+  /**
+   * Load permissions from DB and cache them
+   */
+  private async loadAndCachePermissions(userId: number): Promise<string[]> {
+    const permissions = await findUserPermissions(userId);
+    const userRolesData = await findUserRoles(userId);
+    const roleIds = userRolesData.map(r => r.role.id);
 
-        return permissions.includes(permission);
+    // Try to cache in Redis first
+    if (isRedisReady()) {
+      try {
+        await redisClient.setEx(
+          `${PERMISSIONS_PREFIX}${userId}`,
+          CACHE_TTL,
+          JSON.stringify(permissions)
+        );
+        logger.debug(`Cached permissions for user ${userId} in Redis`);
+      } catch (error) {
+        logger.warn(`Failed to cache permissions in Redis for user ${userId}:`, error);
+      }
     }
 
-    /**
-     * Check if user has ALL of the specified permissions
-     */
-    async hasAllPermissions(userId: number, requiredPermissions: string[]): Promise<boolean> {
-        const permissions = await this.getUserPermissions(userId);
+    // Also cache in memory as fallback
+    this.memoryCache.set(userId, {
+      permissions,
+      roleIds,
+      expiresAt: Date.now() + this.TTL,
+    });
 
-        // Wildcard grants all permissions
-        if (permissions.includes('*')) {
-            return true;
-        }
+    return permissions;
+  }
 
-        return requiredPermissions.every(required => permissions.includes(required));
+  /**
+   * Check if user has a specific permission
+   */
+  async hasPermission(userId: number, permission: string): Promise<boolean> {
+    const permissions = await this.getUserPermissions(userId);
+
+    // Check for wildcard permission (superadmin)
+    if (permissions.includes('*')) {
+      return true;
     }
 
-    /**
-     * Check if user has ANY of the specified permissions
-     */
-    async hasAnyPermission(userId: number, possiblePermissions: string[]): Promise<boolean> {
-        const permissions = await this.getUserPermissions(userId);
+    return permissions.includes(permission);
+  }
 
-        // Wildcard grants all permissions
-        if (permissions.includes('*')) {
-            return true;
-        }
+  /**
+   * Check if user has ALL of the specified permissions
+   */
+  async hasAllPermissions(userId: number, requiredPermissions: string[]): Promise<boolean> {
+    const permissions = await this.getUserPermissions(userId);
 
-        return possiblePermissions.some(perm => permissions.includes(perm));
+    // Wildcard grants all permissions
+    if (permissions.includes('*')) {
+      return true;
     }
 
-    /**
-     * Get user roles
-     */
-    async getUserRoles(userId: number): Promise<{ id: number; name: string }[]> {
-        // Try Redis first
-        if (isRedisReady()) {
-            try {
-                const cached = await redisClient.get(`${ROLES_PREFIX}${userId}`);
-                if (cached) {
-                    logger.debug(`RBAC Redis roles cache hit for user ${userId}`);
-                    return JSON.parse(cached);
-                }
-            } catch (error) {
-                logger.warn(`Redis error in getUserRoles for user ${userId}:`, error);
-            }
-        }
+    return requiredPermissions.every(required => permissions.includes(required));
+  }
 
-        // Load from database
-        const rolesData = await findUserRoles(userId);
-        const roles = rolesData.map(r => ({ id: r.role.id, name: r.role.name }));
+  /**
+   * Check if user has ANY of the specified permissions
+   */
+  async hasAnyPermission(userId: number, possiblePermissions: string[]): Promise<boolean> {
+    const permissions = await this.getUserPermissions(userId);
 
-        // Cache in Redis
-        if (isRedisReady()) {
-            try {
-                await redisClient.setEx(
-                    `${ROLES_PREFIX}${userId}`,
-                    CACHE_TTL,
-                    JSON.stringify(roles)
-                );
-            } catch (error) {
-                logger.warn(`Failed to cache roles in Redis for user ${userId}:`, error);
-            }
-        }
-
-        return roles;
+    // Wildcard grants all permissions
+    if (permissions.includes('*')) {
+      return true;
     }
 
-    /**
-     * Invalidate cache for a specific user
-     */
-    async invalidateUser(userId: number): Promise<void> {
-        // Clear from Redis
-        if (isRedisReady()) {
-            try {
-                await redisClient.del(`${PERMISSIONS_PREFIX}${userId}`);
-                await redisClient.del(`${ROLES_PREFIX}${userId}`);
-                await redisClient.del(`${USER_CACHE_PREFIX}${userId}`);
-                logger.debug(`Invalidated Redis cache for user ${userId}`);
-            } catch (error) {
-                logger.warn(`Failed to invalidate Redis cache for user ${userId}:`, error);
-            }
-        }
+    return possiblePermissions.some(perm => permissions.includes(perm));
+  }
 
-        // Clear from memory cache
-        this.memoryCache.delete(userId);
-        logger.debug(`Invalidated permission cache for user ${userId}`);
+  /**
+   * Get user roles
+   */
+  async getUserRoles(userId: number): Promise<{ id: number; name: string }[]> {
+    // Try Redis first
+    if (isRedisReady()) {
+      try {
+        const cached = await redisClient.get(`${ROLES_PREFIX}${userId}`);
+        if (cached) {
+          logger.debug(`RBAC Redis roles cache hit for user ${userId}`);
+          return JSON.parse(cached);
+        }
+      } catch (error) {
+        logger.warn(`Redis error in getUserRoles for user ${userId}:`, error);
+      }
     }
 
-    /**
-     * Invalidate all cached permissions
-     */
-    async invalidateAll(): Promise<void> {
-        // Clear from Redis using pattern matching
-        if (isRedisReady()) {
-            try {
-                const keys = await redisClient.keys(`${PERMISSIONS_PREFIX}*`);
-                const roleKeys = await redisClient.keys(`${ROLES_PREFIX}*`);
-                const userKeys = await redisClient.keys(`${USER_CACHE_PREFIX}*`);
-                const allKeys = [...keys, ...roleKeys, ...userKeys];
+    // Load from database
+    const rolesData = await findUserRoles(userId);
+    const roles = rolesData.map(r => ({ id: r.role.id, name: r.role.name }));
 
-                if (allKeys.length > 0) {
-                    await redisClient.del(allKeys);
-                }
-                logger.info(`Invalidated ${allKeys.length} RBAC cache entries in Redis`);
-            } catch (error) {
-                logger.warn('Failed to invalidate all Redis cache:', error);
-            }
-        }
-
-        // Clear memory cache
-        this.memoryCache.clear();
-        logger.info('Invalidated all RBAC permission caches');
+    // Cache in Redis
+    if (isRedisReady()) {
+      try {
+        await redisClient.setEx(`${ROLES_PREFIX}${userId}`, CACHE_TTL, JSON.stringify(roles));
+      } catch (error) {
+        logger.warn(`Failed to cache roles in Redis for user ${userId}:`, error);
+      }
     }
 
-    /**
-     * Get cache statistics
-     */
-    async getCacheStats(): Promise<{
-        redisAvailable: boolean;
-        memoryCacheSize: number;
-        redisCacheSize?: number;
-    }> {
-        const stats = {
-            redisAvailable: isRedisReady(),
-            memoryCacheSize: this.memoryCache.size,
-            redisCacheSize: undefined as number | undefined,
-        };
+    return roles;
+  }
 
-        if (isRedisReady()) {
-            try {
-                const keys = await redisClient.keys(`${PERMISSIONS_PREFIX}*`);
-                stats.redisCacheSize = keys.length;
-            } catch (error) {
-                logger.warn('Failed to get Redis cache stats:', error);
-            }
-        }
-
-        return stats;
+  /**
+   * Invalidate cache for a specific user
+   */
+  async invalidateUser(userId: number): Promise<void> {
+    // Clear from Redis
+    if (isRedisReady()) {
+      try {
+        await redisClient.del(`${PERMISSIONS_PREFIX}${userId}`);
+        await redisClient.del(`${ROLES_PREFIX}${userId}`);
+        await redisClient.del(`${USER_CACHE_PREFIX}${userId}`);
+        logger.debug(`Invalidated Redis cache for user ${userId}`);
+      } catch (error) {
+        logger.warn(`Failed to invalidate Redis cache for user ${userId}:`, error);
+      }
     }
+
+    // Clear from memory cache
+    this.memoryCache.delete(userId);
+    logger.debug(`Invalidated permission cache for user ${userId}`);
+  }
+
+  /**
+   * Invalidate all cached permissions
+   */
+  async invalidateAll(): Promise<void> {
+    // Clear from Redis using pattern matching
+    if (isRedisReady()) {
+      try {
+        const keys = await redisClient.keys(`${PERMISSIONS_PREFIX}*`);
+        const roleKeys = await redisClient.keys(`${ROLES_PREFIX}*`);
+        const userKeys = await redisClient.keys(`${USER_CACHE_PREFIX}*`);
+        const allKeys = [...keys, ...roleKeys, ...userKeys];
+
+        if (allKeys.length > 0) {
+          await redisClient.del(allKeys);
+        }
+        logger.info(`Invalidated ${allKeys.length} RBAC cache entries in Redis`);
+      } catch (error) {
+        logger.warn('Failed to invalidate all Redis cache:', error);
+      }
+    }
+
+    // Clear memory cache
+    this.memoryCache.clear();
+    logger.info('Invalidated all RBAC permission caches');
+  }
+
+  /**
+   * Get cache statistics
+   */
+  async getCacheStats(): Promise<{
+    redisAvailable: boolean;
+    memoryCacheSize: number;
+    redisCacheSize?: number;
+  }> {
+    const stats = {
+      redisAvailable: isRedisReady(),
+      memoryCacheSize: this.memoryCache.size,
+      redisCacheSize: undefined as number | undefined,
+    };
+
+    if (isRedisReady()) {
+      try {
+        const keys = await redisClient.keys(`${PERMISSIONS_PREFIX}*`);
+        stats.redisCacheSize = keys.length;
+      } catch (error) {
+        logger.warn('Failed to get Redis cache stats:', error);
+      }
+    }
+
+    return stats;
+  }
 }
 
 // Export singleton instance

@@ -27,9 +27,7 @@ import {
 /**
  * Create a new chatbot document record
  */
-export async function createDocument(
-  data: NewChatbotDocument
-): Promise<ChatbotDocument> {
+export async function createDocument(data: NewChatbotDocument): Promise<ChatbotDocument> {
   const [document] = await db.insert(chatbotDocuments).values(data).returning();
   return document;
 }
@@ -37,9 +35,7 @@ export async function createDocument(
 /**
  * Get a document by ID (excluding soft-deleted)
  */
-export async function getDocumentById(
-  id: number
-): Promise<ChatbotDocument | undefined> {
+export async function getDocumentById(id: number): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .select()
     .from(chatbotDocuments)
@@ -198,9 +194,7 @@ export async function getDocumentStats(): Promise<{
 /**
  * Create a new chat session
  */
-export async function createSession(
-  data: NewChatbotSession
-): Promise<ChatbotSession> {
+export async function createSession(data: NewChatbotSession): Promise<ChatbotSession> {
   const [session] = await db.insert(chatbotSessions).values(data).returning();
   return session;
 }
@@ -258,9 +252,7 @@ export async function listUserSessions(
 /**
  * Update session timestamp and title
  */
-export async function updateSessionTimestamp(
-  id: number
-): Promise<ChatbotSession | undefined> {
+export async function updateSessionTimestamp(id: number): Promise<ChatbotSession | undefined> {
   const [session] = await db
     .update(chatbotSessions)
     .set({ updated_at: new Date() })
@@ -324,9 +316,7 @@ export async function deleteSession(
 /**
  * Create a new message
  */
-export async function createMessage(
-  data: NewChatbotMessage
-): Promise<ChatbotMessage> {
+export async function createMessage(data: NewChatbotMessage): Promise<ChatbotMessage> {
   const [message] = await db.insert(chatbotMessages).values(data).returning();
   return message;
 }

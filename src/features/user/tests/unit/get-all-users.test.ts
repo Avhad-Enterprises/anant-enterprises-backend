@@ -30,14 +30,14 @@ interface PaginatedUsers {
 async function getAllUsers(page: number = 1, limit: number = 20): Promise<PaginatedUsers> {
   const _offset = (page - 1) * limit;
   void _offset;
-  
+
   // First call: get total count
   const countResult = await (db.select as any)();
   const total = countResult?.[0]?.total ?? 0;
-  
+
   // Second call: get paginated users
   const allUsers = await (db.select as any)();
-  
+
   return {
     users: allUsers as IUser[],
     total,
@@ -101,9 +101,7 @@ describe('Get All Users Business Logic', () => {
     });
 
     it('should return empty users array when no users exist', async () => {
-      (mockDb.select as jest.Mock)
-        .mockResolvedValueOnce([{ total: 0 }])
-        .mockResolvedValueOnce([]);
+      (mockDb.select as jest.Mock).mockResolvedValueOnce([{ total: 0 }]).mockResolvedValueOnce([]);
 
       const result = await getAllUsers();
 
@@ -147,8 +145,7 @@ describe('Get All Users Business Logic', () => {
     });
 
     it('should handle database errors gracefully', async () => {
-      (mockDb.select as jest.Mock)
-        .mockRejectedValue(new Error('Database connection failed'));
+      (mockDb.select as jest.Mock).mockRejectedValue(new Error('Database connection failed'));
 
       await expect(getAllUsers()).rejects.toThrow('Database connection failed');
     });
@@ -166,9 +163,7 @@ describe('Get All Users Business Logic', () => {
     });
 
     it('should handle null count result', async () => {
-      (mockDb.select as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      (mockDb.select as jest.Mock).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await getAllUsers();
 
