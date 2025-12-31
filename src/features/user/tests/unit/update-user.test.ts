@@ -6,7 +6,7 @@ import bcrypt from 'bcrypt';
 import { HttpException } from '../../../../utils';
 import * as userQueries from '../../shared/queries';
 import { db } from '../../../../database';
-import { users } from '../../shared/schema';
+import { users } from '../../shared/user.schema';
 import { IUser } from '../../shared/interface';
 
 // Mock dependencies
@@ -27,7 +27,6 @@ interface UpdateUserData {
   email?: string;
   phone_number?: string;
   password?: string;
-  role?: 'admin' | 'scientist' | 'researcher' | 'policymaker';
 }
 
 // Recreate the business logic for testing
@@ -74,11 +73,21 @@ async function updateUser(id: number, data: UpdateUserData, updatedBy: number): 
 describe('Update User Business Logic', () => {
   const mockUser = {
     id: 1,
+    auth_id: '123e4567-e89b-12d3-a456-426614174000',
+    user_type: 'individual' as const,
     name: 'Test User',
     email: 'test@example.com',
     password: 'hashedPassword123',
     phone_number: '1234567890',
-    role: 'scientist' as const,
+    phone_country_code: '+1',
+    phone_verified: false,
+    phone_verified_at: null,
+    profile_image_url: null,
+    date_of_birth: null,
+    gender: 'prefer_not_to_say' as const,
+    preferred_language: 'en',
+    preferred_currency: 'USD',
+    timezone: 'UTC',
     created_by: 1,
     created_at: new Date('2024-01-01'),
     updated_by: null,
@@ -194,19 +203,7 @@ describe('Update User Business Logic', () => {
       expect(result.updated_by).toBe(5);
     });
 
-    it('should update user role', async () => {
-      mockUserQueries.findUserById.mockResolvedValue(mockUser);
-
-      const updatedWithRole = { ...updatedMockUser, role: 'admin' as const };
-      const mockReturning = jest.fn().mockResolvedValue([updatedWithRole]);
-      const mockWhere = jest.fn().mockReturnValue({ returning: mockReturning });
-      const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
-      (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
-
-      const result = await updateUser(1, { role: 'admin' }, 2);
-
-      expect(result.role).toBe('admin');
-    });
+    // Role update test removed as role is not on user table
 
     it('should throw 500 when database update fails', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);

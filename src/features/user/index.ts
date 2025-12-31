@@ -38,7 +38,7 @@ export { userCacheService, UserCacheService } from './services/user-cache.servic
 
 // Shared resources - SAFE to export
 // Core user schema and types
-export * from './shared/schema';
+export * from './shared/user.schema';
 export * from './shared/interface';
 export * from './shared/queries';
 export * from './shared/sanitizeUser';

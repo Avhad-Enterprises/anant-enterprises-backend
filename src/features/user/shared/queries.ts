@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../../../database';
-import { users, type User, type NewUser } from './schema';
+import { users, type User, type NewUser } from './user.schema';
 import { userCacheService } from '../services/user-cache.service';
 
 /**
