@@ -10,7 +10,7 @@ export const seed = async (dropFirst = false) => {
       console.log('Dropped Tables');
     }
     console.log('Seeding Tables');
-    await DB.schema.createTable('product_bundles', table => {
+    await DB.schema.createTable('product_bundles', (table: any) => {
       table.increments('product_bundle_id').primary();
       table.string('bundle_title').notNullable();
       table.text('bundle_description').nullable();

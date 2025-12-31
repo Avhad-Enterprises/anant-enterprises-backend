@@ -11,13 +11,13 @@ export const seed = async (dropFirst = false) => {
     }
     console.log('Seeding Tables');
     // await DB.raw("set search_path to public")
-    await DB.schema.createTable('bundle_items', table => {
+    await DB.schema.createTable('bundle_items', (table: any) => {
       table.increments('id').primary(); // Unique ID for bundle item
 
       table
         .bigInteger('product_bundle_id')
         .unsigned()
-        .references('id')
+        .references('product_bundle_id')
         .inTable('product_bundles')
         .onDelete('CASCADE')
         .onUpdate('CASCADE');
