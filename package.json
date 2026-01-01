@@ -43,6 +43,7 @@
     "db:seed": "ts-node src/database/seed.ts",
     "db:clean": "ts-node scripts/db-clean.ts",
     "db:drop": "ts-node scripts/db-reset.ts",
+    "db:drop:supabase": "supabase db reset",
     "db:drop:migrations": "drizzle-kit drop",
     "db:test": "ts-node src/database/health.ts",
     "db:check": "drizzle-kit check",
