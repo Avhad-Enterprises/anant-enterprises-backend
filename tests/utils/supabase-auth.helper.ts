@@ -142,9 +142,9 @@ export class SupabaseAuthHelper {
     name?: string;
     role?: string;
   }): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const roleName = userData.role || 'user';
     const name = userData.name || 'Test User';
@@ -178,7 +178,7 @@ export class SupabaseAuthHelper {
    * Create a test user with token and return credentials (compatibility method)
    */
   static async createTestUserWithToken(): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
     rawPassword: string;
   }> {
@@ -204,9 +204,9 @@ export class SupabaseAuthHelper {
       name: string;
     }>
   ): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const userData = {
       email: `admin-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
@@ -223,9 +223,9 @@ export class SupabaseAuthHelper {
    * Create a test superadmin user (compatibility method)
    */
   static async createTestSuperadminUser(): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const userData = {
       email: `superadmin-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
@@ -429,7 +429,7 @@ export class SupabaseAuthHelper {
   /**
    * Get user role by user ID
    */
-  static async getUserRole(userId: number): Promise<string> {
+  static async getUserRole(userId: string): Promise<string> {
     const [userRole] = await db
       .select({ roleName: roles.name })
       .from(userRoles)

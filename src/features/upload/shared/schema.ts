@@ -4,7 +4,6 @@ import {
   text,
   timestamp,
   boolean,
-  integer,
   bigint,
   index,
   varchar,
@@ -49,7 +48,7 @@ export const uploads = pgTable(
     updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({

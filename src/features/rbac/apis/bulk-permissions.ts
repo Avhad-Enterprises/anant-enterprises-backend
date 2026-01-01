@@ -39,7 +39,7 @@ interface BulkAssignResult {
 async function handleBulkAssign(
   roleId: number,
   permissionIds: number[],
-  assignedBy: number
+  assignedBy: string
 ): Promise<BulkAssignResult> {
   const role = await findRoleById(roleId);
   if (!role) {

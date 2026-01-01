@@ -101,7 +101,7 @@ export enum AuditResourceType {
  */
 export interface AuditLogData {
   // Who performed the action
-  userId?: number;
+  userId?: string;
   userEmail?: string;
   userRole?: string;
 
@@ -132,7 +132,7 @@ export interface AuditLog {
   timestamp: Date;
 
   // Who
-  userId: number | null;
+  userId: string | null;
   userEmail: string | null;
   userRole: string | null;
 
@@ -161,7 +161,7 @@ export interface AuditLog {
  * Filters for querying audit logs
  */
 export interface AuditLogFilters {
-  userId?: number;
+  userId?: string;
   action?: AuditAction | AuditAction[];
   resourceType?: AuditResourceType | AuditResourceType[];
   resourceId?: number | string;
@@ -183,7 +183,7 @@ export interface SanitizedAuditData {
  * Request context for audit logging
  */
 export interface AuditContext {
-  userId?: number;
+  userId?: string;
   ipAddress?: string;
   userAgent?: string;
   sessionId?: string;

@@ -48,19 +48,19 @@ describe('Permission Middleware', () => {
 
   describe('requirePermission (single permission)', () => {
     it('should allow access when user has the required permission', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       // Note: requirePermission always uses hasAllPermissions internally
       mockHasAllPermissions.mockResolvedValue(true);
 
       const middleware = requirePermission('users:read');
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasAllPermissions).toHaveBeenCalledWith(1, ['users:read']);
+      expect(mockHasAllPermissions).toHaveBeenCalledWith('user-uuid', ['users:read']);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
     it('should deny access when user lacks the required permission', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       mockHasAllPermissions.mockResolvedValue(false);
 
       const middleware = requirePermission('users:delete');
@@ -85,18 +85,18 @@ describe('Permission Middleware', () => {
 
   describe('requirePermission (multiple permissions - all required)', () => {
     it('should allow access when user has all required permissions', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       mockHasAllPermissions.mockResolvedValue(true);
 
       const middleware = requirePermission(['users:read', 'users:update']);
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasAllPermissions).toHaveBeenCalledWith(1, ['users:read', 'users:update']);
+      expect(mockHasAllPermissions).toHaveBeenCalledWith('user-uuid', ['users:read', 'users:update']);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
     it('should deny access when user is missing any permission', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       mockHasAllPermissions.mockResolvedValue(false);
 
       const middleware = requirePermission(['users:read', 'users:delete']);
@@ -110,18 +110,18 @@ describe('Permission Middleware', () => {
 
   describe('requireAnyPermission', () => {
     it('should allow access when user has at least one permission', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       mockHasAnyPermission.mockResolvedValue(true);
 
       const middleware = requireAnyPermission(['admin:system', 'users:read']);
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasAnyPermission).toHaveBeenCalledWith(1, ['admin:system', 'users:read']);
+      expect(mockHasAnyPermission).toHaveBeenCalledWith('user-uuid', ['admin:system', 'users:read']);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
     it('should deny access when user has none of the permissions', async () => {
-      mockRequest.userId = 1;
+      mockRequest.userId = 'user-uuid';
       mockHasAnyPermission.mockResolvedValue(false);
 
       const middleware = requireAnyPermission(['admin:system', 'roles:manage']);
@@ -135,8 +135,8 @@ describe('Permission Middleware', () => {
 
   describe('requireOwnerOrPermission', () => {
     it('should allow access when user is the owner', async () => {
-      mockRequest.userId = 5;
-      mockRequest.params = { id: '5' };
+      mockRequest.userId = 'owner-uuid';
+      mockRequest.params = { id: 'owner-uuid' };
 
       const middleware = requireOwnerOrPermission('id', 'users:update');
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
@@ -147,20 +147,20 @@ describe('Permission Middleware', () => {
     });
 
     it('should check permission when user is not the owner', async () => {
-      mockRequest.userId = 5;
-      mockRequest.params = { id: '10' }; // Different user
+      mockRequest.userId = 'viewer-uuid';
+      mockRequest.params = { id: 'different-uuid' }; // Different user
       mockHasPermission.mockResolvedValue(true);
 
       const middleware = requireOwnerOrPermission('id', 'users:update');
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasPermission).toHaveBeenCalledWith(5, 'users:update');
+      expect(mockHasPermission).toHaveBeenCalledWith('viewer-uuid', 'users:update');
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
     it('should deny access when user is not owner and lacks permission', async () => {
-      mockRequest.userId = 5;
-      mockRequest.params = { id: '10' };
+      mockRequest.userId = 'viewer-uuid';
+      mockRequest.params = { id: 'different-uuid' };
       mockHasPermission.mockResolvedValue(false);
 
       const middleware = requireOwnerOrPermission('id', 'users:update');

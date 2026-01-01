@@ -33,7 +33,7 @@ const uploadQuerySchema = z.object({
 });
 
 async function getUploadsWithPagination(
-  userId: number,
+  userId: string,
   canViewAll: boolean,
   filters: z.infer<typeof uploadQuerySchema>
 ) {

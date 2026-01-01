@@ -11,7 +11,6 @@ import {
     text,
     boolean,
     timestamp,
-    integer,
     pgEnum,
     index,
 } from 'drizzle-orm/pg-core';

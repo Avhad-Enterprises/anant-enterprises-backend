@@ -10,7 +10,7 @@
 
 export interface ICart {
     id: string; // UUID
-    user_id?: number | null;
+    user_id?: string | null;
     session_id?: string | null;
     currency: string;
     subtotal: string; // Decimal
@@ -19,8 +19,8 @@ export interface ICart {
     shipping_total: string; // Decimal
     tax_total: string; // Decimal
     grand_total: string; // Decimal
-    applied_discount_codes?: any[]; // JSONB
-    applied_giftcard_codes?: any[]; // JSONB
+    applied_discount_codes?: Record<string, unknown>[]; // JSONB
+    applied_giftcard_codes?: Record<string, unknown>[]; // JSONB
     cart_status: 'active' | 'converted' | 'abandoned';
     source: 'web' | 'app';
     last_activity_at: Date;
@@ -31,9 +31,9 @@ export interface ICart {
     updated_at: Date;
     is_deleted: boolean;
     deleted_at?: Date | null;
-    created_by?: number | null;
-    updated_by?: number | null;
-    deleted_by?: number | null;
+    created_by?: string | null;
+    updated_by?: string | null;
+    deleted_by?: string | null;
 }
 
 // ============================================
@@ -54,7 +54,7 @@ export interface ICartItem {
     product_name?: string | null;
     product_image_url?: string | null;
     product_sku?: string | null;
-    customization_data?: any; // JSONB
+    customization_data?: Record<string, unknown>; // JSONB
     created_at: Date;
     updated_at: Date;
     is_deleted: boolean;

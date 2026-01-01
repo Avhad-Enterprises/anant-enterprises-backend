@@ -10,7 +10,6 @@ import {
     varchar,
     text,
     decimal,
-    integer,
     boolean,
     timestamp,
     jsonb,
@@ -104,13 +103,13 @@ export const products = pgTable(
         // Audit Fields
         created_at: timestamp('created_at').defaultNow().notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
-        created_by: integer('created_by'), // Assuming user INT IDs for admins
-        updated_by: integer('updated_by'),
+        created_by: uuid('created_by'),
+        updated_by: uuid('updated_by'),
 
         // Soft Delete
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        deleted_by: integer('deleted_by'),
+        deleted_by: uuid('deleted_by'),
     },
     table => ({
         // Optimizing common lookups

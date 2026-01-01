@@ -18,10 +18,10 @@ import { findUserById } from '../shared/queries';
 import { IUser } from '../shared/interface';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('User ID must be a positive integer'),
+  id: z.string().uuid('User ID must be a valid UUID'),
 });
 
-async function getUserById(id: number): Promise<IUser> {
+async function getUserById(id: string): Promise<IUser> {
   const user = await findUserById(id);
 
   if (!user) {
@@ -34,7 +34,7 @@ async function getUserById(id: number): Promise<IUser> {
 const handler = async (req: RequestWithUser, res: Response) => {
   // Get the ID from the URL params (validated by Zod)
   const { id } = req.params;
-  const requestedUserId = parseInt(id, 10);
+  const requestedUserId = id;
 
   const user = await getUserById(requestedUserId);
   const userResponse = sanitizeUser(user);

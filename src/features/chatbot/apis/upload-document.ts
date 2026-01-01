@@ -45,7 +45,7 @@ async function processDocument(
   buffer: Buffer,
   mimeType: string,
   documentName: string,
-  userId: number
+  userId: string
 ): Promise<{ chunkCount: number }> {
   try {
     // Update status to processing

@@ -55,7 +55,7 @@ async function seed() {
     if (!userRole || !adminRole || !superadminRole) {
       throw new Error(
         'RBAC roles not found. This should not happen after seedRBAC() succeeds.\n' +
-          'Please check the RBAC seed function.'
+        'Please check the RBAC seed function.'
       );
     }
 
@@ -69,7 +69,7 @@ async function seed() {
       email: 'user@gmail.com',
       password: hashedPassword,
       phone_number: '+1234567890',
-      created_by: null as number | null, // Will be set after creation
+      created_by: null as string | null, // Will be set after creation
     };
 
     const adminUserData = {
@@ -77,7 +77,7 @@ async function seed() {
       email: 'admin@example.com',
       password: hashedPassword,
       phone_number: '+1234567891',
-      created_by: null as number | null,
+      created_by: null as string | null,
     };
 
     const superadminUserData = {
@@ -85,7 +85,7 @@ async function seed() {
       email: 'superadmin@gmail.com',
       password: hashedPassword,
       phone_number: '+1234567892',
-      created_by: null as number | null,
+      created_by: null as string | null,
     };
 
     // Insert users

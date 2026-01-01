@@ -18,7 +18,6 @@ import {
   varchar,
   text,
   boolean,
-  integer,
   uuid,
   timestamp,
   decimal,

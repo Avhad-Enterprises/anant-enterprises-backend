@@ -12,7 +12,7 @@ import { HttpException } from '../../../utils';
 import { findRoleById, deleteRole, countUsersWithRole } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 
-async function handleDeleteRole(roleId: number, deletedBy: number): Promise<void> {
+async function handleDeleteRole(roleId: number, deletedBy: string): Promise<void> {
   const existingRole = await findRoleById(roleId);
   if (!existingRole) {
     throw new HttpException(404, 'Role not found');

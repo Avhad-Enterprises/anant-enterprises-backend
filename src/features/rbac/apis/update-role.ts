@@ -31,7 +31,7 @@ type UpdateRoleDto = z.infer<typeof schema>;
 async function handleUpdateRole(
   roleId: number,
   data: UpdateRoleDto,
-  updatedBy: number
+  updatedBy: string
 ): Promise<Role> {
   const existingRole = await findRoleById(roleId);
   if (!existingRole) {

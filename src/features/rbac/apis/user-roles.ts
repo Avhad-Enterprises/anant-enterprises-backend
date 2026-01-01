@@ -37,11 +37,11 @@ type AssignRoleDto = z.infer<typeof assignRoleSchema>;
 // ============================================
 
 interface UserRolesResult {
-  user_id: number;
+  user_id: string;
   roles: Array<Role & { assigned_at: Date; expires_at: Date | null }>;
 }
 
-async function getUserRoles(userId: number): Promise<UserRolesResult> {
+async function getUserRoles(userId: string): Promise<UserRolesResult> {
   const userRoles = await findUserRoles(userId);
   const roles = userRoles.map(ur => ({
     ...ur.role,
@@ -52,7 +52,7 @@ async function getUserRoles(userId: number): Promise<UserRolesResult> {
   return { user_id: userId, roles };
 }
 
-async function getUserPermissionsData(userId: number): Promise<IUserPermissionsResponse> {
+async function getUserPermissionsData(userId: string): Promise<IUserPermissionsResponse> {
   const permissions = await findUserPermissions(userId);
   const userRoles = await findUserRoles(userId);
   const roleNames = userRoles.map(ur => ur.role.name);
@@ -66,11 +66,11 @@ async function getUserPermissionsData(userId: number): Promise<IUserPermissionsR
 }
 
 async function handleAssignRole(
-  userId: number,
+  userId: string,
   roleId: number,
-  assignedBy: number,
+  assignedBy: string,
   expiresAt?: string
-): Promise<{ user_id: number; role: Role }> {
+): Promise<{ user_id: string; role: Role }> {
   const user = await findUserById(userId);
   if (!user) {
     throw new HttpException(404, 'User not found');
@@ -88,7 +88,7 @@ async function handleAssignRole(
   return { user_id: userId, role };
 }
 
-async function handleRemoveRole(userId: number, roleId: number): Promise<void> {
+async function handleRemoveRole(userId: string, roleId: number): Promise<void> {
   await removeRoleFromUser(userId, roleId);
   rbacCacheService.invalidateUser(userId);
 }
@@ -98,8 +98,8 @@ async function handleRemoveRole(userId: number, roleId: number): Promise<void> {
 // ============================================
 
 const getRolesHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = Number(req.params.userId);
-  if (isNaN(userId) || userId <= 0) {
+  const userId = req.params.userId;
+  if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
   const result = await getUserRoles(userId);
@@ -107,8 +107,8 @@ const getRolesHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const getPermissionsHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = Number(req.params.userId);
-  if (isNaN(userId) || userId <= 0) {
+  const userId = req.params.userId;
+  if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
   const result = await getUserPermissionsData(userId);
@@ -116,8 +116,8 @@ const getPermissionsHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const postHandler = async (req: RequestWithUser, res: Response) => {
-  const tar = Number(req.params.userId);
-  if (isNaN(tar) || tar <= 0) {
+  const tar = req.params.userId;
+  if (!tar) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
   const assignedBy = req.userId;
@@ -131,8 +131,8 @@ const postHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const deleteHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = Number(req.params.userId);
-  if (isNaN(userId) || userId <= 0) {
+  const userId = req.params.userId;
+  if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
   const roleId = Number(req.params.roleId);

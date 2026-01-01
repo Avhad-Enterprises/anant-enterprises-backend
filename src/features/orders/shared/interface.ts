@@ -11,7 +11,7 @@
 export interface IOrder {
     id: string; // UUID
     order_number: string;
-    user_id?: number | null;
+    user_id?: string | null;
     cart_id?: string | null; // UUID
     channel: 'web' | 'app' | 'pos' | 'marketplace' | 'other';
     is_draft: boolean;
@@ -47,17 +47,17 @@ export interface IOrder {
     order_tracking?: string | null;
     customer_gstin?: string | null;
     is_international_order: boolean;
-    tags?: any[]; // JSONB
+    tags?: Record<string, unknown>[]; // JSONB
     customer_note?: string | null;
     admin_comment?: string | null;
     amz_order_id?: string | null;
     created_at: Date;
-    created_by?: number | null;
+    created_by?: string | null;
     updated_at: Date;
-    updated_by?: number | null;
+    updated_by?: string | null;
     is_deleted: boolean;
     deleted_at?: Date | null;
-    deleted_by?: number | null;
+    deleted_by?: string | null;
 }
 
 // ============================================

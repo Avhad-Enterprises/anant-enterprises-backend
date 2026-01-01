@@ -14,10 +14,10 @@ import { rbacCacheService } from '../../services/rbac-cache.service';
 
 describe('User Roles API - GET/POST/DELETE', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let adminToken: string;
   let regularUserToken: string;
-  let regularUserId: number;
+  let regularUserId: string;
   let testRole: any;
   let testPermission: any;
 
@@ -37,7 +37,7 @@ describe('User Roles API - GET/POST/DELETE', () => {
     regularUserId = user.id;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test role
@@ -278,7 +278,7 @@ describe('User Roles API - GET/POST/DELETE', () => {
 
     it('should reject non-existent user', async () => {
       const response = await request(app)
-        .post('/api/rbac/users/99999/roles')
+        .post('/api/rbac/users/00000000-0000-0000-0000-000000000000/roles')
         .set('Authorization', `Bearer ${superadminToken}`)
         .send({ role_id: testRole.id });
 

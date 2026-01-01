@@ -16,9 +16,9 @@ export interface IRole {
   description?: string | null;
   is_system_role: boolean;
   is_active: boolean;
-  created_by?: number | null;
+  created_by?: string | null;
   created_at: Date;
-  updated_by?: number | null;
+  updated_by?: string | null;
   updated_at: Date;
   is_deleted: boolean;
 }
@@ -64,21 +64,21 @@ export interface ICreatePermission {
 // ============================================
 
 export interface IUserRole {
-  user_id: number;
+  user_id: string;
   role_id: number;
-  assigned_by?: number | null;
+  assigned_by?: string | null;
   assigned_at: Date;
   expires_at?: Date | null;
 }
 
 export interface IAssignRoleToUser {
-  user_id: number;
+  user_id: string;
   role_id: number;
   expires_at?: Date;
 }
 
 export interface IUserWithRoles {
-  id: number;
+  id: string;
   name: string;
   email: string;
   roles: IRole[];
@@ -124,7 +124,7 @@ export interface IPermissionResponse {
 }
 
 export interface IUserPermissionsResponse {
-  user_id: number;
+  user_id: string;
   roles: string[];
   permissions: string[];
   has_wildcard: boolean;

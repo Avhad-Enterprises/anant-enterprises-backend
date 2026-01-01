@@ -15,7 +15,7 @@ import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { Upload } from '../shared/interface';
 
-async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
+async function handleCreateUpload(file: Express.Multer.File, userId: string): Promise<Upload> {
   const storageResult = await uploadToStorage(
     file.buffer,
     file.originalname,

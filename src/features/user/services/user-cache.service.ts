@@ -34,7 +34,7 @@ class UserCacheService {
   /**
    * Get user by ID from cache or database
    */
-  async getUserById(id: number): Promise<User | undefined> {
+  async getUserById(id: string): Promise<User | undefined> {
     const cacheKey = `${USER_BY_ID_PREFIX}${id}`;
 
     // Try Redis first
@@ -136,7 +136,7 @@ class UserCacheService {
   /**
    * Invalidate cache for a specific user
    */
-  async invalidateUser(userId: number, email?: string): Promise<void> {
+  async invalidateUser(userId: string, email?: string): Promise<void> {
     const idKey = `${USER_BY_ID_PREFIX}${userId}`;
 
     // Clear from Redis
@@ -215,7 +215,7 @@ class UserCacheService {
   /**
    * Fetch user by ID from database (excluding deleted users)
    */
-  private async fetchUserById(id: number): Promise<User | undefined> {
+  private async fetchUserById(id: string): Promise<User | undefined> {
     const [user] = await db
       .select()
       .from(users)

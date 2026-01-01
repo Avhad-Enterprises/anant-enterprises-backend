@@ -25,7 +25,7 @@ const paramsSchema = z.object({
 
 async function handleDeleteUpload(
   uploadId: number,
-  userId: number,
+  userId: string,
   canDeleteAll: boolean
 ): Promise<void> {
   // Find upload based on permission

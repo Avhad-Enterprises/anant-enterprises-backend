@@ -20,13 +20,13 @@ const CACHE_TTL = 5 * 60;
 
 class RBACCacheService {
   // Fallback in-memory cache when Redis is unavailable
-  private memoryCache: Map<number, ICachedPermissions> = new Map();
+  private memoryCache: Map<string, ICachedPermissions> = new Map();
   private readonly TTL = CACHE_TTL * 1000; // milliseconds for memory cache
 
   /**
    * Get user permissions from cache or database
    */
-  async getUserPermissions(userId: number): Promise<string[]> {
+  async getUserPermissions(userId: string): Promise<string[]> {
     // Try Redis first
     if (isRedisReady()) {
       try {
@@ -56,7 +56,7 @@ class RBACCacheService {
   /**
    * Load permissions from DB and cache them
    */
-  private async loadAndCachePermissions(userId: number): Promise<string[]> {
+  private async loadAndCachePermissions(userId: string): Promise<string[]> {
     const permissions = await findUserPermissions(userId);
     const userRolesData = await findUserRoles(userId);
     const roleIds = userRolesData.map(r => r.role.id);
@@ -88,7 +88,7 @@ class RBACCacheService {
   /**
    * Check if user has a specific permission
    */
-  async hasPermission(userId: number, permission: string): Promise<boolean> {
+  async hasPermission(userId: string, permission: string): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId);
 
     // Check for wildcard permission (superadmin)
@@ -102,7 +102,7 @@ class RBACCacheService {
   /**
    * Check if user has ALL of the specified permissions
    */
-  async hasAllPermissions(userId: number, requiredPermissions: string[]): Promise<boolean> {
+  async hasAllPermissions(userId: string, requiredPermissions: string[]): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId);
 
     // Wildcard grants all permissions
@@ -116,7 +116,7 @@ class RBACCacheService {
   /**
    * Check if user has ANY of the specified permissions
    */
-  async hasAnyPermission(userId: number, possiblePermissions: string[]): Promise<boolean> {
+  async hasAnyPermission(userId: string, possiblePermissions: string[]): Promise<boolean> {
     const permissions = await this.getUserPermissions(userId);
 
     // Wildcard grants all permissions
@@ -130,7 +130,7 @@ class RBACCacheService {
   /**
    * Get user roles
    */
-  async getUserRoles(userId: number): Promise<{ id: number; name: string }[]> {
+  async getUserRoles(userId: string): Promise<{ id: number; name: string }[]> {
     // Try Redis first
     if (isRedisReady()) {
       try {
@@ -163,7 +163,7 @@ class RBACCacheService {
   /**
    * Invalidate cache for a specific user
    */
-  async invalidateUser(userId: number): Promise<void> {
+  async invalidateUser(userId: string): Promise<void> {
     // Clear from Redis
     if (isRedisReady()) {
       try {

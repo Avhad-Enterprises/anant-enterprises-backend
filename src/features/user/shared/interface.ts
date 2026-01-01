@@ -10,7 +10,7 @@
 // ============================================
 
 export interface IUser {
-  id: number;
+  id: string;
   auth_id?: string;
   user_type: 'individual' | 'business';
   name: string;
@@ -26,12 +26,12 @@ export interface IUser {
   preferred_language: string;
   preferred_currency: string;
   timezone: string;
-  created_by?: number;
+  created_by?: string | null;
   created_at: Date;
-  updated_by?: number;
+  updated_by?: string | null;
   updated_at: Date;
   is_deleted: boolean;
-  deleted_by?: number;
+  deleted_by?: string | null;
   deleted_at?: Date;
 }
 
@@ -41,7 +41,7 @@ export interface IUser {
 
 export interface IUserAddress {
   id: number;
-  user_id: number;
+  user_id: string;
   address_type: 'billing' | 'shipping' | 'both' | 'company';
   is_default: boolean;
   recipient_name: string;
@@ -71,7 +71,7 @@ export interface IUserAddress {
 
 export interface IUserPaymentMethod {
   id: number;
-  user_id: number;
+  user_id: string;
   payment_type: 'card' | 'upi' | 'netbanking' | 'wallet';
   is_default: boolean;
   razorpay_customer_id?: string;
@@ -103,11 +103,11 @@ export interface IUserPaymentMethod {
 
 export interface ICustomerProfile {
   id: number;
-  user_id: number;
+  user_id: string;
   segment: 'new' | 'regular' | 'vip' | 'at_risk';
   store_credit_balance: string;
   referral_code?: string;
-  referred_by_user_id?: number;
+  referred_by_user_id?: string;
   referral_bonus_credited: boolean;
   marketing_opt_in: boolean;
   sms_opt_in: boolean;
@@ -127,7 +127,7 @@ export interface ICustomerProfile {
 
 export interface IBusinessCustomerProfile {
   id: number;
-  user_id: number;
+  user_id: string;
   business_type: 'sole_proprietor' | 'partnership' | 'llc' | 'corporation' | 'nonprofit';
   company_legal_name: string;
   company_trade_name?: string;
@@ -145,15 +145,15 @@ export interface IBusinessCustomerProfile {
   payment_terms: 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90';
   credit_limit: string;
   credit_used: string;
-  credit_approved_by?: number;
+  credit_approved_by?: string;
   credit_approved_at?: Date;
-  account_manager_id?: number;
+  account_manager_id?: string;
   tier: 'standard' | 'silver' | 'gold' | 'platinum';
   bulk_discount_percent: string;
   minimum_order_value?: string;
 
   account_status: 'pending' | 'active' | 'suspended' | 'closed';
-  approved_by?: number;
+  approved_by?: string;
   approved_at?: Date;
   suspended_reason?: string;
   notes?: string;
@@ -167,7 +167,7 @@ export interface IBusinessCustomerProfile {
 
 export interface IAdminProfile {
   id: number;
-  user_id: number;
+  user_id: string;
   employee_id?: string;
   department?: string;
   job_title?: string;
@@ -220,8 +220,8 @@ export interface IVendor {
   contract_document_url?: string;
   notes?: string;
   is_active: boolean;
-  created_by?: number;
-  updated_by?: number;
+  created_by?: string;
+  updated_by?: string;
   created_at: Date;
   updated_at: Date;
   is_deleted: boolean;
@@ -233,7 +233,7 @@ export interface IVendor {
 
 export interface ICustomerStatistics {
   id: number;
-  user_id: number;
+  user_id: string;
   total_orders: number;
   completed_orders: number;
   cancelled_orders: number;

@@ -10,7 +10,7 @@ import { uploads, type Upload as DrizzleUpload } from './schema';
  */
 export const findUploadById = async (
   id: number,
-  userId?: number
+  userId?: string
 ): Promise<DrizzleUpload | undefined> => {
   const conditions = [
     eq(uploads.id, id),
