@@ -31,14 +31,15 @@ export const productVariants = pgTable(
             .references(() => products.id, { onDelete: 'cascade' })
             .notNull(),
 
-        // Variation Details
-        option_name: varchar('option_name', { length: 50 }).notNull(), // e.g. "Size", "Color"
-        option_value: varchar('option_value', { length: 50 }).notNull(), // e.g. "Small", "Red"
+        // HIGH PRIORITY FIX #12: Variant Details
+        variant_name: varchar('variant_name', { length: 100 }).notNull(), // e.g., "Size", "Color"
+        variant_value: varchar('variant_value', { length: 100 }).notNull(), // e.g., "Large", "Red"
 
-        // Inventory & Commerce Overrides
-        sku: varchar('sku', { length: 100 }).unique().notNull(), // Specific SKU for this variant
-        price: decimal('price', { precision: 10, scale: 2 }), // Nullable override
-        inventory_quantity: integer('inventory_quantity').default(0).notNull(),
+        // Variant-specific fields
+        sku: varchar('sku', { length: 100 }).unique(), // Variant-specific SKU
+        price_adjustment: decimal('price_adjustment', { precision: 10, scale: 2 }).default('0.00'), // +/- from base price
+        inventory_quantity: integer('inventory_quantity').default(0), // Variant-specific inventory
+        is_default: boolean('is_default').default(false).notNull(), // Default variant for product
 
         // Media
         image_url: text('image_url'),

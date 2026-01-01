@@ -10,6 +10,7 @@ import {
     uuid,
     varchar,
     integer,
+    jsonb,
     index,
 } from 'drizzle-orm/pg-core';
 import { discounts } from './discount.schema';
@@ -28,9 +29,16 @@ export const discountCodes = pgTable(
             .references(() => discounts.id, { onDelete: 'cascade' })
             .notNull(),
 
-        // Usage Tracking
+        // Usage Tracking (CRITICAL FIX #8)
         usage_limit: integer('usage_limit'), // Limit for THIS specific code
         usage_count: integer('usage_count').default(0).notNull(),
+        max_uses_per_customer: integer('max_uses_per_customer'), // e.g., max 3 uses per customer
+        // Note: Track individual uses via orders.discount_code_id FK
+
+        // HIGH PRIORITY FIX #20: User restrictions
+        allowed_user_ids: jsonb('allowed_user_ids').default([]), // Specific users only
+        allowed_email_domains: jsonb('allowed_email_domains').default([]), // e.g., ["@company.com"]
+        required_customer_tags: jsonb('required_customer_tags').default([]), // Must have these tags
     },
     table => ({
         // Lookup via discount_id

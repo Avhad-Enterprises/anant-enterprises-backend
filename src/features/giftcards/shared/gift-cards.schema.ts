@@ -19,6 +19,7 @@ import {
     index,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user/shared/user.schema';
+import { orders } from '../../orders/shared/orders.schema';
 
 // ============================================
 // ENUMS
@@ -92,7 +93,8 @@ export const giftCards = pgTable(
 
         // Source Tracking
         source: giftCardSourceEnum('source').default('purchase').notNull(),
-        source_order_id: uuid('source_order_id'), // FK to orders (if from purchase)
+        source_order_id: uuid('source_order_id')
+            .references(() => orders.id, { onDelete: 'set null' }), // CRITICAL FIX #3B
         issued_by_admin_id: integer('issued_by_admin_id')
             .references(() => users.id, { onDelete: 'set null' }),
 

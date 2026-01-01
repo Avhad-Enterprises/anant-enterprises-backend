@@ -66,7 +66,8 @@ export const products = pgTable(
         sku: varchar('sku', { length: 100 }).unique().notNull(),
         barcode: varchar('barcode', { length: 50 }),
         hsn_code: varchar('hsn_code', { length: 20 }),
-        inventory_quantity: integer('inventory_quantity').default(0).notNull(),
+        // CRITICAL FIX #7: Removed inventory_quantity - use inventory table instead
+        // Query: SELECT SUM(available_quantity) FROM inventory WHERE product_id = ?
 
         // Physical dimensions
         weight: decimal('weight', { precision: 8, scale: 2 }), // kg

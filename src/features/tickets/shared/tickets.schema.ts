@@ -18,6 +18,7 @@ import {
     index,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user/shared/user.schema';
+import { orders } from '../../orders/shared/orders.schema';
 
 // ============================================
 // ENUMS
@@ -67,7 +68,8 @@ export const tickets = pgTable(
         // Relationships
         customer_id: integer('customer_id')
             .references(() => users.id, { onDelete: 'set null' }),
-        order_id: uuid('order_id'), // FK to orders (when implemented)
+        order_id: uuid('order_id')
+            .references(() => orders.id, { onDelete: 'set null' }), // CRITICAL FIX #3A
         assigned_to: integer('assigned_to')
             .references(() => users.id, { onDelete: 'set null' }),
 

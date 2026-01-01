@@ -18,6 +18,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { giftCards } from './gift-cards.schema';
 import { users } from '../../user/shared/user.schema';
+import { orders } from '../../orders/shared/orders.schema';
 
 // ============================================
 // ENUMS
@@ -56,7 +57,8 @@ export const giftCardTransactions = pgTable(
         balance_after: decimal('balance_after', { precision: 10, scale: 2 }).notNull(),
 
         // Context
-        order_id: uuid('order_id'), // FK to orders (if used in purchase)
+        order_id: uuid('order_id')
+            .references(() => orders.id, { onDelete: 'set null' }), // CRITICAL FIX #3C
         refund_id: uuid('refund_id'), // If from order refund
 
         // Who performed the action

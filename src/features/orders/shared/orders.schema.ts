@@ -24,7 +24,10 @@ import {
     index,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user/shared/user.schema';
+import { userAddresses } from '../../user/shared/addresses.schema';
 import { carts } from '../../cart/shared/carts.schema';
+import { discounts } from '../../discount/shared/discount.schema';
+import { discountCodes } from '../../discount/shared/discount-codes.schema';
 
 // ============================================
 // ENUMS
@@ -54,6 +57,17 @@ export const orderDiscountTypeEnum = pgEnum('order_discount_type', [
     'none'
 ]);
 
+// HIGH PRIORITY FIX #9: Overall order status
+export const orderStatusEnum = pgEnum('order_status', [
+    'pending',        // Order created, awaiting payment
+    'confirmed',      // Payment received
+    'processing',     // Being prepared
+    'shipped',        // On the way
+    'delivered',      // Completed successfully
+    'cancelled',      // Cancelled by customer/admin
+    'refunded'        // Money returned
+]);
+
 export const fulfillmentStatusEnum = pgEnum('fulfillment_status', [
     'unfulfilled',
     'partial',
@@ -79,8 +93,17 @@ export const orders = pgTable(
         cart_id: uuid('cart_id')
             .references(() => carts.id, { onDelete: 'set null' }),
 
+        // Addresses (CRITICAL FIX #1)
+        shipping_address_id: integer('shipping_address_id')
+            .references(() => userAddresses.id, { onDelete: 'set null' }),
+        billing_address_id: integer('billing_address_id')
+            .references(() => userAddresses.id, { onDelete: 'set null' }),
+
         // Source
         channel: orderChannelEnum('channel').default('web').notNull(),
+
+        // HIGH PRIORITY FIX #9: Overall order status
+        order_status: orderStatusEnum('order_status').default('pending').notNull(),
 
         // Draft Order Flag
         is_draft: boolean('is_draft').default(false).notNull(),
@@ -96,11 +119,15 @@ export const orders = pgTable(
         // Pricing
         subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0.00').notNull(),
 
-        // Discounts
+        // Discounts (CRITICAL FIX #4)
+        discount_id: uuid('discount_id')
+            .references(() => discounts.id, { onDelete: 'set null' }),
+        discount_code_id: uuid('discount_code_id')
+            .references(() => discountCodes.code, { onDelete: 'set null' }),
         discount_type: orderDiscountTypeEnum('discount_type').default('none').notNull(),
         discount_value: decimal('discount_value', { precision: 12, scale: 2 }).default('0.00').notNull(),
         discount_amount: decimal('discount_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
-        discount_code: varchar('discount_code', { length: 80 }),
+        discount_code: varchar('discount_code', { length: 80 }), // Denormalized for display
 
         // Gift Cards
         giftcard_code: varchar('giftcard_code', { length: 80 }),
@@ -116,7 +143,8 @@ export const orders = pgTable(
         advance_paid_amount: decimal('advance_paid_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
         cod_due_amount: decimal('cod_due_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
 
-        // Tax (GST - India)
+        // Tax (GST - India) - HIGH PRIORITY FIX #23
+        tax_rule_id: uuid('tax_rule_id'), // FK to tax_rules (which rule was applied)
         tax_amount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
         cgst: decimal('cgst', { precision: 12, scale: 2 }).default('0.00').notNull(),
         sgst: decimal('sgst', { precision: 12, scale: 2 }).default('0.00').notNull(),

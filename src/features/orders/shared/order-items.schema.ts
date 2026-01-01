@@ -45,6 +45,11 @@ export const orderItems = pgTable(
         quantity: integer('quantity').default(1).notNull(),
         line_total: decimal('line_total', { precision: 12, scale: 2 }).notNull(),
 
+        // HIGH PRIORITY FIX #11: Fulfillment Tracking
+        quantity_fulfilled: integer('quantity_fulfilled').default(0).notNull(),
+        quantity_cancelled: integer('quantity_cancelled').default(0).notNull(),
+        quantity_returned: integer('quantity_returned').default(0).notNull(),
+
         // Audit
         created_at: timestamp('created_at').defaultNow().notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),

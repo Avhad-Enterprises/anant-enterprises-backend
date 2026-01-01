@@ -7,6 +7,7 @@
 import {
     pgTable,
     uuid,
+    text,
     timestamp,
     primaryKey,
     index,
@@ -28,6 +29,14 @@ export const wishlistItems = pgTable(
         product_id: uuid('product_id')
             .references(() => products.id, { onDelete: 'cascade' })
             .notNull(),
+
+        // Metadata
+        notes: text('notes'),
+
+        // HIGH PRIORITY FIX #17: Purchase tracking
+        added_to_cart_at: timestamp('added_to_cart_at'),
+        purchased_at: timestamp('purchased_at'),
+        order_id: uuid('order_id'), // FK to orders (when purchased)
 
         added_at: timestamp('added_at').defaultNow().notNull(),
     },

@@ -53,6 +53,10 @@ export const inventory = pgTable(
         required_quantity: integer('required_quantity').default(0).notNull(),
         available_quantity: integer('available_quantity').default(0).notNull(),
 
+        // HIGH PRIORITY FIX #21: Reservation tracking
+        reserved_quantity: integer('reserved_quantity').default(0).notNull(), // Stock held for carts
+        reservation_expires_at: timestamp('reservation_expires_at'), // When to release reserved stock
+
         // Computed Column: shortage_quantity = MAX(required - available, 0)
         // Note: Drizzle doesn't support GENERATED columns directly, so we'll use a custom SQL
         shortage_quantity: integer('shortage_quantity')

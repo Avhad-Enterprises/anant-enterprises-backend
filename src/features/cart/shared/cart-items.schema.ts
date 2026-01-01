@@ -57,8 +57,15 @@ export const cartItems = pgTable(
         product_image_url: text('product_image_url'),
         product_sku: varchar('product_sku', { length: 100 }),
 
-        // Customization (if applicable)
+        // Customization
         customization_data: jsonb('customization_data').default({}),
+
+        // HIGH PRIORITY FIX #10: Inventory Reservation
+        reserved_from_location_id: uuid('reserved_from_location_id'), // FK to inventory_locations
+        reserved_at: timestamp('reserved_at'),
+
+        // HIGH PRIORITY FIX #22: Bundle Snapshot (if bundle_id is set)
+        bundle_snapshot: jsonb('bundle_snapshot').default(null), // Store bundle contents at time of adding
 
         // Audit Fields
         created_at: timestamp('created_at').defaultNow().notNull(),

@@ -22,8 +22,10 @@ import {
   timestamp,
   decimal,
   index,
+  uniqueIndex,
   pgEnum,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -91,6 +93,10 @@ export const userAddresses = pgTable(
     ),
     // Country-based queries for shipping zones
     countryIdx: index('user_addresses_country_idx').on(table.country_code),
+    // CRITICAL FIX #2: Unique constraint - only one default address per type per user
+    uniqueDefaultIdx: uniqueIndex('user_addresses_unique_default_idx')
+      .on(table.user_id, table.address_type)
+      .where(sql`${table.is_default} = true AND ${table.is_deleted} = false`),
   })
 );
 
