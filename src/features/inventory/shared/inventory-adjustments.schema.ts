@@ -61,13 +61,13 @@ export const inventoryAdjustments = pgTable(
         quantity_after: integer('quantity_after').notNull(),
 
         // Who & When
-        adjusted_by: integer('adjusted_by')
+        adjusted_by: uuid('adjusted_by')
             .references(() => users.id, { onDelete: 'set null' })
             .notNull(),
         adjusted_at: timestamp('adjusted_at').defaultNow().notNull(),
 
         // Approval Workflow (optional)
-        approved_by: integer('approved_by')
+        approved_by: uuid('approved_by')
             .references(() => users.id, { onDelete: 'set null' }),
         approved_at: timestamp('approved_at'),
         approval_status: approvalStatusEnum('approval_status').default('approved').notNull(),

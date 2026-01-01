@@ -70,7 +70,7 @@ export const giftCards = pgTable(
         is_active: boolean('is_active').default(true).notNull(),
 
         // Ownership & Delivery
-        purchaser_user_id: integer('purchaser_user_id')
+        purchaser_user_id: uuid('purchaser_user_id')
             .references(() => users.id, { onDelete: 'set null' }),
         recipient_email: varchar('recipient_email', { length: 255 }),
         recipient_name: varchar('recipient_name', { length: 255 }),
@@ -95,7 +95,7 @@ export const giftCards = pgTable(
         source: giftCardSourceEnum('source').default('purchase').notNull(),
         source_order_id: uuid('source_order_id')
             .references(() => orders.id, { onDelete: 'set null' }), // CRITICAL FIX #3B
-        issued_by_admin_id: integer('issued_by_admin_id')
+        issued_by_admin_id: uuid('issued_by_admin_id')
             .references(() => users.id, { onDelete: 'set null' }),
 
         // Bulk Generation
@@ -110,13 +110,13 @@ export const giftCards = pgTable(
         locked_reason: text('locked_reason'),
 
         // Audit Fields
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' }),
         created_at: timestamp('created_at').defaultNow().notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        deleted_by: integer('deleted_by')
+        deleted_by: uuid('deleted_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

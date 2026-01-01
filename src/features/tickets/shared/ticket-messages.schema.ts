@@ -45,7 +45,7 @@ export const ticketMessages = pgTable(
 
         // Sender Information
         sender_type: ticketMessageSenderTypeEnum('sender_type').default('customer').notNull(),
-        sender_id: integer('sender_id')
+        sender_id: uuid('sender_id')
             .references(() => users.id, { onDelete: 'set null' }),
 
         // Content
@@ -57,15 +57,15 @@ export const ticketMessages = pgTable(
 
         // Audit
         created_at: timestamp('created_at').defaultNow().notNull(),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' })
             .notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
-        updated_by: integer('updated_by')
+        updated_by: uuid('updated_by')
             .references(() => users.id, { onDelete: 'set null' }),
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        deleted_by: integer('deleted_by')
+        deleted_by: uuid('deleted_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

@@ -16,6 +16,7 @@ import {
   timestamp,
   decimal,
   index,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
@@ -48,8 +49,8 @@ export const currencies = pgTable(
     is_active: boolean('is_active').default(true).notNull(),
 
     // Audit
-    created_by: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
-    updated_by: integer('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   },

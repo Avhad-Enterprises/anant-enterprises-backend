@@ -7,6 +7,7 @@ import {
   boolean,
   varchar,
   index,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user/shared/user.schema';
 
@@ -51,7 +52,7 @@ export const invitations = pgTable(
     verify_attempts: integer('verify_attempts').default(0).notNull(), // Brute force protection
 
     // Relationships - FK to users table
-    invited_by: integer('invited_by')
+    invited_by: uuid('invited_by')
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
 
@@ -63,7 +64,7 @@ export const invitations = pgTable(
 
     // Audit fields (consistent with other tables)
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({

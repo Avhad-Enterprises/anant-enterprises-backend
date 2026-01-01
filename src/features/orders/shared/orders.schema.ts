@@ -88,7 +88,7 @@ export const orders = pgTable(
         order_number: varchar('order_number', { length: 40 }).unique().notNull(),
 
         // Relationships
-        user_id: integer('user_id')
+        user_id: uuid('user_id')
             .references(() => users.id, { onDelete: 'set null' }),
         cart_id: uuid('cart_id')
             .references(() => carts.id, { onDelete: 'set null' }),
@@ -122,7 +122,7 @@ export const orders = pgTable(
         // Discounts (CRITICAL FIX #4)
         discount_id: uuid('discount_id')
             .references(() => discounts.id, { onDelete: 'set null' }),
-        discount_code_id: uuid('discount_code_id')
+        discount_code_id: varchar('discount_code_id', { length: 50 })
             .references(() => discountCodes.code, { onDelete: 'set null' }),
         discount_type: orderDiscountTypeEnum('discount_type').default('none').notNull(),
         discount_value: decimal('discount_value', { precision: 12, scale: 2 }).default('0.00').notNull(),
@@ -173,14 +173,14 @@ export const orders = pgTable(
 
         // Audit
         created_at: timestamp('created_at').defaultNow().notNull(),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' }),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
-        updated_by: integer('updated_by')
+        updated_by: uuid('updated_by')
             .references(() => users.id, { onDelete: 'set null' }),
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        deleted_by: integer('deleted_by')
+        deleted_by: uuid('deleted_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

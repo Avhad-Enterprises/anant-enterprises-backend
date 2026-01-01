@@ -66,11 +66,11 @@ export const tickets = pgTable(
         ticket_number: varchar('ticket_number', { length: 50 }).unique().notNull(),
 
         // Relationships
-        customer_id: integer('customer_id')
+        customer_id: uuid('customer_id')
             .references(() => users.id, { onDelete: 'set null' }),
         order_id: uuid('order_id')
             .references(() => orders.id, { onDelete: 'set null' }), // CRITICAL FIX #3A
-        assigned_to: integer('assigned_to')
+        assigned_to: uuid('assigned_to')
             .references(() => users.id, { onDelete: 'set null' }),
 
         // Case Details
@@ -102,15 +102,15 @@ export const tickets = pgTable(
         // Audit
         is_active: boolean('is_active').default(true).notNull(),
         created_at: timestamp('created_at').defaultNow().notNull(),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' })
             .notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
-        updated_by: integer('updated_by')
+        updated_by: uuid('updated_by')
             .references(() => users.id, { onDelete: 'set null' }),
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        deleted_by: integer('deleted_by')
+        deleted_by: uuid('deleted_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

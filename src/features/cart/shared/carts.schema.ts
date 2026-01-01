@@ -45,7 +45,7 @@ export const carts = pgTable(
         id: uuid('id').primaryKey().defaultRandom(),
 
         // User Association (either user_id OR session_id)
-        user_id: integer('user_id')
+        user_id: uuid('user_id')
             .references(() => users.id, { onDelete: 'set null' }),
         session_id: varchar('session_id', { length: 100 }), // For guest users
 
@@ -77,11 +77,11 @@ export const carts = pgTable(
         updated_at: timestamp('updated_at').defaultNow().notNull(),
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' }),
-        updated_by: integer('updated_by')
+        updated_by: uuid('updated_by')
             .references(() => users.id, { onDelete: 'set null' }),
-        deleted_by: integer('deleted_by')
+        deleted_by: uuid('deleted_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

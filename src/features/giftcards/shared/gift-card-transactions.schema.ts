@@ -62,9 +62,9 @@ export const giftCardTransactions = pgTable(
         refund_id: uuid('refund_id'), // If from order refund
 
         // Who performed the action
-        performed_by_user_id: integer('performed_by_user_id')
+        performed_by_user_id: uuid('performed_by_user_id')
             .references(() => users.id, { onDelete: 'set null' }),
-        performed_by_admin_id: integer('performed_by_admin_id')
+        performed_by_admin_id: uuid('performed_by_admin_id')
             .references(() => users.id, { onDelete: 'set null' }),
 
         // Metadata

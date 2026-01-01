@@ -14,6 +14,7 @@ import {
   timestamp,
   jsonb,
   index,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
@@ -33,7 +34,7 @@ export const auditLogs = pgTable(
     timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 
     // Who performed the action
-    user_id: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    user_id: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     user_email: varchar('user_email', { length: 255 }), // Historical reference
     user_role: varchar('user_role', { length: 100 }), // Contextual information
 

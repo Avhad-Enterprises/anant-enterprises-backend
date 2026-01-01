@@ -18,6 +18,7 @@ import {
   varchar,
   boolean,
   integer,
+  uuid,
   timestamp,
   index,
   pgEnum,
@@ -45,7 +46,7 @@ export const userPaymentMethods = pgTable(
   'user_payment_methods',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     payment_type: paymentTypeEnum('payment_type').notNull(),

@@ -41,7 +41,7 @@ export const productQuestions = pgTable(
         product_id: uuid('product_id')
             .references(() => products.id, { onDelete: 'cascade' })
             .notNull(),
-        user_id: integer('user_id')
+        user_id: uuid('user_id')
             .references(() => users.id, { onDelete: 'cascade' })
             .notNull(),
 
@@ -50,7 +50,7 @@ export const productQuestions = pgTable(
         answer: text('answer'), // The approved answer
 
         // Management
-        answered_by: integer('answered_by')
+        answered_by: uuid('answered_by')
             .references(() => users.id, { onDelete: 'set null' }),
         status: questionStatusEnum('status').default('pending').notNull(),
         is_public: boolean('is_public').default(false).notNull(),

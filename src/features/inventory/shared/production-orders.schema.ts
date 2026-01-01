@@ -79,9 +79,9 @@ export const productionOrders = pgTable(
         actual_hours: decimal('actual_hours', { precision: 10, scale: 2 }),
 
         // Assignment
-        assigned_to: integer('assigned_to')
+        assigned_to: uuid('assigned_to')
             .references(() => users.id, { onDelete: 'set null' }),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' })
             .notNull(),
 

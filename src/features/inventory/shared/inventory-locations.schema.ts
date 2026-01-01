@@ -61,7 +61,7 @@ export const inventoryLocations = pgTable(
         // Audit Fields
         created_at: timestamp('created_at').defaultNow().notNull(),
         updated_at: timestamp('updated_at').defaultNow().notNull(),
-        created_by: integer('created_by')
+        created_by: uuid('created_by')
             .references(() => users.id, { onDelete: 'set null' }),
     },
     table => ({

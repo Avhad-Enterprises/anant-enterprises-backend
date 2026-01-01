@@ -8,6 +8,7 @@ import {
   bigint,
   index,
   varchar,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
@@ -31,7 +32,7 @@ export const uploads = pgTable(
   'uploads',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     filename: varchar('filename', { length: 255 }).notNull(),
@@ -43,9 +44,9 @@ export const uploads = pgTable(
     status: text('status').$type<UploadStatus>().default('pending').notNull(),
     error_message: text('error_message'),
     // Audit fields
-    created_by: integer('created_by'), // Nullable for consistency with users table
+    created_by: uuid('created_by'), // Nullable for consistency with users table
     created_at: timestamp('created_at').defaultNow().notNull(),
-    updated_by: integer('updated_by'),
+    updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
     deleted_by: integer('deleted_by'),

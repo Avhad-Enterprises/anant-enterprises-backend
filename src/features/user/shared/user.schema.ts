@@ -1,6 +1,5 @@
 import {
   pgTable,
-  serial,
   timestamp,
   boolean,
   integer,
@@ -38,7 +37,7 @@ export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_n
 export const users = pgTable(
   'users',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(), // Changed to UUID for consistency
     auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
     user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
 
@@ -49,7 +48,6 @@ export const users = pgTable(
 
     // Phone
     phone_number: varchar('phone_number', { length: 20 }),
-    phone_number_2: varchar('phone_number_2', { length: 20 }),
     phone_country_code: varchar('phone_country_code', { length: 5 }), // +91, +1, etc.
     phone_verified: boolean('phone_verified').default(false).notNull(),
     phone_verified_at: timestamp('phone_verified_at'),

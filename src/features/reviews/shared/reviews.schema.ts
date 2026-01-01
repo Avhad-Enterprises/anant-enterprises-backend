@@ -43,7 +43,7 @@ export const reviews = pgTable(
         product_id: uuid('product_id')
             .references(() => products.id, { onDelete: 'cascade' })
             .notNull(),
-        user_id: integer('user_id')
+        user_id: uuid('user_id')
             .references(() => users.id, { onDelete: 'cascade' })
             .notNull(),
 

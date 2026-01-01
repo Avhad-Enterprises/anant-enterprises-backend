@@ -19,6 +19,7 @@ import {
   text,
   boolean,
   integer,
+  uuid,
   timestamp,
   decimal,
   index,
@@ -46,7 +47,7 @@ export const userAddresses = pgTable(
   'user_addresses',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     address_type: addressTypeEnum('address_type').default('shipping').notNull(),
