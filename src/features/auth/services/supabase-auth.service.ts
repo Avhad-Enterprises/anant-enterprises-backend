@@ -1,6 +1,6 @@
 import { supabaseAnon } from '../../../utils/supabase';
 import { db } from '../../../database';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../../../utils/logging/logger';
 import type { SyncUserData, AuthResponse } from '../shared/interface';

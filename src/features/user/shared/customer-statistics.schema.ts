@@ -11,7 +11,7 @@
  */
 
 import { pgTable, serial, integer, timestamp, decimal, index } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { users } from './user.schema';
 
 // ============================================
 // CUSTOMER STATISTICS TABLE

@@ -141,6 +141,23 @@ import {
   cartStatusEnum,
   cartSourceEnum,
 } from '../features/cart';
+import {
+  tickets,
+  ticketMessages,
+  ticketPriorityEnum,
+  ticketStatusEnum,
+  ticketChannelEnum,
+  ticketSourceEnum,
+  ticketMessageSenderTypeEnum,
+} from '../features/tickets';
+import {
+  orders,
+  orderItems,
+  orderChannelEnum,
+  paymentStatusEnum,
+  orderDiscountTypeEnum,
+  fulfillmentStatusEnum,
+} from '../features/orders';
 
 /**
  * Database connection configuration
@@ -348,6 +365,21 @@ export const schema = {
   cartItems,
   cartStatusEnum,
   cartSourceEnum,
+  // Tickets feature
+  tickets,
+  ticketMessages,
+  ticketPriorityEnum,
+  ticketStatusEnum,
+  ticketChannelEnum,
+  ticketSourceEnum,
+  ticketMessageSenderTypeEnum,
+  // Orders feature
+  orders,
+  orderItems,
+  orderChannelEnum,
+  paymentStatusEnum,
+  orderDiscountTypeEnum,
+  fulfillmentStatusEnum,
 };
 
 /**

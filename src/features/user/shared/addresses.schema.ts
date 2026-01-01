@@ -24,7 +24,7 @@ import {
   index,
   pgEnum,
 } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { users } from './user.schema';
 
 // ============================================
 // ENUMS

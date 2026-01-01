@@ -9,7 +9,7 @@
  */
 
 import { pgTable, serial, varchar, boolean, integer, timestamp, index } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { users } from './user.schema';
 
 // ============================================
 // ADMIN PROFILES TABLE

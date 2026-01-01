@@ -8,7 +8,7 @@ import {
   varchar,
   index,
 } from 'drizzle-orm/pg-core';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user/shared/user.schema';
 
 export const invitationStatuses = ['pending', 'accepted', 'revoked', 'expired'] as const;
 export type InvitationStatus = (typeof invitationStatuses)[number];
