@@ -10,7 +10,6 @@ import {
     uuid,
     boolean,
     integer,
-    decimal,
     timestamp,
     index,
 } from 'drizzle-orm/pg-core';

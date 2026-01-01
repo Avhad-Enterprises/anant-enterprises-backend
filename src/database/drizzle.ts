@@ -113,6 +113,34 @@ import {
   bundleTypeEnum,
   bundleStatusEnum,
 } from '../features/bundles';
+import {
+  giftCards,
+  giftCardTransactions,
+  giftCardTemplates,
+  giftCardStatusEnum,
+  giftCardDeliveryMethodEnum,
+  giftCardSourceEnum,
+  giftCardTransactionTypeEnum,
+  giftCardCharacterSetEnum,
+} from '../features/giftcards';
+import {
+  inventoryLocations,
+  inventory,
+  inventoryAdjustments,
+  productionOrders,
+  locationTypeEnum,
+  inventoryStatusEnum,
+  adjustmentTypeEnum,
+  approvalStatusEnum,
+  productionStatusEnum,
+  productionPriorityEnum,
+} from '../features/inventory';
+import {
+  carts,
+  cartItems,
+  cartStatusEnum,
+  cartSourceEnum,
+} from '../features/cart';
 
 /**
  * Database connection configuration
@@ -295,6 +323,31 @@ export const schema = {
   bundleItems,
   bundleTypeEnum,
   bundleStatusEnum,
+  // Gift Card feature
+  giftCards,
+  giftCardTransactions,
+  giftCardTemplates,
+  giftCardStatusEnum,
+  giftCardDeliveryMethodEnum,
+  giftCardSourceEnum,
+  giftCardTransactionTypeEnum,
+  giftCardCharacterSetEnum,
+  // Inventory feature
+  inventoryLocations,
+  inventory,
+  inventoryAdjustments,
+  productionOrders,
+  locationTypeEnum,
+  inventoryStatusEnum,
+  adjustmentTypeEnum,
+  approvalStatusEnum,
+  productionStatusEnum,
+  productionPriorityEnum,
+  // Cart feature
+  carts,
+  cartItems,
+  cartStatusEnum,
+  cartSourceEnum,
 };
 
 /**
