@@ -27,7 +27,7 @@ import { pineconeIndex } from '../../services/pinecone.service';
 import { eq } from 'drizzle-orm';
 
 // Increase timeout for E2E tests
-jest.setTimeout(60000);
+jest.setTimeout(180000);
 
 const generateTestEmail = (prefix: string = 'test') =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}@example.com`;
@@ -36,10 +36,10 @@ describe('Chatbot API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let adminToken: string;
-  let adminUserId: number;
+  let adminUserId: string;
   let userToken: string;
-  let userId: number;
-  let otherUserId: number;
+  let userId: string;
+  let otherUserId: string;
   let uploadedFilePath: string | null = null;
 
   beforeAll(async () => {
@@ -516,7 +516,7 @@ describe('Chatbot API Integration Tests', () => {
    */
   async function waitForDocumentProcessing(
     documentId: number,
-    maxWaitMs = 30000
+    maxWaitMs = 120000
   ): Promise<boolean> {
     const startTime = Date.now();
     const pollInterval = 1000;

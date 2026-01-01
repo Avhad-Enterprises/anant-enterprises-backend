@@ -26,7 +26,7 @@ export const queryAuditLogs = async (filters: AuditLogFilters): Promise<AuditLog
  */
 export const getResourceAuditTrail = async (
   resourceType: AuditResourceType,
-  resourceId: number,
+  resourceId: number | string,
   limit?: number
 ): Promise<AuditLog[]> => {
   return auditService.getAuditTrail(resourceType, resourceId, limit);

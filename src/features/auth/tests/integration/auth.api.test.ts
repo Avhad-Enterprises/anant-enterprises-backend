@@ -6,6 +6,9 @@ import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { ApiTestHelper } from '../../../../../tests/utils';
 
+// Non-existent UUID for testing 404 cases
+const NON_EXISTENT_UUID = '00000000-0000-0000-0000-000000000000';
+
 describe('User Authentication Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
@@ -143,7 +146,7 @@ describe('User Authentication Integration Tests', () => {
       // Use admin user to bypass ownership check and reach the 404 logic
       const { token } = await SupabaseAuthHelper.createTestAdminUser();
 
-      const response = await apiHelper.get('/api/users/99999', token);
+      const response = await apiHelper.get(`/api/users/${NON_EXISTENT_UUID}`, token);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('User not found');

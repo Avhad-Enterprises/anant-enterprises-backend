@@ -6,12 +6,15 @@ import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { ApiTestHelper } from '../../../../../tests/utils';
 
+// Non-existent UUID for testing 404 cases
+const NON_EXISTENT_UUID = '00000000-0000-0000-0000-000000000000';
+
 describe('User API Integration Tests', () => {
   let app: Application;
   let authToken: string;
   let adminToken: string;
-  let testUserId: number;
-  let adminUserId: number;
+  let testUserId: string;
+  let adminUserId: string;
   let apiHelper: ApiTestHelper;
 
   beforeAll(async () => {
@@ -95,7 +98,7 @@ describe('User API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user (admin)', async () => {
-      const response = await apiHelper.get('/api/users/99999', adminToken);
+      const response = await apiHelper.get(`/api/users/${NON_EXISTENT_UUID}`, adminToken);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('not found');
@@ -166,7 +169,7 @@ describe('User API Integration Tests', () => {
         name: 'Test',
       };
 
-      const response = await apiHelper.put('/api/users/99999', updateData, adminToken);
+      const response = await apiHelper.put(`/api/users/${NON_EXISTENT_UUID}`, updateData, adminToken);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('not found');
@@ -209,7 +212,7 @@ describe('User API Integration Tests', () => {
     });
 
     it('should return 404 for non-existent user', async () => {
-      const response = await apiHelper.delete('/api/users/99999', adminToken);
+      const response = await apiHelper.delete(`/api/users/${NON_EXISTENT_UUID}`, adminToken);
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('not found');

@@ -17,7 +17,7 @@ import { AuditResourceType } from '../shared/types';
 // Validation schema for URL params
 const paramsSchema = z.object({
   type: z.nativeEnum(AuditResourceType),
-  id: z.coerce.number().int().positive('Resource ID must be a positive integer'),
+  id: z.string().min(1, 'Resource ID is required'),
 });
 
 // Validation schema for query params
@@ -27,7 +27,7 @@ const querySchema = z.object({
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const type = req.params.type as AuditResourceType;
-  const id = parseInt(req.params.id, 10);
+  const id = req.params.id; // Now a string (UUID)
   const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
 
   // Get audit trail for resource

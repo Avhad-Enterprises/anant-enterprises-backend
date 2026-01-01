@@ -10,7 +10,6 @@ import {
   serial,
   varchar,
   text,
-  integer,
   timestamp,
   jsonb,
   index,
@@ -41,7 +40,7 @@ export const auditLogs = pgTable(
     // What action was performed
     action: varchar('action', { length: 100 }).notNull(), // e.g., 'USER_CREATE', 'LOGIN', etc.
     resource_type: varchar('resource_type', { length: 100 }).notNull(), // e.g., 'USER', 'ROLE', etc.
-    resource_id: integer('resource_id'), // ID of the affected resource (nullable for system events)
+    resource_id: varchar('resource_id', { length: 255 }), // ID of the affected resource (nullable for system events)
 
     // Before/After state (JSON for flexibility)
     old_values: jsonb('old_values'), // Previous state
