@@ -69,7 +69,7 @@ const updateProductSchema = z.object({
 
 type UpdateProduct = z.infer<typeof updateProductSchema>;
 
-async function updateProduct(id: string, data: UpdateProduct, updatedBy: number): Promise<IProduct> {
+async function updateProduct(id: string, data: UpdateProduct, updatedBy: string): Promise<IProduct> {
     const existingProduct = await findProductById(id);
 
     if (!existingProduct) {
@@ -92,8 +92,8 @@ async function updateProduct(id: string, data: UpdateProduct, updatedBy: number)
         }
     }
 
-    // Convert datetime strings to Date objects
-    const updateData: any = {
+    // Convert datetime strings to Date objects - build incrementally
+    const updateData: Record<string, unknown> = {
         ...data,
         updated_by: updatedBy,
     };

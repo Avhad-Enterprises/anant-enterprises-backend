@@ -21,7 +21,7 @@ const paramsSchema = z.object({
     id: z.string().uuid('Invalid product ID format'),
 });
 
-async function deleteProduct(id: string, deletedBy: number): Promise<{ sku: string; slug: string }> {
+async function deleteProduct(id: string, deletedBy: string): Promise<{ sku: string; slug: string }> {
     const existingProduct = await findProductById(id);
     if (!existingProduct) {
         throw new HttpException(404, 'Product not found');

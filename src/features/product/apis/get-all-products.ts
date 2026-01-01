@@ -47,7 +47,7 @@ async function getAllProducts(
     const conditions = [eq(products.is_deleted, false)];
 
     if (status) {
-        conditions.push(eq(products.status, status as any));
+        conditions.push(eq(products.status, status as 'draft' | 'active' | 'archived' | 'schedule'));
     }
 
     if (categoryTier1) {

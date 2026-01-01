@@ -60,12 +60,12 @@ export interface IProduct {
 
     created_at: Date;
     updated_at: Date;
-    created_by?: number | null;
-    updated_by?: number | null;
+    created_by?: string | null;
+    updated_by?: string | null;
 
     is_deleted: boolean;
     deleted_at?: Date | null;
-    deleted_by?: number | null;
+    deleted_by?: string | null;
 }
 
 // ============================================

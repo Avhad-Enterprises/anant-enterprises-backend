@@ -69,7 +69,7 @@ const createProductSchema = z.object({
 
 type CreateProductData = z.infer<typeof createProductSchema>;
 
-async function createNewProduct(data: CreateProductData, createdBy: number): Promise<IProduct> {
+async function createNewProduct(data: CreateProductData, createdBy: string): Promise<IProduct> {
     // Check SKU uniqueness
     const existingProductWithSku = await findProductBySku(data.sku);
     if (existingProductWithSku) {
@@ -83,7 +83,7 @@ async function createNewProduct(data: CreateProductData, createdBy: number): Pro
     }
 
     // Convert datetime strings to Date objects
-    const productData: any = {
+    const productData: typeof products.$inferInsert = {
         ...data,
         scheduled_publish_at: data.scheduled_publish_at ? new Date(data.scheduled_publish_at) : null,
         delist_date: data.delist_date ? new Date(data.delist_date) : null,

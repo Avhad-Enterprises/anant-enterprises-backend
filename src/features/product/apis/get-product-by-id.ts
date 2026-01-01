@@ -20,7 +20,7 @@ const paramsSchema = z.object({
     id: z.string().uuid('Invalid product ID format'),
 });
 
-async function getProductById(id: string, userId?: number): Promise<IProduct> {
+async function getProductById(id: string, userId?: string): Promise<IProduct> {
     const product = await productCacheService.getProductById(id);
 
     if (!product) {
