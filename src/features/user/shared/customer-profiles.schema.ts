@@ -21,8 +21,9 @@ import {
   decimal,
   index,
   pgEnum,
+  uuid,
 } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { users } from './user.schema';
 
 // ============================================
 // ENUMS
@@ -53,7 +54,7 @@ export const customerProfiles = pgTable(
   'customer_profiles',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
       .notNull(),
@@ -66,7 +67,7 @@ export const customerProfiles = pgTable(
       .default('0.00')
       .notNull(),
     referral_code: varchar('referral_code', { length: 20 }).unique(), // Unique code for sharing
-    referred_by_user_id: integer('referred_by_user_id').references(() => users.id, {
+    referred_by_user_id: uuid('referred_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
     referral_bonus_credited: boolean('referral_bonus_credited').default(false).notNull(),

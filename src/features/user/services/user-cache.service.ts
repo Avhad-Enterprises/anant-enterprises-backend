@@ -10,9 +10,9 @@
 import { logger } from '../../../utils';
 import { redisClient, isRedisReady } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/schema';
+import { users } from '../shared/user.schema';
 import { eq, and } from 'drizzle-orm';
-import type { User } from '../shared/schema';
+import type { User } from '../shared/user.schema';
 
 // Redis key prefixes
 const USER_BY_ID_PREFIX = 'user:id:';

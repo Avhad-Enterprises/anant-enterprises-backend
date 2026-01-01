@@ -41,6 +41,123 @@ import {
   countries,
   regions,
 } from '../features/settings';
+import {
+  products,
+  productVariants,
+  productFaqs,
+  productStatusEnum,
+} from '../features/product';
+import {
+  collections,
+  collectionRules,
+  collectionProducts,
+  collectionTypeEnum,
+  collectionStatusEnum,
+  collectionSortOrderEnum,
+  conditionMatchTypeEnum,
+} from '../features/collection';
+import {
+  tiers,
+  productTiers,
+  tierStatusEnum,
+} from '../features/tiers';
+import {
+  tags,
+  productTags,
+} from '../features/tags';
+import {
+  discounts,
+  discountCodes,
+  discountProducts,
+  discountCollections,
+  discountTypeEnum,
+  discountStatusEnum,
+  minRequirementTypeEnum,
+} from '../features/discount';
+import {
+  wishlists,
+  wishlistItems,
+} from '../features/wishlist';
+import {
+  faqs,
+  faqTargetTypeEnum,
+} from '../features/faq';
+import {
+  companies,
+  companyRules,
+  userAssignmentTypeEnum,
+  companyMatchTypeEnum,
+} from '../features/company';
+import {
+  catalogues,
+  catalogueRules,
+  catalogueProductOverrides,
+  catalogueStatusEnum,
+  catalogueRuleMatchTypeEnum,
+  catalogueAdjustmentTypeEnum,
+} from '../features/catalogue';
+import {
+  blogs,
+  blogSubsections,
+  blogStatusEnum,
+} from '../features/blog';
+import {
+  reviews,
+  productQuestions,
+  reviewStatusEnum,
+  questionStatusEnum,
+} from '../features/reviews';
+import {
+  bundles,
+  bundleItems,
+  bundleTypeEnum,
+  bundleStatusEnum,
+} from '../features/bundles';
+import {
+  giftCards,
+  giftCardTransactions,
+  giftCardTemplates,
+  giftCardStatusEnum,
+  giftCardDeliveryMethodEnum,
+  giftCardSourceEnum,
+  giftCardTransactionTypeEnum,
+  giftCardCharacterSetEnum,
+} from '../features/giftcards';
+import {
+  inventoryLocations,
+  inventory,
+  inventoryAdjustments,
+  productionOrders,
+  locationTypeEnum,
+  inventoryStatusEnum,
+  adjustmentTypeEnum,
+  approvalStatusEnum,
+  productionStatusEnum,
+  productionPriorityEnum,
+} from '../features/inventory';
+import {
+  carts,
+  cartItems,
+  cartStatusEnum,
+  cartSourceEnum,
+} from '../features/cart';
+import {
+  tickets,
+  ticketMessages,
+  ticketPriorityEnum,
+  ticketStatusEnum,
+  ticketChannelEnum,
+  ticketSourceEnum,
+  ticketMessageSenderTypeEnum,
+} from '../features/tickets';
+import {
+  orders,
+  orderItems,
+  orderChannelEnum,
+  paymentStatusEnum,
+  orderDiscountTypeEnum,
+  fulfillmentStatusEnum,
+} from '../features/orders';
 
 /**
  * Database connection configuration
@@ -63,10 +180,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-      rejectUnauthorized: true, // Always validate certificates in production
-      // If using self-signed certs, set DATABASE_SSL_CA env var
-      ca: process.env.DATABASE_SSL_CA || undefined,
-    }
+    rejectUnauthorized: true, // Always validate certificates in production
+    // If using self-signed certs, set DATABASE_SSL_CA env var
+    ca: process.env.DATABASE_SSL_CA || undefined,
+  }
   : undefined;
 
 export const pool = new Pool({
@@ -163,6 +280,106 @@ export const schema = {
   taxAppliesToEnum,
   countries,
   regions,
+  // Product feature
+  products,
+  productVariants,
+  productFaqs,
+  productStatusEnum,
+  // Collection feature
+  collections,
+  collectionRules,
+  collectionProducts,
+  collectionTypeEnum,
+  collectionStatusEnum,
+  collectionSortOrderEnum,
+  conditionMatchTypeEnum,
+  // Tier feature
+  tiers,
+  productTiers,
+  tierStatusEnum,
+  // Tags feature
+  tags,
+  productTags,
+  // Discount feature
+  discounts,
+  discountCodes,
+  discountProducts,
+  discountCollections,
+  discountTypeEnum,
+  discountStatusEnum,
+  minRequirementTypeEnum,
+  // Wishlist feature
+  wishlists,
+  wishlistItems,
+  // FAQ feature
+  faqs,
+  faqTargetTypeEnum,
+  // Company feature
+  companies,
+  companyRules,
+  userAssignmentTypeEnum,
+  companyMatchTypeEnum,
+  // Catalogue feature
+  catalogues,
+  catalogueRules,
+  catalogueProductOverrides,
+  catalogueStatusEnum,
+  catalogueRuleMatchTypeEnum,
+  catalogueAdjustmentTypeEnum,
+  // Blog feature
+  blogs,
+  blogSubsections,
+  blogStatusEnum,
+  // Review feature
+  reviews,
+  productQuestions,
+  reviewStatusEnum,
+  questionStatusEnum,
+  // Bundle feature
+  bundles,
+  bundleItems,
+  bundleTypeEnum,
+  bundleStatusEnum,
+  // Gift Card feature
+  giftCards,
+  giftCardTransactions,
+  giftCardTemplates,
+  giftCardStatusEnum,
+  giftCardDeliveryMethodEnum,
+  giftCardSourceEnum,
+  giftCardTransactionTypeEnum,
+  giftCardCharacterSetEnum,
+  // Inventory feature
+  inventoryLocations,
+  inventory,
+  inventoryAdjustments,
+  productionOrders,
+  locationTypeEnum,
+  inventoryStatusEnum,
+  adjustmentTypeEnum,
+  approvalStatusEnum,
+  productionStatusEnum,
+  productionPriorityEnum,
+  // Cart feature
+  carts,
+  cartItems,
+  cartStatusEnum,
+  cartSourceEnum,
+  // Tickets feature
+  tickets,
+  ticketMessages,
+  ticketPriorityEnum,
+  ticketStatusEnum,
+  ticketChannelEnum,
+  ticketSourceEnum,
+  ticketMessageSenderTypeEnum,
+  // Orders feature
+  orders,
+  orderItems,
+  orderChannelEnum,
+  paymentStatusEnum,
+  orderDiscountTypeEnum,
+  fulfillmentStatusEnum,
 };
 
 /**

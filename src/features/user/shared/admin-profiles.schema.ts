@@ -8,8 +8,8 @@
  * (all handled by RBAC or authentication systems)
  */
 
-import { pgTable, serial, varchar, boolean, integer, timestamp, index } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { pgTable, serial, varchar, boolean, integer, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { users } from './user.schema';
 
 // ============================================
 // ADMIN PROFILES TABLE
@@ -24,7 +24,7 @@ export const adminProfiles = pgTable(
   'admin_profiles',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
       .notNull(),

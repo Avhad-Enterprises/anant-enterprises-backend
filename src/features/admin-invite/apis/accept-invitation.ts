@@ -14,7 +14,7 @@ import { supabase } from '../../../utils/supabase';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { assignRoleToUser } from '../../rbac';
 import { db } from '../../../database';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
 import { loginWithSupabase } from '../../auth/services/supabase-auth.service';
 

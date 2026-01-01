@@ -12,7 +12,7 @@ import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { sanitizeUsers } from '../shared/sanitizeUser';
 import { db } from '../../../database';
-import { users } from '../shared/schema';
+import { users } from '../shared/user.schema';
 import { IUser } from '../shared/interface';
 
 // Default pagination values

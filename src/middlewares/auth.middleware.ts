@@ -3,7 +3,7 @@ import { HttpException } from '../utils';
 import { logger } from '../utils';
 import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
 import { db } from '../database';
-import { users } from '../features/user/shared/schema';
+import { users } from '../features/user/shared/user.schema';
 import { eq } from 'drizzle-orm';
 
 /**

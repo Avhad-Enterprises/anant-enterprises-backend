@@ -19,12 +19,15 @@ import {
   text,
   boolean,
   integer,
+  uuid,
   timestamp,
   decimal,
   index,
+  uniqueIndex,
   pgEnum,
 } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { sql } from 'drizzle-orm';
+import { users } from './user.schema';
 
 // ============================================
 // ENUMS
@@ -44,7 +47,7 @@ export const userAddresses = pgTable(
   'user_addresses',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     address_type: addressTypeEnum('address_type').default('shipping').notNull(),
@@ -91,6 +94,10 @@ export const userAddresses = pgTable(
     ),
     // Country-based queries for shipping zones
     countryIdx: index('user_addresses_country_idx').on(table.country_code),
+    // CRITICAL FIX #2: Unique constraint - only one default address per type per user
+    uniqueDefaultIdx: uniqueIndex('user_addresses_unique_default_idx')
+      .on(table.user_id, table.address_type)
+      .where(sql`${table.is_default} = true AND ${table.is_deleted} = false`),
   })
 );
 

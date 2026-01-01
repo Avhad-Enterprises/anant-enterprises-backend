@@ -11,7 +11,7 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { supabaseAnon } from '../../../utils/supabase';
 import { db } from '../../../database';
-import { users } from '../../user/shared/schema';
+import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
 
 const schema = z.object({

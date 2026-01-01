@@ -19,7 +19,7 @@ import { ResponseFormatter } from '../../../utils';
 import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/schema';
+import { users } from '../shared/user.schema';
 import { IUser } from '../shared/interface';
 import { findUserById, findUserByEmail } from '../shared/queries';
 

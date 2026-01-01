@@ -1,0 +1,24 @@
+db password: fsuvGWjCyH3j7ktD
+Project URL: https://irnyfhmqwiblbilfmgxk.supabase.co
+Publishable API Key : sb_publishable_tvrBzlwIlBkxaMR25pn9jw_PbfBgPY6
+
+postgresql://postgres:[YOUR-PASSWORD]@db.irnyfhmqwiblbilfmgxk.supabase.co:5432/postgres
+
+import { createClient } from 'redis';
+
+const client = createClient({
+    username: 'default',
+    password: 'fCaHGGn8H1nGSpN9ujZZXZptIaRmLDSA',
+    socket: {
+        host: 'redis-18176.c301.ap-south-1-1.ec2.cloud.redislabs.com',
+        port: 18176
+    }
+});
+
+client.on('error', err => console.log('Redis Client Error', err));
+
+await client.connect();
+
+await client.set('foo', 'bar');
+const result = await client.get('foo');
+console.log(result)  // >>> bar

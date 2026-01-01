@@ -7,7 +7,7 @@
 
 import { supabaseAnon, supabase } from '../../src/utils/supabase';
 import { db } from '../../src/database';
-import { users } from '../../src/features/user/shared/schema';
+import { users } from '../../src/features/user/shared/user.schema';
 import {
   roles,
   permissions,

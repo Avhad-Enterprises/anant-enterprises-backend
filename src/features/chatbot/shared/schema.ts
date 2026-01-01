@@ -9,6 +9,7 @@ import {
   index,
   varchar,
   jsonb,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
@@ -47,12 +48,12 @@ export const chatbotDocuments = pgTable(
     is_embedded: boolean('is_embedded').default(false).notNull(), // Track if content is vectorized
     error_message: text('error_message'),
     // Audit fields
-    created_by: integer('created_by').references(() => users.id),
+    created_by: uuid('created_by').references(() => users.id),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    updated_by: integer('updated_by'),
+    updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({
@@ -78,17 +79,17 @@ export const chatbotSessions = pgTable(
   'chatbot_sessions',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     title: varchar('title', { length: 255 }),
     // Audit fields
-    created_by: integer('created_by'),
+    created_by: uuid('created_by'),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    updated_by: integer('updated_by'),
+    updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({
@@ -130,12 +131,12 @@ export const chatbotMessages = pgTable(
     content: text('content').notNull(),
     sources: jsonb('sources').$type<MessageSource[]>(), // Referenced document sources
     // Audit fields
-    created_by: integer('created_by'),
+    created_by: uuid('created_by'),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    updated_by: integer('updated_by'),
+    updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({

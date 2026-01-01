@@ -18,6 +18,7 @@ import {
   timestamp,
   primaryKey,
   index,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
@@ -39,12 +40,12 @@ export const roles = pgTable(
     is_system_role: boolean('is_system_role').default(false).notNull(),
     is_active: boolean('is_active').default(true).notNull(),
     // Audit fields
-    created_by: integer('created_by'),
+    created_by: uuid('created_by'),
     created_at: timestamp('created_at').defaultNow().notNull(),
-    updated_by: integer('updated_by'),
+    updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    deleted_by: integer('deleted_by'),
+    deleted_by: uuid('deleted_by'),
     deleted_at: timestamp('deleted_at'),
   },
   table => ({
@@ -99,7 +100,7 @@ export const rolePermissions = pgTable(
     permission_id: integer('permission_id')
       .references(() => permissions.id, { onDelete: 'cascade' })
       .notNull(),
-    assigned_by: integer('assigned_by').references(() => users.id),
+    assigned_by: uuid('assigned_by').references(() => users.id),
     assigned_at: timestamp('assigned_at').defaultNow().notNull(),
   },
   table => ({
@@ -123,13 +124,13 @@ export type NewRolePermission = typeof rolePermissions.$inferInsert;
 export const userRoles = pgTable(
   'user_roles',
   {
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     role_id: integer('role_id')
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
-    assigned_by: integer('assigned_by').references(() => users.id),
+    assigned_by: uuid('assigned_by').references(() => users.id),
     assigned_at: timestamp('assigned_at').defaultNow().notNull(),
     expires_at: timestamp('expires_at'), // Optional: role expiration
   },

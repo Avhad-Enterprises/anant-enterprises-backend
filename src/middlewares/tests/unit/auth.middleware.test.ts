@@ -20,7 +20,7 @@ jest.mock('../../../database', () => {
   };
 });
 
-jest.mock('../../../features/user/shared/schema', () => ({
+jest.mock('../../../features/user/shared/user.schema', () => ({
   users: 'mocked_users_table',
 }));
 

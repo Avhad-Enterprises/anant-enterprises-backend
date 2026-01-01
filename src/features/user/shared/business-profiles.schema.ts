@@ -18,8 +18,9 @@ import {
   decimal,
   index,
   pgEnum,
+  uuid,
 } from 'drizzle-orm/pg-core';
-import { users } from './schema';
+import { users } from './user.schema';
 import { userAddresses } from './addresses.schema';
 
 // ============================================
@@ -63,7 +64,7 @@ export const businessCustomerProfiles = pgTable(
   'business_customer_profiles',
   {
     id: serial('id').primaryKey(),
-    user_id: integer('user_id')
+    user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
       .notNull(),
@@ -98,13 +99,13 @@ export const businessCustomerProfiles = pgTable(
     payment_terms: paymentTermsEnum('payment_terms').default('immediate').notNull(),
     credit_limit: decimal('credit_limit', { precision: 12, scale: 2 }).default('0.00').notNull(),
     credit_used: decimal('credit_used', { precision: 12, scale: 2 }).default('0.00').notNull(),
-    credit_approved_by: integer('credit_approved_by').references(() => users.id, {
+    credit_approved_by: uuid('credit_approved_by').references(() => users.id, {
       onDelete: 'set null',
     }),
     credit_approved_at: timestamp('credit_approved_at'),
 
     // Account management
-    account_manager_id: integer('account_manager_id').references(() => users.id, {
+    account_manager_id: uuid('account_manager_id').references(() => users.id, {
       onDelete: 'set null',
     }),
     tier: businessTierEnum('tier').default('standard').notNull(),
@@ -117,7 +118,7 @@ export const businessCustomerProfiles = pgTable(
 
     // Account status
     account_status: businessAccountStatusEnum('account_status').default('pending').notNull(),
-    approved_by: integer('approved_by').references(() => users.id, { onDelete: 'set null' }),
+    approved_by: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
     approved_at: timestamp('approved_at'),
     suspended_reason: text('suspended_reason'),
 
