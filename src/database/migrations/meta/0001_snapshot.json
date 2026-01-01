@@ -1,6 +1,6 @@
 {
-  "id": "6be10248-06b1-4d1b-af57-3572202edb8f",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "276aeebc-7667-49be-8b4b-53b66ba9f154",
+  "prevId": "6be10248-06b1-4d1b-af57-3572202edb8f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3709,6 +3709,12 @@
         },
         "phone_number": {
           "name": "phone_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_number_2": {
+          "name": "phone_number_2",
           "type": "varchar(20)",
           "primaryKey": false,
           "notNull": false
