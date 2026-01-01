@@ -110,7 +110,7 @@ export async function uploadToStorage(
   buffer: Buffer,
   filename: string,
   mimetype: string,
-  userId: number
+  userId: string
 ): Promise<StorageUploadResult> {
   try {
     const bucket = getBucketName();

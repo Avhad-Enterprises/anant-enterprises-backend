@@ -12,7 +12,6 @@ import {
   serial,
   varchar,
   boolean,
-  integer,
   timestamp,
   decimal,
   index,

@@ -9,7 +9,6 @@ import {
     uuid,
     text,
     boolean,
-    integer,
     timestamp,
     pgEnum,
     index,

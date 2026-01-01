@@ -229,7 +229,7 @@ class ChatbotCacheService {
    * Get user's session list from cache or database
    */
   async listUserSessions(
-    userId: number,
+    userId: string,
     page: number = 1,
     limit: number = 20
   ): Promise<{ sessions: ChatbotSession[]; total: number }> {
@@ -263,7 +263,7 @@ class ChatbotCacheService {
   }
 
   private async fetchUserSessions(
-    userId: number,
+    userId: string,
     page: number,
     limit: number
   ): Promise<{ sessions: ChatbotSession[]; total: number }> {
@@ -345,7 +345,7 @@ class ChatbotCacheService {
    * Invalidate session caches for a specific user
    * Call after session create, delete, or message send
    */
-  async invalidateUserSessions(userId: number): Promise<void> {
+  async invalidateUserSessions(userId: string): Promise<void> {
     // Clear from Redis
     if (isRedisReady()) {
       try {

@@ -164,7 +164,7 @@ class AuditService {
    * @param userId - ID of the user
    * @param limit - Maximum number of records to return
    */
-  async getUserActivity(userId: number, limit: number = 100): Promise<AuditLog[]> {
+  async getUserActivity(userId: string, limit: number = 100): Promise<AuditLog[]> {
     try {
       const logs = await db
         .select()
@@ -344,7 +344,7 @@ class AuditService {
    * @param userId - User ID
    * @returns User details or null
    */
-  private async getUserDetails(userId: number): Promise<{ email: string } | null> {
+  private async getUserDetails(userId: string): Promise<{ email: string } | null> {
     try {
       const [user] = await db
         .select({ email: users.email })
@@ -365,7 +365,7 @@ class AuditService {
    * @param userId - User ID
    * @returns Comma-separated role names
    */
-  private async getUserRole(userId: number): Promise<string | null> {
+  private async getUserRole(userId: string): Promise<string | null> {
     try {
       const roles = await rbacCacheService.getUserRoles(userId);
       return roles.length > 0 ? roles.map(role => role.name).join(', ') : null;

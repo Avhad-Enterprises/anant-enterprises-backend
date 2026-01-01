@@ -45,7 +45,7 @@ async function searchUsers(search: string, page: number = 1, limit: number = 10)
 /**
  * Get user with their uploads (join example)
  */
-async function getUserWithUploads(userId: number) {
+async function getUserWithUploads(userId: string) {
   const result = await db
     .select({
       user: users,
@@ -75,7 +75,7 @@ async function createUserWithUpload(
       .insert(users)
       .values({
         ...userData,
-        created_by: 1,
+        // created_by will be set to self after user creation
       })
       .returning();
 

@@ -11,13 +11,13 @@ export interface IInvitation {
   temp_password_encrypted?: string | null;
   password_hash?: string | null;
   verify_attempts: number;
-  invited_by: number;
+  invited_by: string;
   expires_at: Date;
   accepted_at?: Date | null;
   created_at: Date;
   updated_at: Date;
   is_deleted: boolean;
-  deleted_by?: number | null;
+  deleted_by?: string | null;
   deleted_at?: Date | null;
 }
 

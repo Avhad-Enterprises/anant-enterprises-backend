@@ -31,7 +31,7 @@ const updateUserSchema = z.object({
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
 
-async function updateUser(id: number, data: UpdateUser, requesterId: number): Promise<IUser> {
+async function updateUser(id: string, data: UpdateUser, requesterId: string): Promise<IUser> {
   const existingUser = await findUserById(id);
 
   if (!existingUser) {
@@ -85,7 +85,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   const paramsSchema = z.object({
-    id: z.coerce.number().int().positive('User ID must be a positive integer'),
+    id: z.string().uuid('Invalid user ID format'),
   });
 
   const { id } = paramsSchema.parse(req.params);
@@ -104,7 +104,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 const router = Router();
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('User ID must be a positive integer'),
+  id: z.string().uuid('Invalid user ID format'),
 });
 
 router.put(

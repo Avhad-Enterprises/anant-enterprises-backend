@@ -15,7 +15,7 @@ import { auditService } from '../services/audit.service';
 
 // Validation schema for URL params
 const paramsSchema = z.object({
-  userId: z.coerce.number().int().positive('User ID must be a positive integer'),
+  userId: z.string().uuid('Invalid user ID format'),
 });
 
 // Validation schema for query params
@@ -26,7 +26,7 @@ const querySchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const userId = parseInt(req.params.userId, 10);
+  const userId = req.params.userId;
   const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
   const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
   const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;

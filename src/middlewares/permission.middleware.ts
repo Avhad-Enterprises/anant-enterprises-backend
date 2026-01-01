@@ -103,7 +103,7 @@ export const requireAnyPermission = (requiredPermissions: string[]) => {
  */
 export const checkOwnershipOrPermission = async (
   req: Request,
-  resourceOwnerId: number,
+  resourceOwnerId: string,
   permission: string
 ): Promise<boolean> => {
   if (!req.userId) {
@@ -133,9 +133,9 @@ export const requireOwnerOrPermission = (ownerIdParam: string, permission: strin
         return next(new HttpException(401, 'Authentication required'));
       }
 
-      const resourceOwnerId = parseInt(req.params[ownerIdParam], 10);
+      const resourceOwnerId = req.params[ownerIdParam];
 
-      if (isNaN(resourceOwnerId)) {
+      if (!resourceOwnerId) {
         return next(new HttpException(400, 'Invalid resource ID'));
       }
 

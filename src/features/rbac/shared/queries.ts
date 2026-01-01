@@ -45,7 +45,7 @@ export async function createRole(data: {
   name: string;
   description?: string;
   is_system_role?: boolean;
-  created_by?: number;
+  created_by?: string;
 }) {
   const [role] = await db
     .insert(roles)
@@ -64,7 +64,7 @@ export async function createRole(data: {
  */
 export async function updateRole(
   id: number,
-  data: { name?: string; description?: string; is_active?: boolean; updated_by?: number }
+  data: { name?: string; description?: string; is_active?: boolean; updated_by?: string }
 ) {
   const [role] = await db
     .update(roles)
@@ -80,7 +80,7 @@ export async function updateRole(
 /**
  * Soft delete a role
  */
-export async function deleteRole(id: number, deleted_by: number) {
+export async function deleteRole(id: number, deleted_by: string) {
   const [role] = await db
     .update(roles)
     .set({
@@ -168,7 +168,7 @@ export async function findRolePermissions(roleId: number) {
 export async function assignPermissionToRole(
   roleId: number,
   permissionId: number,
-  assignedBy?: number
+  assignedBy?: string
 ) {
   const [assignment] = await db
     .insert(rolePermissions)
@@ -199,7 +199,7 @@ export async function removePermissionFromRole(roleId: number, permissionId: num
 export async function assignPermissionsToRole(
   roleId: number,
   permissionIds: number[],
-  assignedBy?: number
+  assignedBy?: string
 ) {
   if (permissionIds.length === 0) return [];
 
@@ -219,7 +219,7 @@ export async function assignPermissionsToRole(
 /**
  * Get all roles for a user (active, non-expired)
  */
-export async function findUserRoles(userId: number) {
+export async function findUserRoles(userId: string) {
   const now = new Date();
   return db
     .select({
@@ -243,9 +243,9 @@ export async function findUserRoles(userId: number) {
  * Assign role to user
  */
 export async function assignRoleToUser(
-  userId: number,
+  userId: string,
   roleId: number,
-  assignedBy?: number,
+  assignedBy?: string,
   expiresAt?: Date
 ) {
   const [assignment] = await db
@@ -264,7 +264,7 @@ export async function assignRoleToUser(
 /**
  * Remove role from user
  */
-export async function removeRoleFromUser(userId: number, roleId: number) {
+export async function removeRoleFromUser(userId: string, roleId: number) {
   await db
     .delete(userRoles)
     .where(and(eq(userRoles.user_id, userId), eq(userRoles.role_id, roleId)));
@@ -274,7 +274,7 @@ export async function removeRoleFromUser(userId: number, roleId: number) {
  * Get all effective permissions for a user
  * Aggregates permissions from all assigned roles
  */
-export async function findUserPermissions(userId: number): Promise<string[]> {
+export async function findUserPermissions(userId: string): Promise<string[]> {
   const now = new Date();
 
   // Get all role IDs for the user
@@ -311,7 +311,7 @@ export async function findUserPermissions(userId: number): Promise<string[]> {
 /**
  * Check if user has a specific permission
  */
-export async function userHasPermission(userId: number, permissionName: string): Promise<boolean> {
+export async function userHasPermission(userId: string, permissionName: string): Promise<boolean> {
   const userPerms = await findUserPermissions(userId);
 
   // Check for wildcard permission (superadmin)

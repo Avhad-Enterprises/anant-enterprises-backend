@@ -16,7 +16,7 @@ import { AuditAction, AuditResourceType, AuditLogFilters } from '../shared/types
 
 // Validation schema for query parameters
 const querySchema = z.object({
-  userId: z.coerce.number().int().positive().optional(),
+  userId: z.string().optional(),
   action: z.string().optional(),
   resourceType: z.nativeEnum(AuditResourceType).optional(),
   resourceId: z.union([z.coerce.number().int(), z.string()]).optional(),
@@ -34,7 +34,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     offset: req.query.offset ? Number(req.query.offset) : 0,
   };
 
-  if (req.query.userId) filters.userId = Number(req.query.userId);
+  if (req.query.userId) filters.userId = String(req.query.userId);
   if (req.query.resourceType) filters.resourceType = req.query.resourceType as AuditResourceType;
   if (req.query.resourceId) filters.resourceId = String(req.query.resourceId);
   if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);

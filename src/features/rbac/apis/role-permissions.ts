@@ -56,7 +56,7 @@ async function getRolePermissions(roleId: number): Promise<RolePermissionsResult
 async function handleAssignPermission(
   roleId: number,
   permissionId: number,
-  assignedBy: number
+  assignedBy: string
 ): Promise<{ role_id: number; permission: Permission }> {
   const role = await findRoleById(roleId);
   if (!role) {

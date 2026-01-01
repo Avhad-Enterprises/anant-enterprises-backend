@@ -7,7 +7,7 @@ import { userCacheService } from '../services/user-cache.service';
  * Find user by ID (excluding deleted users) - CACHED
  * Uses Redis/memory cache for better performance
  */
-export const findUserById = async (id: number): Promise<User | undefined> => {
+export const findUserById = async (id: string): Promise<User | undefined> => {
   return userCacheService.getUserById(id);
 };
 
@@ -34,7 +34,7 @@ export const createUser = async (userData: NewUser): Promise<User> => {
  * Shared query used across services
  */
 export const updateUserById = async (
-  id: number,
+  id: string,
   data: Partial<Omit<User, 'id'>>
 ): Promise<User | undefined> => {
   const [updatedUser] = await db

@@ -243,7 +243,7 @@ export async function loginWithSupabase(credentials: {
   }
 }
 export async function migrateUserToSupabaseAuth(
-  userId: number,
+  userId: string,
   password: string
 ): Promise<AuthResponse> {
   try {

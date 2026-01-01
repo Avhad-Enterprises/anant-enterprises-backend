@@ -25,7 +25,7 @@ const schema = z.object({
 
 type CreateRoleDto = z.infer<typeof schema>;
 
-async function handleCreateRole(data: CreateRoleDto, createdBy: number): Promise<Role> {
+async function handleCreateRole(data: CreateRoleDto, createdBy: string): Promise<Role> {
   // Check if role already exists
   const existingRole = await findRoleByName(data.name);
   if (existingRole) {

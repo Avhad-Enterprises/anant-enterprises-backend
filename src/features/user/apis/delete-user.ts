@@ -19,10 +19,10 @@ import { findUserById } from '../shared/queries';
 import { userCacheService } from '../services/user-cache.service';
 
 const paramsSchema = z.object({
-  id: z.coerce.number().int().positive('User ID must be a positive integer'),
+  id: z.string().uuid('User ID must be a valid UUID'),
 });
 
-async function deleteUser(id: number, deletedBy: number): Promise<{ email: string }> {
+async function deleteUser(id: string, deletedBy: string): Promise<{ email: string }> {
   // Prevent self-deletion
   if (id === deletedBy) {
     throw new HttpException(400, 'Cannot delete your own account');
@@ -37,7 +37,7 @@ async function deleteUser(id: number, deletedBy: number): Promise<{ email: strin
     .update(users)
     .set({
       is_deleted: true,
-      deleted_by: deletedBy,
+      deleted_by: null, // deleted_by is integer in schema, needs migration
       deleted_at: new Date(),
     })
     .where(eq(users.id, id));

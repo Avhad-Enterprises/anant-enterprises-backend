@@ -78,12 +78,12 @@ export async function listDocuments(
 export async function updateDocumentStatus(
   id: number,
   status: DocumentStatus,
-  updatedBy: number,
+  updatedBy: string,
   errorMessage?: string
 ): Promise<ChatbotDocument | undefined> {
   const updateData: {
     status: DocumentStatus;
-    updated_by: number;
+    updated_by: string;
     updated_at: Date;
     error_message?: string | null;
     is_embedded?: boolean;
@@ -117,7 +117,7 @@ export async function updateDocumentStatus(
 export async function updateDocumentProcessingResult(
   id: number,
   chunkCount: number,
-  updatedBy: number
+  updatedBy: string
 ): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .update(chatbotDocuments)
@@ -138,7 +138,7 @@ export async function updateDocumentProcessingResult(
  */
 export async function deleteDocument(
   id: number,
-  deletedBy: number
+  deletedBy: string
 ): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .update(chatbotDocuments)
@@ -204,7 +204,7 @@ export async function createSession(data: NewChatbotSession): Promise<ChatbotSes
  */
 export async function getSessionByIdForUser(
   id: number,
-  userId: number
+  userId: string
 ): Promise<ChatbotSession | undefined> {
   const [session] = await db
     .select()
@@ -223,7 +223,7 @@ export async function getSessionByIdForUser(
  * List sessions for a user with pagination
  */
 export async function listUserSessions(
-  userId: number,
+  userId: string,
   page: number = 1,
   limit: number = 20
 ): Promise<{ sessions: ChatbotSession[]; total: number }> {
@@ -283,7 +283,7 @@ export async function updateSessionTitle(
  */
 export async function deleteSession(
   id: number,
-  deletedBy: number
+  deletedBy: string
 ): Promise<ChatbotSession | undefined> {
   // First soft-delete all messages in the session
   await db

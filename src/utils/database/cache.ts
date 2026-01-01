@@ -130,15 +130,15 @@ export const cacheService = {
  */
 export const cacheKeys = {
   // User-related keys
-  user: (userId: number) => `user:${userId}`,
-  userProfile: (userId: number) => `user:profile:${userId}`,
+  user: (userId: string) => `user:${userId}`,
+  userProfile: (userId: string) => `user:profile:${userId}`,
 
   // Session keys
   session: (sessionId: string) => `session:${sessionId}`,
 
   // RBAC keys (also used in rbac-cache.service.ts)
-  permissions: (userId: number) => `rbac:permissions:${userId}`,
-  roles: (userId: number) => `rbac:roles:${userId}`,
+  permissions: (userId: string) => `rbac:permissions:${userId}`,
+  roles: (userId: string) => `rbac:roles:${userId}`,
 
   // API response cache
   apiResponse: (endpoint: string, params: string) => `api:${endpoint}:${params}`,

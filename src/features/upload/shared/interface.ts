@@ -3,7 +3,7 @@ import { UploadStatus, uploads } from './schema';
 // Upload entity interfaces
 export interface Upload {
   id: number;
-  user_id: number;
+  user_id: string;
   filename: string;
   original_filename: string;
   mime_type: string;
@@ -12,12 +12,12 @@ export interface Upload {
   file_url: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error_message?: string;
-  created_by: number;
+  created_by?: string;
   created_at: string;
-  updated_by?: number;
+  updated_by?: string;
   updated_at: string;
   is_deleted: boolean;
-  deleted_by?: number;
+  deleted_by?: string;
   deleted_at?: string;
 }
 
@@ -26,7 +26,7 @@ export interface UploadUpdateInput {
   filename?: string;
   status?: UploadStatus;
   error_message?: string;
-  updated_by?: number;
+  updated_by?: string;
 }
 
 // Upload statistics interface

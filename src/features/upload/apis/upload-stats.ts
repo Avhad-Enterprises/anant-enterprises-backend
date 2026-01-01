@@ -12,7 +12,7 @@ import { db } from '../../../database';
 import { uploads } from '../shared/schema';
 import { UploadStats } from '../shared/interface';
 
-async function getUserUploadStats(userId: number): Promise<UploadStats> {
+async function getUserUploadStats(userId: string): Promise<UploadStats> {
   const [stats] = await db
     .select({
       total_uploads: count(),

@@ -36,7 +36,7 @@ export const getResourceAuditTrail = async (
  * Get activity history for a specific user
  */
 export const getUserActivityHistory = async (
-  userId: number,
+  userId: string,
   limit?: number
 ): Promise<AuditLog[]> => {
   return auditService.getUserActivity(userId, limit);

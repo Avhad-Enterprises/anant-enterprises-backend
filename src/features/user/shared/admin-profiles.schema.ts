@@ -8,7 +8,7 @@
  * (all handled by RBAC or authentication systems)
  */
 
-import { pgTable, serial, varchar, boolean, integer, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, boolean, uuid, timestamp, index } from 'drizzle-orm/pg-core';
 import { users } from './user.schema';
 
 // ============================================

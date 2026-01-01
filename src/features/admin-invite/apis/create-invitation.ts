@@ -36,7 +36,7 @@ const INVITATION_EXPIRY_HOURS = 24;
 
 async function handleCreateInvitation(
   invitationData: ICreateInvitation & { first_name: string; last_name: string },
-  invitedBy: number
+  invitedBy: string
 ): Promise<IInvitation> {
   // Check if user already exists
   const existingUser = await findUserByEmail(invitationData.email);

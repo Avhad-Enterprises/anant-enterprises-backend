@@ -11,7 +11,6 @@ import {
     varchar,
     text,
     decimal,
-    integer,
     timestamp,
     pgEnum,
     index,

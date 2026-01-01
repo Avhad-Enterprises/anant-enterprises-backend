@@ -21,7 +21,7 @@ export interface RequestWithId extends Request {
  * Note: User roles are now managed via dynamic RBAC system
  */
 export interface RequestWithUser extends Request {
-  userId: number;
+  userId: string;
   userAgent?: string;
   clientIP?: string;
 }
@@ -30,7 +30,7 @@ export interface RequestWithUser extends Request {
  * Authenticated user data structure
  */
 export interface IAuthUser {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone_number?: string;

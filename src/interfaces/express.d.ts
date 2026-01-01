@@ -11,7 +11,7 @@ declare global {
       requestId?: string;
 
       // Authentication & Authorization
-      userId?: number;
+      userId?: string;
       userAgent?: string;
       clientIP?: string;
 

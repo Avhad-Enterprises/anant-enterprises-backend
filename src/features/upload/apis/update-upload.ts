@@ -27,7 +27,7 @@ const updateUploadSchema = z.object({
 async function handleUpdateUpload(
   uploadId: number,
   updateData: UploadUpdateInput,
-  userId: number
+  userId: string
 ): Promise<Upload> {
   const existingUpload = await findUploadById(uploadId, userId);
 

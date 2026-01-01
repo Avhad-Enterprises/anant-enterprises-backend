@@ -9,7 +9,6 @@ import {
     pgTable,
     uuid,
     text,
-    integer,
     boolean,
     timestamp,
     jsonb,
