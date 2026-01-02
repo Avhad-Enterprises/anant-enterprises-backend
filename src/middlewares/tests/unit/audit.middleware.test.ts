@@ -18,7 +18,6 @@ jest.mock('@pinecone-database/pinecone', () => ({
 import { Request, Response, NextFunction } from 'express';
 import { auditMiddleware } from '../../audit.middleware';
 import { auditService } from '../../../features/audit';
-import { logger } from '../../../utils';
 import * as auditUtils from '../../../utils/audit/audit-utils';
 
 // Mock config

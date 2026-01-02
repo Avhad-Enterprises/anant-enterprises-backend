@@ -10,8 +10,6 @@
 
 import { Application } from 'express';
 import { sql } from 'drizzle-orm';
-import path from 'path';
-import fs from 'fs';
 import App from '../../../../app';
 import ChatbotRoute from '../../index';
 import AuthRoute from '../../../auth';
@@ -23,7 +21,6 @@ import { db } from '../../../../database';
 import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../../shared/schema';
 import { chatbotCacheService } from '../../services/chatbot-cache.service';
 import { deleteFromStorage } from '../../../../utils/supabaseStorage';
-import { pineconeIndex } from '../../services/pinecone.service';
 import { eq } from 'drizzle-orm';
 
 // Increase timeout for E2E tests

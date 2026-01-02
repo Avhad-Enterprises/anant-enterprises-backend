@@ -16,8 +16,7 @@ import AuthRoute from '../../../auth';
 import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions, userRoles, rolePermissions } from '../../shared/schema';
-import { users } from '../../../user';
+import { roles, permissions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { rbacCacheService } from '../../services/rbac-cache.service';
 
@@ -28,7 +27,6 @@ describe('RBAC API Integration Tests', () => {
   let regularUserToken: string;
   let testUser: any;
   let adminUser: any;
-  const testAuthIds: string[] = [];
 
   beforeAll(async () => {
     const rbacRoute = new RBACRoute();

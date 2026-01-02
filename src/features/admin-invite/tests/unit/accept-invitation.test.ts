@@ -101,11 +101,19 @@ describe('Accept Invitation Business Logic', () => {
   };
 
   const mockCreatedUser = {
-    id: 1,
+    id: '1',
+    auth_id: 'test-auth-id',
+    user_type: 'individual' as const,
     name: 'John Doe',
     email: 'john.doe@example.com',
     password: 'hashedPassword',
     phone_number: null,
+    phone_country_code: null,
+    phone_verified: false,
+    is_active: true,
+    is_verified: false,
+    last_login_at: null,
+    metadata: null,
     created_by: '1',
     created_at: new Date(),
     updated_by: null,
@@ -118,7 +126,7 @@ describe('Accept Invitation Business Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-    mockUserQueries.createUser.mockResolvedValue(mockCreatedUser);
+    mockUserQueries.createUser.mockResolvedValue(mockCreatedUser as any);
     mockInviteQueries.updateInvitation.mockResolvedValue(mockAcceptedInvitation);
   });
 
@@ -201,7 +209,7 @@ describe('Accept Invitation Business Logic', () => {
 
     it('should throw 409 if user already exists', async () => {
       mockInviteQueries.findInvitationByToken.mockResolvedValue(mockInvitation);
-      mockUserQueries.findUserByEmail.mockResolvedValue(mockCreatedUser);
+      mockUserQueries.findUserByEmail.mockResolvedValue(mockCreatedUser as any);
 
       await expect(
         handleAcceptInvitation({ token: 'validtoken123', password: 'password123' })
@@ -244,7 +252,7 @@ describe('Accept Invitation Business Logic', () => {
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(1, 3, '1');
+      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith('1', 3, '1');
     });
 
     it('should not assign role if assigned_role_id is null', async () => {
