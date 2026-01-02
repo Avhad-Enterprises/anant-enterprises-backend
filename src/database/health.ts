@@ -49,6 +49,9 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
     };
 
     if (require.main === module) {
+      console.log(
+        `✅ Database connection successful! Pool stats: ${JSON.stringify(result.details.poolStats)}`
+      );
       logger.info(
         `Database connection successful! Pool stats: ${JSON.stringify(result.details.poolStats)}`
       );
@@ -73,6 +76,7 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
     };
 
     if (require.main === module) {
+      console.error(`❌ Database connection failed: ${result.message}`);
       logger.error(`Database connection failed: ${result.message}`);
       process.exit(1);
     }

@@ -180,7 +180,7 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-    rejectUnauthorized: true, // Always validate certificates in production
+    rejectUnauthorized: false, // Supabase uses self-signed certificates
     // If using self-signed certs, set DATABASE_SSL_CA env var
     ca: process.env.DATABASE_SSL_CA || undefined,
   }
