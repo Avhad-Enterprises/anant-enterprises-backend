@@ -1,0 +1,118 @@
+/**
+ * POST /api/users/:userId/addresses
+ * Create new address
+ * - Users can create their own addresses
+ * - Users with users:write permission can create addresses for any user
+ */
+
+import { Router, Response } from 'express';
+import { z } from 'zod';
+import { eq, and } from 'drizzle-orm';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { db } from '../../../database';
+import { userAddresses } from '../shared/addresses.schema';
+
+const paramsSchema = z.object({
+    userId: z.string().uuid('User ID must be a valid UUID'),
+});
+
+const bodySchema = z.object({
+    type: z.enum(['Home', 'Office', 'Other']),
+    name: z.string().min(1, 'Name is required'),
+    phone: z.string().min(1, 'Phone is required'),
+    addressLine1: z.string().min(1, 'Address line 1 is required'),
+    addressLine2: z.string().optional(),
+    city: z.string().min(1, 'City is required'),
+    state: z.string().min(1, 'State is required'),
+    pincode: z.string().min(1, 'Pincode is required'),
+    isDefault: z.boolean().optional().default(false),
+});
+
+// Map frontend type to backend address_type enum
+const mapToBackendType = (type: 'Home' | 'Office' | 'Other'): 'billing' | 'shipping' | 'both' | 'company' => {
+    switch (type) {
+        case 'Home':
+            return 'shipping';
+        case 'Office':
+            return 'company';
+        case 'Other':
+            return 'both';
+    }
+};
+
+const handler = async (req: RequestWithUser, res: Response) => {
+    const { userId } = req.params;
+    const { type, name, phone, addressLine1, addressLine2, city, state, pincode, isDefault } = req.body;
+
+    const backendType = mapToBackendType(type);
+
+    // If setting as default, unset other defaults of the same type
+    if (isDefault) {
+        await db
+            .update(userAddresses)
+            .set({ is_default: false })
+            .where(
+                and(
+                    eq(userAddresses.user_id, userId),
+                    eq(userAddresses.address_type, backendType),
+                    eq(userAddresses.is_deleted, false)
+                )
+            );
+    }
+
+    // Parse phone number (assuming format like "+91 98765 43210")
+    const phoneMatch = phone.match(/^(\+\d{1,3})?\s*(.+)$/);
+    const phoneCountryCode = phoneMatch?.[1] || '';
+    const phoneNumber = phoneMatch?.[2]?.replace(/\s/g, '') || phone;
+
+    // Create new address
+    const [newAddress] = await db
+        .insert(userAddresses)
+        .values({
+            user_id: userId,
+            address_type: backendType,
+            recipient_name: name,
+            phone_number: phoneNumber,
+            phone_country_code: phoneCountryCode,
+            address_line1: addressLine1,
+            address_line2: addressLine2,
+            city: city,
+            state_province: state,
+            postal_code: pincode,
+            country: 'India', // Default - can be made dynamic
+            country_code: 'IN', // Default - can be made dynamic
+            is_default: isDefault,
+        })
+        .returning();
+
+    ResponseFormatter.created(
+        res,
+        {
+            id: newAddress.id,
+            type,
+            name: newAddress.recipient_name,
+            phone,
+            addressLine1: newAddress.address_line1,
+            addressLine2: newAddress.address_line2,
+            city: newAddress.city,
+            state: newAddress.state_province,
+            pincode: newAddress.postal_code,
+            isDefault: newAddress.is_default,
+        },
+        'Address created successfully'
+    );
+};
+
+const router = Router();
+router.post(
+    '/:userId/addresses',
+    requireAuth,
+    validationMiddleware(paramsSchema, 'params'),
+    validationMiddleware(bodySchema, 'body'),
+    requireOwnerOrPermission('userId', 'users:write'),
+    handler
+);
+
+export default router;

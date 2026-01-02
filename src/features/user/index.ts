@@ -23,10 +23,33 @@ class UserRoute implements Route {
     const { default: updateUserRouter } = await import('./apis/update-user');
     const { default: deleteUserRouter } = await import('./apis/delete-user');
 
+    const { default: getUserOrdersRouter } = await import('./apis/get-user-orders');
+
+    const { default: getUserAddressesRouter } = await import('./apis/get-user-addresses');
+    const { default: createUserAddressRouter } = await import('./apis/create-user-address');
+    const { default: updateUserAddressRouter } = await import('./apis/update-user-address');
+    const { default: deleteUserAddressRouter } = await import('./apis/delete-user-address');
+    const { default: setDefaultAddressRouter } = await import('./apis/set-default-address');
+
+    const { default: getUserWishlistRouter } = await import('./apis/get-user-wishlist');
+    const { default: addToWishlistRouter } = await import('./apis/add-to-wishlist');
+    const { default: removeFromWishlistRouter } = await import('./apis/remove-from-wishlist');
+    const { default: moveWishlistToCartRouter } = await import('./apis/move-wishlist-to-cart');
+
     this.router.use(this.path, getAllUsersRouter);
     this.router.use(this.path, getUserByIdRouter);
     this.router.use(this.path, updateUserRouter);
     this.router.use(this.path, deleteUserRouter);
+    this.router.use(this.path, getUserOrdersRouter);
+    this.router.use(this.path, getUserAddressesRouter);
+    this.router.use(this.path, createUserAddressRouter);
+    this.router.use(this.path, updateUserAddressRouter);
+    this.router.use(this.path, deleteUserAddressRouter);
+    this.router.use(this.path, setDefaultAddressRouter);
+    this.router.use(this.path, getUserWishlistRouter);
+    this.router.use(this.path, addToWishlistRouter);
+    this.router.use(this.path, removeFromWishlistRouter);
+    this.router.use(this.path, moveWishlistToCartRouter);
   }
 }
 
