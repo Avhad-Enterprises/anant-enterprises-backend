@@ -82,6 +82,22 @@ export const products = pgTable(
         category_tier_3: varchar('category_tier_3', { length: 100 }),
         category_tier_4: varchar('category_tier_4', { length: 100 }),
 
+        // Brand (Product Page Enhancement)
+        brand_name: varchar('brand_name', { length: 255 }),
+        brand_slug: varchar('brand_slug', { length: 255 }),
+
+        // Feature Tags (Product Page Enhancement)
+        tags: jsonb('tags').default([]), // ["RO", "UV", "UF"]
+
+        // Bullet Point Highlights (Product Page Enhancement)
+        highlights: jsonb('highlights').default([]), // ["10L capacity", "5 year warranty"]
+
+        // Feature Cards with Icons (Product Page Enhancement)
+        features: jsonb('features').default([]), // [{ icon: "Shield", title: "5 Year Warranty", description: "..." }]
+
+        // Technical Specifications (Product Page Enhancement)
+        specs: jsonb('specs'), // { technology: "RO+UV", storage: "10L", ... }
+
         // Grouping
         size_group: varchar('size_group', { length: 100 }),
         accessories_group: varchar('accessories_group', { length: 100 }),
