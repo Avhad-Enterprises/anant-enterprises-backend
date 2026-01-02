@@ -25,12 +25,30 @@ class ProductRoute implements Route {
         const { default: deleteProductRouter } = await import('./apis/delete-product');
         const { default: getProductReviewsRouter } = await import('./apis/get-product-reviews');
 
+        // Product Page Enhancement Routes
+        const { default: searchProductsRouter } = await import('./apis/search-products');
+        const { default: getRelatedProductsRouter } = await import('./apis/get-related-products');
+        const { default: getBrandProductsRouter } = await import('./apis/get-brand-products');
+        const { default: getProductBundlesRouter } = await import('./apis/get-product-bundles');
+        const { default: getComparisonProductsRouter } = await import('./apis/get-comparison-products');
+
+        // CRITICAL: Register static routes BEFORE parameterized routes
+        // /search and /compare must come before /:id to avoid route collision
+        this.router.use(this.path, searchProductsRouter);
+        this.router.use(this.path, getComparisonProductsRouter);
+
+        // Standard CRUD routes
         this.router.use(this.path, createProductRouter);
         this.router.use(this.path, getAllProductsRouter);
         this.router.use(this.path, getProductByIdRouter);
         this.router.use(this.path, updateProductRouter);
         this.router.use(this.path, deleteProductRouter);
         this.router.use(this.path, getProductReviewsRouter);
+
+        // Parameterized routes (must come after static routes)
+        this.router.use(this.path, getRelatedProductsRouter);
+        this.router.use(this.path, getBrandProductsRouter);
+        this.router.use(this.path, getProductBundlesRouter);
     }
 }
 
