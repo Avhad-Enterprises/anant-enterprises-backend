@@ -23,12 +23,14 @@ class ProductRoute implements Route {
         const { default: getProductByIdRouter } = await import('./apis/get-product-by-id');
         const { default: updateProductRouter } = await import('./apis/update-product');
         const { default: deleteProductRouter } = await import('./apis/delete-product');
+        const { default: getProductReviewsRouter } = await import('./apis/get-product-reviews');
 
         this.router.use(this.path, createProductRouter);
         this.router.use(this.path, getAllProductsRouter);
         this.router.use(this.path, getProductByIdRouter);
         this.router.use(this.path, updateProductRouter);
         this.router.use(this.path, deleteProductRouter);
+        this.router.use(this.path, getProductReviewsRouter);
     }
 }
 
