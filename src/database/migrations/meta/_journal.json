@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1767270121400,
-      "tag": "0000_uneven_mimic",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1767272820239,
-      "tag": "0001_secret_whirlwind",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1767273931574,
-      "tag": "0002_minor_starjammers",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1767291285018,
-      "tag": "0003_silent_dazzler",
+      "when": 1767336511242,
+      "tag": "0000_stormy_infant_terrible",
       "breakpoints": true
     }
   ]

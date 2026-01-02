@@ -84,7 +84,7 @@ CREATE TABLE "audit_logs" (
 	"user_role" varchar(100),
 	"action" varchar(100) NOT NULL,
 	"resource_type" varchar(100) NOT NULL,
-	"resource_id" integer,
+	"resource_id" varchar(255),
 	"old_values" jsonb,
 	"new_values" jsonb,
 	"ip_address" varchar(45),
@@ -150,10 +150,13 @@ CREATE TABLE "bundles" (
 	"price_value" numeric(10, 2),
 	"starts_at" timestamp,
 	"ends_at" timestamp,
-	"created_by" integer,
+	"created_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" uuid,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"is_deleted" boolean DEFAULT false NOT NULL
+	"is_deleted" boolean DEFAULT false NOT NULL,
+	"deleted_by" uuid,
+	"deleted_at" timestamp
 );
 --> statement-breakpoint
 CREATE TABLE "cart_items" (
@@ -725,11 +728,11 @@ CREATE TABLE "products" (
 	"is_gift_wrap_available" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"created_by" integer,
-	"updated_by" integer,
+	"created_by" uuid,
+	"updated_by" uuid,
 	"is_deleted" boolean DEFAULT false NOT NULL,
 	"deleted_at" timestamp,
-	"deleted_by" integer,
+	"deleted_by" uuid,
 	CONSTRAINT "products_slug_unique" UNIQUE("slug"),
 	CONSTRAINT "products_sku_unique" UNIQUE("sku")
 );
@@ -758,12 +761,12 @@ CREATE TABLE "roles" (
 	"description" text,
 	"is_system_role" boolean DEFAULT false NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
-	"created_by" integer,
+	"created_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_by" integer,
+	"updated_by" uuid,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"is_deleted" boolean DEFAULT false NOT NULL,
-	"deleted_by" integer,
+	"deleted_by" uuid,
 	"deleted_at" timestamp,
 	CONSTRAINT "roles_name_unique" UNIQUE("name")
 );
@@ -977,7 +980,7 @@ CREATE TABLE "uploads" (
 	"updated_by" uuid,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"is_deleted" boolean DEFAULT false NOT NULL,
-	"deleted_by" integer,
+	"deleted_by" uuid,
 	"deleted_at" timestamp
 );
 --> statement-breakpoint
@@ -1148,12 +1151,12 @@ CREATE TABLE "users" (
 	"preferred_language" varchar(10) DEFAULT 'en' NOT NULL,
 	"preferred_currency" varchar(3) DEFAULT 'INR' NOT NULL,
 	"timezone" varchar(50) DEFAULT 'Asia/Kolkata' NOT NULL,
-	"created_by" integer,
+	"created_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_by" integer,
+	"updated_by" uuid,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"is_deleted" boolean DEFAULT false NOT NULL,
-	"deleted_by" integer,
+	"deleted_by" uuid,
 	"deleted_at" timestamp,
 	CONSTRAINT "users_auth_id_unique" UNIQUE("auth_id"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")

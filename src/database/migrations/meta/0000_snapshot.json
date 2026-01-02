@@ -1,5 +1,5 @@
 {
-  "id": "b4fb9105-98c5-4b0c-9088-62038521351e",
+  "id": "99d0caf1-2b73-4af3-b336-fb2d03a56d39",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -289,7 +289,7 @@
         },
         "resource_id": {
           "name": "resource_id",
-          "type": "integer",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -920,7 +920,7 @@
         },
         "created_by": {
           "name": "created_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -930,6 +930,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -944,6 +950,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "deleted_by": {
+          "name": "deleted_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -6456,13 +6474,13 @@
         },
         "created_by": {
           "name": "created_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
         "updated_by": {
           "name": "updated_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -6481,7 +6499,7 @@
         },
         "deleted_by": {
           "name": "deleted_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         }
@@ -6826,7 +6844,7 @@
         },
         "created_by": {
           "name": "created_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -6839,7 +6857,7 @@
         },
         "updated_by": {
           "name": "updated_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -6859,7 +6877,7 @@
         },
         "deleted_by": {
           "name": "deleted_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -9197,7 +9215,7 @@
         },
         "deleted_by": {
           "name": "deleted_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -10869,7 +10887,7 @@
         },
         "created_by": {
           "name": "created_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -10882,7 +10900,7 @@
         },
         "updated_by": {
           "name": "updated_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -10902,7 +10920,7 @@
         },
         "deleted_by": {
           "name": "deleted_by",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
