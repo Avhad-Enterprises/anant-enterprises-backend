@@ -7,9 +7,12 @@ import AdminInviteRoute from './features/admin-invite';
 import ChatbotRoute from './features/chatbot';
 import RBACRoute from './features/rbac';
 import AuditRoute from './features/audit';
+import QueueRoute from './features/queue';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
+import { startWorkers, stopWorkers } from './features/queue';
+import { config } from './utils/validateEnv';
 
 let server: import('http').Server;
 
@@ -41,9 +44,22 @@ async function bootstrap() {
       new ChatbotRoute(),
       new RBACRoute(),
       new AuditRoute(), // Audit admin endpoints
+      new QueueRoute(), // Queue admin endpoints
     ]);
 
     server = app.listen();
+
+    // Start queue workers if enabled
+    if (config.QUEUE_WORKERS_ENABLED === 'true' && redisConnected) {
+      try {
+        await startWorkers();
+      } catch (error) {
+        logger.error('Failed to start queue workers', { error });
+        logger.warn('⚠️ Server will continue without queue workers');
+      }
+    } else if (config.QUEUE_WORKERS_ENABLED === 'true' && !redisConnected) {
+      logger.warn('⚠️ Queue workers require Redis - workers not started');
+    }
 
     // Setup graceful shutdown with resources
     setupGracefulShutdown({
@@ -51,6 +67,35 @@ async function bootstrap() {
       database: pool,
       redis: redisClient,
     });
+
+    // Custom shutdown handler for workers
+    const originalSigterm = process.listeners('SIGTERM');
+    const originalSigint = process.listeners('SIGINT');
+
+    process.removeAllListeners('SIGTERM');
+    process.removeAllListeners('SIGINT');
+
+    const handleShutdown = async (signal: string) => {
+      logger.info(`Received ${signal}, shutting down workers first...`);
+
+      if (config.QUEUE_WORKERS_ENABLED === 'true') {
+        try {
+          await stopWorkers();
+        } catch (error) {
+          logger.error('Error stopping workers', { error });
+        }
+      }
+
+      // Call original handlers
+      if (signal === 'SIGTERM' && originalSigterm.length > 0) {
+        await Promise.all(originalSigterm.map(fn => (fn as Function)(signal)));
+      } else if (signal === 'SIGINT' && originalSigint.length > 0) {
+        await Promise.all(originalSigint.map(fn => (fn as Function)(signal)));
+      }
+    };
+
+    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+    process.on('SIGINT', () => handleShutdown('SIGINT'));
 
     logger.info('✅ Express Backend started successfully!');
   } catch (error) {

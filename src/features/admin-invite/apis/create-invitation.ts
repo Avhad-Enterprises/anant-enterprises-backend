@@ -14,7 +14,7 @@ import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { sendInvitationEmail } from '../../../utils';
+import { emailService } from '../../../utils/email/email.service';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
 
@@ -75,13 +75,12 @@ async function handleCreateInvitation(
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
 
-    await sendInvitationEmail({
+    await emailService.sendInvitationEmail({
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
       inviteLink,
       expiresIn: `${INVITATION_EXPIRY_HOURS} hours`,
-      // tempPassword intentionally omitted - no longer part of flow
     });
   } catch (emailError) {
     logger.error('Failed to send invitation email', {

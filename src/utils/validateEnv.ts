@@ -37,6 +37,10 @@ export const validateEnv = () => {
     REDIS_PASSWORD: str({ default: '' }),
     REDIS_URL: str({ default: '' }),
 
+    // Queue configuration
+    QUEUE_WORKERS_ENABLED: str({ default: 'true' }),
+    QUEUE_CONCURRENCY: num({ default: 5 }),
+
     // Supabase configuration
     SUPABASE_URL: str({ desc: 'Supabase project URL' }),
     SUPABASE_ANON_KEY: str({ default: '', desc: 'Legacy: Supabase anonymous key (JWT-based)' }),

@@ -5,7 +5,7 @@
 import { HttpException } from '../../../../utils';
 import * as inviteQueries from '../../shared/queries';
 import * as userQueries from '../../../user';
-import { sendInvitationEmail } from '../../../../utils/email/sendInvitationEmail';
+import { emailService } from '../../../../utils/email/email.service';
 import { ICreateInvitation, IInvitation } from '../../shared/interface';
 import { Invitation } from '../../shared/schema';
 import { config } from '../../../../utils/validateEnv';
@@ -13,7 +13,11 @@ import { config } from '../../../../utils/validateEnv';
 // Mock dependencies
 jest.mock('../../shared/queries');
 jest.mock('../../../user');
-jest.mock('../../../../utils/email/sendInvitationEmail');
+jest.mock('../../../../utils/email/email.service', () => ({
+  emailService: {
+    sendInvitationEmail: jest.fn(),
+  },
+}));
 jest.mock('../../../../database', () => ({
   db: jest.fn(),
 }));
@@ -42,7 +46,7 @@ jest.mock('../../../../utils', () => ({
 
 const mockInviteQueries = inviteQueries as jest.Mocked<typeof inviteQueries>;
 const mockUserQueries = userQueries as jest.Mocked<typeof userQueries>;
-const mockSendEmail = sendInvitationEmail as jest.MockedFunction<typeof sendInvitationEmail>;
+const mockEmailService = emailService as jest.Mocked<typeof emailService>;
 
 // Recreate the NEW business logic for testing (NO temp passwords)
 async function handleCreateInvitation(
@@ -83,7 +87,7 @@ async function handleCreateInvitation(
   try {
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
-    await sendInvitationEmail({
+    await emailService.sendInvitationEmail({
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
@@ -149,7 +153,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
     mockInviteQueries.findInvitationByEmail.mockResolvedValue(undefined);
     mockInviteQueries.createInvitation.mockResolvedValue(mockCreatedInvitation);
-    mockSendEmail.mockResolvedValue(undefined);
+    mockEmailService.sendInvitationEmail.mockResolvedValue(undefined);
   });
 
   describe('handleCreateInvitation', () => {
@@ -221,7 +225,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     it('should send email with accept link ONLY (no password)', async () => {
       await handleCreateInvitation(mockInvitationData, 1);
 
-      expect(mockSendEmail).toHaveBeenCalledWith({
+      expect(mockEmailService.sendInvitationEmail).toHaveBeenCalledWith({
         to: 'john.doe@example.com',
         firstName: 'John',
         lastName: 'Doe',
@@ -230,7 +234,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
       });
 
       // Verify NO tempPassword parameter
-      expect(mockSendEmail).toHaveBeenCalledWith(
+      expect(mockEmailService.sendInvitationEmail).toHaveBeenCalledWith(
         expect.not.objectContaining({
           tempPassword: expect.anything(),
         })
@@ -238,7 +242,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     });
 
     it('should not fail if email sending fails', async () => {
-      mockSendEmail.mockRejectedValue(new Error('Email failed'));
+      mockEmailService.sendInvitationEmail.mockRejectedValue(new Error('Email failed'));
 
       const result = await handleCreateInvitation(mockInvitationData, 1);
 
