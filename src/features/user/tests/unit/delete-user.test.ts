@@ -53,7 +53,7 @@ describe('Delete User Business Logic', () => {
     preferred_language: 'en',
     preferred_currency: 'USD',
     timezone: 'UTC',
-    created_by: 1,
+    created_by: '1',
     created_at: new Date('2024-01-01'),
     updated_by: null,
     updated_at: new Date('2024-01-01'),

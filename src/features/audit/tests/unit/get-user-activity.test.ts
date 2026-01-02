@@ -21,12 +21,12 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date('2024-01-03'),
-          userId: 5,
+          userId: '5',
           userEmail: 'test@example.com',
           userRole: 'admin',
           action: AuditAction.USER_UPDATE,
           resourceType: AuditResourceType.USER,
-          resourceId: 5,
+          resourceId: '5',
           oldValues: { name: 'old' },
           newValues: { name: 'new' },
           ipAddress: '192.168.1.1',
@@ -39,7 +39,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 2,
           timestamp: new Date('2024-01-02'),
-          userId: 5,
+          userId: '5',
           userEmail: 'test@example.com',
           userRole: 'admin',
           action: AuditAction.LOGIN,
@@ -57,7 +57,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 3,
           timestamp: new Date('2024-01-01'),
-          userId: 5,
+          userId: '5',
           userEmail: 'test@example.com',
           userRole: 'admin',
           action: AuditAction.LOGOUT,
@@ -88,19 +88,19 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 3,
           timestamp: new Date('2024-01-03'),
-          userId: 5,
+          userId: '5',
           action: AuditAction.USER_UPDATE,
         },
         {
           id: 2,
           timestamp: new Date('2024-01-02'),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGIN,
         },
         {
           id: 1,
           timestamp: new Date('2024-01-01'),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGOUT,
         },
       ];
@@ -121,7 +121,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGIN,
           resourceType: AuditResourceType.AUTH,
         },
@@ -141,21 +141,21 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGIN,
           resourceType: AuditResourceType.AUTH,
         },
         {
           id: 2,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGOUT,
           resourceType: AuditResourceType.AUTH,
         },
         {
           id: 3,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.PASSWORD_CHANGE,
           resourceType: AuditResourceType.USER,
         },
@@ -176,21 +176,21 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.CREATE,
           resourceType: AuditResourceType.ROLE,
         },
         {
           id: 2,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.UPDATE,
           resourceType: AuditResourceType.USER,
         },
         {
           id: 3,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.DELETE,
           resourceType: AuditResourceType.PERMISSION,
         },
@@ -211,21 +211,21 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.ROLE_CREATE,
           resourceType: AuditResourceType.ROLE,
         },
         {
           id: 2,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.PERMISSION_ASSIGN,
           resourceType: AuditResourceType.PERMISSION,
         },
         {
           id: 3,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.USER_ROLE_ASSIGN,
           resourceType: AuditResourceType.USER,
         },
@@ -248,7 +248,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.LOGIN,
           resourceType: AuditResourceType.AUTH,
           ipAddress: '192.168.1.1',
@@ -269,10 +269,10 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.USER_UPDATE,
           resourceType: AuditResourceType.USER,
-          resourceId: 10,
+          resourceId: '10',
           oldValues: { name: 'Old' },
           newValues: { name: 'New' },
         },
@@ -283,7 +283,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
       const result = await mockAuditService.getUserActivity(5);
 
       expect(result[0].resourceType).toBe(AuditResourceType.USER);
-      expect(result[0].resourceId).toBe(10);
+      expect(result[0].resourceId).toBe('10');
       expect(result[0].oldValues).toBeDefined();
       expect(result[0].newValues).toBeDefined();
     });
@@ -312,7 +312,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
         .map((_, i) => ({
           id: i + 1,
           timestamp: new Date(),
-          userId: 5,
+          userId: '5',
           action: AuditAction.READ,
           resourceType: AuditResourceType.USER,
         }));

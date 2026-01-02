@@ -22,7 +22,7 @@ describe('GET /api/admin/audit/logs - Unit Tests', () => {
         {
           id: 1,
           timestamp: new Date(),
-          userId: 1,
+          userId: '1',
           action: AuditAction.LOGIN,
           resourceType: AuditResourceType.AUTH,
           ipAddress: '192.168.1.1',
@@ -32,7 +32,7 @@ describe('GET /api/admin/audit/logs - Unit Tests', () => {
       mockAuditService.queryLogs.mockResolvedValue(mockLogs as any);
 
       const filters = {
-        userId: 1,
+        userId: '1',
         action: AuditAction.LOGIN,
         limit: 50,
         offset: 0,
@@ -94,7 +94,7 @@ describe('GET /api/admin/audit/logs - Unit Tests', () => {
         .map((_, i) => ({
           id: i + 1,
           timestamp: new Date(),
-          userId: 1,
+          userId: '1',
           action: AuditAction.CREATE,
           resourceType: AuditResourceType.USER,
         }));
@@ -113,7 +113,7 @@ describe('GET /api/admin/audit/logs - Unit Tests', () => {
       mockAuditService.queryLogs.mockResolvedValue([]);
 
       const result = await mockAuditService.queryLogs({
-        userId: 99999,
+        userId: '99999',
         limit: 50,
         offset: 0,
       });

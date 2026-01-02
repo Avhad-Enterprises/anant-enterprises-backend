@@ -30,7 +30,7 @@ describe('Get User By ID Business Logic', () => {
     password: 'hashedPassword123',
     phone_number: '1234567890',
     role: 'scientist' as const,
-    created_by: 1,
+    created_by: '1',
     created_at: new Date('2024-01-01'),
     updated_by: null,
     updated_at: new Date('2024-01-01'),

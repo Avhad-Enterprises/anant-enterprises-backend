@@ -47,7 +47,7 @@ const mockSendEmail = sendInvitationEmail as jest.MockedFunction<typeof sendInvi
 // Recreate the NEW business logic for testing (NO temp passwords)
 async function handleCreateInvitation(
   invitationData: ICreateInvitation & { first_name: string; last_name: string },
-  invitedBy: number
+  invitedBy: number | string
 ): Promise<IInvitation> {
   // Check if user already exists
   const existingUser = await userQueries.findUserByEmail(invitationData.email);
@@ -74,7 +74,7 @@ async function handleCreateInvitation(
     invite_token: inviteToken,
     temp_password_encrypted: null, // Not used in new flow
     password_hash: '', // Not used
-    invited_by: invitedBy,
+    invited_by: String(invitedBy),
     expires_at: expiresAt,
     status: 'pending',
   });
@@ -134,7 +134,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     temp_password_encrypted: null, // NEW: No temp password
     password_hash: '', // NEW: Empty
     verify_attempts: 0,
-    invited_by: 1,
+    invited_by: '1',
     expires_at: new Date('2024-01-02'),
     accepted_at: null,
     created_at: new Date('2024-01-01'),
@@ -255,10 +255,10 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     });
 
     it('should set invited_by from parameter', async () => {
-      await handleCreateInvitation(mockInvitationData, 5);
+      await handleCreateInvitation(mockInvitationData, '5');
 
       expect(mockInviteQueries.createInvitation).toHaveBeenCalledWith(
-        expect.objectContaining({ invited_by: 5 })
+        expect.objectContaining({ invited_by: '5' })
       );
     });
 

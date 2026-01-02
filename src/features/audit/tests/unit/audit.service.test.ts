@@ -62,8 +62,8 @@ describe('AuditService', () => {
       const auditData = {
         action: AuditAction.USER_CREATE,
         resourceType: AuditResourceType.USER,
-        resourceId: 123,
-        userId: 1,
+        resourceId: '123',
+        userId: '1',
         userEmail: 'admin@example.com',
         userRole: 'admin',
       };
@@ -73,12 +73,12 @@ describe('AuditService', () => {
       expect(mockDb.insert).toHaveBeenCalled();
       expect(mockDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
-          user_id: 1,
+          user_id: '1',
           user_email: 'admin@example.com',
           user_role: 'admin',
           action: AuditAction.USER_CREATE,
           resource_type: AuditResourceType.USER,
-          resource_id: 123,
+          resource_id: '123',
         })
       );
       expect(logger.info).toHaveBeenCalledWith(
@@ -114,8 +114,8 @@ describe('AuditService', () => {
       const auditData = {
         action: AuditAction.USER_UPDATE,
         resourceType: AuditResourceType.USER,
-        resourceId: 123,
-        userId: 1,
+        resourceId: '123',
+        userId: '1',
         oldValues: {
           name: 'John Doe',
           email: 'john@example.com',
@@ -153,7 +153,7 @@ describe('AuditService', () => {
       };
 
       const context = {
-        userId: 42,
+        userId: '42',
         ipAddress: '192.168.1.100',
         userAgent: 'Mozilla/5.0',
         sessionId: 'session-123',
@@ -163,7 +163,7 @@ describe('AuditService', () => {
 
       expect(mockDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
-          user_id: 42,
+          user_id: '42',
           ip_address: '192.168.1.100',
           user_agent: 'Mozilla/5.0',
           session_id: 'session-123',
@@ -176,14 +176,14 @@ describe('AuditService', () => {
         action: AuditAction.UPLOAD_DELETE,
         resourceType: AuditResourceType.UPLOAD,
         resourceId: '456',
-        userId: 1,
+        userId: '1',
       };
 
       await auditService.log(auditData);
 
       expect(mockDb.values).toHaveBeenCalledWith(
         expect.objectContaining({
-          resource_id: 456,
+          resource_id: '456',
         })
       );
     });
@@ -194,7 +194,7 @@ describe('AuditService', () => {
       const auditData = {
         action: AuditAction.USER_CREATE,
         resourceType: AuditResourceType.USER,
-        userId: 1,
+        userId: '1',
       };
 
       // Should not throw
@@ -216,14 +216,14 @@ describe('AuditService', () => {
           id: 1,
           action: 'USER_UPDATE',
           resource_type: 'USER',
-          resource_id: 123,
+          resource_id: '123',
           timestamp: new Date(),
         },
         {
           id: 2,
           action: 'USER_CREATE',
           resource_type: 'USER',
-          resource_id: 123,
+          resource_id: '123',
           timestamp: new Date(),
         },
       ];
@@ -233,7 +233,7 @@ describe('AuditService', () => {
           id: 1,
           action: 'USER_UPDATE',
           resourceType: 'USER',
-          resourceId: 123,
+          resourceId: '123',
           timestamp: mockLogs[0].timestamp,
           userId: undefined,
           userEmail: undefined,
@@ -251,7 +251,7 @@ describe('AuditService', () => {
           id: 2,
           action: 'USER_CREATE',
           resourceType: 'USER',
-          resourceId: 123,
+          resourceId: '123',
           timestamp: mockLogs[1].timestamp,
           userId: undefined,
           userEmail: undefined,
@@ -271,7 +271,7 @@ describe('AuditService', () => {
       (mockDb.orderBy as jest.Mock).mockReturnThis();
       (mockDb.limit as jest.Mock).mockResolvedValue(mockLogs);
 
-      const result = await auditService.getAuditTrail(AuditResourceType.USER, 123);
+      const result = await auditService.getAuditTrail(AuditResourceType.USER, '123');
 
       expect(result).toEqual(expectedTransformedLogs);
       expect(mockDb.select).toHaveBeenCalled();
@@ -283,7 +283,7 @@ describe('AuditService', () => {
     it('should handle errors gracefully and return empty array', async () => {
       (mockDb.limit as jest.Mock).mockRejectedValue(new Error('Database error'));
 
-      const result = await auditService.getAuditTrail(AuditResourceType.USER, 123);
+      const result = await auditService.getAuditTrail(AuditResourceType.USER, '123');
 
       expect(result).toEqual([]);
       expect(logger.error).toHaveBeenCalledWith(
@@ -297,7 +297,7 @@ describe('AuditService', () => {
     it('should accept custom limit', async () => {
       (mockDb.limit as jest.Mock).mockResolvedValue([]);
 
-      await auditService.getAuditTrail(AuditResourceType.USER, 123, 10);
+      await auditService.getAuditTrail(AuditResourceType.USER, '123', 10);
 
       expect(mockDb.limit).toHaveBeenCalledWith(10);
     });
@@ -308,13 +308,13 @@ describe('AuditService', () => {
       const mockLogs = [
         {
           id: 1,
-          user_id: 42,
+          user_id: '42',
           action: 'LOGIN',
           timestamp: new Date(),
         },
         {
           id: 2,
-          user_id: 42,
+          user_id: '42',
           action: 'USER_UPDATE',
           timestamp: new Date(),
         },
@@ -323,7 +323,7 @@ describe('AuditService', () => {
       const expectedTransformedLogs = [
         {
           id: 1,
-          userId: 42,
+          userId: '42',
           action: 'LOGIN',
           timestamp: mockLogs[0].timestamp,
           userEmail: undefined,
@@ -341,7 +341,7 @@ describe('AuditService', () => {
         },
         {
           id: 2,
-          userId: 42,
+          userId: '42',
           action: 'USER_UPDATE',
           timestamp: mockLogs[1].timestamp,
           userEmail: undefined,
@@ -361,7 +361,7 @@ describe('AuditService', () => {
 
       (mockDb.limit as jest.Mock).mockResolvedValue(mockLogs);
 
-      const result = await auditService.getUserActivity(42);
+      const result = await auditService.getUserActivity('42');
 
       expect(result).toEqual(expectedTransformedLogs);
       expect(mockDb.select).toHaveBeenCalled();
@@ -373,7 +373,7 @@ describe('AuditService', () => {
     it('should accept custom limit', async () => {
       (mockDb.limit as jest.Mock).mockResolvedValue([]);
 
-      await auditService.getUserActivity(42, 25);
+      await auditService.getUserActivity('42', 25);
 
       expect(mockDb.limit).toHaveBeenCalledWith(25);
     });
@@ -381,7 +381,7 @@ describe('AuditService', () => {
     it('should handle errors gracefully', async () => {
       (mockDb.limit as jest.Mock).mockRejectedValue(new Error('Database error'));
 
-      const result = await auditService.getUserActivity(42);
+      const result = await auditService.getUserActivity('42');
 
       expect(result).toEqual([]);
       expect(logger.error).toHaveBeenCalled();
@@ -394,7 +394,7 @@ describe('AuditService', () => {
     });
 
     it('should query logs with userId filter', async () => {
-      await auditService.queryLogs({ userId: 42 });
+      await auditService.queryLogs({ userId: '42' });
 
       expect(mockDb.select).toHaveBeenCalled();
       expect(mockDb.where).toHaveBeenCalled();
@@ -445,7 +445,7 @@ describe('AuditService', () => {
         throw new Error('Database error');
       });
 
-      const result = await auditService.queryLogs({ userId: 42 });
+      const result = await auditService.queryLogs({ userId: '42' });
 
       expect(result).toEqual([]);
       expect(logger.error).toHaveBeenCalled();

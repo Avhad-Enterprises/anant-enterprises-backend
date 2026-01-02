@@ -32,7 +32,7 @@ describe.skip('Error Middleware', () => {
     mockRequest = createMockRequest({
       method: 'POST',
       url: '/api/users',
-      userId: 42,
+      userId: '42',
     });
     jest.clearAllMocks();
   });
@@ -166,7 +166,7 @@ describe.skip('Error Middleware', () => {
           url: '/api/users',
           ip: '127.0.0.1',
           userAgent: 'TestAgent/1.0',
-          userId: 42,
+          userId: '42',
           error: expect.objectContaining({
             status: 500,
             message: 'Internal server error',

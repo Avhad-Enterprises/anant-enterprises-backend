@@ -17,7 +17,7 @@ describe('Audit Utils', () => {
   describe('extractRequestContext', () => {
     it('should extract full context from request', () => {
       const mockReq = {
-        userId: 123,
+        userId: '123',
         ip: '192.168.1.1',
         get: jest.fn().mockReturnValue('Mozilla/5.0'),
         headers: {
@@ -28,7 +28,7 @@ describe('Audit Utils', () => {
       const context = extractRequestContext(mockReq);
 
       expect(context).toEqual({
-        userId: 123,
+        userId: '123',
         ipAddress: '192.168.1.1',
         userAgent: 'Mozilla/5.0',
         sessionId: 'session-abc-123',

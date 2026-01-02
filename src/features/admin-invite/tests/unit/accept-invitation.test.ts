@@ -84,7 +84,7 @@ describe('Accept Invitation Business Logic', () => {
     temp_password_encrypted: 'encryptedTempPassword',
     password_hash: 'hashedTempPassword',
     verify_attempts: 0,
-    invited_by: 1,
+    invited_by: '1',
     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     accepted_at: null,
     created_at: new Date('2024-01-01'),
@@ -106,7 +106,7 @@ describe('Accept Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     password: 'hashedPassword',
     phone_number: null,
-    created_by: 1,
+    created_by: '1',
     created_at: new Date(),
     updated_by: null,
     updated_at: new Date(),
@@ -244,7 +244,7 @@ describe('Accept Invitation Business Logic', () => {
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(1, 3, 1);
+      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(1, 3, '1');
     });
 
     it('should not assign role if assigned_role_id is null', async () => {
@@ -258,14 +258,14 @@ describe('Accept Invitation Business Logic', () => {
     });
 
     it('should set created_by to invited_by value', async () => {
-      const invitedBy5 = { ...mockInvitation, invited_by: 5 };
+      const invitedBy5 = { ...mockInvitation, invited_by: '5' };
       mockInviteQueries.findInvitationByToken.mockResolvedValue(invitedBy5);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
       expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ created_by: 5 })
+        expect.objectContaining({ created_by: '5' })
       );
     });
 

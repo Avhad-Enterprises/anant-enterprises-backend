@@ -53,7 +53,7 @@ async function handleDownloadFile(uploadId: number, userId: number) {
 describe('Download File Business Logic', () => {
   const mockUpload = {
     id: 1,
-    user_id: 1,
+    user_id: '1',
     filename: 'test-file.pdf',
     original_filename: 'test-file.pdf',
     mime_type: 'application/pdf',
@@ -62,7 +62,7 @@ describe('Download File Business Logic', () => {
     file_url: 'https://s3.example.com/uploads/1/test-file.pdf',
     status: 'completed' as const,
     error_message: null,
-    created_by: 1,
+    created_by: '1',
     created_at: new Date('2024-01-01'),
     updated_by: null,
     updated_at: new Date('2024-01-01'),

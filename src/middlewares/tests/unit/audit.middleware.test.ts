@@ -55,7 +55,7 @@ describe.skip('Audit Middleware', () => {
   let mockNext: jest.Mock<NextFunction>;
 
   const mockContext = {
-    userId: 1,
+    userId: '1',
     userEmail: 'test@example.com',
     userRole: null,
     ipAddress: '127.0.0.1',

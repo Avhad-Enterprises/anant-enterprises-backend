@@ -85,7 +85,7 @@ describe('Get Invitation Details Business Logic', () => {
     temp_password_encrypted: null,
     password_hash: '',
     verify_attempts: 0,
-    invited_by: 1,
+    invited_by: '1',
     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     accepted_at: null,
     created_at: new Date(),

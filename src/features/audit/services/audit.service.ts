@@ -79,12 +79,7 @@ class AuditService {
         user_role: enrichedData.userRole ?? null,
         action: enrichedData.action,
         resource_type: enrichedData.resourceType,
-        resource_id:
-          typeof enrichedData.resourceId === 'number'
-            ? enrichedData.resourceId
-            : enrichedData.resourceId
-              ? parseInt(String(enrichedData.resourceId), 10)
-              : null,
+        resource_id: enrichedData.resourceId ? String(enrichedData.resourceId) : null,
         old_values: sanitizedOldValues,
         new_values: sanitizedNewValues,
         ip_address: enrichedData.ipAddress ?? null,
@@ -119,14 +114,11 @@ class AuditService {
     limit: number = 50
   ): Promise<AuditLog[]> {
     try {
-      const resourceIdNum =
-        typeof resourceId === 'number' ? resourceId : parseInt(String(resourceId), 10);
-
       const logs = await db
         .select()
         .from(auditLogs)
         .where(
-          and(eq(auditLogs.resource_type, resourceType), eq(auditLogs.resource_id, resourceIdNum))
+          and(eq(auditLogs.resource_type, resourceType), eq(auditLogs.resource_id, String(resourceId)))
         )
         .orderBy(desc(auditLogs.timestamp))
         .limit(limit);
@@ -231,11 +223,7 @@ class AuditService {
       }
 
       if (filters.resourceId) {
-        const resourceIdNum =
-          typeof filters.resourceId === 'number'
-            ? filters.resourceId
-            : parseInt(String(filters.resourceId), 10);
-        conditions.push(eq(auditLogs.resource_id, resourceIdNum));
+        conditions.push(eq(auditLogs.resource_id, String(filters.resourceId)));
       }
 
       if (filters.startDate) {
