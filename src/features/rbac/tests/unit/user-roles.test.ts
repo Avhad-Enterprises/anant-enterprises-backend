@@ -5,8 +5,7 @@
 
 import request from 'supertest';
 import app from '@tests/utils';
-import { dbHelper } from '@tests/utils';
-import { SupabaseAuthHelper, AuthTestHelper } from '@tests/utils';
+import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles, permissions, rolePermissions, userRoles } from '../../shared/schema';
 import { eq, and } from 'drizzle-orm';

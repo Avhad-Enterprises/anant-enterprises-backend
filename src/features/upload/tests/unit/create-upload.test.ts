@@ -35,7 +35,7 @@ const mockDb = db as jest.Mocked<typeof db>;
 const mockS3Upload = s3Upload as jest.Mocked<typeof s3Upload>;
 
 // Recreate the business logic for testing
-async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
+async function handleCreateUpload(file: Express.Multer.File, userId: string): Promise<Upload> {
   const storageResult = await s3Upload.uploadToStorage(
     file.buffer,
     file.originalname,
@@ -121,13 +121,13 @@ describe('Create Upload Business Logic', () => {
 
   describe('handleCreateUpload', () => {
     it('should successfully upload file and create record', async () => {
-      const result = await handleCreateUpload(mockFile, 1);
+      const result = await handleCreateUpload(mockFile, '1');
 
       expect(mockS3Upload.uploadToStorage).toHaveBeenCalledWith(
         mockFile.buffer,
         mockFile.originalname,
         mockFile.mimetype,
-        1
+        '1'
       );
       expect(result.id).toBe(1);
       expect(result.filename).toBe('test-file.pdf');
@@ -140,7 +140,7 @@ describe('Create Upload Business Logic', () => {
         originalname: 'test file (1).pdf',
       };
 
-      await handleCreateUpload(fileWithSpecialChars, 1);
+      await handleCreateUpload(fileWithSpecialChars, '1');
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(
@@ -151,13 +151,13 @@ describe('Create Upload Business Logic', () => {
     });
 
     it('should set user_id and created_by to the provided userId', async () => {
-      await handleCreateUpload(mockFile, 5);
+      await handleCreateUpload(mockFile, '5');
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(
         expect.objectContaining({
-          user_id: 5,
-          created_by: 5,
+          user_id: '5',
+          created_by: '5',
         })
       );
     });
@@ -167,8 +167,8 @@ describe('Create Upload Business Logic', () => {
       const mockValues = jest.fn().mockReturnValue({ returning: mockReturning });
       (mockDb.insert as jest.Mock).mockReturnValue({ values: mockValues });
 
-      await expect(handleCreateUpload(mockFile, 1)).rejects.toThrow(HttpException);
-      await expect(handleCreateUpload(mockFile, 1)).rejects.toMatchObject({
+      await expect(handleCreateUpload(mockFile, '1')).rejects.toThrow(HttpException);
+      await expect(handleCreateUpload(mockFile, '1')).rejects.toMatchObject({
         status: 500,
         message: 'Failed to create upload record',
       });
@@ -177,11 +177,11 @@ describe('Create Upload Business Logic', () => {
     it('should propagate storage upload errors', async () => {
       mockS3Upload.uploadToStorage.mockRejectedValue(new Error('Storage upload failed'));
 
-      await expect(handleCreateUpload(mockFile, 1)).rejects.toThrow('Storage upload failed');
+      await expect(handleCreateUpload(mockFile, '1')).rejects.toThrow('Storage upload failed');
     });
 
     it('should store file metadata correctly', async () => {
-      await handleCreateUpload(mockFile, 1);
+      await handleCreateUpload(mockFile, '1');
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(
@@ -194,7 +194,7 @@ describe('Create Upload Business Logic', () => {
     });
 
     it('should convert dates to ISO strings in response', async () => {
-      const result = await handleCreateUpload(mockFile, 1);
+      const result = await handleCreateUpload(mockFile, '1');
 
       expect(typeof result.created_at).toBe('string');
       expect(typeof result.updated_at).toBe('string');
@@ -207,7 +207,7 @@ describe('Create Upload Business Logic', () => {
         originalname: 'image.png',
       };
 
-      await handleCreateUpload(imageFile, 1);
+      await handleCreateUpload(imageFile, '1');
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(
@@ -218,7 +218,7 @@ describe('Create Upload Business Logic', () => {
     });
 
     it('should use storage result for file_path and file_url', async () => {
-      await handleCreateUpload(mockFile, 1);
+      await handleCreateUpload(mockFile, '1');
 
       const mockValues = (mockDb.insert as jest.Mock).mock.results[0].value.values;
       expect(mockValues).toHaveBeenCalledWith(

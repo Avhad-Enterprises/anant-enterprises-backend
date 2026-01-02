@@ -2,17 +2,17 @@
   "compilerOptions": {
     /* Language and Environment */
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-
     /* Modules */
     "module": "commonjs",
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-
     /* Type Checking - Production-ready strict settings for Express/Node */
     "strict": true,
     "noImplicitAny": true,
@@ -26,30 +26,40 @@
     "noUnusedParameters": false, // Express handlers often don't use all params
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-
     /* Emit */
     "sourceMap": true,
     "outDir": "./build",
-    "rootDir": "./src",
     "removeComments": false,
     "downlevelIteration": true,
     "preserveConstEnums": true,
-
     /* Interop Constraints */
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
-
     /* Skip Checking - Essential for node_modules compatibility */
     "skipLibCheck": true,
-
     /* Path Mapping */
-    "baseUrl": "./src",
-    "typeRoots": ["./node_modules/@types"]
+    "baseUrl": ".",
+    "paths": {
+      "@tests/*": [
+        "./tests/*"
+      ]
+    },
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
   },
   "ts-node": {
     "transpileOnly": true,
     "files": true
   },
-  "include": ["./src/**/*"],
-  "exclude": ["node_modules", "build", "**/*.test.ts", "**/*.spec.ts", "coverage", "database-reference"]
+  "include": [
+    "./src/**/*",
+    "./tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "coverage",
+    "database-reference"
+  ]
 }
