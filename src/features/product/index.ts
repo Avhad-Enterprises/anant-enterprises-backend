@@ -32,10 +32,14 @@ class ProductRoute implements Route {
         const { default: getProductBundlesRouter } = await import('./apis/get-product-bundles');
         const { default: getComparisonProductsRouter } = await import('./apis/get-comparison-products');
 
+        // Collection Page Enhancement Routes
+        const { default: getProductFiltersRouter } = await import('./apis/get-product-filters');
+
         // CRITICAL: Register static routes BEFORE parameterized routes
-        // /search and /compare must come before /:id to avoid route collision
+        // /search, /compare, /filters must come before /:id to avoid route collision
         this.router.use(this.path, searchProductsRouter);
         this.router.use(this.path, getComparisonProductsRouter);
+        this.router.use(this.path, getProductFiltersRouter);
 
         // Standard CRUD routes
         this.router.use(this.path, createProductRouter);

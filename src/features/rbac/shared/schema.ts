@@ -10,11 +10,9 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   text,
   boolean,
-  integer,
   timestamp,
   primaryKey,
   index,
@@ -34,7 +32,7 @@ import { users } from '../../user';
 export const roles = pgTable(
   'roles',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     name: varchar('name', { length: 50 }).unique().notNull(),
     description: text('description'),
     is_system_role: boolean('is_system_role').default(false).notNull(),
@@ -68,7 +66,7 @@ export type NewRole = typeof roles.$inferInsert;
 export const permissions = pgTable(
   'permissions',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     name: varchar('name', { length: 100 }).unique().notNull(), // e.g., "users:read"
     resource: varchar('resource', { length: 50 }).notNull(), // e.g., "users"
     action: varchar('action', { length: 50 }).notNull(), // e.g., "read"
@@ -94,10 +92,10 @@ export type NewPermission = typeof permissions.$inferInsert;
 export const rolePermissions = pgTable(
   'role_permissions',
   {
-    role_id: integer('role_id')
+    role_id: uuid('role_id')
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
-    permission_id: integer('permission_id')
+    permission_id: uuid('permission_id')
       .references(() => permissions.id, { onDelete: 'cascade' })
       .notNull(),
     assigned_by: uuid('assigned_by').references(() => users.id),
@@ -127,7 +125,7 @@ export const userRoles = pgTable(
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    role_id: integer('role_id')
+    role_id: uuid('role_id')
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
     assigned_by: uuid('assigned_by').references(() => users.id),

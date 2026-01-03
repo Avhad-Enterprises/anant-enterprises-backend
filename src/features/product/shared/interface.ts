@@ -31,7 +31,6 @@ export interface IProduct {
     sku: string;
     barcode?: string | null;
     hsn_code?: string | null;
-    inventory_quantity: number;
 
     weight?: string | null;
     length?: string | null;
