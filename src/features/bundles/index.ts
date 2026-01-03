@@ -3,6 +3,7 @@
  */
 
 import { Router } from 'express';
+import { getAllBundles } from './apis/get-all-bundles';
 
 class BundleRoute {
     public path = '/bundles';
@@ -13,7 +14,7 @@ class BundleRoute {
     }
 
     private initializeRoutes() {
-        // defined later
+        this.router.get(this.path, getAllBundles);
     }
 }
 

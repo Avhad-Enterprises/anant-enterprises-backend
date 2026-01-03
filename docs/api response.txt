@@ -1,0 +1,703 @@
+1 GET /api/products/:id
+{
+    "success": true,
+    "message": "Product retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:47:23.653Z"
+    },
+    "data": {
+        "id": "0cc6824d-c2ca-4b3b-9cae-8c31e813d72a",
+        "slug": "ro-membrane-100gpd",
+        "product_title": "RO Membrane 100GPD",
+        "secondary_title": "High Capacity RO Membrane",
+        "short_description": "100 GPD RO membrane for residential purifiers",
+        "full_description": null,
+        "status": "active",
+        "cost_price": "800.00",
+        "selling_price": "1499.00",
+        "compare_at_price": "1999.00",
+        "discount": 25,
+        "sku": "SP-RO-100",
+        "barcode": null,
+        "inStock": false,
+        "total_stock": 0,
+        "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+100",
+        "additional_images": [],
+        "images": [
+            "https://placehold.co/600x400/666666/white?text=RO+Membrane+100"
+        ],
+        "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+        "category_tier_2": "3f7350d5-446c-4718-8ffe-5e991027de09",
+        "category_tier_3": null,
+        "rating": 0,
+        "review_count": 0,
+        "created_at": "2026-01-03T06:51:09.448Z",
+        "updated_at": "2026-01-03T06:51:09.448Z"
+    }
+}
+
+
+2 GET  http://localhost:8000/api/products
+{
+    "success": true,
+    "message": "Products retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:46:09.663Z"
+    },
+    "data": {
+        "products": [
+            {
+                "id": "0cc6824d-c2ca-4b3b-9cae-8c31e813d72a",
+                "name": "RO Membrane 100GPD",
+                "tags": [
+                    "Membrane",
+                    "RO",
+                    "100GPD",
+                    "Replacement"
+                ],
+                "rating": 5,
+                "reviews": 1,
+                "price": 1499,
+                "originalPrice": 1999,
+                "image": "https://placehold.co/600x400/666666/white?text=RO+Membrane+100",
+                "isNew": true,
+                "category": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+                "technologies": [
+                    "membrane",
+                    "ro",
+                    "100gpd",
+                    "replacement"
+                ]
+            },
+            {
+                "id": "143ed3b5-303a-4fff-8fa6-1c1d437feae6",
+                "name": "Commercial RO 2000",
+                "tags": [
+                    "RO",
+                    "Industrial",
+                    "Commercial",
+                    "2000LPH",
+                    "Enterprise"
+                ],
+                "rating": 5,
+                "reviews": 1,
+                "price": 75000,
+                "originalPrice": 90000,
+                "image": "https://placehold.co/600x400/cc6600/white?text=Commercial+RO+2000",
+                "isNew": true,
+                "category": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+                "technologies": [
+                    "ro",
+                    "industrial",
+                    "commercial",
+                    "2000lph",
+                    "enterprise"
+                ]
+            },
+            {
+                "id": "268072cb-3e91-49c1-b9dc-51c0d993debb",
+                "name": "Commercial RO 1000",
+                "tags": [
+                    "RO",
+                    "Industrial",
+                    "Commercial",
+                    "1000LPH"
+                ],
+                "rating": 5,
+                "reviews": 2,
+                "price": 45000,
+                "originalPrice": 55000,
+                "image": "https://placehold.co/600x400/cc6600/white?text=Commercial+RO+1000",
+                "isNew": true,
+                "category": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+                "technologies": [
+                    "ro",
+                    "industrial",
+                    "commercial",
+                    "1000lph"
+                ]
+            },
+            {
+                "id": "2a0680d8-b24a-4315-b379-3838c6a79651",
+                "name": "Filter Cartridge 20\"",
+                "tags": [
+                    "Filter",
+                    "Cartridge",
+                    "20inch",
+                    "Sediment",
+                    "Commercial"
+                ],
+                "rating": 0,
+                "reviews": 0,
+                "price": 449,
+                "originalPrice": null,
+                "image": "https://placehold.co/600x400/999999/white?text=Filter+20",
+                "isNew": true,
+                "category": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+                "technologies": [
+                    "filter",
+                    "cartridge",
+                    "20inch",
+                    "sediment",
+                    "commercial"
+                ]
+            },
+            {
+                "id": "6653270c-e9c4-4adf-a620-f68609a22e42",
+                "name": "PureFlow UV Lite",
+                "tags": [
+                    "UV",
+                    "Budget",
+                    "Entry"
+                ],
+                "rating": 3.5,
+                "reviews": 2,
+                "price": 3999,
+                "originalPrice": null,
+                "image": "https://placehold.co/600x400/00cc66/white?text=PureFlow+UV+Lite",
+                "isNew": true,
+                "category": "211ce5e1-8397-4dda-9952-81badc086a43",
+                "technologies": [
+                    "uv",
+                    "budget",
+                    "entry"
+                ]
+            },
+            {
+                "id": "6c753111-5df2-4823-9a7a-5566ae1a1cea",
+                "name": "RO Membrane 50GPD",
+                "tags": [
+                    "Membrane",
+                    "RO",
+                    "50GPD",
+                    "Replacement"
+                ],
+                "rating": 3,
+                "reviews": 1,
+                "price": 999,
+                "originalPrice": null,
+                "image": "https://placehold.co/600x400/666666/white?text=RO+Membrane+50",
+                "isNew": true,
+                "category": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+                "technologies": [
+                    "membrane",
+                    "ro",
+                    "50gpd",
+                    "replacement"
+                ]
+            }
+        ],
+        "total": 12,
+        "totalPages": 2,
+        "currentPage": 1
+    }
+}
+
+3 GET /api/products/:productId/reviews
+{
+    "success": true,
+    "message": "Reviews retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:48:18.441Z"
+    },
+    "data": {
+        "reviews": [
+            {
+                "id": "31d10f24-89fd-442b-9704-21252620c738",
+                "rating": 5,
+                "title": "Genuine membrane",
+                "comment": "Replaced my old membrane. Water tastes fresh again!",
+                "media_urls": [],
+                "helpful_votes": 12,
+                "is_verified_purchase": true,
+                "created_at": "2026-01-03T07:07:42.413Z",
+                "author_name": "Priya Patel",
+                "author_avatar": "https://placehold.co/100x100/cc0066/white?text=PP",
+                "date": "40 minutes ago",
+                "timestamp": "2026-01-03T07:07:42.413Z"
+            }
+        ],
+        "total": 1,
+        "averageRating": 5,
+        "ratingDistribution": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 1
+        },
+        "pagination": {
+            "page": 1,
+            "limit": 10,
+            "totalPages": 1
+        }
+    }
+}
+
+4 GET /api/products/:productId/related
+{
+    "success": true,
+    "message": "Related products retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:48:54.559Z"
+    },
+    "data": [
+        {
+            "id": "6c753111-5df2-4823-9a7a-5566ae1a1cea",
+            "product_title": "RO Membrane 50GPD",
+            "selling_price": "999.00",
+            "compare_at_price": null,
+            "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+50",
+            "tags": [
+                "Membrane",
+                "RO",
+                "50GPD",
+                "Replacement"
+            ],
+            "rating": 0,
+            "review_count": 0
+        },
+        {
+            "id": "c9bfd8dd-d341-4770-b0ba-7f0abc665108",
+            "product_title": "Filter Cartridge 10\"",
+            "selling_price": "299.00",
+            "compare_at_price": null,
+            "primary_image_url": "https://placehold.co/600x400/999999/white?text=Filter+10",
+            "tags": [
+                "Filter",
+                "Cartridge",
+                "10inch",
+                "Sediment"
+            ],
+            "rating": 0,
+            "review_count": 0
+        },
+        {
+            "id": "2a0680d8-b24a-4315-b379-3838c6a79651",
+            "product_title": "Filter Cartridge 20\"",
+            "selling_price": "449.00",
+            "compare_at_price": null,
+            "primary_image_url": "https://placehold.co/600x400/999999/white?text=Filter+20",
+            "tags": [
+                "Filter",
+                "Cartridge",
+                "20inch",
+                "Sediment",
+                "Commercial"
+            ],
+            "rating": 0,
+            "review_count": 0
+        }
+    ]
+}
+
+5 GET /api/brands/:brandId/products
+
+6 GET /api/categories/:categoryId/products
+
+7 GET /api/products/:productId/bundles
+{
+    "success": true,
+    "message": "Found 0 bundles",
+    "meta": {
+        "timestamp": "2026-01-03T07:51:36.392Z"
+    },
+    "data": []
+}
+
+8 GET /api/products/compare
+{
+    "success": true,
+    "message": "Found 5 products for comparison",
+    "meta": {
+        "timestamp": "2026-01-03T07:52:21.876Z"
+    },
+    "data": [
+        {
+            "id": "c9bfd8dd-d341-4770-b0ba-7f0abc665108",
+            "product_title": "Filter Cartridge 10\"",
+            "primary_image_url": "https://placehold.co/600x400/999999/white?text=Filter+10",
+            "selling_price": "299.00",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "short_description": "Universal 10-inch sediment filter cartridge",
+            "rating": 0,
+            "specs": {},
+            "highlight": "Best Value",
+            "bestValue": true
+        },
+        {
+            "id": "2a0680d8-b24a-4315-b379-3838c6a79651",
+            "product_title": "Filter Cartridge 20\"",
+            "primary_image_url": "https://placehold.co/600x400/999999/white?text=Filter+20",
+            "selling_price": "449.00",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "short_description": "Commercial grade 20-inch sediment filter cartridge",
+            "rating": 0,
+            "specs": {}
+        },
+        {
+            "id": "6c753111-5df2-4823-9a7a-5566ae1a1cea",
+            "product_title": "RO Membrane 50GPD",
+            "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+50",
+            "selling_price": "999.00",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "short_description": "50 GPD RO membrane for compact purifiers",
+            "rating": 0,
+            "specs": {}
+        },
+        {
+            "id": "0cc6824d-c2ca-4b3b-9cae-8c31e813d72a",
+            "product_title": "RO Membrane 100GPD",
+            "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+100",
+            "selling_price": "1499.00",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "short_description": "100 GPD RO membrane for residential purifiers",
+            "rating": 0,
+            "specs": {}
+        },
+        {
+            "id": "6653270c-e9c4-4adf-a620-f68609a22e42",
+            "product_title": "PureFlow UV Lite",
+            "primary_image_url": "https://placehold.co/600x400/00cc66/white?text=PureFlow+UV+Lite",
+            "selling_price": "3999.00",
+            "category_tier_1": "211ce5e1-8397-4dda-9952-81badc086a43",
+            "short_description": "Affordable UV purification for clean water sources",
+            "rating": 0,
+            "specs": {},
+            "highlight": "Premium"
+        }
+    ]
+}
+
+9 GET /api/products/search?q=ro
+{
+    "success": true,
+    "message": "Found 8 products",
+    "meta": {
+        "timestamp": "2026-01-03T07:56:31.867Z"
+    },
+    "data": [
+        {
+            "id": "0cc6824d-c2ca-4b3b-9cae-8c31e813d72a",
+            "product_title": "RO Membrane 100GPD",
+            "secondary_title": "High Capacity RO Membrane",
+            "selling_price": "1499.00",
+            "compare_at_price": "1999.00",
+            "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+100",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "sku": "SP-RO-100",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "6c753111-5df2-4823-9a7a-5566ae1a1cea",
+            "product_title": "RO Membrane 50GPD",
+            "secondary_title": "Standard RO Membrane",
+            "selling_price": "999.00",
+            "compare_at_price": null,
+            "primary_image_url": "https://placehold.co/600x400/666666/white?text=RO+Membrane+50",
+            "category_tier_1": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+            "sku": "SP-RO-50",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "6cc6ccc2-56a2-43ab-ba10-280c365edddb",
+            "product_title": "AquaPure RO 300",
+            "secondary_title": "Budget RO Purifier",
+            "selling_price": "8999.00",
+            "compare_at_price": "10999.00",
+            "primary_image_url": "https://placehold.co/600x400/0066cc/white?text=AquaPure+RO+300",
+            "category_tier_1": "211ce5e1-8397-4dda-9952-81badc086a43",
+            "sku": "AP-RO-300",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "90f145d6-49b3-476f-a7da-f3c7f45335a5",
+            "product_title": "AquaPure RO 500",
+            "secondary_title": "Advanced RO Purifier",
+            "selling_price": "12999.00",
+            "compare_at_price": "15999.00",
+            "primary_image_url": "https://placehold.co/600x400/0066cc/white?text=AquaPure+RO+500",
+            "category_tier_1": "211ce5e1-8397-4dda-9952-81badc086a43",
+            "sku": "AP-RO-500",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "268072cb-3e91-49c1-b9dc-51c0d993debb",
+            "product_title": "Commercial RO 1000",
+            "secondary_title": "Industrial RO System",
+            "selling_price": "45000.00",
+            "compare_at_price": "55000.00",
+            "primary_image_url": "https://placehold.co/600x400/cc6600/white?text=Commercial+RO+1000",
+            "category_tier_1": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+            "sku": "COMM-RO-1000",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "143ed3b5-303a-4fff-8fa6-1c1d437feae6",
+            "product_title": "Commercial RO 2000",
+            "secondary_title": "Enterprise RO System",
+            "selling_price": "75000.00",
+            "compare_at_price": "90000.00",
+            "primary_image_url": "https://placehold.co/600x400/cc6600/white?text=Commercial+RO+2000",
+            "category_tier_1": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+            "sku": "COMM-RO-2000",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "dc874509-7d0c-4c1c-b1fd-f75debe2d3cb",
+            "product_title": "Premium RO+UV Combo",
+            "secondary_title": "Ultimate Water Purifier",
+            "selling_price": "18999.00",
+            "compare_at_price": "24999.00",
+            "primary_image_url": "https://placehold.co/600x400/gold/black?text=Premium+Combo",
+            "category_tier_1": "211ce5e1-8397-4dda-9952-81badc086a43",
+            "sku": "AP-COMBO-01",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        },
+        {
+            "id": "990d8a96-6bb8-4505-b25e-1410659923a1",
+            "product_title": "PureFlow UV Pro",
+            "secondary_title": "Professional UV Purifier",
+            "selling_price": "6499.00",
+            "compare_at_price": "7999.00",
+            "primary_image_url": "https://placehold.co/600x400/00cc66/white?text=PureFlow+UV+Pro",
+            "category_tier_1": "211ce5e1-8397-4dda-9952-81badc086a43",
+            "sku": "PF-UV-PRO",
+            "rating": 0,
+            "review_count": 0,
+            "total_stock": "0",
+            "inStock": false
+        }
+    ]
+}
+
+10 GET /api/products/filters
+{
+    "success": true,
+    "message": "Filter options retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:57:49.717Z"
+    },
+    "data": {
+        "categories": [
+            {
+                "id": "211ce5e1-8397-4dda-9952-81badc086a43",
+                "label": "211ce5e1-8397-4dda-9952-81badc086a43",
+                "count": 6
+            },
+            {
+                "id": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+                "label": "3f22cae9-7ced-4445-9aac-d7426811aac6",
+                "count": 4
+            },
+            {
+                "id": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+                "label": "ed4de044-4478-4078-a88b-bdd9bb9557bc",
+                "count": 2
+            }
+        ],
+        "technologies": [
+            {
+                "id": "ro",
+                "label": "RO",
+                "count": 8
+            },
+            {
+                "id": "uv",
+                "label": "UV",
+                "count": 5
+            },
+            {
+                "id": "commercial",
+                "label": "Commercial",
+                "count": 3
+            },
+            {
+                "id": "premium",
+                "label": "Premium",
+                "count": 3
+            },
+            {
+                "id": "replacement",
+                "label": "Replacement",
+                "count": 2
+            },
+            {
+                "id": "sediment",
+                "label": "Sediment",
+                "count": 2
+            },
+            {
+                "id": "industrial",
+                "label": "Industrial",
+                "count": 2
+            },
+            {
+                "id": "cartridge",
+                "label": "Cartridge",
+                "count": 2
+            },
+            {
+                "id": "membrane",
+                "label": "Membrane",
+                "count": 2
+            },
+            {
+                "id": "filter",
+                "label": "Filter",
+                "count": 2
+            },
+            {
+                "id": "budget",
+                "label": "Budget",
+                "count": 2
+            },
+            {
+                "id": "1000lph",
+                "label": "1000LPH",
+                "count": 1
+            },
+            {
+                "id": "gold",
+                "label": "Gold",
+                "count": 1
+            },
+            {
+                "id": "limited",
+                "label": "Limited",
+                "count": 1
+            },
+            {
+                "id": "mineral",
+                "label": "Mineral",
+                "count": 1
+            },
+            {
+                "id": "municipal",
+                "label": "Municipal",
+                "count": 1
+            },
+            {
+                "id": "professional",
+                "label": "Professional",
+                "count": 1
+            },
+            {
+                "id": "uf",
+                "label": "UF",
+                "count": 1
+            },
+            {
+                "id": "exclusive",
+                "label": "Exclusive",
+                "count": 1
+            },
+            {
+                "id": "100gpd",
+                "label": "100GPD",
+                "count": 1
+            },
+            {
+                "id": "10inch",
+                "label": "10inch",
+                "count": 1
+            },
+            {
+                "id": "12l",
+                "label": "12L",
+                "count": 1
+            },
+            {
+                "id": "2000lph",
+                "label": "2000LPH",
+                "count": 1
+            },
+            {
+                "id": "20inch",
+                "label": "20inch",
+                "count": 1
+            },
+            {
+                "id": "50gpd",
+                "label": "50GPD",
+                "count": 1
+            },
+            {
+                "id": "8l",
+                "label": "8L",
+                "count": 1
+            },
+            {
+                "id": "combo",
+                "label": "Combo",
+                "count": 1
+            },
+            {
+                "id": "enterprise",
+                "label": "Enterprise",
+                "count": 1
+            },
+            {
+                "id": "entry",
+                "label": "Entry",
+                "count": 1
+            }
+        ],
+        "ratings": [
+            {
+                "value": "5",
+                "count": 4
+            },
+            {
+                "value": "4",
+                "count": 4
+            },
+            {
+                "value": "3",
+                "count": 2
+            }
+        ],
+        "priceRange": {
+            "min": 299,
+            "max": 75000
+        }
+    }
+}
+
+11 GET /api/collections/:slug
+{
+    "success": true,
+    "message": "Collection retrieved successfully",
+    "meta": {
+        "timestamp": "2026-01-03T07:59:54.722Z"
+    },
+    "data": {
+        "id": "3f6ddcd8-eb1e-4784-a09c-dc05deee991d",
+        "title": "Best Sellers",
+        "slug": "best-sellers",
+        "description": "Our most popular products loved by thousands of customers",
+        "bannerImage": "https://placehold.co/1200x400/0066cc/white?text=Best+Sellers",
+        "mobileBannerImage": null
+    }
+}

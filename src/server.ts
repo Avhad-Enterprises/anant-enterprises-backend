@@ -11,6 +11,7 @@ import AdminInviteRoute from './features/admin-invite';
 import ChatbotRoute from './features/chatbot';
 import RBACRoute from './features/rbac';
 import AuditRoute from './features/audit';
+import BundleRoute from './features/bundles';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -49,6 +50,7 @@ async function bootstrap() {
       new ChatbotRoute(),
       new RBACRoute(),
       new AuditRoute(), // Audit admin endpoints
+      new BundleRoute(),
     ]);
 
     server = app.listen();
