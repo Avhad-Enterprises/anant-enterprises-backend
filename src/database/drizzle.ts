@@ -158,6 +158,11 @@ import {
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
 } from '../features/orders';
+import {
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
+} from '../features/media-manager';
 
 /**
  * Database connection configuration
@@ -380,6 +385,10 @@ export const schema = {
   paymentStatusEnum,
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
+  // Media Manager feature
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
 };
 
 /**
