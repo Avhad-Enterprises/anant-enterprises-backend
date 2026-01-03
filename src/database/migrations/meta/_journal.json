@@ -15,6 +15,13 @@
       "when": 1767428102752,
       "tag": "0001_old_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767444115224,
+      "tag": "0002_smart_deathstrike",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
@@ -40,6 +40,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Parse optional body data
     const bodyData = syncUserSchema.parse(req.body || {});
 
+    // Extract email verification status from Supabase Auth
+    const emailVerified = !!authUser.email_confirmed_at;
+    const emailVerifiedAt = authUser.email_confirmed_at ? new Date(authUser.email_confirmed_at) : null;
+
     // Check if user already exists with this auth_id
     let existingUser = await db
         .select()
@@ -48,11 +52,24 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .limit(1);
 
     if (existingUser[0]) {
-        // User already synced
-        logger.info('User already synced', {
-            userId: existingUser[0].id,
-            authId: authUser.id,
-        });
+        // User already synced - but update email verification if status changed
+        if (existingUser[0].email_verified !== emailVerified) {
+            await db
+                .update(users)
+                .set({
+                    email_verified: emailVerified,
+                    email_verified_at: emailVerifiedAt,
+                    updated_at: new Date(),
+                })
+                .where(eq(users.id, existingUser[0].id));
+
+            logger.info('Updated email verification status for user', {
+                userId: existingUser[0].id,
+                authId: authUser.id,
+                emailVerified,
+            });
+        }
+
         return ResponseFormatter.success(res, {
             id: existingUser[0].id,
             synced: false,
@@ -68,11 +85,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .limit(1);
 
     if (existingUser[0]) {
-        // Link existing user to Supabase auth
+        // Link existing user to Supabase auth and update email verification
         await db
             .update(users)
             .set({
                 auth_id: authUser.id,
+                email_verified: emailVerified,
+                email_verified_at: emailVerifiedAt,
                 updated_at: new Date(),
             })
             .where(eq(users.id, existingUser[0].id));
@@ -80,6 +99,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         logger.info('Linked existing user to Supabase Auth', {
             userId: existingUser[0].id,
             authId: authUser.id,
+            emailVerified,
         });
 
         return ResponseFormatter.success(res, {
@@ -97,6 +117,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
             name: bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
             email: authUser.email!,
             phone_number: bodyData.phone_number || authUser.phone || '',
+            email_verified: emailVerified,
+            email_verified_at: emailVerifiedAt,
             is_deleted: false,
             created_at: new Date(),
             updated_at: new Date(),
@@ -107,6 +129,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         userId: newUser.id,
         authId: authUser.id,
         email: authUser.email,
+        emailVerified,
     });
 
     return ResponseFormatter.created(res, {

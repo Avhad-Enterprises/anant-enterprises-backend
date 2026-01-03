@@ -19,6 +19,7 @@ class UserRoute implements Route {
   private async initializeRoutes() {
     // Dynamic imports to avoid circular dependency
     const { default: getAllUsersRouter } = await import('./apis/get-all-users');
+    const { default: getCurrentUserRouter } = await import('./apis/get-current-user');
     const { default: getUserByIdRouter } = await import('./apis/get-user-by-id');
     const { default: updateUserRouter } = await import('./apis/update-user');
     const { default: deleteUserRouter } = await import('./apis/delete-user');
@@ -37,6 +38,7 @@ class UserRoute implements Route {
     const { default: moveWishlistToCartRouter } = await import('./apis/move-wishlist-to-cart');
 
     this.router.use(this.path, getAllUsersRouter);
+    this.router.use(this.path, getCurrentUserRouter);
     this.router.use(this.path, getUserByIdRouter);
     this.router.use(this.path, updateUserRouter);
     this.router.use(this.path, deleteUserRouter);
