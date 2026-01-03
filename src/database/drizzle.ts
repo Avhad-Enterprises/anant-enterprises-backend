@@ -134,6 +134,12 @@ import {
   sessions,
 } from '../features/profile/shared/sessions.schema';
 
+import {
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
+} from '../features/media-manager';
+
 /**
  * Database connection configuration
  */
@@ -358,6 +364,10 @@ export const schema = {
   paymentWebhookLogs,
   // Profile feature
   sessions,
+  // Media Manager feature
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
 };
 
 /**
