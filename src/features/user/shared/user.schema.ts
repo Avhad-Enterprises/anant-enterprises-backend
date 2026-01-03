@@ -26,12 +26,14 @@ export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_n
  *
  * NOTE: Roles are managed via the dynamic RBAC system (user_roles table)
  * NOTE: auth_id links to Supabase Auth (auth.users.id)
+ * NOTE: email_verified and email_verified_at track Supabase Auth email confirmation status
  *
  * Indexes:
  * - email_is_deleted_idx: Composite index for email lookups
  * - created_at_idx: For sorting/pagination
  * - auth_id_idx: For Supabase Auth lookups
  * - user_type_idx: For B2C/B2B filtering
+ * - email_verified_idx: For filtering verified users
  */
 export const users = pgTable(
   'users',
@@ -44,6 +46,8 @@ export const users = pgTable(
     name: varchar('name', { length: 255 }).notNull(),
     email: varchar('email', { length: 255 }).unique().notNull(),
     password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
+    email_verified: boolean('email_verified').default(false).notNull(), // Email verification status from Supabase Auth
+    email_verified_at: timestamp('email_verified_at'), // When email was verified
 
     // Phone
     phone_number: varchar('phone_number', { length: 20 }),
@@ -79,6 +83,8 @@ export const users = pgTable(
     authIdIdx: index('users_auth_id_idx').on(table.auth_id),
     // Index for B2C/B2B filtering
     userTypeIdx: index('users_user_type_idx').on(table.user_type, table.is_deleted),
+    // Index for email verification filtering
+    emailVerifiedIdx: index('users_email_verified_idx').on(table.email_verified, table.is_deleted),
   })
 );
 
