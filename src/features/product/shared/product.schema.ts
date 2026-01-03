@@ -16,6 +16,7 @@ import {
     pgEnum,
     index,
 } from 'drizzle-orm/pg-core';
+import { tiers } from '../../tiers/shared/tiers.schema';
 
 // ============================================
 // ENUMS
@@ -76,11 +77,15 @@ export const products = pgTable(
         pickup_location: varchar('pickup_location', { length: 100 }), // Store/Warehouse ID
 
         // Categorization
-        // We are maintaining the flattened tier structure as requested
-        category_tier_1: varchar('category_tier_1', { length: 100 }),
-        category_tier_2: varchar('category_tier_2', { length: 100 }),
-        category_tier_3: varchar('category_tier_3', { length: 100 }),
-        category_tier_4: varchar('category_tier_4', { length: 100 }),
+        // Hierarchical category structure using tiers table
+        category_tier_1: uuid('category_tier_1')
+            .references(() => tiers.id, { onDelete: 'set null' }),
+        category_tier_2: uuid('category_tier_2')
+            .references(() => tiers.id, { onDelete: 'set null' }),
+        category_tier_3: uuid('category_tier_3')
+            .references(() => tiers.id, { onDelete: 'set null' }),
+        category_tier_4: uuid('category_tier_4')
+            .references(() => tiers.id, { onDelete: 'set null' }),
 
         // Brand (Product Page Enhancement)
         brand_name: varchar('brand_name', { length: 255 }),
