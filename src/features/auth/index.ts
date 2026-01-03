@@ -29,10 +29,12 @@ class AuthRoute implements Route {
     const { default: refreshTokenRouter } = await import('./apis/refresh-token');
     const { default: requestPasswordResetRouter } = await import('./apis/request-password-reset');
     const { default: resetPasswordRouter } = await import('./apis/reset-password');
+    const { default: syncUserRouter } = await import('./apis/sync-user');
 
     this.router.use(this.path, refreshTokenRouter);
     this.router.use(this.path, requestPasswordResetRouter);
     this.router.use(this.path, resetPasswordRouter);
+    this.router.use(this.path, syncUserRouter);
   }
 }
 
