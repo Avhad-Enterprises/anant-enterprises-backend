@@ -11,7 +11,7 @@ import { Role, Permission, UserRole, RolePermission } from './schema';
 // ============================================
 
 export interface IRole {
-  id: number;
+  id: string;
   name: string;
   description?: string | null;
   is_system_role: boolean;
@@ -44,7 +44,7 @@ export interface IRoleWithPermissions extends IRole {
 // ============================================
 
 export interface IPermission {
-  id: number;
+  id: string;
   name: string;
   resource: string;
   action: string;
@@ -65,7 +65,7 @@ export interface ICreatePermission {
 
 export interface IUserRole {
   user_id: string;
-  role_id: number;
+  role_id: string;
   assigned_by?: string | null;
   assigned_at: Date;
   expires_at?: Date | null;
@@ -73,7 +73,7 @@ export interface IUserRole {
 
 export interface IAssignRoleToUser {
   user_id: string;
-  role_id: number;
+  role_id: string;
   expires_at?: Date;
 }
 
@@ -91,7 +91,7 @@ export interface IUserWithRoles {
 
 export interface ICachedPermissions {
   permissions: string[];
-  roleIds: number[];
+  roleIds: string[];
   expiresAt: number;
 }
 
@@ -105,7 +105,7 @@ export interface IPermissionCheck {
 // ============================================
 
 export interface IRoleResponse {
-  id: number;
+  id: string;
   name: string;
   description?: string | null;
   is_system_role: boolean;
@@ -116,7 +116,7 @@ export interface IRoleResponse {
 }
 
 export interface IPermissionResponse {
-  id: number;
+  id: string;
   name: string;
   resource: string;
   action: string;

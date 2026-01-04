@@ -50,7 +50,7 @@ describe('RBACCacheService', () => {
 
   describe('getUserPermissions', () => {
     it('should fetch permissions from database on first call', async () => {
-      const userId = 1;
+      const userId = 'test-user-uuid-1';
       const mockPermissions = ['users:read', 'users:update:own'];
       mockFindUserPermissions.mockResolvedValue(mockPermissions);
 
@@ -62,7 +62,7 @@ describe('RBACCacheService', () => {
     });
 
     it('should return cached permissions on subsequent calls', async () => {
-      const userId = 1;
+      const userId = 'test-user-uuid-2';
       const mockPermissions = ['users:read', 'users:update:own'];
       mockFindUserPermissions.mockResolvedValue(mockPermissions);
 
@@ -84,8 +84,8 @@ describe('RBACCacheService', () => {
         .mockResolvedValueOnce(user1Permissions)
         .mockResolvedValueOnce(user2Permissions);
 
-      const result1 = await cacheService.getUserPermissions(1);
-      const result2 = await cacheService.getUserPermissions(2);
+      const result1 = await cacheService.getUserPermissions('user-uuid-1');
+      const result2 = await cacheService.getUserPermissions('user-uuid-2');
 
       expect(result1).toEqual(user1Permissions);
       expect(result2).toEqual(user2Permissions);
@@ -97,7 +97,7 @@ describe('RBACCacheService', () => {
     it('should return true if user has the specific permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read', 'users:update']);
 
-      const result = await cacheService.hasPermission(1, 'users:read');
+      const result = await cacheService.hasPermission('user-uuid-1', 'users:read');
 
       expect(result).toBe(true);
     });
@@ -105,7 +105,7 @@ describe('RBACCacheService', () => {
     it('should return false if user does not have the permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
-      const result = await cacheService.hasPermission(1, 'users:delete');
+      const result = await cacheService.hasPermission('user-uuid-1', 'users:delete');
 
       expect(result).toBe(false);
     });
@@ -113,7 +113,7 @@ describe('RBACCacheService', () => {
     it('should return true if user has wildcard permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['*']);
 
-      const result = await cacheService.hasPermission(1, 'any:permission');
+      const result = await cacheService.hasPermission('user-uuid-1', 'any:permission');
 
       expect(result).toBe(true);
     });
@@ -123,7 +123,7 @@ describe('RBACCacheService', () => {
     it('should return true if user has all required permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read', 'users:update', 'users:delete']);
 
-      const result = await cacheService.hasAllPermissions(1, ['users:read', 'users:update']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'users:update']);
 
       expect(result).toBe(true);
     });
@@ -131,7 +131,7 @@ describe('RBACCacheService', () => {
     it('should return false if user is missing any permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
-      const result = await cacheService.hasAllPermissions(1, ['users:read', 'users:delete']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'users:delete']);
 
       expect(result).toBe(false);
     });
@@ -139,7 +139,7 @@ describe('RBACCacheService', () => {
     it('should return true with wildcard for any permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['*']);
 
-      const result = await cacheService.hasAllPermissions(1, ['users:read', 'admin:system']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'admin:system']);
 
       expect(result).toBe(true);
     });
@@ -149,7 +149,7 @@ describe('RBACCacheService', () => {
     it('should return true if user has at least one permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
-      const result = await cacheService.hasAnyPermission(1, ['users:read', 'users:delete']);
+      const result = await cacheService.hasAnyPermission('user-uuid-1', ['users:read', 'users:delete']);
 
       expect(result).toBe(true);
     });
@@ -157,7 +157,7 @@ describe('RBACCacheService', () => {
     it('should return false if user has none of the permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['uploads:read']);
 
-      const result = await cacheService.hasAnyPermission(1, ['users:read', 'users:delete']);
+      const result = await cacheService.hasAnyPermission('user-uuid-1', ['users:read', 'users:delete']);
 
       expect(result).toBe(false);
     });
@@ -169,14 +169,14 @@ describe('RBACCacheService', () => {
       mockFindUserPermissions.mockResolvedValue(mockPermissions);
 
       // Populate cache
-      await cacheService.getUserPermissions(1);
+      await cacheService.getUserPermissions('user-uuid-1');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(1);
 
       // Invalidate
-      await cacheService.invalidateUser(1);
+      await cacheService.invalidateUser('user-uuid-1');
 
       // Should fetch again from database
-      await cacheService.getUserPermissions(1);
+      await cacheService.getUserPermissions('user-uuid-1');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(2);
     });
 
@@ -187,19 +187,19 @@ describe('RBACCacheService', () => {
         .mockResolvedValueOnce(['users:read']);
 
       // Populate cache for both users
-      await cacheService.getUserPermissions(1);
-      await cacheService.getUserPermissions(2);
+      await cacheService.getUserPermissions('user-uuid-1');
+      await cacheService.getUserPermissions('user-uuid-2');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(2);
 
       // Invalidate only user 1
-      await cacheService.invalidateUser(1);
+      await cacheService.invalidateUser('user-uuid-1');
 
       // User 2 should still be cached (no new call)
-      await cacheService.getUserPermissions(2);
+      await cacheService.getUserPermissions('user-uuid-2');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(2);
 
       // User 1 should fetch again
-      await cacheService.getUserPermissions(1);
+      await cacheService.getUserPermissions('user-uuid-1');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(3);
     });
   });
@@ -209,16 +209,16 @@ describe('RBACCacheService', () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
       // Populate cache
-      await cacheService.getUserPermissions(1);
-      await cacheService.getUserPermissions(2);
+      await cacheService.getUserPermissions('user-uuid-1');
+      await cacheService.getUserPermissions('user-uuid-2');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(2);
 
       // Invalidate all
       await cacheService.invalidateAll();
 
       // Both should fetch again
-      await cacheService.getUserPermissions(1);
-      await cacheService.getUserPermissions(2);
+      await cacheService.getUserPermissions('user-uuid-1');
+      await cacheService.getUserPermissions('user-uuid-2');
       expect(mockFindUserPermissions).toHaveBeenCalledTimes(4);
     });
   });

@@ -24,7 +24,8 @@ export { AuthTestHelper } from './auth.helper';
 export { DatabaseTestHelper, dbHelper } from './database.helper';
 
 // Test data factories
-export { TestUser, TestDataFactory } from './factories';
+export type { TestUser } from './factories';
+export { TestDataFactory } from './factories';
 
 // Database migrations for tests
 export { runMigrations } from './migrations';

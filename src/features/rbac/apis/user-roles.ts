@@ -26,7 +26,7 @@ import { IUserPermissionsResponse } from '../shared/interface';
 
 // Validation schema
 const assignRoleSchema = z.object({
-  role_id: z.number().int().positive('Role ID must be a positive integer'),
+  role_id: z.string().uuid('Role ID must be a valid UUID'),
   expires_at: z.string().datetime().optional(),
 });
 
@@ -67,7 +67,7 @@ async function getUserPermissionsData(userId: string): Promise<IUserPermissionsR
 
 async function handleAssignRole(
   userId: string,
-  roleId: number,
+  roleId: string,
   assignedBy: string,
   expiresAt?: string
 ): Promise<{ user_id: string; role: Role }> {
@@ -88,7 +88,7 @@ async function handleAssignRole(
   return { user_id: userId, role };
 }
 
-async function handleRemoveRole(userId: string, roleId: number): Promise<void> {
+async function handleRemoveRole(userId: string, roleId: string): Promise<void> {
   await removeRoleFromUser(userId, roleId);
   rbacCacheService.invalidateUser(userId);
 }
@@ -135,8 +135,8 @@ const deleteHandler = async (req: RequestWithUser, res: Response) => {
   if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
 

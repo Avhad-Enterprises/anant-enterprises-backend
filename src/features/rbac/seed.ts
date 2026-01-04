@@ -228,14 +228,14 @@ async function seedPermissions() {
  * Seed role-permission mappings
  */
 async function seedRolePermissions(
-  rolesList: Array<{ id: number; name: string }>,
-  permissionsList: Array<{ id: number; name: string }>
+  rolesList: Array<{ id: string; name: string }>,
+  permissionsList: Array<{ id: string; name: string }>
 ) {
   // Create lookup maps
   const roleIdMap = new Map(rolesList.map(r => [r.name, r.id]));
   const permissionIdMap = new Map(permissionsList.map(p => [p.name, p.id]));
 
-  const mappings: Array<{ role_id: number; permission_id: number }> = [];
+  const mappings: Array<{ role_id: string; permission_id: string }> = [];
 
   for (const [roleName, permissionNames] of Object.entries(ROLE_PERMISSIONS_MAP)) {
     const roleId = roleIdMap.get(roleName);

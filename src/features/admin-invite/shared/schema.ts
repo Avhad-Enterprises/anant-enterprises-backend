@@ -43,8 +43,8 @@ export const invitations = pgTable(
     status: text('status').$type<InvitationStatus>().default('pending').notNull(),
 
     // Role assignment (will be assigned when user accepts invite)
-    // References the dynamic RBAC roles table
-    assigned_role_id: integer('assigned_role_id'),
+    // References the dynamic RBAC roles table (UUID primary key)
+    assigned_role_id: uuid('assigned_role_id'),
 
     // Security - stores encrypted temp password (can be decrypted for user verification)
     temp_password_encrypted: text('temp_password_encrypted'), // AES-256-GCM encrypted

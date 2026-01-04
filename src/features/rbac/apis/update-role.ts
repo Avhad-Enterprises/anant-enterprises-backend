@@ -29,7 +29,7 @@ const schema = z.object({
 type UpdateRoleDto = z.infer<typeof schema>;
 
 async function handleUpdateRole(
-  roleId: number,
+  roleId: string,
   data: UpdateRoleDto,
   updatedBy: string
 ): Promise<Role> {
@@ -63,8 +63,8 @@ async function handleUpdateRole(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
   const userId = req.userId;

@@ -12,7 +12,7 @@ import { HttpException } from '../../../utils';
 import { findRoleById, deleteRole, countUsersWithRole } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 
-async function handleDeleteRole(roleId: number, deletedBy: string): Promise<void> {
+async function handleDeleteRole(roleId: string, deletedBy: string): Promise<void> {
   const existingRole = await findRoleById(roleId);
   if (!existingRole) {
     throw new HttpException(404, 'Role not found');
@@ -39,8 +39,8 @@ async function handleDeleteRole(roleId: number, deletedBy: string): Promise<void
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
   const userId = req.userId;

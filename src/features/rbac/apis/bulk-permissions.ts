@@ -21,7 +21,7 @@ import { rbacCacheService } from '../services/rbac-cache.service';
 
 const schema = z.object({
   permission_ids: z
-    .array(z.number().int().positive('Permission ID must be a positive integer'))
+    .array(z.string().uuid('Permission ID must be a valid UUID'))
     .min(1, 'At least one permission ID is required')
     .max(50, 'Cannot assign more than 50 permissions at once'),
 });
@@ -29,16 +29,16 @@ const schema = z.object({
 type BulkAssignDto = z.infer<typeof schema>;
 
 interface BulkAssignResult {
-  role_id: number;
+  role_id: string;
   role_name: string;
   assigned_count: number;
   skipped_count: number;
-  permission_ids: number[];
+  permission_ids: string[];
 }
 
 async function handleBulkAssign(
-  roleId: number,
-  permissionIds: number[],
+  roleId: string,
+  permissionIds: string[],
   assignedBy: string
 ): Promise<BulkAssignResult> {
   const role = await findRoleById(roleId);
@@ -47,7 +47,7 @@ async function handleBulkAssign(
   }
 
   // Validate all permissions exist
-  const validPermissionIds: number[] = [];
+  const validPermissionIds: string[] = [];
   for (const permId of permissionIds) {
     const permission = await findPermissionById(permId);
     if (permission) {
@@ -85,8 +85,8 @@ async function handleBulkAssign(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
   const userId = req.userId;

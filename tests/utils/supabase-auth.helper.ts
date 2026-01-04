@@ -313,7 +313,7 @@ export class SupabaseAuthHelper {
             superadmin: ['*'],
           };
 
-          const mappings: { role_id: number; permission_id: number }[] = [];
+          const mappings: { role_id: string; permission_id: string }[] = [];
           for (const [roleName, perms] of Object.entries(rolePermissionMappings)) {
             const roleId = roleIdMap.get(roleName);
             if (!roleId) continue;
@@ -402,7 +402,7 @@ export class SupabaseAuthHelper {
         superadmin: ['*'],
       };
 
-      const mappings: { role_id: number; permission_id: number }[] = [];
+      const mappings: { role_id: string; permission_id: string }[] = [];
       for (const [roleName, perms] of Object.entries(rolePermissionMappings)) {
         const roleId = roleIdMap.get(roleName);
         if (!roleId) continue;

@@ -24,7 +24,7 @@ import { Permission } from '../shared/schema';
 
 // Validation schema
 const assignPermissionSchema = z.object({
-  permission_id: z.number().int().positive('Permission ID must be a positive integer'),
+  permission_id: z.string().uuid('Permission ID must be a valid UUID'),
 });
 
 type AssignPermissionDto = z.infer<typeof assignPermissionSchema>;
@@ -34,11 +34,11 @@ type AssignPermissionDto = z.infer<typeof assignPermissionSchema>;
 // ============================================
 
 interface RolePermissionsResult {
-  role: { id: number; name: string };
+  role: { id: string; name: string };
   permissions: Permission[];
 }
 
-async function getRolePermissions(roleId: number): Promise<RolePermissionsResult> {
+async function getRolePermissions(roleId: string): Promise<RolePermissionsResult> {
   const role = await findRoleById(roleId);
   if (!role) {
     throw new HttpException(404, 'Role not found');
@@ -54,10 +54,10 @@ async function getRolePermissions(roleId: number): Promise<RolePermissionsResult
 }
 
 async function handleAssignPermission(
-  roleId: number,
-  permissionId: number,
+  roleId: string,
+  permissionId: string,
   assignedBy: string
-): Promise<{ role_id: number; permission: Permission }> {
+): Promise<{ role_id: string; permission: Permission }> {
   const role = await findRoleById(roleId);
   if (!role) {
     throw new HttpException(404, 'Role not found');
@@ -74,7 +74,7 @@ async function handleAssignPermission(
   return { role_id: roleId, permission };
 }
 
-async function handleRemovePermission(roleId: number, permissionId: number): Promise<void> {
+async function handleRemovePermission(roleId: string, permissionId: string): Promise<void> {
   const role = await findRoleById(roleId);
   if (!role) {
     throw new HttpException(404, 'Role not found');
@@ -89,8 +89,8 @@ async function handleRemovePermission(roleId: number, permissionId: number): Pro
 // ============================================
 
 const getHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
   const result = await getRolePermissions(roleId);
@@ -98,8 +98,8 @@ const getHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const postHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
   const userId = req.userId;
@@ -113,12 +113,12 @@ const postHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const deleteHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = Number(req.params.roleId);
-  if (isNaN(roleId) || roleId <= 0) {
+  const roleId = req.params.roleId;
+  if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-  const permissionId = Number(req.params.permissionId);
-  if (isNaN(permissionId) || permissionId <= 0) {
+  const permissionId = req.params.permissionId;
+  if (!permissionId) {
     throw new HttpException(400, 'Invalid permissionId parameter');
   }
 

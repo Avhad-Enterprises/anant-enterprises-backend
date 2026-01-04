@@ -15,7 +15,6 @@ import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
 
 const paramsSchema = z.object({
     productId: z.string().uuid('Invalid product ID format'),
@@ -24,17 +23,6 @@ const paramsSchema = z.object({
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(20).default(4),
 });
-
-interface RelatedProduct {
-    id: string;
-    product_title: string;
-    selling_price: string;
-    compare_at_price: string | null;
-    primary_image_url: string | null;
-    tags: any[];
-    rating: number;
-    review_count: number;
-}
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const { productId } = req.params;
