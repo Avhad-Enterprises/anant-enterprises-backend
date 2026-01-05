@@ -57,7 +57,6 @@ const validationMiddleware = (
 
       next();
     } catch (error) {
-      console.error('Validation Middleware CRITICAL Error:', error);
       // Log unexpected validation errors
       logger.error('Validation middleware error:', {
         error: error instanceof Error ? error.message : 'Unknown error',
