@@ -153,7 +153,7 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
       await db
         .update(users)
         .set({
-          auth_id: authId, // Uncomment after migration 0006 is applied
+          auth_id: authId,
           updated_at: new Date(),
         })
         .where(eq(users.id, existingUser[0].id));
@@ -163,8 +163,7 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
         authId,
       });
     } else {
-      // Create new user record
-      // NOTE: auth_id will be added after migration 0006 is applied
+      // Create new user record with auth_id
       await db.insert(users).values({
         name: userData.name || 'User',
         email: userData.email,
@@ -197,7 +196,7 @@ export async function getUserByAuthId(authId: string) {
     const user = await db
       .select()
       .from(users)
-      .where(eq(users.auth_id, authId)) // Uncomment after migration 0006
+      .where(eq(users.auth_id, authId))
       .limit(1);
 
     return user[0] || null;
@@ -280,7 +279,6 @@ export async function migrateUserToSupabaseAuth(
     }
 
     // Update public.users - remove password since Supabase manages it now
-    // NOTE: auth_id will be set after migration 0006 is applied
     await db
       .update(users)
       .set({

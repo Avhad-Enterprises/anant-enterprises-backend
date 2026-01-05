@@ -1,14 +1,32 @@
-import rateLimit, { RateLimitExceededEventHandler } from 'express-rate-limit';
-// import RedisStore from 'rate-limit-redis';
+import rateLimit, { RateLimitExceededEventHandler, Store } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import { Request, RequestHandler } from 'express';
 import { logger } from '../utils';
-// import { redisClient } from '../utils';
+import { redisClient, isRedisReady } from '../utils';
 import { RequestWithId } from '../interfaces';
-import { isDevelopment, isTest } from '../utils/validateEnv';
+import { isDevelopment, isTest, isProduction } from '../utils/validateEnv';
 
-// Create Redis store for production, in-memory for development
-// Redis disabled - using in-memory store for all environments
-const createStore = () => undefined;
+/**
+ * Create rate limit store based on environment
+ * - Production: Redis store for distributed rate limiting across instances
+ * - Development/Test: In-memory store (default)
+ */
+const createStore = (): Store | undefined => {
+  // Only use Redis in production when connected
+  if (isProduction && isRedisReady()) {
+    logger.info('Using Redis store for rate limiting');
+    return new RedisStore({
+      sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+      prefix: 'rl:', // Rate limit key prefix
+    });
+  }
+
+  // Development and test use in-memory store (default)
+  if (!isProduction) {
+    logger.debug('Using in-memory store for rate limiting (non-production)');
+  }
+  return undefined;
+};
 
 // Consistent error response matching error middleware structure
 const createRateLimitResponse = (message: string, retryAfter: string, requestId: string) => ({
