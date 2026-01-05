@@ -27,7 +27,6 @@ import {
   pgEnum,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { users } from '../../user';
 
 // ============================================
@@ -54,7 +53,7 @@ export const taxAppliesToEnum = pgEnum('tax_applies_to', [
 export const taxRules = pgTable(
   'tax_rules',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id').primaryKey().defaultRandom(),
 
     // Geographic scope
     country_code: varchar('country_code', { length: 2 }).notNull(), // ISO 3166-1 alpha-2
@@ -117,7 +116,7 @@ export type NewTaxRule = typeof taxRules.$inferInsert;
 export const countries = pgTable(
   'countries',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id').primaryKey().defaultRandom(),
     code: varchar('code', { length: 2 }).unique().notNull(), // ISO 3166-1 alpha-2
     code_alpha3: varchar('code_alpha3', { length: 3 }).unique().notNull(), // ISO 3166-1 alpha-3
     name: varchar('name', { length: 100 }).notNull(),
@@ -151,7 +150,7 @@ export type NewCountry = typeof countries.$inferInsert;
 export const regions = pgTable(
   'regions',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id').primaryKey().defaultRandom(),
     country_code: varchar('country_code', { length: 2 }).notNull(), // FK to countries.code
     code: varchar('code', { length: 10 }).notNull(), // State/province code (MH, CA, TX)
     name: varchar('name', { length: 100 }).notNull(), // Maharashtra, California

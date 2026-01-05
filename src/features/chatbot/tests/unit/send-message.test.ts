@@ -23,7 +23,7 @@ describe('Send Message API Logic', () => {
   });
 
   it('should create new session when sessionId not provided', async () => {
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
     const mockSession = { id: 1, user_id: userId, title: null };
 
     mockCreateSession.mockResolvedValue(mockSession as any);
@@ -40,7 +40,7 @@ describe('Send Message API Logic', () => {
 
   it('should use existing session when sessionId provided', async () => {
     const sessionId = 1;
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
 
     mockGetSessionByIdForUser.mockResolvedValue({
       id: sessionId,
@@ -56,7 +56,7 @@ describe('Send Message API Logic', () => {
 
   it('should create user and assistant messages', async () => {
     const sessionId = 1;
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
 
     mockCreateMessage.mockResolvedValue({ id: 1, role: 'user', content: 'Hello' } as any);
     mockGenerateChatResponse.mockResolvedValue({

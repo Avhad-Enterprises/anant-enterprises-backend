@@ -5,7 +5,6 @@
 
 import request from 'supertest';
 import app from '@tests/utils';
-import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { permissions } from '../../shared/rbac.schema';
@@ -13,7 +12,7 @@ import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/permissions - Create Permission', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let regularUserToken: string;
 
   beforeAll(async () => {
@@ -27,14 +26,14 @@ describe('POST /api/rbac/permissions - Create Permission', () => {
     // Debug: Check what permissions the superadmin has
     const { rbacCacheService } =
       await import('../../../../features/rbac/services/rbac-cache.service');
-    const roles = await rbacCacheService.getUserRoles(superadminUserId);
+    await rbacCacheService.getUserRoles(superadminUserId);
 
     // Create regular user without permissions
     const { token: userToken } = await SupabaseAuthHelper.createTestUserWithToken();
     regularUserToken = userToken;
   });
 
-  afterAll(async () => { });
+  afterAll(async () => {});
 
   afterEach(async () => {
     // Clean up test permissions

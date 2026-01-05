@@ -30,7 +30,7 @@ interface UpdateUserData {
 }
 
 // Recreate the business logic for testing
-async function updateUser(id: number, data: UpdateUserData, updatedBy: number): Promise<IUser> {
+async function updateUser(id: string, data: UpdateUserData, updatedBy: string): Promise<IUser> {
   const existingUser = await userQueries.findUserById(id);
 
   if (!existingUser) {
@@ -71,24 +71,26 @@ async function updateUser(id: number, data: UpdateUserData, updatedBy: number): 
 }
 
 describe('Update User Business Logic', () => {
-  const mockUser = {
-    id: 1,
-    auth_id: '123e4567-e89b-12d3-a456-426614174000',
-    user_type: 'individual' as const,
+  const mockUser: any = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    auth_id: null,
+    user_type: 'individual',
     name: 'Test User',
     email: 'test@example.com',
     password: 'hashedPassword123',
+    email_verified: true,
+    email_verified_at: null,
     phone_number: '1234567890',
     phone_country_code: '+1',
     phone_verified: false,
-    phone_verified_at: null,
-    profile_image_url: null,
-    date_of_birth: null,
-    gender: 'prefer_not_to_say' as const,
+    phone_verified_at: undefined,
+    profile_image_url: undefined,
+    date_of_birth: undefined,
+    gender: 'prefer_not_to_say',
     preferred_language: 'en',
     preferred_currency: 'USD',
     timezone: 'UTC',
-    created_by: '1',
+    created_by: '550e8400-e29b-41d4-a716-446655440001',
     created_at: new Date('2024-01-01'),
     updated_by: null,
     updated_at: new Date('2024-01-01'),
@@ -100,7 +102,7 @@ describe('Update User Business Logic', () => {
   const updatedMockUser = {
     ...mockUser,
     name: 'Updated User',
-    updated_by: '2',
+    updated_by: '550e8400-e29b-41d4-a716-446655440002',
     updated_at: new Date('2024-01-02'),
   };
 
@@ -118,31 +120,63 @@ describe('Update User Business Logic', () => {
     it('should successfully update user name', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
 
-      const result = await updateUser(1, { name: 'Updated User' }, 2);
+      const result = await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { name: 'Updated User' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
-      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(1);
+      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
       expect(result.name).toBe('Updated User');
     });
 
     it('should throw 404 when user not found', async () => {
       mockUserQueries.findUserById.mockResolvedValue(undefined);
 
-      await expect(updateUser(999, { name: 'Test' }, 2)).rejects.toThrow(HttpException);
-      await expect(updateUser(999, { name: 'Test' }, 2)).rejects.toMatchObject({
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440999',
+          { name: 'Test' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toThrow(HttpException);
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440999',
+          { name: 'Test' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toMatchObject({
         status: 404,
         message: 'User not found',
       });
     });
 
     it('should throw 409 when email already exists for another user', async () => {
-      const anotherUser = { ...mockUser, id: 2, email: 'existing@example.com' };
+      const anotherUser = {
+        ...mockUser,
+        id: '550e8400-e29b-41d4-a716-446655440002',
+        email: 'existing@example.com',
+      };
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
       mockUserQueries.findUserByEmail.mockResolvedValue(anotherUser);
 
-      await expect(updateUser(1, { email: 'existing@example.com' }, 2)).rejects.toThrow(
-        HttpException
-      );
-      await expect(updateUser(1, { email: 'existing@example.com' }, 2)).rejects.toMatchObject({
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440001',
+          { email: 'existing@example.com' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toThrow(HttpException);
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440001',
+          { email: 'existing@example.com' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toMatchObject({
         status: 409,
         message: 'Email already exists',
       });
@@ -152,7 +186,11 @@ describe('Update User Business Logic', () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
       // Same email as current user, should not throw
 
-      const result = await updateUser(1, { email: 'test@example.com' }, 2);
+      const result = await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { email: 'test@example.com' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(mockUserQueries.findUserByEmail).not.toHaveBeenCalled();
       expect(result).toBeDefined();
@@ -168,7 +206,11 @@ describe('Update User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await updateUser(1, { email: 'newemail@example.com' }, 2);
+      const result = await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { email: 'newemail@example.com' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(result).toBeDefined();
     });
@@ -177,7 +219,11 @@ describe('Update User Business Logic', () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
       (mockBcrypt.hash as jest.Mock).mockResolvedValue('newHashedPassword');
 
-      await updateUser(1, { password: 'newPassword123' }, 2);
+      await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { password: 'newPassword123' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(mockBcrypt.hash).toHaveBeenCalledWith('newPassword123', 10);
     });
@@ -185,7 +231,11 @@ describe('Update User Business Logic', () => {
     it('should not hash password when not updating password', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
 
-      await updateUser(1, { name: 'New Name' }, 2);
+      await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { name: 'New Name' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(mockBcrypt.hash).not.toHaveBeenCalled();
     });
@@ -193,14 +243,22 @@ describe('Update User Business Logic', () => {
     it('should set updated_by field', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
 
-      const mockReturning = jest.fn().mockResolvedValue([{ ...updatedMockUser, updated_by: '5' }]);
+      const expectedResult = {
+        ...updatedMockUser,
+        updated_by: '550e8400-e29b-41d4-a716-446655440005',
+      };
+      const mockReturning = jest.fn().mockResolvedValue([expectedResult]);
       const mockWhere = jest.fn().mockReturnValue({ returning: mockReturning });
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await updateUser(1, { name: 'Test' }, 5);
+      const result = await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { name: 'Test' },
+        '550e8400-e29b-41d4-a716-446655440005'
+      );
 
-      expect(result.updated_by).toBe('5');
+      expect(result.updated_by).toBe('550e8400-e29b-41d4-a716-446655440005');
     });
 
     // Role update test removed as role is not on user table
@@ -213,8 +271,20 @@ describe('Update User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(updateUser(1, { name: 'Test' }, 2)).rejects.toThrow(HttpException);
-      await expect(updateUser(1, { name: 'Test' }, 2)).rejects.toMatchObject({
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440000',
+          { name: 'Test' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toThrow(HttpException);
+      await expect(
+        updateUser(
+          '550e8400-e29b-41d4-a716-446655440000',
+          { name: 'Test' },
+          '550e8400-e29b-41d4-a716-446655440002'
+        )
+      ).rejects.toMatchObject({
         status: 500,
         message: 'Failed to update user',
       });
@@ -229,7 +299,11 @@ describe('Update User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await updateUser(1, { phone_number: '9999999999' }, 2);
+      const result = await updateUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { phone_number: '9999999999' },
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(result.phone_number).toBe('9999999999');
     });

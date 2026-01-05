@@ -80,7 +80,7 @@ describe('Accept Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     invite_token: 'validtoken123',
     status: 'pending' as const,
-    assigned_role_id: 2, // ID of 'user' role
+    assigned_role_id: '550e8400-e29b-41d4-a716-446655440001', // ID of 'user' role
     temp_password_encrypted: 'encryptedTempPassword',
     password_hash: 'hashedTempPassword',
     verify_attempts: 0,
@@ -246,13 +246,20 @@ describe('Accept Invitation Business Logic', () => {
     });
 
     it('should assign role via RBAC when assigned_role_id is provided', async () => {
-      const adminInvitation = { ...mockInvitation, assigned_role_id: 3 }; // admin role ID
+      const adminInvitation = {
+        ...mockInvitation,
+        assigned_role_id: '550e8400-e29b-41d4-a716-446655440002',
+      }; // admin role ID
       mockInviteQueries.findInvitationByToken.mockResolvedValue(adminInvitation);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith('1', 3, '1');
+      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(
+        '1',
+        '550e8400-e29b-41d4-a716-446655440002',
+        '1'
+      );
     });
 
     it('should not assign role if assigned_role_id is null', async () => {

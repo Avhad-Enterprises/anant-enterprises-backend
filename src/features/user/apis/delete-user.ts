@@ -37,7 +37,7 @@ async function deleteUser(id: string, deletedBy: string): Promise<{ email: strin
     .update(users)
     .set({
       is_deleted: true,
-      deleted_by: null, // deleted_by is integer in schema, needs migration
+      deleted_by: deletedBy,
       deleted_at: new Date(),
     })
     .where(eq(users.id, id));

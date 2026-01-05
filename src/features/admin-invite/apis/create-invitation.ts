@@ -12,7 +12,13 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
+import {
+  ResponseFormatter,
+  HttpException,
+  shortTextSchema,
+  emailSchema,
+  uuidSchema,
+} from '../../../utils';
 import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';

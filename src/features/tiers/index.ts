@@ -7,16 +7,16 @@
 import { Router } from 'express';
 
 class TierRoute {
-    public path = '/tiers';
-    public router = Router();
+  public path = '/tiers';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private initializeRoutes() {
-        // defined later
-    }
+  private initializeRoutes() {
+    // defined later
+  }
 }
 
 export default TierRoute;

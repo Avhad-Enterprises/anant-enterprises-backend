@@ -193,11 +193,7 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
  */
 export async function getUserByAuthId(authId: string) {
   try {
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.auth_id, authId))
-      .limit(1);
+    const user = await db.select().from(users).where(eq(users.auth_id, authId)).limit(1);
 
     return user[0] || null;
   } catch (error) {

@@ -17,42 +17,38 @@ import { collections } from '../shared/collection.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const paramsSchema = z.object({
-    id: uuidSchema,
+  id: uuidSchema,
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { id } = paramsSchema.parse(req.params);
+  const { id } = paramsSchema.parse(req.params);
 
-    // Check if collection exists
-    const [collection] = await db
-        .select({ id: collections.id, slug: collections.slug })
-        .from(collections)
-        .where(eq(collections.id, id))
-        .limit(1);
+  // Check if collection exists
+  const [collection] = await db
+    .select({ id: collections.id, slug: collections.slug })
+    .from(collections)
+    .where(eq(collections.id, id))
+    .limit(1);
 
-    if (!collection) {
-        throw new HttpException(404, 'Collection not found');
-    }
+  if (!collection) {
+    throw new HttpException(404, 'Collection not found');
+  }
 
-    // Soft delete by setting status to inactive
-    await db
-        .update(collections)
-        .set({
-            status: 'inactive',
-            updated_at: new Date(),
-        })
-        .where(eq(collections.id, id));
+  // Soft delete by setting status to inactive
+  await db
+    .update(collections)
+    .set({
+      status: 'inactive',
+      updated_at: new Date(),
+    })
+    .where(eq(collections.id, id));
 
-    // Invalidate all caches
-    await collectionCacheService.invalidateCollectionById(id);
-    await collectionCacheService.invalidateCollectionBySlug(collection.slug);
-    await collectionCacheService.invalidateCache(); // Clear list caches
+  // Invalidate all caches
+  await collectionCacheService.invalidateCollectionById(id);
+  await collectionCacheService.invalidateCollectionBySlug(collection.slug);
+  await collectionCacheService.invalidateCache(); // Clear list caches
 
-    return ResponseFormatter.success(
-        res,
-        null,
-        'Collection deleted successfully'
-    );
+  return ResponseFormatter.success(res, null, 'Collection deleted successfully');
 };
 
 const router = Router();

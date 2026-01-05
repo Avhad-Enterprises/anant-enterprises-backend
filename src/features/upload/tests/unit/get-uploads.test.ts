@@ -44,7 +44,7 @@ function convertUpload(upload: any): Upload {
 }
 
 // Recreate the business logic for testing
-async function getUserById(uploadId: number, userId: number): Promise<Upload> {
+async function getUserById(uploadId: number, userId: string): Promise<Upload> {
   const upload = await uploadQueries.findUploadById(uploadId, userId);
 
   if (!upload) {
@@ -83,9 +83,12 @@ describe('Get Uploads Business Logic', () => {
     it('should return upload when found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const result = await getUserById(1, 1);
+      const result = await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 1);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(
+        1,
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
       expect(result.id).toBe(1);
       expect(result.filename).toBe('test-file.pdf');
     });
@@ -93,8 +96,10 @@ describe('Get Uploads Business Logic', () => {
     it('should throw 404 when upload not found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(undefined);
 
-      await expect(getUserById(999, 1)).rejects.toThrow(HttpException);
-      await expect(getUserById(999, 1)).rejects.toMatchObject({
+      await expect(getUserById(999, '550e8400-e29b-41d4-a716-446655440000')).rejects.toThrow(
+        HttpException
+      );
+      await expect(getUserById(999, '550e8400-e29b-41d4-a716-446655440000')).rejects.toMatchObject({
         status: 404,
         message: 'Upload not found',
       });
@@ -103,15 +108,15 @@ describe('Get Uploads Business Logic', () => {
     it('should verify ownership by userId', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      await getUserById(1, 1);
+      await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 1);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, expect.any(String));
     });
 
     it('should convert dates to ISO strings', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const result = await getUserById(1, 1);
+      const result = await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(typeof result.created_at).toBe('string');
       expect(typeof result.updated_at).toBe('string');
@@ -120,7 +125,7 @@ describe('Get Uploads Business Logic', () => {
     it('should return all upload fields', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const result = await getUserById(1, 1);
+      const result = await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(result).toHaveProperty('id');
       expect(result).toHaveProperty('filename');
@@ -135,7 +140,7 @@ describe('Get Uploads Business Logic', () => {
       const pendingUpload = { ...mockUpload, status: 'pending' as const };
       mockUploadQueries.findUploadById.mockResolvedValue(pendingUpload);
 
-      const result = await getUserById(1, 1);
+      const result = await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(result.status).toBe('pending');
     });
@@ -148,7 +153,7 @@ describe('Get Uploads Business Logic', () => {
       };
       mockUploadQueries.findUploadById.mockResolvedValue(failedUpload);
 
-      const result = await getUserById(1, 1);
+      const result = await getUserById(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(result.status).toBe('failed');
       expect(result.error_message).toBe('Processing failed');

@@ -8,7 +8,7 @@ import { collectionCacheService } from '../services/collection-cache.service';
  * Uses Redis/memory cache for better performance
  */
 export const findCollectionById = async (id: string): Promise<Collection | undefined> => {
-    return collectionCacheService.getCollectionById(id);
+  return collectionCacheService.getCollectionById(id);
 };
 
 /**
@@ -16,7 +16,7 @@ export const findCollectionById = async (id: string): Promise<Collection | undef
  * Uses Redis/memory cache for better performance
  */
 export const findCollectionBySlug = async (slug: string): Promise<Collection | undefined> => {
-    return collectionCacheService.getCollectionBySlug(slug);
+  return collectionCacheService.getCollectionBySlug(slug);
 };
 
 /**
@@ -24,12 +24,12 @@ export const findCollectionBySlug = async (slug: string): Promise<Collection | u
  * Shared query used across services
  */
 export const createCollection = async (collectionData: NewCollection): Promise<Collection> => {
-    const [newCollection] = await db.insert(collections).values(collectionData).returning();
+  const [newCollection] = await db.insert(collections).values(collectionData).returning();
 
-    // Invalidate cache
-    await collectionCacheService.invalidateCache();
+  // Invalidate cache
+  await collectionCacheService.invalidateCache();
 
-    return newCollection;
+  return newCollection;
 };
 
 /**
@@ -37,24 +37,24 @@ export const createCollection = async (collectionData: NewCollection): Promise<C
  * Shared query used across services
  */
 export const updateCollectionById = async (
-    id: string,
-    data: Partial<Omit<Collection, 'id'>>
+  id: string,
+  data: Partial<Omit<Collection, 'id'>>
 ): Promise<Collection | undefined> => {
-    const [updatedCollection] = await db
-        .update(collections)
-        .set({ ...data, updated_at: new Date() })
-        .where(eq(collections.id, id))
-        .returning();
+  const [updatedCollection] = await db
+    .update(collections)
+    .set({ ...data, updated_at: new Date() })
+    .where(eq(collections.id, id))
+    .returning();
 
-    // Invalidate cache
-    if (updatedCollection) {
-        await collectionCacheService.invalidateCollectionById(id);
-        if (updatedCollection.slug) {
-            await collectionCacheService.invalidateCollectionBySlug(updatedCollection.slug);
-        }
+  // Invalidate cache
+  if (updatedCollection) {
+    await collectionCacheService.invalidateCollectionById(id);
+    if (updatedCollection.slug) {
+      await collectionCacheService.invalidateCollectionBySlug(updatedCollection.slug);
     }
+  }
 
-    return updatedCollection;
+  return updatedCollection;
 };
 
 /**
@@ -62,9 +62,9 @@ export const updateCollectionById = async (
  * No caching - used for admin lists
  */
 export const getAllActiveCollections = async (): Promise<Collection[]> => {
-    return db
-        .select()
-        .from(collections)
-        .where(eq(collections.status, 'active'))
-        .orderBy(collections.created_at);
+  return db
+    .select()
+    .from(collections)
+    .where(eq(collections.status, 'active'))
+    .orderBy(collections.created_at);
 };

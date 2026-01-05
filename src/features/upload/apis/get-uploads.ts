@@ -23,12 +23,14 @@ import { rbacCacheService } from '../../rbac';
 
 const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
 
-const uploadQuerySchema = z.object({
-  status: uploadStatusSchema.optional(),
-  mime_type: z.string().optional(),
-  sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
-  sort_order: z.enum(['asc', 'desc']).optional(),
-}).merge(paginationSchema);
+const uploadQuerySchema = z
+  .object({
+    status: uploadStatusSchema.optional(),
+    mime_type: z.string().optional(),
+    sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
+    sort_order: z.enum(['asc', 'desc']).optional(),
+  })
+  .merge(paginationSchema);
 
 async function getUploadsWithPagination(
   userId: string,

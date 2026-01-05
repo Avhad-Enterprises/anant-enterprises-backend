@@ -9,20 +9,20 @@
 // ============================================
 
 export interface IReview {
-    id: string; // UUID
-    product_id: string; // UUID
-    user_id: string; // UUID
-    rating: number;
-    title?: string | null;
-    comment?: string | null;
-    media_urls?: string[]; // JSONB
-    is_verified_purchase: boolean;
-    status: 'pending' | 'approved' | 'rejected';
-    admin_reply?: string | null;
-    helpful_votes: number;
-    created_at: Date;
-    updated_at: Date;
-    is_deleted: boolean;
+  id: string; // UUID
+  product_id: string; // UUID
+  user_id: string; // UUID
+  rating: number;
+  title?: string | null;
+  comment?: string | null;
+  media_urls?: string[]; // JSONB
+  is_verified_purchase: boolean;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_reply?: string | null;
+  helpful_votes: number;
+  created_at: Date;
+  updated_at: Date;
+  is_deleted: boolean;
 }
 
 // ============================================
@@ -30,15 +30,15 @@ export interface IReview {
 // ============================================
 
 export interface IProductQuestion {
-    id: string; // UUID
-    product_id: string; // UUID
-    user_id: string; // UUID
-    question: string;
-    answer?: string | null;
-    answered_by?: string | null; // UUID
-    status: 'pending' | 'answered' | 'rejected';
-    is_public: boolean;
-    created_at: Date;
-    updated_at: Date;
-    is_deleted: boolean;
+  id: string; // UUID
+  product_id: string; // UUID
+  user_id: string; // UUID
+  question: string;
+  answer?: string | null;
+  answered_by?: string | null; // UUID
+  status: 'pending' | 'answered' | 'rejected';
+  is_public: boolean;
+  created_at: Date;
+  updated_at: Date;
+  is_deleted: boolean;
 }

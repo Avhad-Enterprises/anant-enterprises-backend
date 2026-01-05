@@ -1,13 +1,37 @@
 import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../../../database';
-import { invitations, type Invitation, type NewInvitation, type InvitationStatus } from './admin-invite.schema';
+import {
+  invitations,
+  type Invitation,
+  type NewInvitation,
+  type InvitationStatus,
+} from './admin-invite.schema';
 
 /**
  * Find invitation by ID (excluding deleted invitations)
  */
 export const findInvitationById = async (id: number): Promise<Invitation | undefined> => {
   const [invitation] = await db
-    .select()
+    .select({
+      id: invitations.id,
+      first_name: invitations.first_name,
+      last_name: invitations.last_name,
+      email: invitations.email,
+      invite_token: invitations.invite_token,
+      status: invitations.status,
+      assigned_role_id: invitations.assigned_role_id,
+      temp_password_encrypted: invitations.temp_password_encrypted,
+      password_hash: invitations.password_hash,
+      verify_attempts: invitations.verify_attempts,
+      invited_by: invitations.invited_by,
+      expires_at: invitations.expires_at,
+      accepted_at: invitations.accepted_at,
+      created_at: invitations.created_at,
+      updated_at: invitations.updated_at,
+      is_deleted: invitations.is_deleted,
+      deleted_by: invitations.deleted_by,
+      deleted_at: invitations.deleted_at,
+    })
     .from(invitations)
     .where(and(eq(invitations.id, id), eq(invitations.is_deleted, false)))
     .limit(1);
@@ -20,7 +44,26 @@ export const findInvitationById = async (id: number): Promise<Invitation | undef
  */
 export const findInvitationByEmail = async (email: string): Promise<Invitation | undefined> => {
   const [invitation] = await db
-    .select()
+    .select({
+      id: invitations.id,
+      first_name: invitations.first_name,
+      last_name: invitations.last_name,
+      email: invitations.email,
+      invite_token: invitations.invite_token,
+      status: invitations.status,
+      assigned_role_id: invitations.assigned_role_id,
+      temp_password_encrypted: invitations.temp_password_encrypted,
+      password_hash: invitations.password_hash,
+      verify_attempts: invitations.verify_attempts,
+      invited_by: invitations.invited_by,
+      expires_at: invitations.expires_at,
+      accepted_at: invitations.accepted_at,
+      created_at: invitations.created_at,
+      updated_at: invitations.updated_at,
+      is_deleted: invitations.is_deleted,
+      deleted_by: invitations.deleted_by,
+      deleted_at: invitations.deleted_at,
+    })
     .from(invitations)
     .where(and(eq(invitations.email, email), eq(invitations.is_deleted, false)))
     .limit(1);
@@ -33,7 +76,26 @@ export const findInvitationByEmail = async (email: string): Promise<Invitation |
  */
 export const findInvitationByToken = async (token: string): Promise<Invitation | undefined> => {
   const [invitation] = await db
-    .select()
+    .select({
+      id: invitations.id,
+      first_name: invitations.first_name,
+      last_name: invitations.last_name,
+      email: invitations.email,
+      invite_token: invitations.invite_token,
+      status: invitations.status,
+      assigned_role_id: invitations.assigned_role_id,
+      temp_password_encrypted: invitations.temp_password_encrypted,
+      password_hash: invitations.password_hash,
+      verify_attempts: invitations.verify_attempts,
+      invited_by: invitations.invited_by,
+      expires_at: invitations.expires_at,
+      accepted_at: invitations.accepted_at,
+      created_at: invitations.created_at,
+      updated_at: invitations.updated_at,
+      is_deleted: invitations.is_deleted,
+      deleted_by: invitations.deleted_by,
+      deleted_at: invitations.deleted_at,
+    })
     .from(invitations)
     .where(and(eq(invitations.invite_token, token), eq(invitations.is_deleted, false)))
     .limit(1);
@@ -59,20 +121,43 @@ export const getInvitations = async (
 
   const offset = (page - 1) * limit;
 
-  const [invitationsResult, totalResult] = await Promise.all([
-    db
-      .select()
-      .from(invitations)
-      .where(whereClause)
-      .orderBy(desc(invitations.created_at))
-      .limit(limit)
-      .offset(offset),
-    db.select({ count: invitations.id }).from(invitations).where(whereClause),
-  ]);
+  const invitationsResult = await db
+    .select({
+      id: invitations.id,
+      first_name: invitations.first_name,
+      last_name: invitations.last_name,
+      email: invitations.email,
+      invite_token: invitations.invite_token,
+      status: invitations.status,
+      assigned_role_id: invitations.assigned_role_id,
+      temp_password_encrypted: invitations.temp_password_encrypted,
+      password_hash: invitations.password_hash,
+      verify_attempts: invitations.verify_attempts,
+      invited_by: invitations.invited_by,
+      expires_at: invitations.expires_at,
+      accepted_at: invitations.accepted_at,
+      created_at: invitations.created_at,
+      updated_at: invitations.updated_at,
+      is_deleted: invitations.is_deleted,
+      deleted_by: invitations.deleted_by,
+      deleted_at: invitations.deleted_at,
+    })
+    .from(invitations)
+    .where(whereClause)
+    .orderBy(desc(invitations.created_at))
+    .limit(limit)
+    .offset(offset);
+
+  const allIds = await db
+    .select({ id: invitations.id })
+    .from(invitations)
+    .where(whereClause);
+
+  const total = allIds.length;
 
   return {
     invitations: invitationsResult,
-    total: totalResult.length,
+    total,
   };
 };
 

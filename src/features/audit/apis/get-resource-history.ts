@@ -22,10 +22,12 @@ const paramsSchema = z.object({
 
 // Validation schema for query params
 const querySchema = z.object({
-  limit: z.preprocess(
-    (val) => (val ? Number(val) : 100),
-    z.number().int().min(1, 'Limit must be at least 1').max(1000, 'Limit must not exceed 1000')
-  ).optional(),
+  limit: z
+    .preprocess(
+      val => (val ? Number(val) : 100),
+      z.number().int().min(1, 'Limit must be at least 1').max(1000, 'Limit must not exceed 1000')
+    )
+    .optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

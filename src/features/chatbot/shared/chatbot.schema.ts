@@ -11,7 +11,7 @@ import {
   jsonb,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { users } from '../../user';
+import { users } from '../../user/shared/user.schema';
 
 /**
  * Document status enum values

@@ -29,7 +29,6 @@ jest.mock('../../shared/queries', () => ({
 
 import { RBACCacheService } from '../../services/rbac-cache.service';
 import { findUserPermissions, findUserRoles } from '../../shared/queries';
-import { isRedisReady } from '../../../../utils';
 
 const mockFindUserPermissions = findUserPermissions as jest.MockedFunction<
   typeof findUserPermissions
@@ -123,7 +122,10 @@ describe('RBACCacheService', () => {
     it('should return true if user has all required permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read', 'users:update', 'users:delete']);
 
-      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'users:update']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', [
+        'users:read',
+        'users:update',
+      ]);
 
       expect(result).toBe(true);
     });
@@ -131,7 +133,10 @@ describe('RBACCacheService', () => {
     it('should return false if user is missing any permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
-      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'users:delete']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', [
+        'users:read',
+        'users:delete',
+      ]);
 
       expect(result).toBe(false);
     });
@@ -139,7 +144,10 @@ describe('RBACCacheService', () => {
     it('should return true with wildcard for any permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['*']);
 
-      const result = await cacheService.hasAllPermissions('user-uuid-1', ['users:read', 'admin:system']);
+      const result = await cacheService.hasAllPermissions('user-uuid-1', [
+        'users:read',
+        'admin:system',
+      ]);
 
       expect(result).toBe(true);
     });
@@ -149,7 +157,10 @@ describe('RBACCacheService', () => {
     it('should return true if user has at least one permission', async () => {
       mockFindUserPermissions.mockResolvedValue(['users:read']);
 
-      const result = await cacheService.hasAnyPermission('user-uuid-1', ['users:read', 'users:delete']);
+      const result = await cacheService.hasAnyPermission('user-uuid-1', [
+        'users:read',
+        'users:delete',
+      ]);
 
       expect(result).toBe(true);
     });
@@ -157,7 +168,10 @@ describe('RBACCacheService', () => {
     it('should return false if user has none of the permissions', async () => {
       mockFindUserPermissions.mockResolvedValue(['uploads:read']);
 
-      const result = await cacheService.hasAnyPermission('user-uuid-1', ['users:read', 'users:delete']);
+      const result = await cacheService.hasAnyPermission('user-uuid-1', [
+        'users:read',
+        'users:delete',
+      ]);
 
       expect(result).toBe(false);
     });

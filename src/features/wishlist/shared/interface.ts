@@ -9,13 +9,13 @@
 // ============================================
 
 export interface IWishlist {
-    id: string; // UUID
-    user_id: string;
-    access_token: string | null;
-    status: boolean;
+  id: string; // UUID
+  user_id: string;
+  access_token: string | null;
+  status: boolean;
 
-    created_at: Date;
-    updated_at: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // ============================================
@@ -23,7 +23,7 @@ export interface IWishlist {
 // ============================================
 
 export interface IWishlistItem {
-    wishlist_id: string;
-    product_id: string;
-    added_at: Date;
+  wishlist_id: string;
+  product_id: string;
+  added_at: Date;
 }

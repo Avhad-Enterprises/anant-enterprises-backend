@@ -14,7 +14,7 @@ import { logger } from '../../../utils';
 import { redisClient, isRedisReady } from '../../../utils';
 import { db } from '../../../database';
 import { chatbotDocuments, chatbotSessions } from '../shared/chatbot.schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import type { ChatbotDocument, ChatbotSession } from '../shared/chatbot.schema';
 
 // Redis key prefixes
@@ -94,26 +94,34 @@ class ChatbotCacheService {
   }
 
   private async fetchDocumentStats(): Promise<DocumentStats> {
-    const [result] = await db
+    // Fetch all non-deleted documents
+    const allDocs = await db
       .select({
-        total: sql<number>`count(*)::int`,
-        pending: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'pending')::int`,
-        processing: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'processing')::int`,
-        completed: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'completed')::int`,
-        failed: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'failed')::int`,
-        totalChunks: sql<number>`coalesce(sum(${chatbotDocuments.chunk_count}), 0)::int`,
+        status: chatbotDocuments.status,
+        chunk_count: chatbotDocuments.chunk_count,
       })
       .from(chatbotDocuments)
       .where(eq(chatbotDocuments.is_deleted, false));
 
-    return {
-      total: result?.total || 0,
-      pending: result?.pending || 0,
-      processing: result?.processing || 0,
-      completed: result?.completed || 0,
-      failed: result?.failed || 0,
-      totalChunks: result?.totalChunks || 0,
+    // Calculate stats manually
+    const stats = {
+      total: allDocs.length,
+      pending: 0,
+      processing: 0,
+      completed: 0,
+      failed: 0,
+      totalChunks: 0,
     };
+
+    for (const doc of allDocs) {
+      if (doc.status === 'pending') stats.pending++;
+      else if (doc.status === 'processing') stats.processing++;
+      else if (doc.status === 'completed') stats.completed++;
+      else if (doc.status === 'failed') stats.failed++;
+      stats.totalChunks += doc.chunk_count || 0;
+    }
+
+    return stats;
   }
 
   private async cacheStats(stats: DocumentStats): Promise<void> {
@@ -180,24 +188,48 @@ class ChatbotCacheService {
   ): Promise<{ documents: ChatbotDocument[]; total: number }> {
     const offset = (page - 1) * limit;
 
-    const [documents, countResult] = await Promise.all([
-      db
-        .select()
+    try {
+      const documents = await db
+        .select({
+          id: chatbotDocuments.id,
+          name: chatbotDocuments.name,
+          description: chatbotDocuments.description,
+          file_url: chatbotDocuments.file_url,
+          file_path: chatbotDocuments.file_path,
+          file_size: chatbotDocuments.file_size,
+          mime_type: chatbotDocuments.mime_type,
+          status: chatbotDocuments.status,
+          chunk_count: chatbotDocuments.chunk_count,
+          error_message: chatbotDocuments.error_message,
+          created_at: chatbotDocuments.created_at,
+          updated_at: chatbotDocuments.updated_at,
+          is_embedded: chatbotDocuments.is_embedded,
+          created_by: chatbotDocuments.created_by,
+          updated_by: chatbotDocuments.updated_by,
+          is_deleted: chatbotDocuments.is_deleted,
+          deleted_by: chatbotDocuments.deleted_by,
+          deleted_at: chatbotDocuments.deleted_at,
+        })
         .from(chatbotDocuments)
         .where(eq(chatbotDocuments.is_deleted, false))
         .orderBy(desc(chatbotDocuments.created_at))
         .limit(limit)
-        .offset(offset),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(chatbotDocuments)
-        .where(eq(chatbotDocuments.is_deleted, false)),
-    ]);
+        .offset(offset);
 
-    return {
-      documents,
-      total: countResult[0]?.count || 0,
-    };
+      const allIds = await db
+        .select({ id: chatbotDocuments.id })
+        .from(chatbotDocuments)
+        .where(eq(chatbotDocuments.is_deleted, false));
+
+      const total = allIds.length;
+
+      return {
+        documents,
+        total,
+      };
+    } catch (e) {
+      throw e;
+    }
   }
 
   private async cacheDocuments(
@@ -269,23 +301,35 @@ class ChatbotCacheService {
   ): Promise<{ sessions: ChatbotSession[]; total: number }> {
     const offset = (page - 1) * limit;
 
-    const [sessions, countResult] = await Promise.all([
-      db
-        .select()
-        .from(chatbotSessions)
-        .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)))
-        .orderBy(desc(chatbotSessions.updated_at))
-        .limit(limit)
-        .offset(offset),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(chatbotSessions)
-        .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false))),
-    ]);
+    const sessions = await db
+      .select({
+        id: chatbotSessions.id,
+        user_id: chatbotSessions.user_id,
+        title: chatbotSessions.title,
+        created_by: chatbotSessions.created_by,
+        created_at: chatbotSessions.created_at,
+        updated_by: chatbotSessions.updated_by,
+        updated_at: chatbotSessions.updated_at,
+        is_deleted: chatbotSessions.is_deleted,
+        deleted_by: chatbotSessions.deleted_by,
+        deleted_at: chatbotSessions.deleted_at,
+      })
+      .from(chatbotSessions)
+      .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)))
+      .orderBy(desc(chatbotSessions.updated_at))
+      .limit(limit)
+      .offset(offset);
+
+    const allIds = await db
+      .select({ id: chatbotSessions.id })
+      .from(chatbotSessions)
+      .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)));
+
+    const total = allIds.length;
 
     return {
       sessions,
-      total: countResult[0]?.count || 0,
+      total,
     };
   }
 

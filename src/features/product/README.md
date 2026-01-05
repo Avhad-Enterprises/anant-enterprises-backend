@@ -12,13 +12,13 @@ The Product feature provides comprehensive product management capabilities inclu
 
 ## Authentication Requirements
 
-| Endpoint      | Authentication | Authorization                           |
-| ------------- | -------------- | --------------------------------------- |
-| `POST /`      | ✅ Required    | Admin only (`products:create`)          |
-| `GET /`       | ✅ Required    | Admin only (`products:read`)            |
+| Endpoint      | Authentication | Authorization                               |
+| ------------- | -------------- | ------------------------------------------- |
+| `POST /`      | ✅ Required    | Admin only (`products:create`)              |
+| `GET /`       | ✅ Required    | Admin only (`products:read`)                |
 | `GET /:id`    | ⚠️ Conditional | Public for active, Admin for draft/archived |
-| `PUT /:id`    | ✅ Required    | Admin only (`products:update`)          |
-| `DELETE /:id` | ✅ Required    | Admin only (`products:delete`)          |
+| `PUT /:id`    | ✅ Required    | Admin only (`products:update`)              |
+| `DELETE /:id` | ✅ Required    | Admin only (`products:delete`)              |
 
 ---
 
@@ -66,20 +66,20 @@ Content-Type: application/json
 
 #### Request Schema
 
-| Field                  | Type     | Required | Description                                    |
-| ---------------------- | -------- | -------- | ---------------------------------------------- |
-| `slug`                 | string   | ✅       | URL-friendly identifier                        |
-| `product_title`        | string   | ✅       | Product name                                   |
-| `sku`                  | string   | ✅       | Stock Keeping Unit (unique)                    |
-| `selling_price`        | string   | ✅       | Selling price (decimal format: "99.99")        |
-| `status`               | enum     | ❌       | draft, active, archived, schedule (default: draft) |
-| `cost_price`           | string   | ❌       | Cost price (default: "0.00")                   |
-| `compare_at_price`     | string   | ❌       | Original price for comparison                  |
-| `category_tier_1-4`    | string   | ❌       | Category hierarchy                             |
-| `primary_image_url`    | string   | ❌       | Main product image URL                         |
-| `additional_images`    | array    | ❌       | Additional image URLs                          |
-| `meta_title`           | string   | ❌       | SEO meta title                                 |
-| `meta_description`     | string   | ❌       | SEO meta description                           |
+| Field               | Type   | Required | Description                                        |
+| ------------------- | ------ | -------- | -------------------------------------------------- |
+| `slug`              | string | ✅       | URL-friendly identifier                            |
+| `product_title`     | string | ✅       | Product name                                       |
+| `sku`               | string | ✅       | Stock Keeping Unit (unique)                        |
+| `selling_price`     | string | ✅       | Selling price (decimal format: "99.99")            |
+| `status`            | enum   | ❌       | draft, active, archived, schedule (default: draft) |
+| `cost_price`        | string | ❌       | Cost price (default: "0.00")                       |
+| `compare_at_price`  | string | ❌       | Original price for comparison                      |
+| `category_tier_1-4` | string | ❌       | Category hierarchy                                 |
+| `primary_image_url` | string | ❌       | Main product image URL                             |
+| `additional_images` | array  | ❌       | Additional image URLs                              |
+| `meta_title`        | string | ❌       | SEO meta title                                     |
+| `meta_description`  | string | ❌       | SEO meta description                               |
 
 #### Success Response
 
@@ -104,12 +104,12 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error            | Description                     |
-| ------ | ---------------- | ------------------------------- |
-| `400`  | Validation Error | Invalid request body            |
-| `401`  | Unauthorized     | Missing or invalid JWT token    |
-| `403`  | Forbidden        | User is not an admin            |
-| `409`  | Conflict         | SKU or slug already exists      |
+| Status | Error            | Description                  |
+| ------ | ---------------- | ---------------------------- |
+| `400`  | Validation Error | Invalid request body         |
+| `401`  | Unauthorized     | Missing or invalid JWT token |
+| `403`  | Forbidden        | User is not an admin         |
+| `409`  | Conflict         | SKU or slug already exists   |
 
 ---
 
@@ -189,15 +189,16 @@ Get a specific product's details.
 
 **Authentication:** Conditional (Required for draft/archived products)
 
-**Authorization:** 
+**Authorization:**
+
 - Public can view active products
 - Admin required for draft/archived products
 
 #### Path Parameters
 
-| Parameter | Type | Description      |
-| --------- | ---- | ---------------- |
-| `id`      | UUID | Product ID       |
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `id`      | UUID | Product ID  |
 
 #### Success Response
 
@@ -231,11 +232,11 @@ Get a specific product's details.
 
 #### Error Responses
 
-| Status | Error        | Description                                |
-| ------ | ------------ | ------------------------------------------ |
-| `401`  | Unauthorized | Auth required for draft/archived products  |
-| `403`  | Forbidden    | No permission to view draft/archived       |
-| `404`  | Not Found    | Product not found                          |
+| Status | Error        | Description                               |
+| ------ | ------------ | ----------------------------------------- |
+| `401`  | Unauthorized | Auth required for draft/archived products |
+| `403`  | Forbidden    | No permission to view draft/archived      |
+| `404`  | Not Found    | Product not found                         |
 
 ---
 
@@ -258,8 +259,8 @@ Content-Type: application/json
 
 #### Path Parameters
 
-| Parameter | Type | Description         |
-| --------- | ---- | ------------------- |
+| Parameter | Type | Description          |
+| --------- | ---- | -------------------- |
 | `id`      | UUID | Product ID to update |
 
 #### Request Body
@@ -324,8 +325,8 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description         |
-| --------- | ---- | ------------------- |
+| Parameter | Type | Description          |
+| --------- | ---- | -------------------- |
 | `id`      | UUID | Product ID to delete |
 
 #### Success Response
@@ -565,12 +566,10 @@ export function ProductList() {
               <td>{product.sku}</td>
               <td>${product.selling_price}</td>
               <td>
-                <span className={`badge badge-${product.status}`}>
-                  {product.status}
-                </span>
+                <span className={`badge badge-${product.status}`}>{product.status}</span>
               </td>
               <td>
-                <button onClick={() => window.location.href = `/products/${product.id}/edit`}>
+                <button onClick={() => (window.location.href = `/products/${product.id}/edit`)}>
                   Edit
                 </button>
                 <button onClick={() => handleDelete(product)} className="danger">

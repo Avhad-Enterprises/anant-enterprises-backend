@@ -5,7 +5,6 @@ import AuthRoute from '../../../auth';
 import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { ApiTestHelper } from '../../../../../tests/utils';
-import { TestDataFactory } from '../../../../../tests/utils';
 
 // Helper function to create test PDF buffer
 function createTestPdfBuffer(content: string = 'Test PDF content'): Buffer {
@@ -25,7 +24,7 @@ describeStorage('Upload API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let authToken: string;
-  let testUserId: number;
+  let testUserId: string;
 
   beforeAll(async () => {
     const uploadRoute = new UploadRoute();

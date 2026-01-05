@@ -9,18 +9,18 @@
 // ============================================
 
 export interface IFaq {
-    id: string; // UUID
-    question: string;
-    answer: string;
+  id: string; // UUID
+  question: string;
+  answer: string;
 
-    target_type: 'general' | 'product' | 'tier';
-    product_id?: string | null;
-    tier_id?: string | null;
+  target_type: 'general' | 'product' | 'tier';
+  product_id?: string | null;
+  tier_id?: string | null;
 
-    section?: string | null;
-    position: number;
-    status: boolean;
+  section?: string | null;
+  position: number;
+  status: boolean;
 
-    created_at: Date;
-    updated_at: Date;
+  created_at: Date;
+  updated_at: Date;
 }

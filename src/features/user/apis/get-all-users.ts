@@ -4,7 +4,7 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, count, sql } from 'drizzle-orm';
+import { eq, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
@@ -51,7 +51,7 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     .where(eq(users.is_deleted, false))
     .limit(limit)
     .offset(offset)
-    .orderBy(sql`${users.created_at} DESC`);
+    .orderBy(desc(users.created_at));
 
   return {
     users: allUsers as IUser[],

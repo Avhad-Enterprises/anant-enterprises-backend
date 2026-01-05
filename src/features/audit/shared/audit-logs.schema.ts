@@ -5,16 +5,7 @@
  * Tracks who did what, when, and captures before/after states.
  */
 
-import {
-  pgTable,
-  serial,
-  varchar,
-  text,
-  timestamp,
-  jsonb,
-  index,
-  uuid,
-} from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, jsonb, index, uuid } from 'drizzle-orm/pg-core';
 import { users } from '../../user';
 
 /**

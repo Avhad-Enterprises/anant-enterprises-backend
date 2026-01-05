@@ -39,12 +39,7 @@ import {
   countries,
   regions,
 } from '../features/settings';
-import {
-  products,
-  productVariants,
-  productFaqs,
-  productStatusEnum,
-} from '../features/product';
+import { products, productVariants, productFaqs, productStatusEnum } from '../features/product';
 import {
   collections,
   collectionRules,
@@ -54,15 +49,8 @@ import {
   collectionSortOrderEnum,
   conditionMatchTypeEnum,
 } from '../features/collection';
-import {
-  tiers,
-  productTiers,
-  tierStatusEnum,
-} from '../features/tiers';
-import {
-  tags,
-  productTags,
-} from '../features/tags';
+import { tiers, productTiers, tierStatusEnum } from '../features/tiers';
+import { tags, productTags } from '../features/tags';
 import {
   discounts,
   discountCodes,
@@ -72,14 +60,8 @@ import {
   discountStatusEnum,
   minRequirementTypeEnum,
 } from '../features/discount';
-import {
-  wishlists,
-  wishlistItems,
-} from '../features/wishlist';
-import {
-  faqs,
-  faqTargetTypeEnum,
-} from '../features/faq';
+import { wishlists, wishlistItems } from '../features/wishlist';
+import { faqs, faqTargetTypeEnum } from '../features/faq';
 import {
   companies,
   companyRules,
@@ -94,23 +76,14 @@ import {
   catalogueRuleMatchTypeEnum,
   catalogueAdjustmentTypeEnum,
 } from '../features/catalogue';
-import {
-  blogs,
-  blogSubsections,
-  blogStatusEnum,
-} from '../features/blog';
+import { blogs, blogSubsections, blogStatusEnum } from '../features/blog';
 import {
   reviews,
   productQuestions,
   reviewStatusEnum,
   questionStatusEnum,
 } from '../features/reviews';
-import {
-  bundles,
-  bundleItems,
-  bundleTypeEnum,
-  bundleStatusEnum,
-} from '../features/bundles';
+import { bundles, bundleItems, bundleTypeEnum, bundleStatusEnum } from '../features/bundles';
 import {
   giftCards,
   giftCardTransactions,
@@ -133,12 +106,7 @@ import {
   productionStatusEnum,
   productionPriorityEnum,
 } from '../features/inventory';
-import {
-  carts,
-  cartItems,
-  cartStatusEnum,
-  cartSourceEnum,
-} from '../features/cart';
+import { carts, cartItems, cartStatusEnum, cartSourceEnum } from '../features/cart';
 import {
   tickets,
   ticketMessages,
@@ -178,10 +146,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-    rejectUnauthorized: false, // Supabase uses self-signed certificates
-    // If using self-signed certs, set DATABASE_SSL_CA env var
-    ca: process.env.DATABASE_SSL_CA || undefined,
-  }
+      rejectUnauthorized: false, // Supabase uses self-signed certificates
+      // If using self-signed certs, set DATABASE_SSL_CA env var
+      ca: process.env.DATABASE_SSL_CA || undefined,
+    }
   : undefined;
 
 export const pool = new Pool({

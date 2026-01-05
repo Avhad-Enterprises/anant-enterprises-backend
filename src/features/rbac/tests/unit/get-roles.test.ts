@@ -7,12 +7,12 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions, rolePermissions } from '../../shared/rbac.schema';
+import { roles } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('GET /api/rbac/roles - Get All Roles', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let adminToken: string;
   let regularUserToken: string;
   let testRole: any;
@@ -20,8 +20,9 @@ describe('GET /api/rbac/roles - Get All Roles', () => {
   beforeAll(async () => {
     await SupabaseAuthHelper.seedRBACData();
 
-    const { token: saToken } = await SupabaseAuthHelper.createTestSuperadminUser();
+    const { token: saToken, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
     superadminToken = saToken;
+    superadminUserId = userId;
 
     const { token: aToken } = await SupabaseAuthHelper.createTestAdminUser();
     adminToken = aToken;
@@ -30,7 +31,7 @@ describe('GET /api/rbac/roles - Get All Roles', () => {
     regularUserToken = uToken;
   });
 
-  afterAll(async () => { });
+  afterAll(async () => {});
 
   beforeEach(async () => {
     // Create test role

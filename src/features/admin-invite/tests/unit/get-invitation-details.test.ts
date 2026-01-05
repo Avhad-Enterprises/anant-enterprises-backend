@@ -6,7 +6,6 @@ import * as inviteQueries from '../../shared/queries';
 import { Invitation } from '../../shared/admin-invite.schema';
 import { HttpException } from '../../../../utils';
 import { db } from '../../../../database';
-import { invitations } from '../../shared/admin-invite.schema';
 
 // Mock dependencies
 jest.mock('../../shared/queries');
@@ -81,7 +80,7 @@ describe('Get Invitation Details Business Logic', () => {
     email: 'john.doe@example.com',
     invite_token: 'a'.repeat(64),
     status: 'pending',
-    assigned_role_id: 2,
+    assigned_role_id: '550e8400-e29b-41d4-a716-446655440001',
     temp_password_encrypted: null,
     password_hash: '',
     verify_attempts: 0,

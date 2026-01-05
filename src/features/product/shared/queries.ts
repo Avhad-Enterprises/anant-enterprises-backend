@@ -7,13 +7,13 @@ import { products, type Product, type NewProduct } from './product.schema';
  * Note: This will be cached via product-cache.service.ts
  */
 export const findProductById = async (id: string): Promise<Product | undefined> => {
-    const [product] = await db
-        .select()
-        .from(products)
-        .where(and(eq(products.id, id), eq(products.is_deleted, false)))
-        .limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, id), eq(products.is_deleted, false)))
+    .limit(1);
 
-    return product;
+  return product;
 };
 
 /**
@@ -21,13 +21,13 @@ export const findProductById = async (id: string): Promise<Product | undefined> 
  * Note: This will be cached via product-cache.service.ts
  */
 export const findProductBySku = async (sku: string): Promise<Product | undefined> => {
-    const [product] = await db
-        .select()
-        .from(products)
-        .where(and(eq(products.sku, sku), eq(products.is_deleted, false)))
-        .limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.sku, sku), eq(products.is_deleted, false)))
+    .limit(1);
 
-    return product;
+  return product;
 };
 
 /**
@@ -35,13 +35,13 @@ export const findProductBySku = async (sku: string): Promise<Product | undefined
  * Note: This will be cached via product-cache.service.ts
  */
 export const findProductBySlug = async (slug: string): Promise<Product | undefined> => {
-    const [product] = await db
-        .select()
-        .from(products)
-        .where(and(eq(products.slug, slug), eq(products.is_deleted, false)))
-        .limit(1);
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.slug, slug), eq(products.is_deleted, false)))
+    .limit(1);
 
-    return product;
+  return product;
 };
 
 /**
@@ -49,9 +49,9 @@ export const findProductBySlug = async (slug: string): Promise<Product | undefin
  * Shared query used across services
  */
 export const createProduct = async (productData: NewProduct): Promise<Product> => {
-    const [newProduct] = await db.insert(products).values(productData).returning();
+  const [newProduct] = await db.insert(products).values(productData).returning();
 
-    return newProduct;
+  return newProduct;
 };
 
 /**
@@ -59,14 +59,14 @@ export const createProduct = async (productData: NewProduct): Promise<Product> =
  * Shared query used across services
  */
 export const updateProductById = async (
-    id: string,
-    data: Partial<Omit<Product, 'id'>>
+  id: string,
+  data: Partial<Omit<Product, 'id'>>
 ): Promise<Product | undefined> => {
-    const [updatedProduct] = await db
-        .update(products)
-        .set({ ...data, updated_at: new Date() })
-        .where(eq(products.id, id))
-        .returning();
+  const [updatedProduct] = await db
+    .update(products)
+    .set({ ...data, updated_at: new Date() })
+    .where(eq(products.id, id))
+    .returning();
 
-    return updatedProduct;
+  return updatedProduct;
 };

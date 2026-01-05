@@ -9,15 +9,15 @@
 // ============================================
 
 export interface ITag {
-    id: string; // UUID
-    name: string;
-    type: string;
+  id: string; // UUID
+  name: string;
+  type: string;
 
-    usage_count: number;
-    status: boolean;
+  usage_count: number;
+  status: boolean;
 
-    created_at: Date;
-    updated_at: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // ============================================
@@ -25,6 +25,6 @@ export interface ITag {
 // ============================================
 
 export interface IProductTag {
-    product_id: string;
-    tag_id: string;
+  product_id: string;
+  tag_id: string;
 }

@@ -1,6 +1,5 @@
 describe('Cache Service', () => {
   let cacheService: any;
-  let cacheKeys: any;
   let mockRedisClient: any;
   let mockIsRedisReady: any;
 
@@ -29,7 +28,6 @@ describe('Cache Service', () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const cacheModule = require('../../database/cache');
       cacheService = cacheModule.cacheService;
-      cacheKeys = cacheModule.cacheKeys;
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const redisModule = require('../../database/redis');
@@ -57,7 +55,7 @@ describe('Cache Service', () => {
       const testData = { id: 1, name: 'Test' };
       mockRedisClient.get.mockResolvedValue(JSON.stringify(testData));
 
-      const result = await cacheService.get<typeof testData>('test-key');
+      const result = await (cacheService.get as any)('test-key');
 
       expect(result).toEqual(testData);
       expect(mockRedisClient.get).toHaveBeenCalledWith('test-key');

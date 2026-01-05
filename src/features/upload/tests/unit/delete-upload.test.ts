@@ -36,7 +36,7 @@ const mockDb = db as jest.Mocked<typeof db>;
 const mockUploadQueries = uploadQueries as jest.Mocked<typeof uploadQueries>;
 
 // Recreate the business logic for testing
-async function handleDeleteUpload(uploadId: number, userId: number): Promise<void> {
+async function handleDeleteUpload(uploadId: number, userId: string): Promise<void> {
   const existingUpload = await uploadQueries.findUploadById(uploadId, userId);
 
   if (!existingUpload) {
@@ -99,17 +99,26 @@ describe('Delete Upload Business Logic', () => {
     it('should successfully soft delete upload', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      await expect(handleDeleteUpload(1, 1)).resolves.toBeUndefined();
+      await expect(
+        handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000')
+      ).resolves.toBeUndefined();
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 1);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(
+        1,
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
       expect(mockDb.update).toHaveBeenCalled();
     });
 
     it('should throw 404 when upload not found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(undefined);
 
-      await expect(handleDeleteUpload(999, 1)).rejects.toThrow(HttpException);
-      await expect(handleDeleteUpload(999, 1)).rejects.toMatchObject({
+      await expect(handleDeleteUpload(999, '550e8400-e29b-41d4-a716-446655440000')).rejects.toThrow(
+        HttpException
+      );
+      await expect(
+        handleDeleteUpload(999, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toMatchObject({
         status: 404,
         message: 'Upload not found',
       });
@@ -123,8 +132,12 @@ describe('Delete Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(handleDeleteUpload(1, 1)).rejects.toThrow(HttpException);
-      await expect(handleDeleteUpload(1, 1)).rejects.toMatchObject({
+      await expect(handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000')).rejects.toThrow(
+        HttpException
+      );
+      await expect(
+        handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toMatchObject({
         status: 500,
         message: 'Failed to delete upload',
       });
@@ -138,7 +151,7 @@ describe('Delete Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await handleDeleteUpload(1, 1);
+      await handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -155,11 +168,11 @@ describe('Delete Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await handleDeleteUpload(1, 5);
+      await handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440001');
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
-          deleted_by: 5,
+          deleted_by: '550e8400-e29b-41d4-a716-446655440001',
         })
       );
     });
@@ -172,7 +185,7 @@ describe('Delete Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await handleDeleteUpload(1, 1);
+      await handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000');
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -184,16 +197,19 @@ describe('Delete Upload Business Logic', () => {
     it('should verify ownership by userId', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      await handleDeleteUpload(1, 5);
+      await handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000');
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 5);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(
+        1,
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
     });
 
     it('should not call update when upload not found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(undefined);
 
       try {
-        await handleDeleteUpload(999, 1);
+        await handleDeleteUpload(999, '550e8400-e29b-41d4-a716-446655440000');
       } catch {
         // Expected to throw
       }
@@ -209,7 +225,9 @@ describe('Delete Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(handleDeleteUpload(1, 1)).rejects.toThrow('Database error');
+      await expect(handleDeleteUpload(1, '550e8400-e29b-41d4-a716-446655440000')).rejects.toThrow(
+        'Database error'
+      );
     });
   });
 });
