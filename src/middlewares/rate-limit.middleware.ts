@@ -25,27 +25,27 @@ const createRateLimitResponse = (message: string, retryAfter: string, requestId:
 // Generic rate limit handler
 const createRateLimitHandler =
   (message: string, retryAfter: string): RateLimitExceededEventHandler =>
-  (req, res) => {
-    const requestWithId = req as RequestWithId;
-    logger.warn(`Rate limit exceeded for IP: ${req.ip}`, {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      path: req.path,
-      requestId: requestWithId.requestId,
-      message,
-      retryAfter,
-    });
+    (req, res) => {
+      const requestWithId = req as RequestWithId;
+      logger.warn(`Rate limit exceeded for IP: ${req.ip}`, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        path: req.path,
+        requestId: requestWithId.requestId,
+        message,
+        retryAfter,
+      });
 
-    res
-      .status(429)
-      .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
-  };
+      res
+        .status(429)
+        .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
+    };
 // Skip logic for development localhost and test environment
 const skipDevOrTest = (req: Request) =>
   isTest ||
   (isDevelopment &&
     (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) ||
-  true; // TEMPORARILY DISABLE ALL RATE LIMITING
+  false; // Rate limiting ENABLED for production/staging
 
 // Auth endpoints - strict rate limiting (5 requests per 15 minutes) - PRODUCTION ONLY
 export const authRateLimit: RequestHandler = rateLimit({

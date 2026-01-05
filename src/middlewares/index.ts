@@ -42,6 +42,9 @@ export { default as validationMiddleware } from './validation.middleware';
 // Rate limiting middleware
 export { authRateLimit, apiRateLimit } from './rate-limit.middleware';
 
+// Input sanitization middleware (XSS protection)
+export { sanitizeInput } from './sanitize.middleware';
+
 // Audit middleware
 export { default as auditMiddleware } from './audit.middleware';
 export { auditMiddleware as auditMiddlewareNamed } from './audit.middleware';
