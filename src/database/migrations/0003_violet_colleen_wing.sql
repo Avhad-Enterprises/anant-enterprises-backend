@@ -1,1 +1,0 @@
-ALTER TABLE "invitation" ALTER COLUMN "assigned_role_id" SET DATA TYPE uuid;
