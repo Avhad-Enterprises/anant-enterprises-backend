@@ -10,7 +10,7 @@ import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { getInvitations } from '../shared/queries';
-import { InvitationStatus, invitationStatuses } from '../shared/schema';
+import { InvitationStatus, invitationStatuses } from '../shared/admin-invite.schema';
 import { IInvitation } from '../shared/interface';
 
 const querySchema = z.object({

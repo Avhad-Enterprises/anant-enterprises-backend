@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { uploads } from '../shared/schema';
+import { uploads } from '../shared/upload.schema';
 import { UploadStats } from '../shared/interface';
 
 async function getUserUploadStats(userId: string): Promise<UploadStats> {

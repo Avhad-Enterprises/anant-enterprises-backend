@@ -6,7 +6,7 @@
 import request from 'supertest';
 import App from '../../../../app';
 import { db } from '../../../../database';
-import { auditLogs } from '../../shared/schema';
+import { auditLogs } from '../../shared/audit-logs.schema';
 import { users } from '../../../user';
 import { userRoles } from '../../../rbac';
 import { eq } from 'drizzle-orm';

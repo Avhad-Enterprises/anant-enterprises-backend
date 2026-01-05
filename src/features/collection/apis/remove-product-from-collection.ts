@@ -10,15 +10,15 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid collection ID'),
-    productId: z.string().uuid('Invalid product ID'),
+    id: uuidSchema,
+    productId: uuidSchema,
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

@@ -7,7 +7,7 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions, rolePermissions } from '../../shared/schema';
+import { roles, permissions, rolePermissions } from '../../shared/rbac.schema';
 import { eq, and } from 'drizzle-orm';
 
 describe('Role Permissions API - GET/POST/DELETE', () => {
@@ -33,7 +33,7 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
     regularUserToken = uToken;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test role

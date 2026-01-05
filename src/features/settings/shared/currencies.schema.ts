@@ -9,7 +9,6 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   boolean,
   timestamp,
@@ -17,6 +16,7 @@ import {
   index,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user';
 
 // ============================================
@@ -30,7 +30,7 @@ import { users } from '../../user';
 export const currencies = pgTable(
   'currencies',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     code: varchar('code', { length: 3 }).unique().notNull(), // ISO 4217: USD, EUR, INR
     name: varchar('name', { length: 100 }).notNull(), // US Dollar, Euro, Indian Rupee
     symbol: varchar('symbol', { length: 10 }).notNull(), // $, €, ₹

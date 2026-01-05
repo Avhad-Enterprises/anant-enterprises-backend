@@ -8,7 +8,7 @@ import app from '@tests/utils';
 import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { permissions } from '../../shared/schema';
+import { permissions } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/permissions - Create Permission', () => {
@@ -34,7 +34,7 @@ describe('POST /api/rbac/permissions - Create Permission', () => {
     regularUserToken = userToken;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   afterEach(async () => {
     // Clean up test permissions

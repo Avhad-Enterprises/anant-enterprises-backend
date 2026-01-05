@@ -16,6 +16,8 @@ export interface IUser {
   name: string;
   email: string;
   password?: string;
+  email_verified: boolean;
+  email_verified_at?: Date;
   phone_number?: string;
   phone_country_code?: string;
   phone_verified: boolean;
@@ -40,7 +42,7 @@ export interface IUser {
 // ============================================
 
 export interface IUserAddress {
-  id: number;
+  id: string; // UUID
   user_id: string;
   address_type: 'billing' | 'shipping' | 'both' | 'company';
   is_default: boolean;
@@ -70,7 +72,7 @@ export interface IUserAddress {
 // ============================================
 
 export interface IUserPaymentMethod {
-  id: number;
+  id: string; // UUID
   user_id: string;
   payment_type: 'card' | 'upi' | 'netbanking' | 'wallet';
   is_default: boolean;
@@ -102,7 +104,7 @@ export interface IUserPaymentMethod {
 // ============================================
 
 export interface ICustomerProfile {
-  id: number;
+  id: string; // UUID
   user_id: string;
   segment: 'new' | 'regular' | 'vip' | 'at_risk';
   store_credit_balance: string;
@@ -126,7 +128,7 @@ export interface ICustomerProfile {
 // ============================================
 
 export interface IBusinessCustomerProfile {
-  id: number;
+  id: string; // UUID
   user_id: string;
   business_type: 'sole_proprietor' | 'partnership' | 'llc' | 'corporation' | 'nonprofit';
   company_legal_name: string;
@@ -140,8 +142,8 @@ export interface IBusinessCustomerProfile {
   business_email: string;
   business_phone?: string;
   business_phone_country_code?: string;
-  billing_address_id?: number;
-  shipping_address_id?: number;
+  billing_address_id?: string; // UUID
+  shipping_address_id?: string; // UUID
   payment_terms: 'immediate' | 'net_15' | 'net_30' | 'net_60' | 'net_90';
   credit_limit: string;
   credit_used: string;
@@ -166,7 +168,7 @@ export interface IBusinessCustomerProfile {
 // ============================================
 
 export interface IAdminProfile {
-  id: number;
+  id: string; // UUID
   user_id: string;
   employee_id?: string;
   department?: string;
@@ -232,7 +234,7 @@ export interface IVendor {
 // ============================================
 
 export interface ICustomerStatistics {
-  id: number;
+  id: string; // UUID
   user_id: string;
   total_orders: number;
   completed_orders: number;

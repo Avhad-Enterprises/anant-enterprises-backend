@@ -13,10 +13,10 @@ import { eq, and, count, desc, asc } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { uploads } from '../shared/schema';
+import { uploads } from '../shared/upload.schema';
 import { convertUpload } from '../shared/interface';
 import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
 import { rbacCacheService } from '../../rbac';
@@ -26,22 +26,27 @@ const uploadStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed
 const uploadQuerySchema = z.object({
   status: uploadStatusSchema.optional(),
   mime_type: z.string().optional(),
-  page: z.string().regex(/^\d+$/).transform(Number).optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional(),
   sort_by: z.enum(['created_at', 'file_size', 'original_filename']).optional(),
   sort_order: z.enum(['asc', 'desc']).optional(),
-});
+}).merge(paginationSchema);
 
 async function getUploadsWithPagination(
   userId: string,
   canViewAll: boolean,
-  filters: z.infer<typeof uploadQuerySchema>
+  filters: {
+    page?: number;
+    limit?: number;
+    status?: z.infer<typeof uploadStatusSchema>;
+    mime_type?: string;
+    sort_by?: 'created_at' | 'file_size' | 'original_filename';
+    sort_order?: 'asc' | 'desc';
+  }
 ) {
   const {
     status,
     mime_type,
     page = 1,
-    limit = 10,
+    limit = 20,
     sort_by = 'created_at',
     sort_order = 'desc',
   } = filters;
@@ -89,7 +94,9 @@ const handleGetAllUploads = async (req: RequestWithUser, res: Response) => {
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
-  const filters = req.query as z.infer<typeof uploadQuerySchema>;
+
+  // Validate query parameters
+  const filters = uploadQuerySchema.parse(req.query);
 
   // Check if user can view all uploads
   const canViewAll = await rbacCacheService.hasPermission(userId, 'uploads:read');

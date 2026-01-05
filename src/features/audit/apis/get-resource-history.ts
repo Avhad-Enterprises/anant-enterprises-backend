@@ -12,7 +12,7 @@ import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
-import { AuditResourceType } from '../shared/types';
+import { AuditResourceType } from '../shared/interface';
 
 // Validation schema for URL params
 const paramsSchema = z.object({
@@ -22,13 +22,16 @@ const paramsSchema = z.object({
 
 // Validation schema for query params
 const querySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).default(100),
+  limit: z.preprocess(
+    (val) => (val ? Number(val) : 100),
+    z.number().int().min(1, 'Limit must be at least 1').max(1000, 'Limit must not exceed 1000')
+  ).optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const type = req.params.type as AuditResourceType;
   const id = req.params.id; // Now a string (UUID)
-  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+  const { limit = 100 } = req.query as unknown as z.infer<typeof querySchema>;
 
   // Get audit trail for resource
   const history = await auditService.getAuditTrail(type, id, limit);

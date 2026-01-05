@@ -11,14 +11,14 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requireOwnerOrPermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { findUserById } from '../shared/queries';
 import { IUser } from '../shared/interface';
 
 const paramsSchema = z.object({
-  id: z.string().uuid('User ID must be a valid UUID'),
+  id: uuidSchema,
 });
 
 async function getUserById(id: string): Promise<IUser> {

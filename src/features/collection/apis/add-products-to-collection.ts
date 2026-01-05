@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { eq, and, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
@@ -19,11 +19,11 @@ import { products } from '../../product/shared/product.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid collection ID'),
+    id: uuidSchema,
 });
 
 const bodySchema = z.object({
-    productIds: z.array(z.string().uuid('Invalid product ID')).min(1, 'At least one product ID is required'),
+    productIds: z.array(uuidSchema).min(1, 'At least one product ID is required'),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

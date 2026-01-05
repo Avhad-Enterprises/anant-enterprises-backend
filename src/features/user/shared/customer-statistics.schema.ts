@@ -10,7 +10,8 @@
  * - Support customer segmentation
  */
 
-import { pgTable, serial, integer, uuid, timestamp, decimal, index } from 'drizzle-orm/pg-core';
+import { pgTable, integer, uuid, timestamp, decimal, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -25,7 +26,7 @@ import { users } from './user.schema';
 export const customerStatistics = pgTable(
   'customer_statistics',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()

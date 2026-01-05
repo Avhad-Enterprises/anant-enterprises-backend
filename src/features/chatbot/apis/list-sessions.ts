@@ -7,23 +7,17 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
+import { paginationSchema } from '../../../utils/validation/common-schemas';
 import { chatbotCacheService } from '../services/chatbot-cache.service';
-
-// Query params schema
-const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
 
 /**
  * List sessions handler - CACHED
  */
 const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
-  const { page, limit } = querySchema.parse(req.query);
+  const { page, limit } = paginationSchema.parse(req.query);
 
   const { sessions, total } = await chatbotCacheService.listUserSessions(userId, page, limit);
 

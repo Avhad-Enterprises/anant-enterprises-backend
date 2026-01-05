@@ -8,7 +8,8 @@
  * (all handled by RBAC or authentication systems)
  */
 
-import { pgTable, serial, varchar, boolean, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, boolean, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -23,7 +24,7 @@ import { users } from './user.schema';
 export const adminProfiles = pgTable(
   'admin_profiles',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()

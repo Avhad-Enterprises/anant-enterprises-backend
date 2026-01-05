@@ -11,7 +11,7 @@ import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, shortTextSchema, mediumTextSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { uploadSingleFileMiddleware } from '../../../middlewares';
@@ -33,8 +33,8 @@ import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Validation schema for optional metadata
 const uploadMetadataSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  description: z.string().max(1000).optional(),
+  name: shortTextSchema.optional(),
+  description: mediumTextSchema.optional(),
 });
 
 /**

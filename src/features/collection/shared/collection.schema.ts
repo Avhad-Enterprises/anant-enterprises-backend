@@ -44,6 +44,18 @@ export const conditionMatchTypeEnum = pgEnum('condition_match_type', [
     'any'  // OR
 ]);
 
+// TypeScript constants for application use (Phase 1: Enum Consolidation)
+export const COLLECTION_TYPES = collectionTypeEnum.enumValues;
+export const COLLECTION_STATUSES = collectionStatusEnum.enumValues;
+export const COLLECTION_SORT_ORDERS = collectionSortOrderEnum.enumValues;
+export const CONDITION_MATCH_TYPES = conditionMatchTypeEnum.enumValues;
+
+export type CollectionType = typeof COLLECTION_TYPES[number];
+export type CollectionStatus = typeof COLLECTION_STATUSES[number];
+export type CollectionSortOrder = typeof COLLECTION_SORT_ORDERS[number];
+export type ConditionMatchType = typeof CONDITION_MATCH_TYPES[number];
+
+
 // ============================================
 // COLLECTIONS TABLE
 // ============================================

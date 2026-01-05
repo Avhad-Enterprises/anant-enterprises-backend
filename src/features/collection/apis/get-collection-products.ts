@@ -10,7 +10,7 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { eq, and, sql, count } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, shortTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
@@ -18,7 +18,7 @@ import { products } from '../../product/shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 
 const paramsSchema = z.object({
-    slug: z.string().min(1, 'Slug is required'),
+    slug: shortTextSchema,
 });
 
 const querySchema = z.object({

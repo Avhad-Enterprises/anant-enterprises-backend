@@ -12,7 +12,7 @@ import { db } from '../src/database';
 import { bundles } from '../src/features/bundles/shared/bundles.schema';
 import { bundleItems } from '../src/features/bundles/shared/bundle-items.schema';
 import { products } from '../src/features/product/shared/product.schema';
-import { eq, like, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 
 // Bundle titles for cleanup
 const TEST_BUNDLE_TITLES = [

@@ -6,7 +6,7 @@ import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { ApiTestHelper } from '../../../../../tests/utils';
 import { db } from '../../../../database';
-import { invitations } from '../../shared/schema';
+import { invitations } from '../../shared/admin-invite.schema';
 import { users } from '../../../user';
 import { roles } from '../../../rbac';
 import { eq } from 'drizzle-orm';

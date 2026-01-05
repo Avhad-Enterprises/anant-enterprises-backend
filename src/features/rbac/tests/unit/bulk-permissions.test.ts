@@ -7,7 +7,7 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions, rolePermissions } from '../../shared/schema';
+import { roles, permissions, rolePermissions } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permissions', () => {
@@ -28,7 +28,7 @@ describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permission
     regularUserToken = uToken;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test role

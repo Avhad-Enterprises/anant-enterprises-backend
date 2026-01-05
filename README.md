@@ -78,16 +78,71 @@ All protected endpoints require `Authorization: Bearer <token>` header.
 
 ## Environment Variables
 
-Required in `.env.dev` / `.env.prod`:
+Required environment variables for local development (`.env.dev`) and production (`.env.prod`):
 
-- `DATABASE_URL` — PostgreSQL connection string
-- `JWT_SECRET` — Secret key for JWT (min 32 characters)
-- `AWS_*` — S3 credentials (access key, secret, bucket, region, endpoint)
-- `EMAIL_*` — SMTP credentials for sending invitations
-- `GROQ_API_KEY` — Groq LLM API key for chatbot
+### Database & Backend
+- `DATABASE_URL` — PostgreSQL connection string (format: `postgresql://user:pass@host:port/db`)
+- `SUPABASE_URL` — Supabase project URL
+- `SUPABASE_KEY` — Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (admin access)
+- `PORT` — Server port (default: 5000)
+- `NODE_ENV` — Environment (`development`, `production`, `test`)
+
+### Redis Cache
+- `REDIS_URL` — Redis connection string (format: `redis://host:port`)
+
+### Authentication & Security
+- `JWT_SECRET` — JWT signing secret (minimum 32 characters)
+- `JWT_EXPIRATION` — JWT token expiration time (e.g., `1h`, `7d`)
+- `ENCRYPTION_KEY` — 32-character encryption key for sensitive data
+
+### AWS S3 Storage
+- `AWS_ACCESS_KEY_ID` — S3 access key
+- `AWS_SECRET_ACCESS_KEY` — S3 secret key
+- `AWS_BUCKET_NAME` — S3 bucket name
+- `AWS_REGION` — AWS region (e.g., `us-east-1`)
+- `AWS_ENDPOINT` — S3 endpoint URL (for Supabase or MinIO)
+
+### Email (SMTP)
+- `SMTP_HOST` — Email server host
+- `SMTP_PORT` — Email server port (usually 587 or 465)
+- `SMTP_USER` — SMTP username
+- `SMTP_PASS` — SMTP password
+- `SMTP_FROM` — Default "from" email address
+
+### AI Chatbot (Optional)
+- `GROQ_API_KEY` — Groq LLM API key for chat completions
 - `PINECONE_API_KEY` — Pinecone vector database API key
+- `PINECONE_INDEX_NAME` — Pinecone index name
+- `PINECONE_NAMESPACE` — Pinecone namespace (optional)
 
-See `.env.example` for the complete list.
+**See `.env.example` for the complete reference.**
+
+> **Security Note:** Never commit `.env` files to version control. They are already in `.gitignore`.
+
+## Security Features
+
+This API includes comprehensive security measures:
+
+### Input Sanitization (XSS Protection)
+- All user inputs are automatically sanitized using DOMPurify
+- HTML tags and JavaScript code are stripped from requests
+- Protects against Cross-Site Scripting (XSS) attacks
+- Applied to all POST, PUT, PATCH requests
+
+### Rate Limiting
+- **Auth endpoints** (`/api/auth/*`): 5 requests per 15 minutes
+- **General API** (`/api/*`): 100 requests per minute
+- **File uploads**: 10 requests per minute
+- Automatically disabled in development/test environments
+
+### Additional Security
+- Helmet.js for security headers
+- CORS with configurable origins
+- HPP (HTTP Parameter Pollution) protection
+- JWT token authentication
+- Password hashing with bcrypt
+- Request logging and audit trails
 
 ## Features
 

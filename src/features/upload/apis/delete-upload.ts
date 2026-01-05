@@ -15,7 +15,7 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { uploads } from '../shared/schema';
+import { uploads } from '../shared/upload.schema';
 import { findUploadById, findUploadByIdAdmin } from '../shared/queries';
 import { rbacCacheService } from '../../rbac';
 

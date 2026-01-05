@@ -10,16 +10,16 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { userAddresses } from '../shared/addresses.schema';
 
 const paramsSchema = z.object({
-    userId: z.string().uuid('User ID must be a valid UUID'),
+    userId: uuidSchema,
 });
 
 interface AddressResponse {
-    id: number;
+    id: string; // UUID
     type: 'Home' | 'Office' | 'Other';
     name: string;
     phone: string;

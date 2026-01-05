@@ -15,7 +15,7 @@ import { products } from '../src/features/product/shared/product.schema';
 import { collections } from '../src/features/collection/shared/collection.schema';
 import { collectionProducts } from '../src/features/collection/shared/collection-products.schema';
 import { tiers } from '../src/features/tiers/shared/tiers.schema';
-import { eq, like, or, inArray } from 'drizzle-orm';
+import { like, inArray } from 'drizzle-orm';
 
 // ============================================
 // SEED DATA DEFINITIONS

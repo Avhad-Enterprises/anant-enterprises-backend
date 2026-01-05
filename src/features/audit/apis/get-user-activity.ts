@@ -10,24 +10,27 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema, dateStringSchema } from '../../../utils';
 import { auditService } from '../services/audit.service';
 
 // Validation schema for URL params
 const paramsSchema = z.object({
-  userId: z.string().uuid('Invalid user ID format'),
+  userId: uuidSchema,
 });
 
 // Validation schema for query params
 const querySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).default(100),
-  startDate: z.coerce.date().optional(),
-  endDate: z.coerce.date().optional(),
+  limit: z.preprocess(
+    (val) => (val ? Number(val) : 100),
+    z.number().int().min(1, 'Limit must be at least 1').max(1000, 'Limit must not exceed 1000')
+  ).optional(),
+  startDate: dateStringSchema.optional(),
+  endDate: dateStringSchema.optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId;
-  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+  const { limit = 100 } = req.query as unknown as z.infer<typeof querySchema>;
   const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
   const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
 

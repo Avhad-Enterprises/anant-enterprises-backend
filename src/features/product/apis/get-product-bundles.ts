@@ -16,9 +16,10 @@ import { db } from '../../../database';
 import { bundles } from '../../bundles/shared/bundles.schema';
 import { bundleItems } from '../../bundles/shared/bundle-items.schema';
 import { products } from '../shared/product.schema';
+import { uuidSchema } from '../../../utils/validation/common-schemas';
 
 const paramsSchema = z.object({
-    productId: z.string().uuid('Invalid product ID format'),
+    productId: uuidSchema,
 });
 
 interface BundleItemDetail {
@@ -110,7 +111,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const formattedBundles: ProductBundle[] = Array.from(bundlesMap.values()).map((bundle) => {
         // Calculate original price (sum of all item prices)
         const originalPrice = bundle.items.reduce(
-            (sum: number, item: any) => sum + Number(item.selling_price),
+            (sum: number, item: BundleItemDetail) => sum + Number(item.selling_price),
             0
         );
 

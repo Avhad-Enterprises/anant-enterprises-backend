@@ -8,9 +8,10 @@ import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { requestPasswordReset } from '../services/supabase-auth.service';
+import { emailSchema } from '../../../utils';
 
 const schema = z.object({
-  email: z.string().email('Invalid email format'),
+  email: emailSchema,
 });
 
 type RequestPasswordResetDto = z.infer<typeof schema>;

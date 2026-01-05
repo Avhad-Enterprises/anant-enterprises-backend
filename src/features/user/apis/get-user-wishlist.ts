@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { eq, and, sql, desc } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { wishlistItems } from '../../wishlist/shared/wishlist-items.schema';
@@ -19,7 +19,7 @@ import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 
 const paramsSchema = z.object({
-    userId: z.string().uuid('User ID must be a valid UUID'),
+    userId: uuidSchema,
 });
 
 interface WishlistItemResponse {

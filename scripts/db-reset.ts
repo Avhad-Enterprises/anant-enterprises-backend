@@ -59,8 +59,9 @@ async function resetDatabase() {
         CASCADE;
       `);
       logger.info('   ✅ Auth data cleared successfully');
-    } catch (error: any) {
-      logger.warn(`   ⚠️  Some auth tables skipped: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      logger.warn(`   ⚠️  Some auth tables skipped: ${err.message}`);
     }
 
     // TRUNCATE specific STORAGE tables (only ones we have permission for)
@@ -73,8 +74,9 @@ async function resetDatabase() {
         CASCADE;
       `);
       logger.info('   ✅ Storage data cleared successfully');
-    } catch (error: any) {
-      logger.warn(`   ⚠️  Some storage tables skipped: ${error.message}`);
+    } catch (error: unknown) {
+      const err = error as Error;
+      logger.warn(`   ⚠️  Some storage tables skipped: ${err.message}`);
     }
 
     // Drop all ENUM types

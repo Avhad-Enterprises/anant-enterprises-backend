@@ -7,7 +7,7 @@ import * as inviteQueries from '../../shared/queries';
 import * as userQueries from '../../../user';
 import { sendInvitationEmail } from '../../../../utils/email/sendInvitationEmail';
 import { ICreateInvitation, IInvitation } from '../../shared/interface';
-import { Invitation } from '../../shared/schema';
+import { Invitation } from '../../shared/admin-invite.schema';
 import { config } from '../../../../utils/validateEnv';
 
 // Mock dependencies

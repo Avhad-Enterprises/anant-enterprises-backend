@@ -15,7 +15,9 @@ import {
     jsonb,
     pgEnum,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { tiers } from '../../tiers/shared/tiers.schema';
 
 // ============================================
@@ -131,13 +133,80 @@ export const products = pgTable(
         is_deleted: boolean('is_deleted').default(false).notNull(),
         deleted_at: timestamp('deleted_at'),
         deleted_by: uuid('deleted_by'),
+
+        // Search Optimization (Phase 3 - Batch 1)
+        // Full-text search vector combining title, description, and brand
+        // Enables fast, ranked search results with PostgreSQL text search
+        search_vector: text('search_vector')
+            .generatedAlwaysAs(
+                sql`to_tsvector('english', 
+                    COALESCE(product_title, '') || ' ' || 
+                    COALESCE(short_description, '') || ' ' || 
+                    COALESCE(brand_name, '')
+                )`
+            ),
     },
     table => ({
-        // Optimizing common lookups
+        // EXISTING INDEXES - Basic lookups
         slugIdx: index('products_slug_idx').on(table.slug),
         skuIdx: index('products_sku_idx').on(table.sku),
         statusIdx: index('products_status_idx').on(table.status),
         categoryIdx: index('products_category_idx').on(table.category_tier_1, table.category_tier_2),
+
+        // PHASE 3 BATCH 1: SEARCH OPTIMIZATION INDEXES
+
+        // Full-text search index (GIN)
+        // Enables fast text search queries on product_title + description + brand
+        // Requires: CREATE EXTENSION IF NOT EXISTS pg_trgm; (applied via migration)
+        searchVectorIdx: index('products_search_vector_idx')
+            .using('gin', table.search_vector),
+
+        // Fuzzy search index on product title (pg_trgm)
+        // Enables typo-tolerant search: "water purifer" finds "water purifier"
+        // Supports ILIKE, similarity(), and <-> operators
+        titleTrgmIdx: index('products_title_trgm_idx')
+            .using('gin', sql`${table.product_title} gin_trgm_ops`),
+
+        // JSONB tag search index (GIN)
+        // Enables fast filtering by product tags: ["RO", "UV", "UF"]
+        // Supports: tags @> '["RO"]' queries
+        tagsIdx: index('products_tags_idx')
+            .using('gin', table.tags),
+
+        // Price range index (B-tree)
+        // Optimizes price filtering and sorting queries
+        // Supports: WHERE selling_price BETWEEN x AND y
+        priceIdx: index('products_price_idx')
+            .on(table.selling_price),
+
+        // Composite index for common filter combinations
+        // Optimizes: category + price range + status filtering (e-commerce standard)
+        // Example query: Browse Water Purifiers, price $100-$500, active only
+        categoryPriceStatusIdx: index('products_category_price_status_idx')
+            .on(
+                table.category_tier_1,
+                table.selling_price,
+                table.status,
+                table.is_deleted
+            ),
+
+        // Soft delete index
+        // Optimizes queries filtering out deleted products
+        isDeletedIdx: index('products_is_deleted_idx')
+            .on(table.is_deleted),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS (Data Validation)
+
+        // Ensure prices are non-negative
+        costPriceCheck: check('products_cost_price_check',
+            sql`cost_price >= 0`),
+
+        sellingPriceCheck: check('products_selling_price_check',
+            sql`selling_price >= 0`),
+
+        // Compare price must be higher than selling price (if set)
+        compareAtPriceCheck: check('products_compare_at_price_check',
+            sql`compare_at_price IS NULL OR compare_at_price >= selling_price`),
     })
 );
 

@@ -7,6 +7,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
+import { uuidSchema } from '../../../utils';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
@@ -18,7 +19,7 @@ import { findProductById } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid product ID format'),
+    id: uuidSchema,
 });
 
 async function deleteProduct(id: string, deletedBy: string): Promise<{ sku: string; slug: string }> {

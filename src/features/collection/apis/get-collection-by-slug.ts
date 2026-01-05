@@ -11,9 +11,10 @@ import { eq, and } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
+import { shortTextSchema } from '../../../utils';
 
 const paramsSchema = z.object({
-    slug: z.string().min(1, 'Slug is required'),
+    slug: shortTextSchema,
 });
 
 interface CollectionResponse {

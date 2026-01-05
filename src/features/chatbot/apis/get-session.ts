@@ -11,17 +11,12 @@ import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
+import { paginationSchema } from '../../../utils/validation/common-schemas';
 import { getSessionByIdForUser, getSessionMessages } from '../shared/queries';
 
 // Params schema
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive(),
-});
-
-// Query params schema
-const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 /**
@@ -30,7 +25,7 @@ const querySchema = z.object({
 const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { id } = paramsSchema.parse(req.params);
-  const { page, limit } = querySchema.parse(req.query);
+  const { page, limit } = paginationSchema.parse(req.query);
 
   // Get session (verifies ownership)
   const session = await getSessionByIdForUser(id, userId);

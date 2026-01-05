@@ -14,7 +14,9 @@ import {
     integer,
     boolean,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -81,6 +83,11 @@ export const discounts = pgTable(
         statusIdx: index('discounts_status_idx').on(table.status),
         typeIdx: index('discounts_type_idx').on(table.type),
         datesIdx: index('discounts_dates_idx').on(table.starts_at, table.ends_at),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS
+        // Ensure end date is after start date (if set)
+        datesCheck: check('discounts_dates_check',
+            sql`ends_at IS NULL OR ends_at > starts_at`),
     })
 );
 

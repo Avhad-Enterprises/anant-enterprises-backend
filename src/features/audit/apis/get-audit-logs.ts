@@ -12,7 +12,7 @@ import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { auditService } from '../services/audit.service';
-import { AuditAction, AuditResourceType, AuditLogFilters } from '../shared/types';
+import { AuditAction, AuditResourceType, AuditLogFilters } from '../shared/interface';
 
 // Validation schema for query parameters
 const querySchema = z.object({

@@ -25,8 +25,6 @@ import {
   businessTierEnum,
   businessAccountStatusEnum,
   adminProfiles,
-  // vendors, // TODO: Enable when vendor feature is needed
-  // vendorTypeEnum,
   customerStatistics,
 } from '../features/user';
 import { uploads } from '../features/upload';

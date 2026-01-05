@@ -11,17 +11,17 @@ import { z } from 'zod';
 import { eq, and, ne, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 
 const paramsSchema = z.object({
-    productId: z.string().uuid('Invalid product ID format'),
+    productId: uuidSchema,
 });
 
 const querySchema = z.object({
-    limit: z.coerce.number().int().min(1).max(20).default(4),
+    limit: z.preprocess((val) => (val ? Number(val) : 4), z.number().int().min(1).max(20)),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

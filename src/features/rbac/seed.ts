@@ -6,7 +6,7 @@
  */
 
 import { db } from '../../database';
-import { roles, permissions, rolePermissions } from './shared/schema';
+import { roles, permissions, rolePermissions } from './shared/rbac.schema';
 import { logger } from '../../utils';
 
 // ============================================

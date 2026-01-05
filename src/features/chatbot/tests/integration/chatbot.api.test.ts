@@ -18,7 +18,7 @@ import { ApiTestHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { s3Helper } from '../../../../../tests/utils';
 import { db } from '../../../../database';
-import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../../shared/schema';
+import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../../shared/chatbot.schema';
 import { chatbotCacheService } from '../../services/chatbot-cache.service';
 import { deleteFromStorage } from '../../../../utils/supabaseStorage';
 import { eq } from 'drizzle-orm';

@@ -14,7 +14,6 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   text,
   boolean,
@@ -45,7 +44,7 @@ export const addressTypeEnum = pgEnum('address_type', ['billing', 'shipping', 'b
 export const userAddresses = pgTable(
   'user_addresses',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

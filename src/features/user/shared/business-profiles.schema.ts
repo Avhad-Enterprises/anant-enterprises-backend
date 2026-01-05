@@ -9,17 +9,16 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   text,
   boolean,
-  integer,
   timestamp,
   decimal,
   index,
   pgEnum,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 import { userAddresses } from './addresses.schema';
 
@@ -63,7 +62,7 @@ export const businessAccountStatusEnum = pgEnum('business_account_status', [
 export const businessCustomerProfiles = pgTable(
   'business_customer_profiles',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
@@ -88,10 +87,10 @@ export const businessCustomerProfiles = pgTable(
     business_phone_country_code: varchar('business_phone_country_code', { length: 5 }),
 
     // Addresses (FK)
-    billing_address_id: integer('billing_address_id').references(() => userAddresses.id, {
+    billing_address_id: uuid('billing_address_id').references(() => userAddresses.id, {
       onDelete: 'set null',
     }),
-    shipping_address_id: integer('shipping_address_id').references(() => userAddresses.id, {
+    shipping_address_id: uuid('shipping_address_id').references(() => userAddresses.id, {
       onDelete: 'set null',
     }),
 

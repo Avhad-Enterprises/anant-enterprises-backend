@@ -1,12 +1,12 @@
 import express from 'express';
 import hpp from 'hpp';
 import compression from 'compression';
-// import { authRateLimit, apiRateLimit } from './middlewares'; // DISABLED
+import { authRateLimit, apiRateLimit } from './middlewares';
 import { requestIdMiddleware } from './middlewares';
 import { securityMiddleware } from './middlewares';
 import { corsMiddleware } from './middlewares';
 import { requestLoggerMiddleware } from './middlewares';
-import { auditMiddleware } from './middlewares';
+import { auditMiddleware, sanitizeInput } from './middlewares';
 import type { Route as Routes } from './interfaces';
 import { errorMiddleware } from './middlewares';
 import { logger } from './utils';
@@ -107,17 +107,20 @@ class App {
     // Compression
     this.app.use(compression());
 
-    // Rate limiting - DISABLED
-    // this.app.use('/api/auth/login', authRateLimit);
-    // this.app.use('/api/auth/register', authRateLimit);
-    // this.app.use('/api/auth/refresh-token', authRateLimit);
-    // this.app.use('/api/', apiRateLimit);
+    // Rate limiting - ENABLED (skips dev/test via middleware logic)
+    this.app.use('/api/auth/login', authRateLimit);
+    this.app.use('/api/auth/register', authRateLimit);
+    this.app.use('/api/auth/refresh-token', authRateLimit);
+    this.app.use('/api/', apiRateLimit);
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-    // Audit logging (after body parsing, captures request body)
+    // Input sanitization (XSS protection) - runs BEFORE validation
+    this.app.use(sanitizeInput);
+
+    // Audit logging (after body parsing and sanitization, captures clean request body)
     this.app.use(auditMiddleware);
   }
 

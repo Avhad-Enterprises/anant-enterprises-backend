@@ -11,26 +11,23 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, shortTextSchema, slugSchema, mediumTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections, type NewCollection } from '../shared/collection.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const createSchema = z.object({
-    title: z.string().min(1, 'Title is required').max(255, 'Title too long'),
-    slug: z.string()
-        .min(1, 'Slug is required')
-        .max(255, 'Slug too long')
-        .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens'),
-    description: z.string().optional(),
+    title: shortTextSchema,
+    slug: slugSchema,
+    description: mediumTextSchema.optional(),
     type: z.enum(['manual', 'automated']).default('manual'),
     status: z.enum(['draft', 'active', 'inactive']).default('draft'),
     sort_order: z.enum(['best-selling', 'price-asc', 'price-desc', 'manual', 'created-desc', 'created-asc']).default('manual'),
     banner_image_url: z.string().optional(),
     mobile_banner_image_url: z.string().optional(),
-    meta_title: z.string().max(255).optional(),
-    meta_description: z.string().optional(),
-    tags: z.array(z.string()).default([]),
+    meta_title: shortTextSchema.optional(),
+    meta_description: mediumTextSchema.optional(),
+    tags: z.array(shortTextSchema).default([]),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
@@ -33,18 +33,18 @@ const createProductSchema = z.object({
     delist_date: z.string().datetime().optional().nullable(),
     sales_channels: z.array(z.string()).default([]),
 
-    cost_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid cost price format').default('0.00'),
-    selling_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid selling price format'),
-    compare_at_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid compare price format').optional().nullable(),
+    cost_price: decimalSchema.default('0.00'),
+    selling_price: decimalSchema,
+    compare_at_price: decimalSchema.optional().nullable(),
 
     sku: z.string().min(1, 'SKU is required'),
     barcode: z.string().optional().nullable(),
     hsn_code: z.string().optional().nullable(),
 
-    weight: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid weight format').optional().nullable(),
-    length: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid length format').optional().nullable(),
-    breadth: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid breadth format').optional().nullable(),
-    height: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid height format').optional().nullable(),
+    weight: decimalSchema.optional().nullable(),
+    length: decimalSchema.optional().nullable(),
+    breadth: decimalSchema.optional().nullable(),
+    height: decimalSchema.optional().nullable(),
     pickup_location: z.string().optional().nullable(),
 
     category_tier_1: z.string().optional().nullable(),

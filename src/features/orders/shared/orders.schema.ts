@@ -28,6 +28,7 @@ import { userAddresses } from '../../user/shared/addresses.schema';
 import { carts } from '../../cart/shared/carts.schema';
 import { discounts } from '../../discount/shared/discount.schema';
 import { discountCodes } from '../../discount/shared/discount-codes.schema';
+import { taxRules } from '../../settings/shared/tax-rules.schema';
 
 // ============================================
 // ENUMS
@@ -94,9 +95,9 @@ export const orders = pgTable(
             .references(() => carts.id, { onDelete: 'set null' }),
 
         // Addresses (CRITICAL FIX #1)
-        shipping_address_id: integer('shipping_address_id')
+        shipping_address_id: uuid('shipping_address_id')
             .references(() => userAddresses.id, { onDelete: 'set null' }),
-        billing_address_id: integer('billing_address_id')
+        billing_address_id: uuid('billing_address_id')
             .references(() => userAddresses.id, { onDelete: 'set null' }),
 
         // Source
@@ -144,7 +145,9 @@ export const orders = pgTable(
         cod_due_amount: decimal('cod_due_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
 
         // Tax (GST - India) - HIGH PRIORITY FIX #23
-        tax_rule_id: uuid('tax_rule_id'), // FK to tax_rules (which rule was applied)
+        // Phase 3 Batch 3: Added FK constraint for referential integrity
+        tax_rule_id: uuid('tax_rule_id')
+            .references(() => taxRules.id, { onDelete: 'set null' }), // Preserve order if tax rule deleted
         tax_amount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
         cgst: decimal('cgst', { precision: 12, scale: 2 }).default('0.00').notNull(),
         sgst: decimal('sgst', { precision: 12, scale: 2 }).default('0.00').notNull(),

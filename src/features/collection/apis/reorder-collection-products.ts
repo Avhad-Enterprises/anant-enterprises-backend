@@ -16,14 +16,15 @@ import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
+import { uuidSchema } from '../../../utils/validation/common-schemas';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid collection ID'),
+    id: uuidSchema,
 });
 
 const bodySchema = z.object({
     products: z.array(z.object({
-        productId: z.string().uuid('Invalid product ID'),
+        productId: uuidSchema,
         position: z.number().int().min(1, 'Position must be at least 1'),
     })).min(1, 'At least one product is required'),
 });

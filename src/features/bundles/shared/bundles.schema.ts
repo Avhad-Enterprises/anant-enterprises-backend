@@ -33,6 +33,11 @@ export const bundleStatusEnum = pgEnum('bundle_status', [
     'archived'
 ]);
 
+// TypeScript constants for application use (Phase 1: Enum Consolidation)
+export const BUNDLE_STATUSES = bundleStatusEnum.enumValues;
+export type BundleStatus = typeof BUNDLE_STATUSES[number];
+
+
 // ============================================
 // BUNDLES TABLE
 // ============================================

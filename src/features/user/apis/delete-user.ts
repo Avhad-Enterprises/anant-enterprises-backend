@@ -11,7 +11,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
@@ -19,7 +19,7 @@ import { findUserById } from '../shared/queries';
 import { userCacheService } from '../services/user-cache.service';
 
 const paramsSchema = z.object({
-  id: z.string().uuid('User ID must be a valid UUID'),
+  id: uuidSchema,
 });
 
 async function deleteUser(id: string, deletedBy: string): Promise<{ email: string }> {

@@ -1,4 +1,4 @@
-import { InvitationStatus } from './schema';
+import { InvitationStatus } from './admin-invite.schema';
 
 export interface IInvitation {
   id: number;
