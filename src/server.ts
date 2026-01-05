@@ -10,6 +10,7 @@ import ChatbotRoute from './features/chatbot';
 import RBACRoute from './features/rbac';
 import AuditRoute from './features/audit';
 import BundleRoute from './features/bundles';
+import CartRoute from './features/cart';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -40,7 +41,6 @@ async function bootstrap() {
       new AuthRoute(),
       new UserRoute(),
       new ProductRoute(),
-
       new CollectionRoute(),
       new UploadRoute(),
       new AdminInviteRoute(),
@@ -48,6 +48,7 @@ async function bootstrap() {
       new RBACRoute(),
       new AuditRoute(), // Audit admin endpoints
       new BundleRoute(),
+      new CartRoute(),  // Cart endpoints
     ]);
 
     server = app.listen();
