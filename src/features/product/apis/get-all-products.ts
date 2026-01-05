@@ -6,7 +6,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, count, sql, and, gte, lte, or } from 'drizzle-orm';
+import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';

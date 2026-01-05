@@ -26,7 +26,7 @@ const schema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
   last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
   email: z.string().email('Invalid email format'),
-  assigned_role_id: z.number().int().positive('Role ID must be a positive integer'),
+  assigned_role_id: z.string().uuid('Role ID must be a valid UUID'),
 });
 
 type CreateInvitationDto = z.infer<typeof schema>;

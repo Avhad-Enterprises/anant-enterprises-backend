@@ -25,7 +25,7 @@ export async function findAllRoles() {
 /**
  * Find role by ID
  */
-export async function findRoleById(id: number) {
+export async function findRoleById(id: string) {
   const [role] = await db.select().from(roles).where(eq(roles.id, id)).limit(1);
   return role;
 }
@@ -63,7 +63,7 @@ export async function createRole(data: {
  * Update a role
  */
 export async function updateRole(
-  id: number,
+  id: string,
   data: { name?: string; description?: string; is_active?: boolean; updated_by?: string }
 ) {
   const [role] = await db
@@ -80,7 +80,7 @@ export async function updateRole(
 /**
  * Soft delete a role
  */
-export async function deleteRole(id: number, deleted_by: string) {
+export async function deleteRole(id: string, deleted_by: string) {
   const [role] = await db
     .update(roles)
     .set({
@@ -108,7 +108,7 @@ export async function findAllPermissions() {
 /**
  * Find permission by ID
  */
-export async function findPermissionById(id: number) {
+export async function findPermissionById(id: string) {
   const [permission] = await db.select().from(permissions).where(eq(permissions.id, id)).limit(1);
   return permission;
 }
@@ -152,7 +152,7 @@ export async function createPermission(data: {
 /**
  * Get all permissions for a role
  */
-export async function findRolePermissions(roleId: number) {
+export async function findRolePermissions(roleId: string) {
   return db
     .select({
       permission: permissions,
@@ -166,8 +166,8 @@ export async function findRolePermissions(roleId: number) {
  * Assign permission to role
  */
 export async function assignPermissionToRole(
-  roleId: number,
-  permissionId: number,
+  roleId: string,
+  permissionId: string,
   assignedBy?: string
 ) {
   const [assignment] = await db
@@ -185,7 +185,7 @@ export async function assignPermissionToRole(
 /**
  * Remove permission from role
  */
-export async function removePermissionFromRole(roleId: number, permissionId: number) {
+export async function removePermissionFromRole(roleId: string, permissionId: string) {
   await db
     .delete(rolePermissions)
     .where(
@@ -197,8 +197,8 @@ export async function removePermissionFromRole(roleId: number, permissionId: num
  * Assign multiple permissions to role
  */
 export async function assignPermissionsToRole(
-  roleId: number,
-  permissionIds: number[],
+  roleId: string,
+  permissionIds: string[],
   assignedBy?: string
 ) {
   if (permissionIds.length === 0) return [];
@@ -244,7 +244,7 @@ export async function findUserRoles(userId: string) {
  */
 export async function assignRoleToUser(
   userId: string,
-  roleId: number,
+  roleId: string,
   assignedBy?: string,
   expiresAt?: Date
 ) {
@@ -264,7 +264,7 @@ export async function assignRoleToUser(
 /**
  * Remove role from user
  */
-export async function removeRoleFromUser(userId: string, roleId: number) {
+export async function removeRoleFromUser(userId: string, roleId: string) {
   await db
     .delete(userRoles)
     .where(and(eq(userRoles.user_id, userId), eq(userRoles.role_id, roleId)));
@@ -325,7 +325,7 @@ export async function userHasPermission(userId: string, permissionName: string):
 /**
  * Get users count for a role
  */
-export async function countUsersWithRole(roleId: number): Promise<number> {
+export async function countUsersWithRole(roleId: string): Promise<number> {
   const result = await db
     .select({ user_id: userRoles.user_id })
     .from(userRoles)
@@ -336,7 +336,7 @@ export async function countUsersWithRole(roleId: number): Promise<number> {
 /**
  * Get permissions count for a role
  */
-export async function countRolePermissions(roleId: number): Promise<number> {
+export async function countRolePermissions(roleId: string): Promise<number> {
   const result = await db
     .select({ permission_id: rolePermissions.permission_id })
     .from(rolePermissions)

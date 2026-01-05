@@ -7,7 +7,7 @@ export interface IInvitation {
   email: string;
   invite_token?: string;
   status: InvitationStatus;
-  assigned_role_id?: number | null;
+  assigned_role_id?: string | null;
   temp_password_encrypted?: string | null;
   password_hash?: string | null;
   verify_attempts: number;
@@ -25,5 +25,5 @@ export interface ICreateInvitation {
   first_name: string;
   last_name: string;
   email: string;
-  assigned_role_id: number;
+  assigned_role_id: string;
 }

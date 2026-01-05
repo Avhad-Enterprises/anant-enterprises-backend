@@ -10,7 +10,7 @@ export class AuthTestHelper {
   /**
    * Generate a JWT token for testing
    */
-  static generateJwtToken(userId: number, email: string, role: string = 'user'): string {
+  static generateJwtToken(userId: string, email: string, role: string = 'user'): string {
     const secret = process.env.JWT_SECRET || 'test-jwt-secret';
     return jwt.sign({ id: userId, email, role }, secret, { expiresIn: '24h' });
   }
@@ -105,7 +105,7 @@ export class AuthTestHelper {
       superadmin: ['*'],
     };
 
-    const mappings: { role_id: number; permission_id: number }[] = [];
+    const mappings: { role_id: string; permission_id: string }[] = [];
     for (const [roleName, perms] of Object.entries(rolePermissionMappings)) {
       const roleId = roleIdMap.get(roleName);
       if (!roleId) continue;
@@ -125,7 +125,7 @@ export class AuthTestHelper {
   /**
    * Get role ID by name
    */
-  static async getRoleId(roleName: string): Promise<number | null> {
+  static async getRoleId(roleName: string): Promise<string | null> {
     const db = dbHelper.getDb();
     const [role] = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1);
     return role?.id ?? null;
@@ -134,7 +134,7 @@ export class AuthTestHelper {
   /**
    * Assign role to user
    */
-  static async assignRoleToUser(userId: number, roleName: string): Promise<void> {
+  static async assignRoleToUser(userId: string, roleName: string): Promise<void> {
     const db = dbHelper.getDb();
     const roleId = await this.getRoleId(roleName);
     if (!roleId) {
@@ -155,9 +155,9 @@ export class AuthTestHelper {
    * @returns Created user, JWT token, and user ID
    */
   static async createTestUser(userData: TestUser): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const db = dbHelper.getDb();
     const hashedPassword = await this.hashPassword(userData.password);
@@ -194,7 +194,7 @@ export class AuthTestHelper {
    * Create a test user with token and return credentials
    */
   static async createTestUserWithToken(): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
     rawPassword: string;
   }> {
@@ -213,9 +213,9 @@ export class AuthTestHelper {
    * Create a test admin user with full permissions
    */
   static async createTestAdminUser(overrides?: Partial<TestUser>): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const userData = {
       email: `admin-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
@@ -231,9 +231,9 @@ export class AuthTestHelper {
    * Create a test superadmin user with wildcard permissions
    */
   static async createTestSuperadminUser(overrides?: Partial<TestUser>): Promise<{
-    user: { id: number; email: string; name: string; role: string };
+    user: { id: string; email: string; name: string; role: string };
     token: string;
-    userId: number;
+    userId: string;
   }> {
     const userData = {
       email: `superadmin-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`,
@@ -256,7 +256,7 @@ export class AuthTestHelper {
    * Verify and decode a JWT token
    */
   static verifyToken(token: string): {
-    id: number;
+    id: string;
     email: string;
     role: string;
     iat: number;
@@ -264,7 +264,7 @@ export class AuthTestHelper {
   } {
     const secret = process.env.JWT_SECRET || 'test-jwt-secret';
     return jwt.verify(token, secret) as {
-      id: number;
+      id: string;
       email: string;
       role: string;
       iat: number;

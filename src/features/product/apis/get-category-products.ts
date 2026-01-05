@@ -8,16 +8,12 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, or, ne, sql } from 'drizzle-orm';
+import { eq, and, ne, sql } from 'drizzle-orm';
 import { Request } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
-
-const paramsSchema = z.object({
-    categoryId: z.string().min(1, 'Category ID is required'),
-});
 
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(50).default(6),

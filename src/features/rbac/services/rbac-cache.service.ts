@@ -130,7 +130,7 @@ class RBACCacheService {
   /**
    * Get user roles
    */
-  async getUserRoles(userId: string): Promise<{ id: number; name: string }[]> {
+  async getUserRoles(userId: string): Promise<{ id: string; name: string }[]> {
     // Try Redis first
     if (isRedisReady()) {
       try {

@@ -15,10 +15,6 @@ import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 
-const paramsSchema = z.object({
-    brandId: z.string().min(1, 'Brand ID is required'),
-});
-
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(50).default(6),
     exclude: z.string().uuid().optional(),
