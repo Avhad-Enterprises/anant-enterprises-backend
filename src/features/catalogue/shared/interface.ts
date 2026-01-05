@@ -5,6 +5,33 @@
  */
 
 // ============================================
+// ASSIGNED SEGMENT (JSONB Type)
+// ============================================
+
+export interface IAssignedSegment {
+    segment_id: string; // UUID
+    segment_name: string; // For display purposes
+}
+
+// ============================================
+// ASSIGNED ROLE (JSONB Type)
+// ============================================
+
+export interface IAssignedRole {
+    role_id: string; // UUID
+    role_name: string; // For display purposes
+}
+
+// ============================================
+// ASSIGNED CHANNEL (JSONB Type)
+// ============================================
+
+export interface IAssignedChannel {
+    channel: 'web' | 'app' | 'pos' | 'b2b' | 'marketplace';
+    enabled: boolean;
+}
+
+// ============================================
 // CATALOGUE
 // ============================================
 
@@ -19,9 +46,9 @@ export interface ICatalogue {
     valid_from: Date;
     valid_to: Date | null;
 
-    assigned_segments: string[]; // JSONB - Array of Segment IDs
-    assigned_roles: string[]; // JSONB - Array of Role IDs
-    assigned_channels: string[]; // JSONB - e.g. ['pos', 'b2b']
+    assigned_segments: IAssignedSegment[]; // JSONB - Typed array with segment details
+    assigned_roles: IAssignedRole[]; // JSONB - Typed array with role details
+    assigned_channels: IAssignedChannel[]; // JSONB - Typed array with channel configuration
 
     tier_level: string | null;
     tier_value: string | null;

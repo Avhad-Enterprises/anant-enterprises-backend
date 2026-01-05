@@ -3,10 +3,10 @@
  */
 
 import * as inviteQueries from '../../shared/queries';
-import { Invitation } from '../../shared/schema';
+import { Invitation } from '../../shared/admin-invite.schema';
 import { HttpException } from '../../../../utils';
 import { db } from '../../../../database';
-import { invitations } from '../../shared/schema';
+import { invitations } from '../../shared/admin-invite.schema';
 
 // Mock dependencies
 jest.mock('../../shared/queries');

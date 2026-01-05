@@ -8,7 +8,7 @@ import app from '@tests/utils';
 import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, userRoles } from '../../shared/schema';
+import { roles, userRoles } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('DELETE /api/rbac/roles/:roleId - Delete Role', () => {
@@ -35,7 +35,7 @@ describe('DELETE /api/rbac/roles/:roleId - Delete Role', () => {
     systemRole = sysRole;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test role

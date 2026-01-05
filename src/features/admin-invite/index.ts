@@ -43,7 +43,7 @@ export {
   type InvitationStatus,
   type Invitation,
   type NewInvitation,
-} from './shared/schema';
+} from './shared/admin-invite.schema';
 
 export type { IInvitation, ICreateInvitation } from './shared/interface';
 

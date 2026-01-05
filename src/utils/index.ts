@@ -35,3 +35,6 @@ export * from './loadEnv';
 export * from './supabaseStorage';
 export * from './supabase';
 export * from './validateEnv';
+
+// Validation utilities
+export * from './validation/common-schemas';

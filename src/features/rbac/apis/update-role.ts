@@ -13,7 +13,8 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { findRoleById, findRoleByName, updateRole } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
-import { Role } from '../shared/schema';
+import { Role } from '../shared/rbac.schema';
+import { mediumTextSchema } from '../../../utils';
 
 const schema = z.object({
   name: z
@@ -22,7 +23,7 @@ const schema = z.object({
     .max(50, 'Role name must be at most 50 characters')
     .regex(/^[a-z_]+$/, 'Role name must be lowercase with underscores only')
     .optional(),
-  description: z.string().max(500).optional(),
+  description: mediumTextSchema.optional(),
   is_active: z.boolean().optional(),
 });
 

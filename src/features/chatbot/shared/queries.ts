@@ -18,7 +18,7 @@ import {
   NewChatbotSession,
   NewChatbotMessage,
   DocumentStatus,
-} from './schema';
+} from './chatbot.schema';
 
 // ============================================================================
 // DOCUMENT QUERIES (Core)

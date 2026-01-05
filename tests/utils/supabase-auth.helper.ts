@@ -13,7 +13,7 @@ import {
   permissions,
   userRoles,
   rolePermissions,
-} from '../../src/features/rbac/shared/schema';
+} from '../../src/features/rbac/shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 export interface TestUser {

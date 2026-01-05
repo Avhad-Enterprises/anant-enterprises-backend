@@ -101,7 +101,7 @@ export {
   type ChatbotDocument,
   type ChatbotSession,
   type ChatbotMessage,
-} from './shared/schema';
+} from './shared/chatbot.schema';
 
 export { chatbotCacheService } from './services/chatbot-cache.service';
 export { pineconeIndex } from './services/pinecone.service';

@@ -10,15 +10,15 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { wishlistItems } from '../../wishlist/shared/wishlist-items.schema';
 import { products } from '../../product/shared/product.schema';
 
 const paramsSchema = z.object({
-    userId: z.string().uuid('User ID must be a valid UUID'),
-    productId: z.string().uuid('Product ID must be a valid UUID'),
+    userId: uuidSchema,
+    productId: uuidSchema,
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

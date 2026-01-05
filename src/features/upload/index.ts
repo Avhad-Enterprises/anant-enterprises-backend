@@ -48,7 +48,7 @@ export {
   type UploadStatus,
   type Upload as DrizzleUpload,
   type NewUpload,
-} from './shared/schema';
+} from './shared/upload.schema';
 export {
   type Upload,
   type UploadUpdateInput,

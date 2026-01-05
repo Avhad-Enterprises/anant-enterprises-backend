@@ -11,7 +11,7 @@ import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, longTextSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import {
@@ -24,11 +24,11 @@ import {
 } from '../shared/queries';
 import { generateChatResponse, generateSessionTitle } from '../services/chat.service';
 import { chatbotCacheService } from '../services/chatbot-cache.service';
-import { MessageSource } from '../shared/schema';
+import { MessageSource } from '../shared/chatbot.schema';
 
 // Request body schema
 const sendMessageSchema = z.object({
-  message: z.string().min(1).max(10000),
+  message: longTextSchema,
   sessionId: z.number().int().positive().optional(),
 });
 

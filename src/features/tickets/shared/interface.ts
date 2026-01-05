@@ -5,7 +5,7 @@
  */
 
 // ============================================
-// ATTACHMENT
+// ATTACHMENT (JSONB Type)
 // ============================================
 
 export interface IAttachment {
@@ -13,6 +13,27 @@ export interface IAttachment {
     type: 'image' | 'pdf' | 'document' | 'other';
     filename?: string;
 }
+
+// ============================================
+// TICKET METADATA (JSONB Type)
+// ============================================
+
+export interface ITicketMetadata {
+    browser?: string; // e.g., "Chrome 120.0.0"
+    os?: string; // e.g., "macOS 14.0"
+    device?: string; // e.g., "Desktop", "Mobile", "Tablet"
+    ip_address?: string; // IP address for audit trail
+    user_agent?: string; // Full user agent string
+    referrer?: string; // Referring URL
+    language?: string; // Browser language
+    screen_resolution?: string; // e.g., "1920x1080"
+    timezone?: string; // e.g., "Asia/Kolkata"
+    [key: string]: unknown; // Allow additional metadata
+}
+
+// ============================================
+// TICKET
+// ============================================
 
 // ============================================
 // TICKET
@@ -32,7 +53,7 @@ export interface ITicket {
     created_via: 'store' | 'email' | 'admin' | 'api';
     tags?: string[]; // JSONB - Array of tag strings, e.g. ["refund","VIP"]
     notes?: string | null;
-    metadata?: Record<string, unknown> | null; // JSONB - Flexible metadata object
+    metadata?: ITicketMetadata | null; // JSONB - Structured metadata object
     last_message_at: Date;
     first_response_at?: Date | null;
     resolved_at?: Date | null;

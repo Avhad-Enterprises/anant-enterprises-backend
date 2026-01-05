@@ -16,10 +16,11 @@ import { logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { verifySupabaseToken } from '../services/supabase-auth.service';
+import { shortTextSchema, optionalPhoneSchema } from '../../../utils/validation/common-schemas';
 
 const syncUserSchema = z.object({
-    name: z.string().optional(),
-    phone_number: z.string().optional(),
+    name: shortTextSchema.optional(),
+    phone_number: optionalPhoneSchema,
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {

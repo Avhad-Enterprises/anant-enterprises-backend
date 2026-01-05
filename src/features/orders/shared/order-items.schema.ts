@@ -14,7 +14,9 @@ import {
     decimal,
     timestamp,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { orders } from './orders.schema';
 import { products } from '../../product/shared/product.schema';
 
@@ -57,6 +59,11 @@ export const orderItems = pgTable(
     table => ({
         orderIdIdx: index('order_items_order_id_idx').on(table.order_id),
         productIdIdx: index('order_items_product_id_idx').on(table.product_id),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS
+        // Ensure quantity is positive
+        quantityCheck: check('order_items_quantity_check',
+            sql`quantity > 0`),
     })
 );
 

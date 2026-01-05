@@ -20,11 +20,12 @@ import {
   removePermissionFromRole,
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
-import { Permission } from '../shared/schema';
+import { Permission } from '../shared/rbac.schema';
+import { uuidSchema } from '../../../utils/validation/common-schemas';
 
 // Validation schema
 const assignPermissionSchema = z.object({
-  permission_id: z.string().uuid('Permission ID must be a valid UUID'),
+  permission_id: uuidSchema,
 });
 
 type AssignPermissionDto = z.infer<typeof assignPermissionSchema>;

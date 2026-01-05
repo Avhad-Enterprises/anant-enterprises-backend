@@ -15,7 +15,7 @@ import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
 import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -24,8 +24,8 @@ import { IUser } from '../shared/interface';
 import { findUserById, findUserByEmail } from '../shared/queries';
 
 const updateUserSchema = z.object({
-  name: z.string().min(1, 'Name is required').optional(),
-  email: z.string().email('Invalid email format').optional(),
+  name: shortTextSchema.optional(),
+  email: emailSchema.optional(),
   phone_number: z.string().optional(),
 });
 
@@ -85,7 +85,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   const paramsSchema = z.object({
-    id: z.string().uuid('Invalid user ID format'),
+    id: uuidSchema,
   });
 
   const { id } = paramsSchema.parse(req.params);
@@ -104,7 +104,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 const router = Router();
 
 const paramsSchema = z.object({
-  id: z.string().uuid('Invalid user ID format'),
+  id: uuidSchema,
 });
 
 router.put(

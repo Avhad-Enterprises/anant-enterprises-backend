@@ -10,7 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema, decimalSchema, slugSchema, shortTextSchema } from '../../../utils';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -19,9 +19,13 @@ import { IProduct } from '../shared/interface';
 import { productCacheService } from '../services/product-cache.service';
 import { findProductById, findProductBySku, findProductBySlug } from '../shared/queries';
 
+const paramsSchema = z.object({
+    id: uuidSchema,
+});
+
 const updateProductSchema = z.object({
-    slug: z.string().min(1).optional(),
-    product_title: z.string().min(1).optional(),
+    slug: slugSchema.optional(),
+    product_title: shortTextSchema.optional(),
     secondary_title: z.string().optional().nullable(),
 
     short_description: z.string().optional().nullable(),
@@ -33,18 +37,18 @@ const updateProductSchema = z.object({
     delist_date: z.string().datetime().optional().nullable(),
     sales_channels: z.array(z.string()).optional(),
 
-    cost_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid cost price format').optional(),
-    selling_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid selling price format').optional(),
-    compare_at_price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid compare price format').optional().nullable(),
+    cost_price: decimalSchema.optional(),
+    selling_price: decimalSchema.optional(),
+    compare_at_price: decimalSchema.optional().nullable(),
 
-    sku: z.string().min(1).optional(),
+    sku: shortTextSchema.optional(),
     barcode: z.string().optional().nullable(),
     hsn_code: z.string().optional().nullable(),
 
-    weight: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid weight format').optional().nullable(),
-    length: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid length format').optional().nullable(),
-    breadth: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid breadth format').optional().nullable(),
-    height: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid height format').optional().nullable(),
+    weight: decimalSchema.optional().nullable(),
+    length: decimalSchema.optional().nullable(),
+    breadth: decimalSchema.optional().nullable(),
+    height: decimalSchema.optional().nullable(),
     pickup_location: z.string().optional().nullable(),
 
     category_tier_1: z.string().optional().nullable(),
@@ -131,7 +135,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     const paramsSchema = z.object({
-        id: z.string().uuid('Invalid product ID format'),
+        id: uuidSchema,
     });
 
     const { id } = paramsSchema.parse(req.params);
@@ -148,10 +152,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-
-const paramsSchema = z.object({
-    id: z.string().uuid('Invalid product ID format'),
-});
 
 router.put(
     '/:id',

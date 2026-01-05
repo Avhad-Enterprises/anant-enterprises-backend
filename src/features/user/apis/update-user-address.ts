@@ -10,23 +10,23 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema, shortTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { userAddresses } from '../shared/addresses.schema';
 
 const paramsSchema = z.object({
-    userId: z.string().uuid('User ID must be a valid UUID'),
-    id: z.string().uuid('Address ID must be a valid UUID'),
+    userId: uuidSchema,
+    id: uuidSchema,
 });
 
 const bodySchema = z.object({
     type: z.enum(['Home', 'Office', 'Other']).optional(),
-    name: z.string().min(1).optional(),
-    phone: z.string().min(1).optional(),
-    addressLine: z.string().min(1).optional(),
-    city: z.string().min(1).optional(),
-    state: z.string().min(1).optional(),
-    pincode: z.string().min(1).optional(),
+    name: shortTextSchema.optional(),
+    phone: shortTextSchema.optional(),
+    addressLine: shortTextSchema.optional(),
+    city: shortTextSchema.optional(),
+    state: shortTextSchema.optional(),
+    pincode: shortTextSchema.optional(),
     isDefault: z.boolean().optional(),
 });
 

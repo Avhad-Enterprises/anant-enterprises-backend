@@ -13,9 +13,9 @@
 import { logger } from '../../../utils';
 import { redisClient, isRedisReady } from '../../../utils';
 import { db } from '../../../database';
-import { chatbotDocuments, chatbotSessions } from '../shared/schema';
+import { chatbotDocuments, chatbotSessions } from '../shared/chatbot.schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import type { ChatbotDocument, ChatbotSession } from '../shared/schema';
+import type { ChatbotDocument, ChatbotSession } from '../shared/chatbot.schema';
 
 // Redis key prefixes
 const STATS_KEY = 'chatbot:stats';

@@ -3,7 +3,7 @@
  */
 
 import * as inviteQueries from '../../shared/queries';
-import { InvitationStatus, Invitation } from '../../shared/schema';
+import { InvitationStatus, Invitation } from '../../shared/admin-invite.schema';
 import { IInvitation } from '../../shared/interface';
 
 // Mock dependencies

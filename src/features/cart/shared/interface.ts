@@ -5,6 +5,17 @@
  */
 
 // ============================================
+// CUSTOMIZATION OPTION (JSONB Type)
+// ============================================
+
+export interface ICustomizationOption {
+    option_id: string; // UUID of the customization option
+    option_name: string; // e.g., "Frame Color", "Engraving Text"
+    selected_value: string; // e.g., "Black", "John Doe"
+    price_adjustment: string; // Decimal string - additional cost for this option
+}
+
+// ============================================
 // CART
 // ============================================
 
@@ -54,7 +65,7 @@ export interface ICartItem {
     product_name?: string | null;
     product_image_url?: string | null;
     product_sku?: string | null;
-    customization_data?: Record<string, unknown>; // JSONB
+    customization_data?: ICustomizationOption[]; // JSONB - Typed array of customization options
     created_at: Date;
     updated_at: Date;
     is_deleted: boolean;

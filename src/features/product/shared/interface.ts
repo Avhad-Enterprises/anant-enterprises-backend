@@ -6,6 +6,29 @@
  */
 
 // ============================================
+// PRODUCT FEATURE (JSONB Type)
+// ============================================
+
+export interface IProductFeature {
+    icon?: string; // Icon name or URL
+    title: string; // e.g., "5 Year Warranty"
+    description: string; // Detailed description of the feature
+}
+
+// ============================================
+// PRODUCT SPECS (JSONB Type)
+// ============================================
+
+export interface IProductSpecs {
+    [key: string]: string | number | boolean; // Flexible key-value specifications
+    // Examples:
+    // technology?: string; // "RO+UV+UF"
+    // storage?: string; // "10L"
+    // power?: string; // "60W"
+    // warranty?: string; // "5 years"
+}
+
+// ============================================
 // PRODUCT
 // ============================================
 
@@ -45,6 +68,16 @@ export interface IProduct {
 
     size_group?: string | null;
     accessories_group?: string | null;
+
+    // Brand information
+    brand_name?: string | null;
+    brand_slug?: string | null;
+
+    // Product page enhancements (JSONB fields)
+    tags?: string[]; // JSONB - Feature tags like ["RO", "UV", "UF"]
+    highlights?: string[]; // JSONB - Bullet points like ["10L capacity", "5 year warranty"]
+    features?: IProductFeature[]; // JSONB - Feature cards with icons and descriptions
+    specs?: IProductSpecs | null; // JSONB - Technical specifications object
 
     primary_image_url?: string | null;
     additional_images: string[]; // JSONB array -> string[]

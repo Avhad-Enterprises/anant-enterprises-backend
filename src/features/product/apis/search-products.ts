@@ -9,16 +9,15 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { eq, and, or, sql, ilike } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, searchSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 
-const querySchema = z.object({
-    q: z.string().min(1, 'Search query is required'),
+const querySchema = searchSchema.extend({
     category: z.string().optional(),
-    limit: z.coerce.number().int().min(1).max(50).default(20),
+    limit: z.preprocess((val) => (val ? Number(val) : 20), z.number().int().min(1).max(50)),
 });
 
 const handler = async (req: Request, res: Response) => {

@@ -13,9 +13,10 @@ import { supabaseAnon } from '../../../utils/supabase';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
+import { shortTextSchema } from '../../../utils';
 
 const schema = z.object({
-  refreshToken: z.string().min(1, 'Refresh token is required'),
+  refreshToken: shortTextSchema,
 });
 
 export async function handleRefreshToken(refreshToken: string) {

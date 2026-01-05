@@ -1,4 +1,4 @@
-import { UploadStatus, uploads } from './schema';
+import { UploadStatus, uploads } from './upload.schema';
 
 // Upload entity interfaces
 export interface Upload {

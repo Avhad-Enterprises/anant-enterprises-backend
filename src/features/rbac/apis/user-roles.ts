@@ -21,13 +21,14 @@ import {
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 import { findUserById } from '../../user';
-import { Role } from '../shared/schema';
+import { Role } from '../shared/rbac.schema';
 import { IUserPermissionsResponse } from '../shared/interface';
+import { uuidSchema, dateStringSchema } from '../../../utils/validation/common-schemas';
 
 // Validation schema
 const assignRoleSchema = z.object({
-  role_id: z.string().uuid('Role ID must be a valid UUID'),
-  expires_at: z.string().datetime().optional(),
+  role_id: uuidSchema,
+  expires_at: dateStringSchema.optional(),
 });
 
 type AssignRoleDto = z.infer<typeof assignRoleSchema>;

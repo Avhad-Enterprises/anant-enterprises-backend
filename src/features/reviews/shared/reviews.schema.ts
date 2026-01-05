@@ -15,7 +15,9 @@ import {
     pgEnum,
     jsonb,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
 
@@ -70,6 +72,11 @@ export const reviews = pgTable(
         userIdIdx: index('reviews_user_id_idx').on(table.user_id),
         statusIdx: index('reviews_status_idx').on(table.status),
         ratingIdx: index('reviews_rating_idx').on(table.rating),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS
+        // Ensure rating is between 1-5
+        ratingCheck: check('reviews_rating_check',
+            sql`rating >= 1 AND rating <= 5`),
     })
 );
 

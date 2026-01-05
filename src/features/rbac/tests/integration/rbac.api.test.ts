@@ -16,7 +16,7 @@ import AuthRoute from '../../../auth';
 import { dbHelper } from '../../../../../tests/utils';
 import { SupabaseAuthHelper } from '../../../../../tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions } from '../../shared/schema';
+import { roles, permissions } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 import { rbacCacheService } from '../../services/rbac-cache.service';
 

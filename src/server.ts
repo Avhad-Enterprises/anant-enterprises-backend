@@ -3,8 +3,6 @@ import { logger } from './utils';
 import UserRoute from './features/user';
 import AuthRoute from './features/auth';
 import ProductRoute from './features/product';
-import CategoriesRoute from './features/categories';
-import BrandsRoute from './features/brands';
 import CollectionRoute from './features/collection';
 import UploadRoute from './features/upload';
 import AdminInviteRoute from './features/admin-invite';
@@ -42,8 +40,7 @@ async function bootstrap() {
       new AuthRoute(),
       new UserRoute(),
       new ProductRoute(),
-      new CategoriesRoute(),
-      new BrandsRoute(),
+
       new CollectionRoute(),
       new UploadRoute(),
       new AdminInviteRoute(),

@@ -16,7 +16,9 @@ import {
     timestamp,
     jsonb,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { carts } from './carts.schema';
 import { products } from '../../product/shared/product.schema';
 import { bundles } from '../../bundles/shared/bundles.schema';
@@ -78,6 +80,11 @@ export const cartItems = pgTable(
         cartIdIdx: index('cart_items_cart_id_idx').on(table.cart_id),
         productIdIdx: index('cart_items_product_id_idx').on(table.product_id),
         bundleIdIdx: index('cart_items_bundle_id_idx').on(table.bundle_id),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS
+        // Ensure quantity is positive
+        quantityCheck: check('cart_items_quantity_check',
+            sql`quantity > 0`),
     })
 );
 

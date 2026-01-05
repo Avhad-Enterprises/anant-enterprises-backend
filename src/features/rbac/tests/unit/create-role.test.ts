@@ -8,7 +8,7 @@ import app from '@tests/utils';
 import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles } from '../../shared/schema';
+import { roles } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/roles - Create Role', () => {
@@ -26,7 +26,7 @@ describe('POST /api/rbac/roles - Create Role', () => {
     regularUserToken = uToken;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   afterEach(async () => {
     // Clean up test roles

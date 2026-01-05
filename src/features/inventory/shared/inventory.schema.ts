@@ -13,6 +13,7 @@ import {
     timestamp,
     pgEnum,
     index,
+    check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
@@ -84,6 +85,14 @@ export const inventory = pgTable(
         statusIdx: index('inventory_status_idx').on(table.status),
         shortageIdx: index('inventory_shortage_idx').on(table.shortage_quantity),
         skuIdx: index('inventory_sku_idx').on(table.sku),
+
+        // PHASE 3 BATCH 5: CHECK CONSTRAINTS
+        // Ensure quantities are non-negative
+        availableQtyCheck: check('inventory_available_qty_check',
+            sql`available_quantity >= 0`),
+
+        reservedQtyCheck: check('inventory_reserved_qty_check',
+            sql`reserved_quantity >= 0`),
     })
 );
 

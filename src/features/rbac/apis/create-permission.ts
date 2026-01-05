@@ -12,7 +12,8 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { createPermission, findPermissionByName } from '../shared/queries';
-import { Permission } from '../shared/schema';
+import { Permission } from '../shared/rbac.schema';
+import { mediumTextSchema } from '../../../utils';
 
 const schema = z.object({
   name: z
@@ -33,7 +34,7 @@ const schema = z.object({
     .min(1, 'Action is required')
     .max(50)
     .regex(/^[a-z_:]+$/, 'Action must be lowercase with underscores/colons only'),
-  description: z.string().max(500).optional(),
+  description: mediumTextSchema.optional(),
 });
 
 type CreatePermissionDto = z.infer<typeof schema>;

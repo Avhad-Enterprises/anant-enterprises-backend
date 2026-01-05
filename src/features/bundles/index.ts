@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { getAllBundles } from './apis/get-all-bundles';
+import getAllBundles from './apis/get-all-bundles';
 
 class BundleRoute {
     public path = '/bundles';

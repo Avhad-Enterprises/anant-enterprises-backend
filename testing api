@@ -1,3 +1,0 @@
-6. Get Product Bundles
-GET /api/products/:productId/bundles
-

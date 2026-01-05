@@ -18,12 +18,10 @@ import {
   findRolePermissions,
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
+import { uuidArraySchema } from '../../../utils/validation/common-schemas';
 
 const schema = z.object({
-  permission_ids: z
-    .array(z.string().uuid('Permission ID must be a valid UUID'))
-    .min(1, 'At least one permission ID is required')
-    .max(50, 'Cannot assign more than 50 permissions at once'),
+  permission_ids: uuidArraySchema(50),
 });
 
 type BulkAssignDto = z.infer<typeof schema>;

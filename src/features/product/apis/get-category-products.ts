@@ -14,10 +14,11 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
+import { optionalUuidSchema } from '../../../utils/validation/common-schemas';
 
 const querySchema = z.object({
     limit: z.coerce.number().int().min(1).max(50).default(6),
-    exclude: z.string().uuid().optional(),
+    exclude: optionalUuidSchema,
 });
 
 // Helper function to match category slug

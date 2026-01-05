@@ -9,10 +9,11 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { updatePassword } from '../services/supabase-auth.service';
+import { shortTextSchema } from '../../../utils/validation/common-schemas';
 
 const schema = z.object({
-  access_token: z.string().min(1, 'Access token is required'),
-  new_password: z.string().min(8, 'Password must be at least 8 characters long'),
+  access_token: shortTextSchema,
+  new_password: shortTextSchema,
 });
 
 type ResetPasswordDto = z.infer<typeof schema>;

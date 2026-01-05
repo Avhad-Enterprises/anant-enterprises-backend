@@ -9,7 +9,7 @@
  */
 
 import { db } from '../../../database';
-import { auditLogs } from '../shared/schema';
+import { auditLogs } from '../shared/audit-logs.schema';
 import { users } from '../../user';
 import { eq, and, desc, gte, lte, inArray, SQL } from 'drizzle-orm';
 import { logger } from '../../../utils';
@@ -20,7 +20,7 @@ import type {
   AuditLogFilters,
   AuditContext,
   AuditResourceType,
-} from '../shared/types';
+} from '../shared/interface';
 
 /**
  * Fields to exclude from audit logging (sensitive data)

@@ -7,7 +7,7 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { permissions } from '../../shared/schema';
+import { permissions } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('GET /api/rbac/permissions - Get All Permissions', () => {
@@ -30,7 +30,7 @@ describe('GET /api/rbac/permissions - Get All Permissions', () => {
     regularUserToken = uToken;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test permissions

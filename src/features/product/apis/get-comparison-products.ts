@@ -8,15 +8,16 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql, SQL } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
+import { commaSeparatedUuidsSchema, shortTextSchema } from '../../../utils/validation/common-schemas';
 
 const querySchema = z.object({
-    ids: z.string().optional(), // Comma-separated product IDs
-    category: z.string().optional(),
+    ids: commaSeparatedUuidsSchema(5).optional(), // Comma-separated product IDs, max 5
+    category: shortTextSchema.optional(),
     limit: z.coerce.number().int().min(1).max(5).default(5),
 });
 
@@ -28,7 +29,7 @@ interface ComparisonProduct {
     category_tier_1: string | null;
     short_description: string | null;
     rating: number;
-    specs: any;
+    specs: Record<string, unknown> | null;
     bestValue?: boolean;
     highlight?: string;
 }
@@ -36,16 +37,15 @@ interface ComparisonProduct {
 const handler = async (req: Request, res: Response) => {
     const { ids, category, limit } = querySchema.parse(req.query);
 
-    let conditions: any[] = [
+    let conditions: SQL[] = [
         eq(products.status, 'active'),
         eq(products.is_deleted, false),
     ];
 
     // Filter by IDs if provided
     if (ids) {
-        const productIds = ids.split(',').filter((id) => id.trim().length > 0);
-        if (productIds.length > 0) {
-            conditions.push(inArray(products.id, productIds));
+        if (ids.length > 0) {
+            conditions.push(inArray(products.id, ids));
         }
     }
 
@@ -89,7 +89,7 @@ const handler = async (req: Request, res: Response) => {
             category_tier_1: product.category_tier_1,
             short_description: product.short_description,
             rating: Number(product.rating) || 0,
-            specs: product.specs || {},
+            specs: product.specs as Record<string, unknown> | null,
         };
 
         // Add highlights for specific products

@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { eq, and, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
@@ -20,7 +20,7 @@ import { inventory } from '../../inventory/shared/inventory.schema';
 import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid product ID format'),
+    id: uuidSchema,
 });
 
 interface ProductDetailResponse {

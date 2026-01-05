@@ -8,13 +8,13 @@
 import { Router, Response, Request } from 'express';
 import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 
 // Query params validation
-const querySchema = z.object({
+const querySchema = paginationSchema.extend({
     // Admin filters
     status: z.enum(['draft', 'active', 'archived', 'schedule']).optional(),
     category_tier_1: z.string().optional(),
@@ -23,16 +23,12 @@ const querySchema = z.object({
     categories: z.string().optional(), // Comma-separated slugs
     technologies: z.string().optional(), // Comma-separated tech IDs (uses tags field)
     ratings: z.string().optional(), // Comma-separated min ratings
-    minPrice: z.coerce.number().min(0).default(0),
-    maxPrice: z.coerce.number().min(0).default(200000),
+    minPrice: z.preprocess((val) => (val ? Number(val) : 0), z.number().min(0)),
+    maxPrice: z.preprocess((val) => (val ? Number(val) : 200000), z.number().min(0)),
 
     // Sorting
     sort: z.enum(['newest', 'price-asc', 'price-desc', 'rating']).default('newest'),
-
-    // Pagination
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(50).default(6),
-});
+}).refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
 interface CollectionProduct {
     id: string;

@@ -12,8 +12,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
-import { HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
 import { sendInvitationEmail } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
@@ -23,10 +22,10 @@ import { findUserByEmail } from '../../user';
 import { ICreateInvitation, IInvitation } from '../shared/interface';
 
 const schema = z.object({
-  first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
-  last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
-  email: z.string().email('Invalid email format'),
-  assigned_role_id: z.string().uuid('Role ID must be a valid UUID'),
+  first_name: shortTextSchema,
+  last_name: shortTextSchema,
+  email: emailSchema,
+  assigned_role_id: uuidSchema,
 });
 
 type CreateInvitationDto = z.infer<typeof schema>;

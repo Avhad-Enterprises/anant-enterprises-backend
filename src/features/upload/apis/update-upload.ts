@@ -12,7 +12,7 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { uploads } from '../shared/schema';
+import { uploads } from '../shared/upload.schema';
 import { Upload, UploadUpdateInput, convertUpload } from '../shared/interface';
 import { findUploadById } from '../shared/queries';
 

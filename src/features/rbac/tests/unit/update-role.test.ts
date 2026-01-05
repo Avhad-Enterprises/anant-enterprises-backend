@@ -8,7 +8,7 @@ import app from '@tests/utils';
 import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles } from '../../shared/schema';
+import { roles } from '../../shared/rbac.schema';
 import { eq } from 'drizzle-orm';
 
 describe('PUT /api/rbac/roles/:roleId - Update Role', () => {
@@ -33,7 +33,7 @@ describe('PUT /api/rbac/roles/:roleId - Update Role', () => {
     systemRole = sysRole;
   });
 
-  afterAll(async () => {});
+  afterAll(async () => { });
 
   beforeEach(async () => {
     // Create test role

@@ -38,7 +38,7 @@ export default AuditRoute;
 export { auditService, AuditService } from './services/audit.service';
 
 // Shared resources - SAFE to export
-export { auditLogs, type AuditLog, type NewAuditLog } from './shared/schema';
+export { auditLogs, type AuditLog, type NewAuditLog } from './shared/audit-logs.schema';
 
 export {
   AuditAction,
@@ -47,7 +47,7 @@ export {
   type AuditLogFilters,
   type SanitizedAuditData,
   type AuditContext,
-} from './shared/types';
+} from './shared/interface';
 
 export {
   createAuditLog,

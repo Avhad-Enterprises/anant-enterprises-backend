@@ -11,17 +11,19 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, sql, desc, asc } from 'drizzle-orm';
 import { Request } from 'express';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, paginationSchema, uuidSchema } from '../../../utils';
+import { validationMiddleware } from '../../../middlewares';
 import { db } from '../../../database';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { users } from '../../user/shared/user.schema';
 
-
-const querySchema = z.object({
-    page: z.coerce.number().int().min(1).default(1),
-    limit: z.coerce.number().int().min(1).max(50).default(10),
-    sort: z.enum(['recent', 'helpful', 'rating_high', 'rating_low']).default('recent'),
+const paramsSchema = z.object({
+    productId: uuidSchema,
 });
+
+const querySchema = paginationSchema.extend({
+    sort: z.enum(['recent', 'helpful', 'rating_high', 'rating_low']).default('recent'),
+}).refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for reviews' });
 
 interface ProductReviewItem {
     // Review fields (backend names)
@@ -231,6 +233,7 @@ const handler = async (req: Request, res: Response) => {
 const router = Router();
 router.get(
     '/:productId/reviews',
+    validationMiddleware(paramsSchema, 'params'),
     handler
 );
 

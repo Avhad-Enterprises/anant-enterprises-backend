@@ -14,12 +14,12 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { collections } from '../shared/collection.schema';
+import { collections, COLLECTION_STATUSES, COLLECTION_TYPES } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
 
 const querySchema = z.object({
-    status: z.enum(['draft', 'active', 'inactive']).optional(),
-    type: z.enum(['manual', 'automated']).optional(),
+    status: z.enum(COLLECTION_STATUSES).optional(),
+    type: z.enum(COLLECTION_TYPES).optional(),
     search: z.string().optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),

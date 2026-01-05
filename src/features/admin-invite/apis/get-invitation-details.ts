@@ -17,7 +17,7 @@ import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 import { findInvitationByToken, updateInvitation } from '../shared/queries';
 import { db } from '../../../database';
-import { invitations } from '../shared/schema';
+import { invitations } from '../shared/admin-invite.schema';
 
 // Validation schema for query params
 const querySchema = z.object({

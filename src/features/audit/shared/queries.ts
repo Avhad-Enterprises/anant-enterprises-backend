@@ -5,7 +5,7 @@
  */
 
 import { auditService } from '../services/audit.service';
-import { AuditLogData, AuditLogFilters, AuditLog, AuditResourceType } from './types';
+import { AuditLogData, AuditLogFilters, AuditLog, AuditResourceType } from './interface';
 
 /**
  * Create an audit log entry

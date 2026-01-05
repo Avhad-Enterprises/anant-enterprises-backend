@@ -10,19 +10,16 @@ import { z } from 'zod';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, uuidSchema, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
 import { orderItems } from '../../orders/shared/order-items.schema';
 
 const paramsSchema = z.object({
-    userId: z.string().uuid('User ID must be a valid UUID'),
+    userId: uuidSchema,
 });
 
-const querySchema = z.object({
-    page: z.string().transform(Number).pipe(z.number().min(1)).optional().default(1),
-    limit: z.string().transform(Number).pipe(z.number().min(1).max(100)).optional().default(10),
-});
+const querySchema = paginationSchema;
 
 interface OrderItemResponse {
     name: string;

@@ -1,6 +1,6 @@
 import { eq, and, or, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
-import { uploads, type Upload as DrizzleUpload } from './schema';
+import { uploads, type Upload as DrizzleUpload } from './upload.schema';
 
 /**
  * Find upload by ID (excluding deleted uploads)

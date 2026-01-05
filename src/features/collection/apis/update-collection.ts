@@ -11,31 +11,27 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, uuidSchema, shortTextSchema, slugSchema, mediumTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const paramsSchema = z.object({
-    id: z.string().uuid('Invalid collection ID'),
+    id: uuidSchema,
 });
 
 const updateSchema = z.object({
-    title: z.string().min(1).max(255).optional(),
-    slug: z.string()
-        .min(1)
-        .max(255)
-        .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
-        .optional(),
-    description: z.string().optional().nullable(),
+    title: shortTextSchema.optional(),
+    slug: slugSchema.optional(),
+    description: mediumTextSchema.optional().nullable(),
     type: z.enum(['manual', 'automated']).optional(),
     status: z.enum(['draft', 'active', 'inactive']).optional(),
     sort_order: z.enum(['best-selling', 'price-asc', 'price-desc', 'manual', 'created-desc', 'created-asc']).optional(),
     banner_image_url: z.string().optional().nullable(),
     mobile_banner_image_url: z.string().optional().nullable(),
-    meta_title: z.string().max(255).optional().nullable(),
-    meta_description: z.string().optional().nullable(),
-    tags: z.array(z.string()).optional(),
+    meta_title: shortTextSchema.optional().nullable(),
+    meta_description: mediumTextSchema.optional().nullable(),
+    tags: z.array(shortTextSchema).optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
