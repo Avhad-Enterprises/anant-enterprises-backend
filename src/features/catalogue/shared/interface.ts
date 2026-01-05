@@ -19,9 +19,9 @@ export interface ICatalogue {
     valid_from: Date;
     valid_to: Date | null;
 
-    assigned_segments: Record<string, unknown>[]; // JSONB
-    assigned_roles: Record<string, unknown>[]; // JSONB
-    assigned_channels: Record<string, unknown>[]; // JSONB
+    assigned_segments: string[]; // JSONB - Array of Segment IDs
+    assigned_roles: string[]; // JSONB - Array of Role IDs
+    assigned_channels: string[]; // JSONB - e.g. ['pos', 'b2b']
 
     tier_level: string | null;
     tier_value: string | null;

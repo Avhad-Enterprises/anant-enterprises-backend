@@ -24,7 +24,7 @@ export interface IInventoryLocation {
     is_active: boolean;
     created_at: Date;
     updated_at: Date;
-    created_by?: number | null;
+    created_by?: string | null;
 }
 
 // ============================================
@@ -61,9 +61,9 @@ export interface IInventoryAdjustment {
     reference_number?: string | null;
     quantity_before: number;
     quantity_after: number;
-    adjusted_by: number;
+    adjusted_by: string;
     adjusted_at: Date;
-    approved_by?: number | null;
+    approved_by?: string | null;
     approved_at?: Date | null;
     approval_status: 'pending' | 'approved' | 'rejected';
     notes?: string | null;
@@ -91,8 +91,8 @@ export interface IProductionOrder {
     completion_percentage: number;
     estimated_hours?: string | null; // Decimal
     actual_hours?: string | null; // Decimal
-    assigned_to?: number | null;
-    created_by: number;
+    assigned_to?: string | null;
+    created_by: string;
     production_notes?: string | null;
     delay_reason?: string | null;
     created_at: Date;

@@ -28,10 +28,10 @@ import { userPaymentMethods } from '../src/features/user/shared/payment-methods.
 import { reviews } from '../src/features/reviews/shared/reviews.schema';
 import { productQuestions } from '../src/features/reviews/shared/product-questions.schema';
 import { products } from '../src/features/product/shared/product.schema';
-import { eq, like, inArray } from 'drizzle-orm';
+import { like, inArray } from 'drizzle-orm';
 
 // Test email domain for cleanup
-const TEST_EMAIL_SUFFIXES = ['@test.com', '@anantenterprises.test', '@techsolutions.test'];
+// const TEST_EMAIL_SUFFIXES = ['@test.com', '@anantenterprises.test', '@techsolutions.test'];
 
 async function seedUsersAndReviews() {
     console.log('🌱 Starting comprehensive User Ecosystem seed...\n');

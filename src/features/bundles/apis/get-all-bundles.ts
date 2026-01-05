@@ -13,9 +13,8 @@ export const getAllBundles = async (req: Request, res: Response, next: NextFunct
 
         // Build conditions
         const conditions = [eq(bundles.is_deleted, false)];
-        if (status) {
-            // Use type assertion if strictly typed, or just pass the string if compatible
-            conditions.push(eq(bundles.status, status as any));
+        if (status && ['draft', 'active', 'inactive', 'archived'].includes(status)) {
+            conditions.push(eq(bundles.status, status as 'draft' | 'active' | 'inactive' | 'archived'));
         }
 
         // Query

@@ -196,7 +196,7 @@ const handler = async (req: Request, res: Response) => {
         return {
             id: product.id,
             name: product.product_title,
-            tags: (product.tags as any) || [],
+            tags: (product.tags as string[]) || [],
             rating: Number(product.rating) || 0,
             reviews: Number(product.review_count) || 0,
             price: Number(product.selling_price),
@@ -204,7 +204,7 @@ const handler = async (req: Request, res: Response) => {
             image: product.primary_image_url,
             isNew: createdDate > thirtyDaysAgo,
             category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
-            technologies: ((product.tags as any) || []).map((tag: string) => tag.toLowerCase()),
+            technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
         };
     });
 

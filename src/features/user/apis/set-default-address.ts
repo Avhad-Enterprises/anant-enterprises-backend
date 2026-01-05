@@ -16,12 +16,11 @@ import { userAddresses } from '../shared/addresses.schema';
 
 const paramsSchema = z.object({
     userId: z.string().uuid('User ID must be a valid UUID'),
-    id: z.string().transform(Number).pipe(z.number().int().positive()),
+    id: z.string().uuid('Address ID must be a valid UUID'),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { userId, id } = req.params;
-    const addressId = Number(id);
+    const { userId, id: addressId } = req.params;
 
     // Check if address exists and belongs to user
     const [existingAddress] = await db
@@ -62,7 +61,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     ResponseFormatter.success(
         res,
-        { id, isDefault: true },
+        { id: addressId, isDefault: true },
         'Address set as default successfully'
     );
 };

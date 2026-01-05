@@ -16,7 +16,7 @@ import { userAddresses } from '../shared/addresses.schema';
 
 const paramsSchema = z.object({
     userId: z.string().uuid('User ID must be a valid UUID'),
-    id: z.string().transform(Number).pipe(z.number().int().positive()),
+    id: z.string().uuid('Address ID must be a valid UUID'),
 });
 
 const bodySchema = z.object({
@@ -43,8 +43,7 @@ const mapToBackendType = (type: 'Home' | 'Office' | 'Other'): 'billing' | 'shipp
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { userId, id } = req.params;
-    const addressId = Number(id);
+    const { userId, id: addressId } = req.params;
     const { type, name, phone, addressLine, city, state, pincode, isDefault } = req.body;
 
     // Check if address exists and belongs to user

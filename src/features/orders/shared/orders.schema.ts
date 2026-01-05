@@ -94,9 +94,9 @@ export const orders = pgTable(
             .references(() => carts.id, { onDelete: 'set null' }),
 
         // Addresses (CRITICAL FIX #1)
-        shipping_address_id: integer('shipping_address_id')
+        shipping_address_id: uuid('shipping_address_id')
             .references(() => userAddresses.id, { onDelete: 'set null' }),
-        billing_address_id: integer('billing_address_id')
+        billing_address_id: uuid('billing_address_id')
             .references(() => userAddresses.id, { onDelete: 'set null' }),
 
         // Source

@@ -54,12 +54,13 @@
   },
   "include": [
     "./src/**/*",
-    "./tests/**/*"
+    "!./tests/**/*"
   ],
   "exclude": [
     "node_modules",
     "build",
     "coverage",
-    "database-reference"
+    "database-reference",
+    "tests/**/*"
   ]
 }

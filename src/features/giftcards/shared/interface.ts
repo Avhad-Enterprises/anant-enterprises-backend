@@ -17,7 +17,7 @@ export interface IGiftCard {
     currency: string;
     status: 'active' | 'partially_used' | 'fully_redeemed' | 'expired' | 'suspended' | 'cancelled';
     is_active: boolean;
-    purchaser_user_id?: number | null;
+    purchaser_user_id?: string | null;
     recipient_email?: string | null;
     recipient_name?: string | null;
     personal_message?: string | null;
@@ -34,7 +34,7 @@ export interface IGiftCard {
     last_used_at?: Date | null;
     source: 'purchase' | 'promotion' | 'refund' | 'compensation' | 'bulk_import';
     source_order_id?: string | null; // UUID
-    issued_by_admin_id?: number | null;
+    issued_by_admin_id?: string | null;
     template_id?: string | null; // UUID
     batch_id?: string | null; // UUID
     redemption_count: number;
@@ -42,12 +42,12 @@ export interface IGiftCard {
     last_failed_attempt_at?: Date | null;
     is_locked: boolean;
     locked_reason?: string | null;
-    created_by?: number | null;
+    created_by?: string | null;
     created_at: Date;
     updated_at: Date;
     is_deleted: boolean;
     deleted_at?: Date | null;
-    deleted_by?: number | null;
+    deleted_by?: string | null;
 }
 
 // ============================================
@@ -63,8 +63,8 @@ export interface IGiftCardTransaction {
     balance_after: string; // Decimal
     order_id?: string | null; // UUID
     refund_id?: string | null; // UUID
-    performed_by_user_id?: number | null;
-    performed_by_admin_id?: number | null;
+    performed_by_user_id?: string | null;
+    performed_by_admin_id?: string | null;
     notes?: string | null;
     ip_address?: string | null;
     user_agent?: string | null;
@@ -95,7 +95,7 @@ export interface IGiftCardTemplate {
     card_design_url?: string | null;
     email_template_id?: string | null; // UUID
     is_active: boolean;
-    created_by?: number | null;
+    created_by?: string | null;
     created_at: Date;
     updated_at: Date;
     is_deleted: boolean;

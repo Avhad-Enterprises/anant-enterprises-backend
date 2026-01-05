@@ -13,7 +13,16 @@ export interface IOrder {
     order_number: string;
     user_id?: string | null;
     cart_id?: string | null; // UUID
+    
+    // Address References (Added from schema)
+    shipping_address_id?: string | null; // UUID
+    billing_address_id?: string | null; // UUID
+    
     channel: 'web' | 'app' | 'pos' | 'marketplace' | 'other';
+    
+    // Overall order status (Added from schema)
+    order_status?: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+    
     is_draft: boolean;
     payment_method?: string | null;
     payment_status: 'pending' | 'authorized' | 'partially_paid' | 'paid' | 'refunded' | 'failed' | 'partially_refunded';
@@ -22,6 +31,11 @@ export interface IOrder {
     paid_at?: Date | null;
     currency: string;
     subtotal: string; // Decimal
+    
+    // Discount References (Added from schema)
+    discount_id?: string | null; // UUID
+    discount_code_id?: string | null;
+    
     discount_type: 'percent' | 'amount' | 'none';
     discount_value: string; // Decimal
     discount_amount: string; // Decimal
@@ -34,6 +48,10 @@ export interface IOrder {
     partial_cod_charges: string; // Decimal
     advance_paid_amount: string; // Decimal
     cod_due_amount: string; // Decimal
+    
+    // Tax Rule Reference (Added from schema)
+    tax_rule_id?: string | null; // UUID
+    
     tax_amount: string; // Decimal
     cgst: string; // Decimal
     sgst: string; // Decimal
@@ -47,7 +65,7 @@ export interface IOrder {
     order_tracking?: string | null;
     customer_gstin?: string | null;
     is_international_order: boolean;
-    tags?: Record<string, unknown>[]; // JSONB
+    tags?: string[]; // JSONB - Array of tag strings
     customer_note?: string | null;
     admin_comment?: string | null;
     amz_order_id?: string | null;

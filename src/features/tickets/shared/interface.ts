@@ -5,6 +5,16 @@
  */
 
 // ============================================
+// ATTACHMENT
+// ============================================
+
+export interface IAttachment {
+    file_url: string;
+    type: 'image' | 'pdf' | 'document' | 'other';
+    filename?: string;
+}
+
+// ============================================
 // TICKET
 // ============================================
 
@@ -20,9 +30,9 @@ export interface ITicket {
     status: 'open' | 'pending' | 'waiting_customer' | 'resolved' | 'closed';
     channel: 'email' | 'chat' | 'whatsapp' | 'phone' | 'system';
     created_via: 'store' | 'email' | 'admin' | 'api';
-    tags?: Record<string, unknown>[]; // JSONB
+    tags?: string[]; // JSONB - Array of tag strings, e.g. ["refund","VIP"]
     notes?: string | null;
-    metadata?: Record<string, unknown>; // JSONB
+    metadata?: Record<string, unknown> | null; // JSONB - Flexible metadata object
     last_message_at: Date;
     first_response_at?: Date | null;
     resolved_at?: Date | null;
@@ -48,7 +58,7 @@ export interface ITicketMessage {
     sender_type: 'customer' | 'agent' | 'system' | 'note';
     sender_id?: string | null;
     message: string;
-    attachments?: Record<string, unknown>[]; // JSONB
+    attachments?: IAttachment[] | null; // JSONB - Array of attachment objects
     is_internal: boolean;
     created_at: Date;
     created_by: string;

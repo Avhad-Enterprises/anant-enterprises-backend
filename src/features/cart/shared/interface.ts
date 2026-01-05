@@ -19,8 +19,8 @@ export interface ICart {
     shipping_total: string; // Decimal
     tax_total: string; // Decimal
     grand_total: string; // Decimal
-    applied_discount_codes?: Record<string, unknown>[]; // JSONB
-    applied_giftcard_codes?: Record<string, unknown>[]; // JSONB
+    applied_discount_codes?: string[]; // JSONB - Array of discount codes
+    applied_giftcard_codes?: string[]; // JSONB - Array of giftcard codes
     cart_status: 'active' | 'converted' | 'abandoned';
     source: 'web' | 'app';
     last_activity_at: Date;

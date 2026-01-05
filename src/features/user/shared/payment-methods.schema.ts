@@ -14,7 +14,6 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   boolean,
   integer,
@@ -23,6 +22,7 @@ import {
   index,
   pgEnum,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 import { userAddresses } from './addresses.schema';
 
@@ -45,7 +45,7 @@ export const cardFundingEnum = pgEnum('card_funding', ['credit', 'debit', 'prepa
 export const userPaymentMethods = pgTable(
   'user_payment_methods',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
@@ -79,7 +79,7 @@ export const userPaymentMethods = pgTable(
     netbanking_bank_name: varchar('netbanking_bank_name', { length: 100 }), // Bank name
 
     // Billing address reference
-    billing_address_id: integer('billing_address_id').references(() => userAddresses.id, {
+    billing_address_id: uuid('billing_address_id').references(() => userAddresses.id, {
       onDelete: 'set null',
     }),
 

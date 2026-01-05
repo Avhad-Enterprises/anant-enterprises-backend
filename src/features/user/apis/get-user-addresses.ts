@@ -19,7 +19,7 @@ const paramsSchema = z.object({
 });
 
 interface AddressResponse {
-    id: number;
+    id: string; // UUID
     type: 'Home' | 'Office' | 'Other';
     name: string;
     phone: string;

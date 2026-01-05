@@ -12,7 +12,6 @@
 
 import {
   pgTable,
-  serial,
   varchar,
   text,
   boolean,
@@ -22,6 +21,7 @@ import {
   pgEnum,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -52,7 +52,7 @@ export const customerSegmentEnum = pgEnum('customer_segment', [
 export const customerProfiles = pgTable(
   'customer_profiles',
   {
-    id: serial('id').primaryKey(),
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
