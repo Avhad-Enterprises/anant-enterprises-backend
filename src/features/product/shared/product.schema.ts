@@ -16,9 +16,17 @@ import {
     pgEnum,
     index,
     check,
+    customType,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tiers } from '../../tiers/shared/tiers.schema';
+
+// Custom types
+const tsvector = customType<{ data: string }>({
+    dataType() {
+        return 'tsvector';
+    },
+});
 
 // ============================================
 // ENUMS
@@ -137,7 +145,7 @@ export const products = pgTable(
         // Search Optimization (Phase 3 - Batch 1)
         // Full-text search vector combining title, description, and brand
         // Enables fast, ranked search results with PostgreSQL text search
-        search_vector: text('search_vector')
+        search_vector: tsvector('search_vector')
             .generatedAlwaysAs(
                 sql`to_tsvector('english', 
                     COALESCE(product_title, '') || ' ' || 

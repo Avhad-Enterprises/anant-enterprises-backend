@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 CREATE TYPE "public"."blog_status" AS ENUM('public', 'private', 'draft');--> statement-breakpoint
 CREATE TYPE "public"."bundle_status" AS ENUM('draft', 'active', 'inactive', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."bundle_type" AS ENUM('fixed_price', 'percentage_discount');--> statement-breakpoint
@@ -61,7 +62,7 @@ CREATE TABLE "invitation" (
 	"email" varchar(255) NOT NULL,
 	"invite_token" varchar(64) NOT NULL,
 	"status" text DEFAULT 'pending' NOT NULL,
-	"assigned_role_id" integer,
+	"assigned_role_id" uuid,
 	"temp_password_encrypted" text,
 	"password_hash" varchar(255),
 	"verify_attempts" integer DEFAULT 0 NOT NULL,
@@ -180,7 +181,8 @@ CREATE TABLE "cart_items" (
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"is_deleted" boolean DEFAULT false NOT NULL,
-	"deleted_at" timestamp
+	"deleted_at" timestamp,
+	CONSTRAINT "cart_items_quantity_check" CHECK (quantity > 0)
 );
 --> statement-breakpoint
 CREATE TABLE "carts" (
@@ -398,7 +400,8 @@ CREATE TABLE "discounts" (
 	"is_deleted" boolean DEFAULT false NOT NULL,
 	"created_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "discounts_dates_check" CHECK (ends_at IS NULL OR ends_at > starts_at)
 );
 --> statement-breakpoint
 CREATE TABLE "faqs" (
@@ -558,7 +561,9 @@ CREATE TABLE "inventory" (
 	"last_counted_at" timestamp,
 	"next_count_due" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "inventory_available_qty_check" CHECK (available_quantity >= 0),
+	CONSTRAINT "inventory_reserved_qty_check" CHECK (reserved_quantity >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE "production_orders" (
@@ -602,7 +607,8 @@ CREATE TABLE "order_items" (
 	"quantity_cancelled" integer DEFAULT 0 NOT NULL,
 	"quantity_returned" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "order_items_quantity_check" CHECK (quantity > 0)
 );
 --> statement-breakpoint
 CREATE TABLE "orders" (
@@ -610,8 +616,8 @@ CREATE TABLE "orders" (
 	"order_number" varchar(40) NOT NULL,
 	"user_id" uuid,
 	"cart_id" uuid,
-	"shipping_address_id" integer,
-	"billing_address_id" integer,
+	"shipping_address_id" uuid,
+	"billing_address_id" uuid,
 	"channel" "order_channel" DEFAULT 'web' NOT NULL,
 	"order_status" "order_status" DEFAULT 'pending' NOT NULL,
 	"is_draft" boolean DEFAULT false NOT NULL,
@@ -712,10 +718,16 @@ CREATE TABLE "products" (
 	"breadth" numeric(8, 2),
 	"height" numeric(8, 2),
 	"pickup_location" varchar(100),
-	"category_tier_1" varchar(100),
-	"category_tier_2" varchar(100),
-	"category_tier_3" varchar(100),
-	"category_tier_4" varchar(100),
+	"category_tier_1" uuid,
+	"category_tier_2" uuid,
+	"category_tier_3" uuid,
+	"category_tier_4" uuid,
+	"brand_name" varchar(255),
+	"brand_slug" varchar(255),
+	"tags" jsonb DEFAULT '[]'::jsonb,
+	"highlights" jsonb DEFAULT '[]'::jsonb,
+	"features" jsonb DEFAULT '[]'::jsonb,
+	"specs" jsonb,
 	"size_group" varchar(100),
 	"accessories_group" varchar(100),
 	"primary_image_url" text,
@@ -733,12 +745,20 @@ CREATE TABLE "products" (
 	"is_deleted" boolean DEFAULT false NOT NULL,
 	"deleted_at" timestamp,
 	"deleted_by" uuid,
+	"search_vector" "tsvector" GENERATED ALWAYS AS (to_tsvector('english', 
+                    COALESCE(product_title, '') || ' ' || 
+                    COALESCE(short_description, '') || ' ' || 
+                    COALESCE(brand_name, '')
+                )) STORED,
 	CONSTRAINT "products_slug_unique" UNIQUE("slug"),
-	CONSTRAINT "products_sku_unique" UNIQUE("sku")
+	CONSTRAINT "products_sku_unique" UNIQUE("sku"),
+	CONSTRAINT "products_cost_price_check" CHECK (cost_price >= 0),
+	CONSTRAINT "products_selling_price_check" CHECK (selling_price >= 0),
+	CONSTRAINT "products_compare_at_price_check" CHECK (compare_at_price IS NULL OR compare_at_price >= selling_price)
 );
 --> statement-breakpoint
 CREATE TABLE "permissions" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(100) NOT NULL,
 	"resource" varchar(50) NOT NULL,
 	"action" varchar(50) NOT NULL,
@@ -748,15 +768,15 @@ CREATE TABLE "permissions" (
 );
 --> statement-breakpoint
 CREATE TABLE "role_permissions" (
-	"role_id" integer NOT NULL,
-	"permission_id" integer NOT NULL,
+	"role_id" uuid NOT NULL,
+	"permission_id" uuid NOT NULL,
 	"assigned_by" uuid,
 	"assigned_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "role_permissions_role_id_permission_id_pk" PRIMARY KEY("role_id","permission_id")
 );
 --> statement-breakpoint
 CREATE TABLE "roles" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(50) NOT NULL,
 	"description" text,
 	"is_system_role" boolean DEFAULT false NOT NULL,
@@ -773,7 +793,7 @@ CREATE TABLE "roles" (
 --> statement-breakpoint
 CREATE TABLE "user_roles" (
 	"user_id" uuid NOT NULL,
-	"role_id" integer NOT NULL,
+	"role_id" uuid NOT NULL,
 	"assigned_by" uuid,
 	"assigned_at" timestamp DEFAULT now() NOT NULL,
 	"expires_at" timestamp,
@@ -808,11 +828,12 @@ CREATE TABLE "reviews" (
 	"helpful_votes" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	"is_deleted" boolean DEFAULT false NOT NULL
+	"is_deleted" boolean DEFAULT false NOT NULL,
+	CONSTRAINT "reviews_rating_check" CHECK (rating >= 1 AND rating <= 5)
 );
 --> statement-breakpoint
 CREATE TABLE "currencies" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"code" varchar(3) NOT NULL,
 	"name" varchar(100) NOT NULL,
 	"symbol" varchar(10) NOT NULL,
@@ -830,7 +851,7 @@ CREATE TABLE "currencies" (
 );
 --> statement-breakpoint
 CREATE TABLE "countries" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"code" varchar(2) NOT NULL,
 	"code_alpha3" varchar(3) NOT NULL,
 	"name" varchar(100) NOT NULL,
@@ -845,7 +866,7 @@ CREATE TABLE "countries" (
 );
 --> statement-breakpoint
 CREATE TABLE "regions" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"country_code" varchar(2) NOT NULL,
 	"code" varchar(10) NOT NULL,
 	"name" varchar(100) NOT NULL,
@@ -854,7 +875,7 @@ CREATE TABLE "regions" (
 );
 --> statement-breakpoint
 CREATE TABLE "tax_rules" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"country_code" varchar(2) NOT NULL,
 	"region_code" varchar(10),
 	"postal_code_pattern" varchar(20),
@@ -985,7 +1006,7 @@ CREATE TABLE "uploads" (
 );
 --> statement-breakpoint
 CREATE TABLE "user_addresses" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"address_type" "address_type" DEFAULT 'shipping' NOT NULL,
 	"is_default" boolean DEFAULT false NOT NULL,
@@ -1011,7 +1032,7 @@ CREATE TABLE "user_addresses" (
 );
 --> statement-breakpoint
 CREATE TABLE "admin_profiles" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"employee_id" varchar(50),
 	"department" varchar(100),
@@ -1025,7 +1046,7 @@ CREATE TABLE "admin_profiles" (
 );
 --> statement-breakpoint
 CREATE TABLE "business_customer_profiles" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"business_type" "business_type" NOT NULL,
 	"company_legal_name" varchar(255) NOT NULL,
@@ -1039,8 +1060,8 @@ CREATE TABLE "business_customer_profiles" (
 	"business_email" varchar(255) NOT NULL,
 	"business_phone" varchar(20),
 	"business_phone_country_code" varchar(5),
-	"billing_address_id" integer,
-	"shipping_address_id" integer,
+	"billing_address_id" uuid,
+	"shipping_address_id" uuid,
 	"payment_terms" "payment_terms" DEFAULT 'immediate' NOT NULL,
 	"credit_limit" numeric(12, 2) DEFAULT '0.00' NOT NULL,
 	"credit_used" numeric(12, 2) DEFAULT '0.00' NOT NULL,
@@ -1061,7 +1082,7 @@ CREATE TABLE "business_customer_profiles" (
 );
 --> statement-breakpoint
 CREATE TABLE "customer_profiles" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"segment" "customer_segment" DEFAULT 'new' NOT NULL,
 	"store_credit_balance" numeric(12, 2) DEFAULT '0.00' NOT NULL,
@@ -1083,7 +1104,7 @@ CREATE TABLE "customer_profiles" (
 );
 --> statement-breakpoint
 CREATE TABLE "customer_statistics" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"total_orders" integer DEFAULT 0 NOT NULL,
 	"completed_orders" integer DEFAULT 0 NOT NULL,
@@ -1107,7 +1128,7 @@ CREATE TABLE "customer_statistics" (
 );
 --> statement-breakpoint
 CREATE TABLE "user_payment_methods" (
-	"id" serial PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"payment_type" "payment_type" NOT NULL,
 	"is_default" boolean DEFAULT false NOT NULL,
@@ -1125,7 +1146,7 @@ CREATE TABLE "user_payment_methods" (
 	"wallet_type" varchar(50),
 	"netbanking_bank_code" varchar(20),
 	"netbanking_bank_name" varchar(100),
-	"billing_address_id" integer,
+	"billing_address_id" uuid,
 	"is_verified" boolean DEFAULT false NOT NULL,
 	"verified_at" timestamp,
 	"last_used_at" timestamp,
@@ -1141,6 +1162,8 @@ CREATE TABLE "users" (
 	"name" varchar(255) NOT NULL,
 	"email" varchar(255) NOT NULL,
 	"password" varchar(255),
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"email_verified_at" timestamp,
 	"phone_number" varchar(20),
 	"phone_country_code" varchar(5),
 	"phone_verified" boolean DEFAULT false NOT NULL,
@@ -1240,11 +1263,16 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_shipping_address_id_user_addresses_i
 ALTER TABLE "orders" ADD CONSTRAINT "orders_billing_address_id_user_addresses_id_fk" FOREIGN KEY ("billing_address_id") REFERENCES "public"."user_addresses"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_discount_id_discounts_id_fk" FOREIGN KEY ("discount_id") REFERENCES "public"."discounts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_discount_code_id_discount_codes_code_fk" FOREIGN KEY ("discount_code_id") REFERENCES "public"."discount_codes"("code") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "orders" ADD CONSTRAINT "orders_tax_rule_id_tax_rules_id_fk" FOREIGN KEY ("tax_rule_id") REFERENCES "public"."tax_rules"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_deleted_by_users_id_fk" FOREIGN KEY ("deleted_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_faqs" ADD CONSTRAINT "product_faqs_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_variants" ADD CONSTRAINT "product_variants_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_category_tier_1_tiers_id_fk" FOREIGN KEY ("category_tier_1") REFERENCES "public"."tiers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_category_tier_2_tiers_id_fk" FOREIGN KEY ("category_tier_2") REFERENCES "public"."tiers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_category_tier_3_tiers_id_fk" FOREIGN KEY ("category_tier_3") REFERENCES "public"."tiers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_category_tier_4_tiers_id_fk" FOREIGN KEY ("category_tier_4") REFERENCES "public"."tiers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "public"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_permission_id_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "public"."permissions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "role_permissions" ADD CONSTRAINT "role_permissions_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -1385,6 +1413,12 @@ CREATE INDEX "products_slug_idx" ON "products" USING btree ("slug");--> statemen
 CREATE INDEX "products_sku_idx" ON "products" USING btree ("sku");--> statement-breakpoint
 CREATE INDEX "products_status_idx" ON "products" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "products_category_idx" ON "products" USING btree ("category_tier_1","category_tier_2");--> statement-breakpoint
+CREATE INDEX "products_search_vector_idx" ON "products" USING gin ("search_vector");--> statement-breakpoint
+CREATE INDEX "products_title_trgm_idx" ON "products" USING gin ("product_title" gin_trgm_ops);--> statement-breakpoint
+CREATE INDEX "products_tags_idx" ON "products" USING gin ("tags");--> statement-breakpoint
+CREATE INDEX "products_price_idx" ON "products" USING btree ("selling_price");--> statement-breakpoint
+CREATE INDEX "products_category_price_status_idx" ON "products" USING btree ("category_tier_1","selling_price","status","is_deleted");--> statement-breakpoint
+CREATE INDEX "products_is_deleted_idx" ON "products" USING btree ("is_deleted");--> statement-breakpoint
 CREATE INDEX "permissions_resource_idx" ON "permissions" USING btree ("resource");--> statement-breakpoint
 CREATE INDEX "permissions_resource_action_idx" ON "permissions" USING btree ("resource","action");--> statement-breakpoint
 CREATE INDEX "role_permissions_role_id_idx" ON "role_permissions" USING btree ("role_id");--> statement-breakpoint
@@ -1454,6 +1488,7 @@ CREATE INDEX "users_email_is_deleted_idx" ON "users" USING btree ("email","is_de
 CREATE INDEX "users_created_at_idx" ON "users" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "users_auth_id_idx" ON "users" USING btree ("auth_id");--> statement-breakpoint
 CREATE INDEX "users_user_type_idx" ON "users" USING btree ("user_type","is_deleted");--> statement-breakpoint
+CREATE INDEX "users_email_verified_idx" ON "users" USING btree ("email_verified","is_deleted");--> statement-breakpoint
 CREATE INDEX "wishlist_items_product_id_idx" ON "wishlist_items" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "wishlists_user_id_idx" ON "wishlists" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "wishlists_access_token_idx" ON "wishlists" USING btree ("access_token");
