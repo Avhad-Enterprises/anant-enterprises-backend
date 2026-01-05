@@ -35,7 +35,7 @@ interface CartItemResponse {
 }
 
 interface CartResponse {
-    id: string;
+    id: string | null;
     currency: string;
     subtotal: string;
     discount_total: string;

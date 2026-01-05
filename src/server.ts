@@ -11,6 +11,7 @@ import RBACRoute from './features/rbac';
 import AuditRoute from './features/audit';
 import BundleRoute from './features/bundles';
 import CartRoute from './features/cart';
+import WishlistRoute from './features/wishlist';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -48,7 +49,8 @@ async function bootstrap() {
       new RBACRoute(),
       new AuditRoute(), // Audit admin endpoints
       new BundleRoute(),
-      new CartRoute(),  // Cart endpoints
+      new CartRoute(),      // Cart endpoints
+      new WishlistRoute(),  // Wishlist endpoints
     ]);
 
     server = app.listen();
