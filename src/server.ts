@@ -12,6 +12,8 @@ import AuditRoute from './features/audit';
 import BundleRoute from './features/bundles';
 import CartRoute from './features/cart';
 import WishlistRoute from './features/wishlist';
+import OrdersRoute from './features/orders';
+import ReviewRoute from './features/reviews';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -51,6 +53,8 @@ async function bootstrap() {
       new BundleRoute(),
       new CartRoute(),      // Cart endpoints
       new WishlistRoute(),  // Wishlist endpoints
+      new OrdersRoute(),    // Orders endpoints
+      new ReviewRoute(),    // Reviews endpoints
     ]);
 
     server = app.listen();
