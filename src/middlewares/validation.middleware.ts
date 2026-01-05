@@ -66,3 +66,4 @@ const validationMiddleware = (
 };
 
 export default validationMiddleware;
+

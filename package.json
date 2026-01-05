@@ -97,6 +97,7 @@
     "nodemailer": "^7.0.12",
     "pdfjs-dist": "^5.4.530",
     "pg": "^8.16.3",
+    "rate-limit-redis": "^4.3.1",
     "redis": "^5.10.0",
     "uuid": "^13.0.0",
     "winston": "^3.17.0",

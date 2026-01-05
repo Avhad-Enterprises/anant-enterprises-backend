@@ -7,7 +7,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { bundles, BUNDLE_STATUSES } from '../shared/bundles.schema';
