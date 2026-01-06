@@ -24,15 +24,17 @@ class CartRoute implements Route {
         const { default: removeCartItemRouter } = await import('./apis/remove-cart-item');
         const { default: clearCartRouter } = await import('./apis/clear-cart');
         const { default: validateCartRouter } = await import('./apis/validate-cart');
+        const { default: mergeCartRouter } = await import('./apis/merge-cart');
 
         // Register routes
         // CRITICAL: Register specific routes BEFORE parameterized routes
-        this.router.use(this.path, validateCartRouter);     // POST /cart/validate
-        this.router.use(this.path, addToCartRouter);        // POST /cart/items
-        this.router.use(this.path, updateCartItemRouter);   // PUT /cart/items/:id
-        this.router.use(this.path, removeCartItemRouter);   // DELETE /cart/items/:id
-        this.router.use(this.path, getCartRouter);          // GET /cart
-        this.router.use(this.path, clearCartRouter);        // DELETE /cart
+        this.router.use(this.path, mergeCartRouter);         // POST /cart/merge
+        this.router.use(this.path, validateCartRouter);      // POST /cart/validate
+        this.router.use(this.path, addToCartRouter);         // POST /cart/items
+        this.router.use(this.path, updateCartItemRouter);    // PUT /cart/items/:id
+        this.router.use(this.path, removeCartItemRouter);    // DELETE /cart/items/:id
+        this.router.use(this.path, getCartRouter);           // GET /cart
+        this.router.use(this.path, clearCartRouter);         // DELETE /cart
     }
 }
 

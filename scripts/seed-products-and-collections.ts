@@ -15,7 +15,9 @@ import { products } from '../src/features/product/shared/product.schema';
 import { collections } from '../src/features/collection/shared/collection.schema';
 import { collectionProducts } from '../src/features/collection/shared/collection-products.schema';
 import { tiers } from '../src/features/tiers/shared/tiers.schema';
-import { like, inArray } from 'drizzle-orm';
+import { inventoryLocations } from '../src/features/inventory/shared/inventory-locations.schema';
+import { inventory } from '../src/features/inventory/shared/inventory.schema';
+import { like, inArray, eq } from 'drizzle-orm';
 
 // ============================================
 // SEED DATA DEFINITIONS
@@ -418,9 +420,62 @@ async function seedData() {
     const productMap = new Map(insertedProducts.map(p => [p.sku, p]));
 
     // ============================================
-    // STEP 4: INSERT 5 COLLECTIONS
+    // STEP 4: INSERT INVENTORY LOCATION
     // ============================================
-    console.log('🗂️  Step 4: Inserting 5 Collections...');
+    console.log('📍 Step 4: Inserting Inventory Location...');
+
+    // Cleanup old inventory location
+    await db.delete(inventoryLocations).where(eq(inventoryLocations.location_code, 'WH-MAIN-01'));
+
+    // Insert main warehouse location
+    const [mainWarehouse] = await db.insert(inventoryLocations).values({
+        location_code: 'WH-MAIN-01',
+        name: 'Main Warehouse',
+        type: 'warehouse',
+        address: '123 Industrial Area, Sector 5',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        country: 'India',
+        postal_code: '400001',
+        contact_person: 'John Doe',
+        phone_number: '+91-9876543210',
+        email: 'warehouse@anantenterprises.com',
+        is_active: true,
+    }).returning();
+
+    console.log(`   ✅ Inserted warehouse: ${mainWarehouse.name} (ID: ${mainWarehouse.id})\n`);
+
+    // ============================================
+    // STEP 5: INSERT INVENTORY FOR ALL PRODUCTS
+    // ============================================
+    console.log('📦 Step 5: Inserting Inventory for all products...');
+
+    // Cleanup old inventory records for our test products
+    const productIds = insertedProducts.map(p => p.id);
+    await db.delete(inventory).where(inArray(inventory.product_id, productIds));
+
+    // Define inventory data for each product
+    const inventoryData = insertedProducts
+        .filter(p => p.status === 'active') // Only add inventory for active products
+        .map(product => ({
+            product_id: product.id,
+            location_id: mainWarehouse.id,
+            product_name: product.product_title,
+            sku: product.sku,
+            required_quantity: 100, // Reorder point
+            available_quantity: 50 + Math.floor(Math.random() * 150), // 50-200 units
+            reserved_quantity: 0,
+            status: 'Enough Stock' as const,
+            location: mainWarehouse.name,
+        }));
+
+    await db.insert(inventory).values(inventoryData);
+    console.log(`   ✅ Inserted inventory for ${inventoryData.length} products\n`);
+
+    // ============================================
+    // STEP 6: INSERT 5 COLLECTIONS
+    // ============================================
+    console.log('🗂️  Step 6: Inserting 5 Collections...');
 
     const collectionData = [
         {
@@ -490,9 +545,9 @@ async function seedData() {
     const collectionMap = new Map(insertedCollections.map(c => [c.slug, c]));
 
     // ============================================
-    // STEP 5: LINK PRODUCTS TO COLLECTIONS
+    // STEP 7: LINK PRODUCTS TO COLLECTIONS
     // ============================================
-    console.log('🔗 Step 5: Linking Products to Collections...');
+    console.log('🔗 Step 7: Linking Products to Collections...');
 
     const collectionProductLinks = [
         // Best Sellers (5 products)
@@ -544,14 +599,20 @@ async function seedData() {
     console.log('\n📊 Summary:');
     console.log(`   • Tiers (Categories): 6`);
     console.log(`   • Products: 15 (12 active, 1 draft, 1 archived, 1 scheduled)`);
+    console.log(`   • Inventory Location: 1 (Main Warehouse)`);
+    console.log(`   • Inventory Records: ${inventoryData.length} (active products only)`);
     console.log(`   • Collections: 5 (4 active, 1 draft)`);
     console.log(`   • Collection-Product Links: ${collectionProductData.length}`);
     console.log('\n🔑 Product Statuses:');
     console.log('   • Active: AP-RO-500, AP-RO-300, PF-UV-PRO, PF-UV-LITE, COMM-RO-1000, COMM-RO-2000');
     console.log('   • Active: ACC-FC-10, ACC-FC-20, SP-RO-100, SP-RO-50, AP-COMBO-01, LE-GOLD-01');
-    console.log('   • Draft: DRAFT-001');
-    console.log('   • Archived: ARCH-001');
-    console.log('   • Scheduled: SCHED-001');
+    console.log('   • Draft: DRAFT-001 (no inventory)');
+    console.log('   • Archived: ARCH-001 (no inventory)');
+    console.log('   • Scheduled: SCHED-001 (no inventory)');
+    console.log('\n📦 Inventory Stock Levels:');
+    inventoryData.forEach(inv => {
+        console.log(`   • ${inv.sku}: ${inv.available_quantity} units`);
+    });
     console.log('\n📁 Collections:');
     insertedCollections.forEach(c => {
         console.log(`   • ${c.title} (${c.slug}) - ${c.status}`);
@@ -560,6 +621,7 @@ async function seedData() {
     console.log('   curl http://localhost:8000/api/products');
     console.log('   curl http://localhost:8000/api/collections');
     console.log('   curl http://localhost:8000/api/collections/best-sellers/products');
+    console.log('   curl -X POST http://localhost:8000/api/cart/items -d \'{"product_id":"<uuid>","quantity":1}\'');
 
     process.exit(0);
 }

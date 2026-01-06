@@ -212,7 +212,9 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, response, 'Cart retrieved successfully');
 };
 
+import { optionalAuth } from '../../../middlewares/auth.middleware';
+
 const router = Router();
-router.get('/', handler);
+router.get('/', optionalAuth, handler);
 
 export default router;
