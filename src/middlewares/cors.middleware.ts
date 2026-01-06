@@ -49,7 +49,7 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction):
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Session-ID'],
     maxAge: 86400, // 24 hours
     optionsSuccessStatus: 200, // Some legacy browsers choke on 204
   });

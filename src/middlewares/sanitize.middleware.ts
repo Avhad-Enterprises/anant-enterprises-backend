@@ -96,23 +96,12 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
 
     // Sanitize query parameters (GET requests with user input)
     if (req.query && typeof req.query === 'object') {
-        const sanitizedQuery = sanitizeValue(req.query) as typeof req.query;
-        try {
-            req.query = sanitizedQuery;
-        } catch (error) {
-            // In Express 5 or some environments, req.query is a getter-only property.
-            // We try to redefine it.
-            try {
-                Object.defineProperty(req, 'query', {
-                    value: sanitizedQuery,
-                    writable: true,
-                    enumerable: true,
-                    configurable: true,
-                });
-            } catch (defineError) {
-                logger.warn('Could not sanitize req.query - property is read-only', { error: defineError });
-            }
-        }
+        const sanitized = sanitizeValue(req.query);
+        // Mutate existing query object instead of reassigning to avoid setter error
+        Object.keys(req.query).forEach(key => {
+            delete (req.query as any)[key];
+        });
+        Object.assign(req.query, sanitized);
     }
 
     next();

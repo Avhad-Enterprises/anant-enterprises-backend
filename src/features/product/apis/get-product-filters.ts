@@ -115,33 +115,53 @@ const handler = async (req: Request, res: Response) => {
         ORDER BY value DESC
     `);
 
-  const ratings: RatingOption[] = (ratingsData.rows as unknown as RatingRow[]).map(row => ({
-    value: row.value,
-    count: Number(row.count),
-  }));
+    const ratings: RatingOption[] = (ratingsData.rows as any[]).map(row => ({
+        value: row.value,
+        count: Number(row.count),
+    }));
 
-  // 4. Get price range
-  const [priceRangeData] = await db
-    .select({
-      min: sql<number>`MIN(${products.selling_price}::numeric)`,
-      max: sql<number>`MAX(${products.selling_price}::numeric)`,
-    })
-    .from(products)
-    .where(activeProductsCondition);
+    // 4. Get price range
+    const [priceRangeData] = await db
+        .select({
+            min: sql<number>`MIN(${products.selling_price}::numeric)`,
+            max: sql<number>`MAX(${products.selling_price}::numeric)`,
+        })
+        .from(products)
+        .where(activeProductsCondition);
 
-  const priceRange: PriceRange = {
-    min: Math.floor(Number(priceRangeData?.min) || 0),
-    max: Math.ceil(Number(priceRangeData?.max) || 200000),
-  };
+    const priceRange: PriceRange = {
+        min: Math.floor(Number(priceRangeData?.min) || 0),
+        max: Math.ceil(Number(priceRangeData?.max) || 200000),
+    };
 
-  const filterOptions: FilterOptions = {
-    categories,
-    technologies,
-    ratings,
-    priceRange,
-  };
+    // 5. Get in-stock count (products with inventory > 0)
+    const stockCountData = await db.execute(sql`
+        SELECT COUNT(DISTINCT p.id) AS in_stock_count
+        FROM ${products} p
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE p.status = 'active' 
+          AND p.is_deleted = false
+          AND (i.available_quantity - COALESCE(i.reserved_quantity, 0)) > 0
+    `);
 
-  return ResponseFormatter.success(res, filterOptions, 'Filter options retrieved successfully');
+    const inStockCount = Number((stockCountData.rows[0] as any)?.in_stock_count) || 0;
+
+    const stockFilter = {
+        inStock: {
+            label: 'In Stock',
+            count: inStockCount,
+        },
+    };
+
+    const filterOptions = {
+        categories,
+        technologies,
+        ratings,
+        priceRange,
+        stockFilter,
+    };
+
+    return ResponseFormatter.success(res, filterOptions, 'Filter options retrieved successfully');
 };
 
 const router = Router();
