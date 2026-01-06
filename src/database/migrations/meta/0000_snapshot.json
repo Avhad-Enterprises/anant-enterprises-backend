@@ -1,5 +1,5 @@
 {
-  "id": "fe4f46bd-f91d-42ec-ad6d-7c3687f97d38",
+  "id": "b8cda75e-939b-474b-a0ea-0e069d5f03e2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -6664,21 +6664,6 @@
               "expression": "search_vector",
               "isExpression": false,
               "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
-        },
-        "products_title_trgm_idx": {
-          "name": "products_title_trgm_idx",
-          "columns": [
-            {
-              "expression": "\"product_title\" gin_trgm_ops",
-              "asc": true,
-              "isExpression": true,
               "nulls": "last"
             }
           ],

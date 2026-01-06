@@ -289,7 +289,7 @@ describe('User Roles API - GET/POST/DELETE', () => {
       const response = await request(app)
         .post(`/api/rbac/users/${regularUserId}/roles`)
         .set('Authorization', `Bearer ${superadminToken}`)
-        .send({ role_id: 99999 });
+        .send({ role_id: '00000000-0000-0000-0000-000000000000' });
 
       expect(response.status).toBe(404);
       expect(response.body.error?.message || response.body.message).toContain('Role not found');

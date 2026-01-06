@@ -1,6 +1,6 @@
 /**
  * Common Validation Schemas
- * 
+ *
  * Reusable Zod validation schemas for consistent API validation across the application.
  * Use these schemas to ensure uniform validation patterns and error messages.
  */
@@ -38,11 +38,11 @@ export const nullableUuidSchema = z.string().uuid('Invalid UUID format').nullabl
  */
 export const paginationSchema = z.object({
   page: z.preprocess(
-    (val) => (val ? Number(val) : 1),
+    val => (val ? Number(val) : 1),
     z.number().int().min(1, 'Page must be at least 1')
   ),
   limit: z.preprocess(
-    (val) => (val ? Number(val) : 20),
+    val => (val ? Number(val) : 20),
     z.number().int().min(1, 'Limit must be at least 1').max(100, 'Limit must not exceed 100')
   ),
 });
@@ -52,7 +52,7 @@ export const paginationSchema = z.object({
  */
 export const offsetPaginationSchema = paginationSchema.extend({
   offset: z.preprocess(
-    (val) => (val ? Number(val) : 0),
+    val => (val ? Number(val) : 0),
     z.number().int().min(0, 'Offset must be non-negative')
   ),
 });
@@ -86,28 +86,16 @@ export const searchWithPaginationSchema = searchSchema.merge(paginationSchema);
  */
 export const decimalSchema = z
   .string()
-  .regex(
-    /^\d+(\.\d{1,2})?$/,
-    'Must be a valid decimal with up to 2 decimal places'
-  )
-  .refine(
-    val => parseFloat(val) >= 0,
-    'Must be a non-negative value'
-  );
+  .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid decimal with up to 2 decimal places')
+  .refine(val => parseFloat(val) >= 0, 'Must be a non-negative value');
 
 /**
  * Positive decimal (must be greater than 0)
  */
 export const positiveDecimalSchema = z
   .string()
-  .regex(
-    /^\d+(\.\d{1,2})?$/,
-    'Must be a valid decimal with up to 2 decimal places'
-  )
-  .refine(
-    val => parseFloat(val) > 0,
-    'Must be a positive value greater than 0'
-  );
+  .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid decimal with up to 2 decimal places')
+  .refine(val => parseFloat(val) > 0, 'Must be a positive value greater than 0');
 
 /**
  * Optional decimal schema
@@ -124,10 +112,7 @@ export const nullableDecimalSchema = decimalSchema.nullable();
  */
 export const percentageSchema = z
   .string()
-  .regex(
-    /^\d+(\.\d{1,2})?$/,
-    'Must be a valid percentage with up to 2 decimal places'
-  )
+  .regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid percentage with up to 2 decimal places')
   .refine(
     val => parseFloat(val) >= 0 && parseFloat(val) <= 100,
     'Percentage must be between 0 and 100'
@@ -140,9 +125,7 @@ export const percentageSchema = z
 /**
  * ISO 8601 date string validation
  */
-export const dateStringSchema = z
-  .string()
-  .datetime('Must be a valid ISO 8601 date string');
+export const dateStringSchema = z.string().datetime('Must be a valid ISO 8601 date string');
 
 /**
  * Date range validation (start and end dates)
@@ -194,24 +177,16 @@ export const uuidArraySchema = (maxLength: number = ARRAY_LIMITS.IDS) =>
  * Optional array of UUIDs
  */
 export const optionalUuidArraySchema = (maxLength: number = ARRAY_LIMITS.IDS) =>
-  z
-    .array(uuidSchema)
-    .max(maxLength, `Maximum ${maxLength} items allowed`)
-    .optional();
+  z.array(uuidSchema).max(maxLength, `Maximum ${maxLength} items allowed`).optional();
 
 /**
  * Array of strings with size and length limits
  * @param maxItems Maximum number of items
  * @param maxItemLength Maximum length of each string item
  */
-export const stringArraySchema = (
-  maxItems: number = 50,
-  maxItemLength: number = 100
-) =>
+export const stringArraySchema = (maxItems: number = 50, maxItemLength: number = 100) =>
   z
-    .array(
-      z.string().max(maxItemLength, `Each item must be at most ${maxItemLength} characters`)
-    )
+    .array(z.string().max(maxItemLength, `Each item must be at most ${maxItemLength} characters`))
     .max(maxItems, `Maximum ${maxItems} items allowed`);
 
 // ============================================
@@ -249,10 +224,7 @@ export const jsonbSizeValidator = (maxSize: number = JSONB_LIMITS.MEDIUM) =>
 /**
  * Email validation
  */
-export const emailSchema = z
-  .string()
-  .email('Invalid email format')
-  .max(255, 'Email too long');
+export const emailSchema = z.string().email('Invalid email format').max(255, 'Email too long');
 
 /**
  * Phone number validation (flexible format)
@@ -277,24 +249,17 @@ export const optionalPhoneSchema = phoneSchema.optional();
 /**
  * Short text (e.g., names, titles)
  */
-export const shortTextSchema = z
-  .string()
-  .min(1, 'Required')
-  .max(255, 'Maximum 255 characters');
+export const shortTextSchema = z.string().min(1, 'Required').max(255, 'Maximum 255 characters');
 
 /**
  * Medium text (e.g., descriptions)
  */
-export const mediumTextSchema = z
-  .string()
-  .max(1000, 'Maximum 1000 characters');
+export const mediumTextSchema = z.string().max(1000, 'Maximum 1000 characters');
 
 /**
  * Long text (e.g., content, articles)
  */
-export const longTextSchema = z
-  .string()
-  .max(10000, 'Maximum 10000 characters');
+export const longTextSchema = z.string().max(10000, 'Maximum 10000 characters');
 
 /**
  * Slug validation (URL-friendly strings)
@@ -354,14 +319,12 @@ export const ratingSchema = z
  * String to boolean conversion
  * Accepts: "true", "false", "1", "0", "yes", "no"
  */
-export const stringBooleanSchema = z
-  .string()
-  .transform(val => {
-    const lower = val.toLowerCase();
-    if (lower === 'true' || lower === '1' || lower === 'yes') return true;
-    if (lower === 'false' || lower === '0' || lower === 'no') return false;
-    throw new Error('Invalid boolean value');
-  });
+export const stringBooleanSchema = z.string().transform(val => {
+  const lower = val.toLowerCase();
+  if (lower === 'true' || lower === '1' || lower === 'yes') return true;
+  if (lower === 'false' || lower === '0' || lower === 'no') return false;
+  throw new Error('Invalid boolean value');
+});
 
 // ============================================
 // STATUS VALIDATION
@@ -389,11 +352,7 @@ export const commaSeparatedUuidsSchema = (maxItems: number = 100) =>
   z
     .string()
     .transform(val => val.split(',').filter(Boolean))
-    .pipe(
-      z
-        .array(uuidSchema)
-        .max(maxItems, `Maximum ${maxItems} items allowed`)
-    );
+    .pipe(z.array(uuidSchema).max(maxItems, `Maximum ${maxItems} items allowed`));
 
 /**
  * Creates a schema for query parameter that's a comma-separated list of strings
@@ -402,9 +361,7 @@ export const commaSeparatedStringsSchema = (maxItems: number = 50) =>
   z
     .string()
     .transform(val => val.split(',').filter(Boolean))
-    .pipe(
-      z.array(z.string()).max(maxItems, `Maximum ${maxItems} items allowed`)
-    );
+    .pipe(z.array(z.string()).max(maxItems, `Maximum ${maxItems} items allowed`));
 
 // ============================================
 // EXPORT TYPES

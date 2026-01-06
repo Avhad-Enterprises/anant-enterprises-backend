@@ -11,20 +11,20 @@
 
 export interface IUser {
   id: string;
-  auth_id?: string;
+  auth_id?: string | null;
   user_type: 'individual' | 'business';
   name: string;
   email: string;
   password?: string;
   email_verified: boolean;
-  email_verified_at?: Date;
+  email_verified_at?: Date | null;
   phone_number?: string;
   phone_country_code?: string;
   phone_verified: boolean;
-  phone_verified_at?: Date;
+  phone_verified_at?: Date | null;
   profile_image_url?: string;
   date_of_birth?: string;
-  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
   preferred_language: string;
   preferred_currency: string;
   timezone: string;
@@ -34,7 +34,7 @@ export interface IUser {
   updated_at: Date;
   is_deleted: boolean;
   deleted_by?: string | null;
-  deleted_at?: Date;
+  deleted_at?: Date | null;
 }
 
 // ============================================

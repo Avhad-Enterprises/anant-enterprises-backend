@@ -10,7 +10,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { sql, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
@@ -54,9 +54,10 @@ async function handleGetInvitationDetails(token: string): Promise<InvitationDeta
   }
 
   // Increment verification attempts (do this early to count even failed attempts)
+  const newAttempts = (invitation.verify_attempts || 0) + 1;
   await db
     .update(invitations)
-    .set({ verify_attempts: sql`${invitations.verify_attempts} + 1` })
+    .set({ verify_attempts: newAttempts })
     .where(eq(invitations.id, invitation.id));
 
   if (invitation.status !== 'pending') {

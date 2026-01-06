@@ -34,10 +34,10 @@ jest.mock('../../../../utils', () => ({
 import { AuditService } from '../../services/audit.service';
 import { db } from '../../../../database';
 import { logger } from '../../../../utils';
-import { AuditAction, AuditResourceType } from '../../shared/types';
+import { AuditAction, AuditResourceType } from '../../shared/interface';
 
-// Type the mocked db
-const mockDb = db as jest.Mocked<typeof db>;
+// Type the mocked db as any to bypass Drizzle typing issues
+const mockDb = db as any;
 
 describe('AuditService', () => {
   let auditService: AuditService;
@@ -71,7 +71,7 @@ describe('AuditService', () => {
       await auditService.log(auditData);
 
       expect(mockDb.insert).toHaveBeenCalled();
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: '1',
           user_email: 'admin@example.com',
@@ -100,7 +100,7 @@ describe('AuditService', () => {
       await auditService.log(auditData);
 
       expect(mockDb.insert).toHaveBeenCalled();
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: null,
           action: AuditAction.SYSTEM_CONFIG,
@@ -130,7 +130,7 @@ describe('AuditService', () => {
 
       await auditService.log(auditData);
 
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           old_values: {
             name: 'John Doe',
@@ -161,7 +161,7 @@ describe('AuditService', () => {
 
       await auditService.log(auditData, context);
 
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: '42',
           ip_address: '192.168.1.100',
@@ -181,7 +181,7 @@ describe('AuditService', () => {
 
       await auditService.log(auditData);
 
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           resource_id: '456',
         })
@@ -275,9 +275,11 @@ describe('AuditService', () => {
 
       expect(result).toEqual(expectedTransformedLogs);
       expect(mockDb.select).toHaveBeenCalled();
-      expect(mockDb.where).toHaveBeenCalled();
-      expect(mockDb.orderBy).toHaveBeenCalled();
-      expect(mockDb.limit).toHaveBeenCalledWith(50);
+      const selectResult = mockDb.select.mock.results[0].value;
+      const fromResult = selectResult.from.mock.results[0].value;
+      expect(fromResult.where).toHaveBeenCalled();
+      expect(fromResult.orderBy).toHaveBeenCalled();
+      expect(fromResult.limit).toHaveBeenCalledWith(50);
     });
 
     it('should handle errors gracefully and return empty array', async () => {
@@ -472,7 +474,7 @@ describe('AuditService', () => {
         newValues: sensitiveData,
       });
 
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           new_values: {
             name: 'Test User',
@@ -506,7 +508,7 @@ describe('AuditService', () => {
         newValues: nestedData,
       });
 
-      expect(mockDb.values).toHaveBeenCalledWith(
+      expect((mockDb as any).values).toHaveBeenCalledWith(
         expect.objectContaining({
           new_values: {
             user: {

@@ -8,7 +8,8 @@ import { z } from 'zod';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter, paginationSchema } from '../../../utils';
+import { ResponseFormatter } from '../../../utils';
+import { paginationSchema } from '../../../utils/validation/common-schemas';
 import { db } from '../../../database';
 import { bundles, BUNDLE_STATUSES } from '../shared/bundles.schema';
 
@@ -29,16 +30,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // Query
     const [bundlesList, countResult] = await Promise.all([
-        db.select()
+        db
+            .select()
             .from(bundles)
             .where(and(...conditions))
             .limit(limit)
             .offset(offset)
             .orderBy(desc(bundles.created_at)),
 
-        db.select({ count: sql<number>`count(*)` })
+        db
+            .select({ count: sql<number>`count(*)` })
             .from(bundles)
-            .where(and(...conditions))
+            .where(and(...conditions)),
     ]);
 
     const total = Number(countResult[0]?.count || 0);
@@ -52,10 +55,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.get(
-    '/',
-    validationMiddleware(querySchema, 'query'),
-    handler
-);
+router.get('/', validationMiddleware(querySchema, 'query'), handler);
 
 export default router;

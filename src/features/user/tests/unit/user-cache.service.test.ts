@@ -33,17 +33,23 @@ describe('UserCacheService', () => {
 
   const mockUser = {
     id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
+    user_type: 'individual',
     name: 'Test User',
+    email: 'test@example.com',
     password: 'hashedpassword',
+    email_verified: true,
     phone_number: '1234567890',
+    phone_verified: false,
+    preferred_language: 'en',
+    preferred_currency: 'USD',
+    timezone: 'UTC',
     is_deleted: false,
     created_at: new Date('2025-12-22T14:48:47.607Z'),
     updated_at: new Date('2025-12-22T14:48:47.607Z'),
     created_by: null,
     updated_by: null,
-    deleted_by: null,
-    deleted_at: null,
+    deleted_by: undefined,
+    deleted_at: undefined,
   };
 
   beforeEach(() => {
@@ -65,7 +71,9 @@ describe('UserCacheService', () => {
       const result = await cacheService.getUserById('123e4567-e89b-12d3-a456-426614174000');
 
       expect(result).toEqual(cachedUser);
-      expect(mockRedisClient.get).toHaveBeenCalledWith('user:id:123e4567-e89b-12d3-a456-426614174000');
+      expect(mockRedisClient.get).toHaveBeenCalledWith(
+        'user:id:123e4567-e89b-12d3-a456-426614174000'
+      );
     });
 
     it('should handle Redis errors gracefully and fall back', async () => {
@@ -73,7 +81,9 @@ describe('UserCacheService', () => {
       mockRedisClient.get.mockRejectedValue(new Error('Redis error'));
 
       // Should not throw - will fall back to memory/database
-      await expect(cacheService.getUserById('123e4567-e89b-12d3-a456-426614174000')).resolves.not.toThrow();
+      await expect(
+        cacheService.getUserById('123e4567-e89b-12d3-a456-426614174000')
+      ).resolves.not.toThrow();
     });
   });
 
@@ -124,14 +134,19 @@ describe('UserCacheService', () => {
       mockIsRedisReady.mockReturnValue(false);
 
       // Should not throw
-      await expect(cacheService.invalidateUser('123e4567-e89b-12d3-a456-426614174000', 'test@example.com')).resolves.not.toThrow();
+      await expect(
+        cacheService.invalidateUser('123e4567-e89b-12d3-a456-426614174000', 'test@example.com')
+      ).resolves.not.toThrow();
     });
   });
 
   describe('invalidateAll', () => {
     it('should clear all user caches from Redis', async () => {
       mockIsRedisReady.mockReturnValue(true);
-      mockRedisClient.keys.mockResolvedValue(['user:id:123e4567-e89b-12d3-a456-426614174000', 'user:id:123e4567-e89b-12d3-a456-426614174001']);
+      mockRedisClient.keys.mockResolvedValue([
+        'user:id:123e4567-e89b-12d3-a456-426614174000',
+        'user:id:123e4567-e89b-12d3-a456-426614174001',
+      ]);
       mockRedisClient.del.mockResolvedValue(2);
 
       await cacheService.invalidateAll();
@@ -152,7 +167,10 @@ describe('UserCacheService', () => {
   describe('getCacheStats', () => {
     it('should return cache statistics', async () => {
       mockIsRedisReady.mockReturnValue(true);
-      mockRedisClient.keys.mockResolvedValue(['user:id:123e4567-e89b-12d3-a456-426614174000', 'user:id:123e4567-e89b-12d3-a456-426614174001']);
+      mockRedisClient.keys.mockResolvedValue([
+        'user:id:123e4567-e89b-12d3-a456-426614174000',
+        'user:id:123e4567-e89b-12d3-a456-426614174001',
+      ]);
 
       const stats = await cacheService.getCacheStats();
 

@@ -13,56 +13,67 @@ import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 
 interface FilterOption {
-    id: string;
-    label: string;
-    count: number;
+  id: string;
+  label: string;
+  count: number;
 }
 
 interface RatingOption {
-    value: string;
-    count: number;
+  value: string;
+  count: number;
+}
+
+interface TechnologyRow {
+  id: string;
+  label: string;
+  count: string;
+}
+
+interface RatingRow {
+  value: string;
+  count: string;
 }
 
 interface PriceRange {
-    min: number;
-    max: number;
+  min: number;
+  max: number;
 }
 
 interface FilterOptions {
-    categories: FilterOption[];
-    technologies: FilterOption[];
-    ratings: RatingOption[];
-    priceRange: PriceRange;
+  categories: FilterOption[];
+  technologies: FilterOption[];
+  ratings: RatingOption[];
+  priceRange: PriceRange;
 }
 
 const handler = async (req: Request, res: Response) => {
-    // Get active, non-deleted products only
-    const activeProductsCondition = and(
-        eq(products.status, 'active'),
-        eq(products.is_deleted, false)
-    );
+  // Get active, non-deleted products only
+  const activeProductsCondition = and(
+    eq(products.status, 'active'),
+    eq(products.is_deleted, false)
+  );
 
-    // 1. Get categories with counts
-    const categoriesData = await db
-        .select({
-            category: products.category_tier_1,
-            count: sql<number>`COUNT(*)`,
-        })
-        .from(products)
-        .where(activeProductsCondition)
-        .groupBy(products.category_tier_1)
-        .orderBy(sql`COUNT(*) DESC`);
+  // 1. Get categories with counts
+  const categoriesData = await db
+    .select({
+      category: products.category_tier_1,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(products)
+    .where(activeProductsCondition)
+    .groupBy(products.category_tier_1)
+    .orderBy(sql`COUNT(*) DESC`);
 
-    const categories: FilterOption[] = categoriesData
-        .filter(c => c.category)
-        .map(c => ({
-            id: c.category!.toLowerCase().replace(/\s+/g, '-'),
-            label: c.category!,
-            count: Number(c.count),
-        }));
+  const categories: FilterOption[] = categoriesData
+    .filter(c => c.category)
+    .map(c => ({
+      id: c.category!.toLowerCase().replace(/\s+/g, '-'),
+      label: c.category!,
+      count: Number(c.count),
+    }));
 
-    // 2. Get technologies from tags field (JSONB array)
-    const technologiesData = await db.execute(sql`
+  // 2. Get technologies from tags field (JSONB array)
+  const technologiesData = await db.execute(sql`
         SELECT 
             LOWER(tag) AS id,
             tag AS label,
@@ -75,14 +86,16 @@ const handler = async (req: Request, res: Response) => {
         ORDER BY count DESC
     `);
 
-    const technologies: FilterOption[] = (technologiesData.rows as any[]).map(row => ({
-        id: row.id,
-        label: row.label,
-        count: Number(row.count),
-    }));
+  const technologies: FilterOption[] = (technologiesData.rows as unknown as TechnologyRow[]).map(
+    row => ({
+      id: row.id,
+      label: row.label,
+      count: Number(row.count),
+    })
+  );
 
-    // 3. Get rating distribution
-    const ratingsData = await db.execute(sql`
+  // 3. Get rating distribution
+  const ratingsData = await db.execute(sql`
         SELECT 
             FLOOR(avg_rating)::text AS value,
             COUNT(*) AS count

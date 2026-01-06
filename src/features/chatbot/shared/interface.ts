@@ -4,7 +4,11 @@
  * TypeScript interfaces for the chatbot feature.
  */
 
-import { DocumentStatus, MessageRole, MessageSource as SchemaMessageSource } from './chatbot.schema';
+import {
+  DocumentStatus,
+  MessageRole,
+  MessageSource as SchemaMessageSource,
+} from './chatbot.schema';
 
 // Re-export MessageSource from schema
 export type MessageSource = SchemaMessageSource;

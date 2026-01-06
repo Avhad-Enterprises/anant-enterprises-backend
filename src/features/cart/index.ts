@@ -12,9 +12,9 @@ class CartRoute implements Route {
     public path = '/cart';
     public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
     private async initializeRoutes() {
         // Dynamic imports to avoid circular dependency

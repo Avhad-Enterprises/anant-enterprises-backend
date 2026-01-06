@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 
 describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permissions', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let regularUserToken: string;
   let testRole: any;
   let testPermissions: any[] = [];
@@ -114,7 +114,7 @@ describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permission
   describe('Validation Errors', () => {
     it('should reject non-existent role ID', async () => {
       const response = await request(app)
-        .post('/api/rbac/roles/99999/permissions/bulk')
+        .post('/api/rbac/roles/00000000-0000-0000-0000-000000000000/permissions/bulk')
         .set('Authorization', `Bearer ${superadminToken}`)
         .send({ permission_ids: [testPermissions[0].id] });
 
@@ -132,7 +132,7 @@ describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permission
     });
 
     it('should reject more than 50 permissions', async () => {
-      const tooManyIds = Array.from({ length: 51 }, (_, i) => i + 1);
+      const tooManyIds = Array.from({ length: 51 }, (_, i) => '00000000-0000-0000-0000-0000000000' + (i + 10).toString());
 
       const response = await request(app)
         .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
@@ -164,7 +164,7 @@ describe('POST /api/rbac/roles/:roleId/permissions/bulk - Bulk Assign Permission
       const response = await request(app)
         .post(`/api/rbac/roles/${testRole.id}/permissions/bulk`)
         .set('Authorization', `Bearer ${superadminToken}`)
-        .send({ permission_ids: [99999, 99998] });
+        .send({ permission_ids: ['123e4567-e89b-12d3-a456-426614174000', '123e4567-e89b-12d3-a456-426614174001'] });
 
       expect(response.status).toBe(400);
       expect(response.body.error?.message || response.body.message).toContain(

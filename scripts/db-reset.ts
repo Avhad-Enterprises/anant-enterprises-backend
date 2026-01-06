@@ -13,7 +13,7 @@ import { getDatabaseUrl, getMaskedDatabaseUrl } from '../src/utils';
  * 2. Drop all ENUM types
  * 3. Drop all sequences
  * 4. Clean the database completely
- * 
+ *
  * Usage: ts-node scripts/db-reset.ts
  */
 async function resetDatabase() {
@@ -115,7 +115,6 @@ async function resetDatabase() {
     logger.info('   - Cleared all STORAGE schema data (Supabase Storage buckets, objects)');
     logger.info('   - Dropped all ENUMs and sequences');
     logger.info('💡 Run "npm run db:generate && npm run db:migrate" to recreate the schema');
-
   } catch (error) {
     logger.error('❌ Database reset failed:', error);
     throw error;

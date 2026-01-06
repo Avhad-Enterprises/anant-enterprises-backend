@@ -34,9 +34,9 @@ collection/
 
 ### Public Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/collections/:slug` | GET | Get collection by slug |
+| Endpoint                 | Method | Description            |
+| ------------------------ | ------ | ---------------------- |
+| `/api/collections/:slug` | GET    | Get collection by slug |
 
 ---
 
@@ -47,12 +47,14 @@ collection/
 **Purpose**: Provides caching layer for collection data to reduce database load.
 
 **Features**:
+
 - Redis caching with in-memory fallback
 - 1-hour cache TTL
 - Cache by ID and slug
 - Automatic cache invalidation on updates
 
 **Usage**:
+
 ```typescript
 import { collectionCacheService } from './services/collection-cache.service';
 
@@ -94,25 +96,26 @@ const sanitized = sanitizeCollection(collection);
 
 ### Collections Table
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Primary key |
-| `title` | VARCHAR(255) | Collection name |
-| `slug` | VARCHAR(255) | URL-friendly identifier (unique) |
-| `description` | TEXT | Rich text description |
-| `type` | ENUM | manual \| automated |
-| `status` | ENUM | active \| inactive \| draft |
-| `sort_order` | ENUM | Sort method for products |
-| `banner_image_url` | TEXT | Desktop banner image |
-| `mobile_banner_image_url` | TEXT | Mobile banner image |
-| `meta_title` | VARCHAR(255) | SEO title |
-| `meta_description` | TEXT | SEO description |
-| `tags` | JSONB | Internal tags |
-| `created_by` | UUID | Creator reference |
-| `created_at` | TIMESTAMP | Creation time |
-| `updated_at` | TIMESTAMP | Last update |
+| Field                     | Type         | Description                      |
+| ------------------------- | ------------ | -------------------------------- |
+| `id`                      | UUID         | Primary key                      |
+| `title`                   | VARCHAR(255) | Collection name                  |
+| `slug`                    | VARCHAR(255) | URL-friendly identifier (unique) |
+| `description`             | TEXT         | Rich text description            |
+| `type`                    | ENUM         | manual \| automated              |
+| `status`                  | ENUM         | active \| inactive \| draft      |
+| `sort_order`              | ENUM         | Sort method for products         |
+| `banner_image_url`        | TEXT         | Desktop banner image             |
+| `mobile_banner_image_url` | TEXT         | Mobile banner image              |
+| `meta_title`              | VARCHAR(255) | SEO title                        |
+| `meta_description`        | TEXT         | SEO description                  |
+| `tags`                    | JSONB        | Internal tags                    |
+| `created_by`              | UUID         | Creator reference                |
+| `created_at`              | TIMESTAMP    | Creation time                    |
+| `updated_at`              | TIMESTAMP    | Last update                      |
 
 **Indexes**:
+
 - `slug` (unique)
 - `status`
 - `type`
@@ -144,6 +147,7 @@ npm test -- queries.test.ts
 ### Adding a New API Endpoint
 
 1. Create file in `apis/` directory:
+
 ```typescript
 // apis/my-new-endpoint.ts
 import { Router, Response, Request } from 'express';
@@ -152,6 +156,7 @@ export default router;
 ```
 
 2. Register in `index.ts`:
+
 ```typescript
 const { default: myNewEndpointRouter } = await import('./apis/my-new-endpoint');
 this.router.use(this.path, myNewEndpointRouter);

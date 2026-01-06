@@ -5,16 +5,16 @@
 import { Router } from 'express';
 
 class InventoryRoute {
-    public path = '/inventory';
-    public router = Router();
+  public path = '/inventory';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private initializeRoutes() {
-        // API routes will be defined later
-    }
+  private initializeRoutes() {
+    // API routes will be defined later
+  }
 }
 
 export default InventoryRoute;

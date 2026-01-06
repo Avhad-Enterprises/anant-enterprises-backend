@@ -4,7 +4,7 @@
  */
 
 import { auditService } from '../../services/audit.service';
-import { AuditAction, AuditResourceType } from '../../shared/types';
+import { AuditAction, AuditResourceType } from '../../shared/interface';
 
 // Mock the audit service
 jest.mock('../../services/audit.service');

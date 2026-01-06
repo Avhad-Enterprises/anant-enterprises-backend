@@ -5,7 +5,6 @@
 
 import request from 'supertest';
 import app from '@tests/utils';
-import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles } from '../../shared/rbac.schema';
@@ -14,19 +13,19 @@ import { eq } from 'drizzle-orm';
 describe('POST /api/rbac/roles - Create Role', () => {
   let superadminToken: string;
   let regularUserToken: string;
-  let testRoleIds: number[] = [];
+  let testRoleIds: string[] = [];
 
   beforeAll(async () => {
     await SupabaseAuthHelper.seedRBACData();
 
-    const { token, userId } = await SupabaseAuthHelper.createTestSuperadminUser();
+    const { token } = await SupabaseAuthHelper.createTestSuperadminUser();
     superadminToken = token;
 
     const { token: uToken } = await SupabaseAuthHelper.createTestUserWithToken();
     regularUserToken = uToken;
   });
 
-  afterAll(async () => { });
+  afterAll(async () => {});
 
   afterEach(async () => {
     // Clean up test roles

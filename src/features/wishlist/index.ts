@@ -12,9 +12,9 @@ class WishlistRoute implements Route {
     public path = '/wishlist';
     public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
     private async initializeRoutes() {
         // Dynamic imports to avoid circular dependency

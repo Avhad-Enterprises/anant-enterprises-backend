@@ -120,7 +120,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     first_name: 'John',
     last_name: 'Doe',
     email: 'john.doe@example.com',
-    assigned_role_id: 2,
+    assigned_role_id: '550e8400-e29b-41d4-a716-446655440001',
   };
 
   const mockCreatedInvitation: Invitation = {
@@ -130,7 +130,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
     email: 'john.doe@example.com',
     invite_token: 'a'.repeat(64),
     status: 'pending',
-    assigned_role_id: 2,
+    assigned_role_id: '550e8400-e29b-41d4-a716-446655440001',
     temp_password_encrypted: null, // NEW: No temp password
     password_hash: '', // NEW: Empty
     verify_attempts: 0,
@@ -276,7 +276,7 @@ describe('Create Invitation Business Logic (New Flow)', () => {
       await handleCreateInvitation(mockInvitationData, 1);
 
       expect(mockInviteQueries.createInvitation).toHaveBeenCalledWith(
-        expect.objectContaining({ assigned_role_id: 2 })
+        expect.objectContaining({ assigned_role_id: expect.any(String) })
       );
     });
   });

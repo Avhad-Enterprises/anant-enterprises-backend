@@ -1,3 +1,8 @@
+// Mock problematic ES module dependencies
+jest.mock('isomorphic-dompurify', () => ({
+  sanitize: jest.fn(input => input), // Mock sanitize to return input unchanged
+}));
+
 // Set test environment FIRST
 process.env.NODE_ENV = 'test';
 

@@ -21,7 +21,7 @@ const generateTestEmail = (prefix: string = 'test') =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
 
 // Helper to get role ID by name
-async function getRoleId(roleName: string): Promise<number> {
+async function getRoleId(roleName: string): Promise<string> {
   const [role] = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1);
   if (!role) throw new Error(`Role '${roleName}' not found`);
   return role.id;
@@ -31,11 +31,11 @@ describe('Admin Invite API Integration Tests', () => {
   let app: Application;
   let apiHelper: ApiTestHelper;
   let adminToken: string;
-  let adminUserId: number;
+  let adminUserId: string;
   let regularUserToken: string;
-  let userRoleId: number;
-  let adminRoleId: number;
-  let superadminRoleId: number;
+  let userRoleId: string;
+  let adminRoleId: string;
+  let superadminRoleId: string;
 
   beforeAll(async () => {
     const adminInviteRoute = new AdminInviteRoute();
@@ -227,42 +227,42 @@ describe('Admin Invite API Integration Tests', () => {
       const acceptedEmail = generateTestEmail('jane-accepted');
       const expiredEmail = generateTestEmail('bob-expired');
 
-      await db.insert(invitations).values([
-        {
-          first_name: 'John',
-          last_name: 'Doe',
-          email: pendingEmail,
-          invite_token: generateInviteToken(),
-          status: 'pending',
-          assigned_role_id: userRoleId,
-          password_hash: hashedPassword,
-          invited_by: adminUserId,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        },
-        {
-          first_name: 'Jane',
-          last_name: 'Smith',
-          email: acceptedEmail,
-          invite_token: generateInviteToken(),
-          status: 'accepted',
-          assigned_role_id: adminRoleId,
-          password_hash: hashedPassword,
-          invited_by: adminUserId,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          accepted_at: new Date(),
-        },
-        {
-          first_name: 'Bob',
-          last_name: 'Wilson',
-          email: expiredEmail,
-          invite_token: generateInviteToken(),
-          status: 'expired',
-          assigned_role_id: superadminRoleId,
-          password_hash: hashedPassword,
-          invited_by: adminUserId,
-          expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000),
-        },
-      ]);
+      await db.insert(invitations).values({
+        first_name: 'John',
+        last_name: 'Doe',
+        email: pendingEmail,
+        invite_token: generateInviteToken(),
+        status: 'pending',
+        assigned_role_id: userRoleId,
+        password_hash: hashedPassword,
+        invited_by: adminUserId,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+
+      await db.insert(invitations).values({
+        first_name: 'Jane',
+        last_name: 'Smith',
+        email: acceptedEmail,
+        invite_token: generateInviteToken(),
+        status: 'accepted',
+        assigned_role_id: adminRoleId,
+        password_hash: hashedPassword,
+        invited_by: adminUserId,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        accepted_at: new Date(),
+      });
+
+      await db.insert(invitations).values({
+        first_name: 'Bob',
+        last_name: 'Wilson',
+        email: expiredEmail,
+        invite_token: generateInviteToken(),
+        status: 'expired',
+        assigned_role_id: superadminRoleId,
+        password_hash: hashedPassword,
+        invited_by: adminUserId,
+        expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      });
     });
 
     it('should get all invitations for admin', async () => {

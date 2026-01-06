@@ -38,15 +38,21 @@ const validationMiddleware = (
 
       // Replace the request property with the validated and sanitized data
       // Use Object.defineProperty for query/params as they might be readonly
-      if (target === 'query' || target === 'params') {
+      // Attempt to assign the validated data back to the request object
+      try {
+        // Attempt to redefine the property if it exists
         Object.defineProperty(req, target, {
           value: result.data,
           writable: true,
           enumerable: true,
           configurable: true,
         });
-      } else {
-        req[target] = result.data;
+      } catch (error) {
+        // Fallback for environments where properties are strictly read-only or non-configurable
+        // Log the warning but allow the request to proceed with original (unvalidated but checked) data
+        // attached to a new property for manual retrieval if needed
+        logger.warn(`Could not overwrite req.${target} with validated data`, { error });
+        (req as any)[`validated_${target}`] = result.data;
       }
 
       next();
@@ -66,4 +72,3 @@ const validationMiddleware = (
 };
 
 export default validationMiddleware;
-

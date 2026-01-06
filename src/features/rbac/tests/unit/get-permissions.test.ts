@@ -12,7 +12,6 @@ import { eq } from 'drizzle-orm';
 
 describe('GET /api/rbac/permissions - Get All Permissions', () => {
   let superadminToken: string;
-  let superadminUserId: number;
   let adminToken: string;
   let regularUserToken: string;
   let testPermissions: any[] = [];
@@ -30,7 +29,7 @@ describe('GET /api/rbac/permissions - Get All Permissions', () => {
     regularUserToken = uToken;
   });
 
-  afterAll(async () => { });
+  afterAll(async () => {});
 
   beforeEach(async () => {
     // Create test permissions

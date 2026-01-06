@@ -9,7 +9,6 @@
  */
 
 import { Application } from 'express';
-import { sql } from 'drizzle-orm';
 import App from '../../../../app';
 import ChatbotRoute from '../../index';
 import AuthRoute from '../../../auth';
@@ -51,21 +50,16 @@ describe('Chatbot API Integration Tests', () => {
     // Invalidate cache
     await chatbotCacheService.invalidateAll();
 
-    // Clean up tables
-    await db.execute(sql`TRUNCATE TABLE user_roles CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE role_permissions CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE permissions CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE roles CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE chatbot_messages CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE chatbot_sessions CASCADE`);
-    await db.execute(sql`TRUNCATE TABLE chatbot_documents CASCADE`);
+    // Clean up RBAC tables explicitly efficiently
+    const pool = dbHelper.getPool();
+    await pool.query('TRUNCATE TABLE user_roles CASCADE');
+    await pool.query('TRUNCATE TABLE role_permissions CASCADE');
+    await pool.query('TRUNCATE TABLE permissions CASCADE');
+    await pool.query('TRUNCATE TABLE roles CASCADE');
+
+    // Core cleanup
     await dbHelper.cleanup();
     await dbHelper.resetSequences();
-
-    // Reset sequences
-    await db.execute(sql`ALTER SEQUENCE chatbot_documents_id_seq RESTART WITH 1`);
-    await db.execute(sql`ALTER SEQUENCE chatbot_sessions_id_seq RESTART WITH 1`);
-    await db.execute(sql`ALTER SEQUENCE chatbot_messages_id_seq RESTART WITH 1`);
 
     // Create admin user
     const { token: aToken, userId: aId } = await SupabaseAuthHelper.createTestAdminUser();

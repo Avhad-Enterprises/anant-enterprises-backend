@@ -5,7 +5,6 @@
 
 import request from 'supertest';
 import app from '@tests/utils';
-import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles } from '../../shared/rbac.schema';
@@ -13,7 +12,7 @@ import { eq } from 'drizzle-orm';
 
 describe('PUT /api/rbac/roles/:roleId - Update Role', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let regularUserToken: string;
   let testRole: any;
   let systemRole: any;
@@ -135,7 +134,7 @@ describe('PUT /api/rbac/roles/:roleId - Update Role', () => {
   describe('Validation Errors', () => {
     it('should reject non-existent role ID', async () => {
       const response = await request(app)
-        .put('/api/rbac/roles/99999')
+        .put('/api/rbac/roles/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${superadminToken}`)
         .send({ name: 'new_name' });
 

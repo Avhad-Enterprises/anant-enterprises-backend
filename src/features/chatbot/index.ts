@@ -7,6 +7,7 @@
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
+import { logger } from '../../utils';
 
 // Import API routers
 
@@ -63,7 +64,7 @@ class ChatbotRoute implements Route {
       this.router.use(this.path, deleteSessionRouter); // DELETE /chatbot/sessions/:id
     } catch (error) {
       // In test environment, routes might not be available or might fail
-      console.warn('Chatbot routes initialization failed in test environment:', error);
+      logger.warn('Chatbot routes initialization failed in test environment', { error });
     }
   }
 

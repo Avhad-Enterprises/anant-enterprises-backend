@@ -12,9 +12,9 @@ class ReviewRoute implements Route {
     public path = '/reviews';
     public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
     private async initializeRoutes() {
         // Dynamic imports to avoid circular dependency

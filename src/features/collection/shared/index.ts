@@ -17,4 +17,3 @@ export * from './queries';
 
 // Sanitization utilities
 export * from './sanitizeCollection';
-

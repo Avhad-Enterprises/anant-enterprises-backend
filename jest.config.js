@@ -29,6 +29,7 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/server.ts', '!src/app.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  setupFiles: ['<rootDir>/tests/utils/drizzle-mock.ts'],
   setupFilesAfterEnv: ['<rootDir>/tests/utils/setup.ts'],
   testTimeout: 30000,
   verbose: true,

@@ -7,16 +7,16 @@
 import { Router } from 'express';
 
 class TagRoute {
-    public path = '/tags';
-    public router = Router();
+  public path = '/tags';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private initializeRoutes() {
-        // defined later
-    }
+  private initializeRoutes() {
+    // defined later
+  }
 }
 
 export default TagRoute;

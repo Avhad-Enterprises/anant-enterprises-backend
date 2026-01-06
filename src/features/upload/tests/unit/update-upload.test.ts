@@ -49,7 +49,7 @@ function convertUpload(upload: any): Upload {
 async function handleUpdateUpload(
   uploadId: number,
   updateData: UploadUpdateInput,
-  userId: number
+  userId: string
 ): Promise<Upload> {
   const existingUpload = await uploadQueries.findUploadById(uploadId, userId);
 
@@ -113,19 +113,28 @@ describe('Update Upload Business Logic', () => {
     it('should successfully update upload status', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const result = await handleUpdateUpload(1, { status: 'completed' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { status: 'completed' },
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 1);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(
+        1,
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
       expect(result.status).toBe('completed');
     });
 
     it('should throw 404 when upload not found', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(undefined);
 
-      await expect(handleUpdateUpload(999, { status: 'completed' }, 1)).rejects.toThrow(
-        HttpException
-      );
-      await expect(handleUpdateUpload(999, { status: 'completed' }, 1)).rejects.toMatchObject({
+      await expect(
+        handleUpdateUpload(999, { status: 'completed' }, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toThrow(HttpException);
+      await expect(
+        handleUpdateUpload(999, { status: 'completed' }, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toMatchObject({
         status: 404,
         message: 'Upload not found',
       });
@@ -139,10 +148,12 @@ describe('Update Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(handleUpdateUpload(1, { status: 'completed' }, 1)).rejects.toThrow(
-        HttpException
-      );
-      await expect(handleUpdateUpload(1, { status: 'completed' }, 1)).rejects.toMatchObject({
+      await expect(
+        handleUpdateUpload(1, { status: 'completed' }, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toThrow(HttpException);
+      await expect(
+        handleUpdateUpload(1, { status: 'completed' }, '550e8400-e29b-41d4-a716-446655440000')
+      ).rejects.toMatchObject({
         status: 500,
         message: 'Failed to update upload',
       });
@@ -157,7 +168,11 @@ describe('Update Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await handleUpdateUpload(1, { filename: 'new-filename.pdf' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { filename: 'new-filename.pdf' },
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
 
       expect(result.filename).toBe('new-filename.pdf');
     });
@@ -178,7 +193,7 @@ describe('Update Upload Business Logic', () => {
       const result = await handleUpdateUpload(
         1,
         { status: 'failed', error_message: 'Processing error' },
-        1
+        '550e8400-e29b-41d4-a716-446655440000'
       );
 
       expect(result.status).toBe('failed');
@@ -188,9 +203,12 @@ describe('Update Upload Business Logic', () => {
     it('should verify ownership by userId', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      await handleUpdateUpload(1, { status: 'completed' }, 5);
+      await handleUpdateUpload(1, { status: 'completed' }, '550e8400-e29b-41d4-a716-446655440001');
 
-      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(1, 5);
+      expect(mockUploadQueries.findUploadById).toHaveBeenCalledWith(
+        1,
+        '550e8400-e29b-41d4-a716-446655440001'
+      );
     });
 
     it('should update status to processing', async () => {
@@ -202,7 +220,11 @@ describe('Update Upload Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      const result = await handleUpdateUpload(1, { status: 'processing' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { status: 'processing' },
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
 
       expect(result.status).toBe('processing');
     });
@@ -210,7 +232,11 @@ describe('Update Upload Business Logic', () => {
     it('should convert dates to ISO strings in response', async () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
-      const result = await handleUpdateUpload(1, { status: 'completed' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { status: 'completed' },
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
 
       expect(typeof result.created_at).toBe('string');
       expect(typeof result.updated_at).toBe('string');
@@ -220,7 +246,11 @@ describe('Update Upload Business Logic', () => {
       mockUploadQueries.findUploadById.mockResolvedValue(mockUpload);
 
       // Only updating status, not filename or error_message
-      const result = await handleUpdateUpload(1, { status: 'completed' }, 1);
+      const result = await handleUpdateUpload(
+        1,
+        { status: 'completed' },
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
 
       expect(result).toBeDefined();
     });

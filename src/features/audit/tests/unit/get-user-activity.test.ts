@@ -4,7 +4,7 @@
  */
 
 import { auditService } from '../../services/audit.service';
-import { AuditAction, AuditResourceType } from '../../shared/types';
+import { AuditAction, AuditResourceType } from '../../shared/interface';
 
 jest.mock('../../services/audit.service');
 
@@ -76,9 +76,11 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
-      expect(mockAuditService.getUserActivity).toHaveBeenCalledWith(5);
+      expect(mockAuditService.getUserActivity).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440005'
+      );
       expect(result).toEqual(mockActivity);
       expect(result).toHaveLength(3);
     });
@@ -107,7 +109,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       for (let i = 0; i < result.length - 1; i++) {
         expect(result[i].timestamp.getTime()).toBeGreaterThanOrEqual(
@@ -129,9 +131,12 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      await mockAuditService.getUserActivity(5, 100);
+      await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005', 100);
 
-      expect(mockAuditService.getUserActivity).toHaveBeenCalledWith(5, 100);
+      expect(mockAuditService.getUserActivity).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440005',
+        100
+      );
     });
   });
 
@@ -163,7 +168,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       const actions = result.map(log => log.action);
       expect(actions).toContain(AuditAction.LOGIN);
@@ -198,7 +203,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       const actions = result.map(log => log.action);
       expect(actions).toContain(AuditAction.CREATE);
@@ -233,7 +238,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       const actions = result.map(log => log.action);
       expect(actions).toContain(AuditAction.ROLE_CREATE);
@@ -258,7 +263,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       expect(result[0].ipAddress).toBe('192.168.1.1');
       expect(result[0].userAgent).toBe('Mozilla/5.0');
@@ -280,7 +285,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(mockActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005');
 
       expect(result[0].resourceType).toBe(AuditResourceType.USER);
       expect(result[0].resourceId).toBe('10');
@@ -293,7 +298,7 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
     it('should return empty array for user with no activity', async () => {
       mockAuditService.getUserActivity.mockResolvedValue([]);
 
-      const result = await mockAuditService.getUserActivity(99999);
+      const result = await mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655449999');
 
       expect(result).toEqual([]);
     });
@@ -301,9 +306,9 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
     it('should handle database errors', async () => {
       mockAuditService.getUserActivity.mockRejectedValue(new Error('Database connection failed'));
 
-      await expect(mockAuditService.getUserActivity(5)).rejects.toThrow(
-        'Database connection failed'
-      );
+      await expect(
+        mockAuditService.getUserActivity('550e8400-e29b-41d4-a716-446655440005')
+      ).rejects.toThrow('Database connection failed');
     });
 
     it('should handle large activity histories', async () => {
@@ -319,7 +324,10 @@ describe('GET /api/admin/audit/user/:userId/activity - Unit Tests', () => {
 
       mockAuditService.getUserActivity.mockResolvedValue(largeActivity as any);
 
-      const result = await mockAuditService.getUserActivity(5, 1000);
+      const result = await mockAuditService.getUserActivity(
+        '550e8400-e29b-41d4-a716-446655440005',
+        1000
+      );
 
       expect(result).toHaveLength(1000);
     });

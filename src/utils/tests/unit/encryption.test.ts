@@ -48,23 +48,10 @@ jest.mock('../../logging/logger', () => ({
 }));
 
 import crypto from 'crypto';
-import { config } from '../../validateEnv';
 
-const mockCreateHash = crypto.createHash as jest.MockedFunction<typeof crypto.createHash>;
-const mockPbkdf2Sync = crypto.pbkdf2Sync as jest.MockedFunction<typeof crypto.pbkdf2Sync>;
-const mockRandomBytes = crypto.randomBytes as jest.MockedFunction<typeof crypto.randomBytes>;
-const mockCreateCipheriv = crypto.createCipheriv as jest.MockedFunction<
-  typeof crypto.createCipheriv
->;
-const mockCreateDecipheriv = crypto.createDecipheriv as jest.MockedFunction<
-  typeof crypto.createDecipheriv
->;
 const mockRandomInt = crypto.randomInt as jest.MockedFunction<typeof crypto.randomInt>;
 
 describe('Encryption Utility', () => {
-  let mockCipher: any;
-  let mockDecipher: any;
-
   beforeEach(() => {
     jest.clearAllMocks();
   });

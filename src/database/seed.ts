@@ -55,7 +55,7 @@ async function seed() {
     if (!userRole || !adminRole || !superadminRole) {
       throw new Error(
         'RBAC roles not found. This should not happen after seedRBAC() succeeds.\n' +
-        'Please check the RBAC seed function.'
+          'Please check the RBAC seed function.'
       );
     }
 

@@ -17,7 +17,7 @@ describe('Upload Document API Logic', () => {
   });
 
   it('should create document record after upload', async () => {
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
     const mockDoc = {
       id: 1,
       name: 'test.pdf',
@@ -57,7 +57,12 @@ describe('Upload Document API Logic', () => {
       path: 'docs/test.pdf',
     } as any);
 
-    await uploadToStorage(mockFile, fileName, 'application/pdf');
+    await uploadToStorage(
+      mockFile,
+      fileName,
+      'application/pdf',
+      '550e8400-e29b-41d4-a716-446655440000'
+    );
 
     expect(mockUploadToStorage).toHaveBeenCalled();
   });

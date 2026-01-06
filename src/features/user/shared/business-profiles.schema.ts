@@ -18,7 +18,6 @@ import {
   pgEnum,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 import { userAddresses } from './addresses.schema';
 
@@ -62,7 +61,7 @@ export const businessAccountStatusEnum = pgEnum('business_account_status', [
 export const businessCustomerProfiles = pgTable(
   'business_customer_profiles',
   {
-    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    id: uuid('id').primaryKey().defaultRandom(),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()

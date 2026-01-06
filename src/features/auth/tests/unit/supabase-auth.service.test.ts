@@ -2,8 +2,6 @@
  * Unit tests for supabase-auth.service
  */
 
-import { HttpException } from '../../../../utils';
-
 // Mock Supabase before importing service
 jest.mock('../../../../utils/supabase', () => ({
   supabaseAnon: {
@@ -51,7 +49,6 @@ import {
   verifySupabaseToken,
   requestPasswordReset,
   updatePassword,
-  syncUserToPublicTable,
   getUserByAuthId,
   loginWithSupabase,
 } from '../../services/supabase-auth.service';

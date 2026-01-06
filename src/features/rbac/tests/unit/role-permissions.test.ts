@@ -12,7 +12,7 @@ import { eq, and } from 'drizzle-orm';
 
 describe('Role Permissions API - GET/POST/DELETE', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let adminToken: string;
   let regularUserToken: string;
   let testRole: any;
@@ -111,7 +111,7 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
 
     it('should reject non-existent role', async () => {
       const response = await request(app)
-        .get('/api/rbac/roles/99999/permissions')
+        .get('/api/rbac/roles/00000000-0000-0000-0000-000000000000/permissions')
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(404);
@@ -132,6 +132,12 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
         .post(`/api/rbac/roles/${testRole.id}/permissions`)
         .set('Authorization', `Bearer ${superadminToken}`)
         .send({ permission_id: testPermissions[0].id });
+
+      console.log('Test Data:', {
+        roleId: testRole.id,
+        permissionId: testPermissions[0].id,
+        permissionIdType: typeof testPermissions[0].id
+      });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -170,7 +176,7 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
 
     it('should reject non-existent role', async () => {
       const response = await request(app)
-        .post('/api/rbac/roles/99999/permissions')
+        .post('/api/rbac/roles/00000000-0000-0000-0000-000000000000/permissions')
         .set('Authorization', `Bearer ${superadminToken}`)
         .send({ permission_id: testPermissions[0].id });
 
@@ -182,7 +188,7 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
       const response = await request(app)
         .post(`/api/rbac/roles/${testRole.id}/permissions`)
         .set('Authorization', `Bearer ${superadminToken}`)
-        .send({ permission_id: 99999 });
+        .send({ permission_id: '00000000-0000-0000-0000-000000000000' });
 
       expect(response.status).toBe(404);
       expect(response.body.error?.message || response.body.message).toContain(
@@ -248,7 +254,7 @@ describe('Role Permissions API - GET/POST/DELETE', () => {
 
     it('should reject non-existent role', async () => {
       const response = await request(app)
-        .delete(`/api/rbac/roles/99999/permissions/${testPermissions[0].id}`)
+        .delete(`/api/rbac/roles/00000000-0000-0000-0000-000000000000/permissions/${testPermissions[0].id}`)
         .set('Authorization', `Bearer ${superadminToken}`);
 
       expect(response.status).toBe(404);

@@ -19,7 +19,7 @@ const mockUserQueries = userQueries as jest.Mocked<typeof userQueries>;
 const mockDb = db as jest.Mocked<typeof db>;
 
 // Recreate the business logic for testing
-async function deleteUser(id: number, deletedBy: number): Promise<void> {
+async function deleteUser(id: string, deletedBy: string): Promise<void> {
   const existingUser = await userQueries.findUserById(id);
 
   if (!existingUser) {
@@ -36,24 +36,26 @@ async function deleteUser(id: number, deletedBy: number): Promise<void> {
 }
 
 describe('Delete User Business Logic', () => {
-  const mockUser = {
-    id: 1,
-    auth_id: '123e4567-e89b-12d3-a456-426614174000',
-    user_type: 'individual' as const,
+  const mockUser: any = {
+    id: '550e8400-e29b-41d4-a716-446655440000',
+    auth_id: null,
+    user_type: 'individual',
     name: 'Test User',
     email: 'test@example.com',
     password: 'hashedPassword123',
+    email_verified: true,
+    email_verified_at: null,
     phone_number: '1234567890',
     phone_country_code: '+1',
     phone_verified: false,
-    phone_verified_at: null,
-    profile_image_url: null,
-    date_of_birth: null,
-    gender: 'prefer_not_to_say' as const,
+    phone_verified_at: undefined,
+    profile_image_url: undefined,
+    date_of_birth: undefined,
+    gender: 'prefer_not_to_say',
     preferred_language: 'en',
     preferred_currency: 'USD',
     timezone: 'UTC',
-    created_by: '1',
+    created_by: '550e8400-e29b-41d4-a716-446655440001',
     created_at: new Date('2024-01-01'),
     updated_by: null,
     updated_at: new Date('2024-01-01'),
@@ -75,17 +77,25 @@ describe('Delete User Business Logic', () => {
     it('should successfully soft delete user', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
 
-      await expect(deleteUser(1, 2)).resolves.toBeUndefined();
+      await expect(
+        deleteUser('550e8400-e29b-41d4-a716-446655440000', '550e8400-e29b-41d4-a716-446655440002')
+      ).resolves.toBeUndefined();
 
-      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(1);
+      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000'
+      );
       expect(mockDb.update).toHaveBeenCalled();
     });
 
     it('should throw 404 when user not found', async () => {
       mockUserQueries.findUserById.mockResolvedValue(undefined);
 
-      await expect(deleteUser(999, 2)).rejects.toThrow(HttpException);
-      await expect(deleteUser(999, 2)).rejects.toMatchObject({
+      await expect(
+        deleteUser('550e8400-e29b-41d4-a716-446655449999', '550e8400-e29b-41d4-a716-446655440002')
+      ).rejects.toThrow(HttpException);
+      await expect(
+        deleteUser('550e8400-e29b-41d4-a716-446655449999', '550e8400-e29b-41d4-a716-446655440002')
+      ).rejects.toMatchObject({
         status: 404,
         message: 'User not found',
       });
@@ -98,7 +108,10 @@ describe('Delete User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await deleteUser(1, 2);
+      await deleteUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -114,11 +127,14 @@ describe('Delete User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await deleteUser(1, 5);
+      await deleteUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        '550e8400-e29b-41d4-a716-446655440005'
+      );
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
-          deleted_by: 5,
+          deleted_by: '550e8400-e29b-41d4-a716-446655440005',
         })
       );
     });
@@ -130,7 +146,10 @@ describe('Delete User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await deleteUser(1, 2);
+      await deleteUser(
+        '550e8400-e29b-41d4-a716-446655440000',
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
       expect(mockSet).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -142,16 +161,24 @@ describe('Delete User Business Logic', () => {
     it('should call findUserById with correct id', async () => {
       mockUserQueries.findUserById.mockResolvedValue(mockUser);
 
-      await deleteUser(42, 2);
+      await deleteUser(
+        '550e8400-e29b-41d4-a716-446655440042',
+        '550e8400-e29b-41d4-a716-446655440002'
+      );
 
-      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(42);
+      expect(mockUserQueries.findUserById).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440042'
+      );
     });
 
     it('should not call update when user not found', async () => {
       mockUserQueries.findUserById.mockResolvedValue(undefined);
 
       try {
-        await deleteUser(999, 2);
+        await deleteUser(
+          '550e8400-e29b-41d4-a716-446655440999',
+          '550e8400-e29b-41d4-a716-446655440002'
+        );
       } catch {
         // Expected to throw
       }
@@ -166,7 +193,9 @@ describe('Delete User Business Logic', () => {
       const mockSet = jest.fn().mockReturnValue({ where: mockWhere });
       (mockDb.update as jest.Mock).mockReturnValue({ set: mockSet });
 
-      await expect(deleteUser(1, 2)).rejects.toThrow('Database error');
+      await expect(
+        deleteUser('550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002')
+      ).rejects.toThrow('Database error');
     });
 
     it('should be idempotent - deleting already deleted user still checks existence', async () => {
@@ -174,7 +203,9 @@ describe('Delete User Business Logic', () => {
       // (because queries filter by is_deleted = false)
       mockUserQueries.findUserById.mockResolvedValue(undefined);
 
-      await expect(deleteUser(1, 2)).rejects.toMatchObject({
+      await expect(
+        deleteUser('550e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440002')
+      ).rejects.toMatchObject({
         status: 404,
         message: 'User not found',
       });

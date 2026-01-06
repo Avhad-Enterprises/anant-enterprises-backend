@@ -14,7 +14,7 @@ describe('List Sessions API Logic', () => {
   });
 
   it('should return user sessions with pagination', async () => {
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
     const mockSessions = [
       { id: 1, user_id: userId, title: 'Session 1' },
       { id: 2, user_id: userId, title: 'Session 2' },
@@ -22,18 +22,18 @@ describe('List Sessions API Logic', () => {
 
     mockListUserSessions.mockResolvedValue(mockSessions as any);
 
-    const result = await listUserSessions(userId, { page: 1, limit: 10 });
+    const result = await listUserSessions(userId, 1, 10);
 
     expect(result).toEqual(mockSessions);
-    expect(mockListUserSessions).toHaveBeenCalledWith(userId, { page: 1, limit: 10 });
+    expect(mockListUserSessions).toHaveBeenCalledWith(userId, 1, 10);
   });
 
   it('should filter sessions by user ID', async () => {
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
     mockListUserSessions.mockResolvedValue([] as any);
 
-    await listUserSessions(userId, { page: 1, limit: 10 });
+    await listUserSessions(userId, 1, 10);
 
-    expect(mockListUserSessions).toHaveBeenCalledWith(userId, expect.any(Object));
+    expect(mockListUserSessions).toHaveBeenCalledWith(userId, 1, 10);
   });
 });

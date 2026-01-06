@@ -118,7 +118,10 @@ class AuditService {
         .select()
         .from(auditLogs)
         .where(
-          and(eq(auditLogs.resource_type, resourceType), eq(auditLogs.resource_id, String(resourceId)))
+          and(
+            eq(auditLogs.resource_type, resourceType),
+            eq(auditLogs.resource_id, String(resourceId))
+          )
         )
         .orderBy(desc(auditLogs.timestamp))
         .limit(limit);

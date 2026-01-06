@@ -21,17 +21,17 @@ describe('List Documents API Logic', () => {
 
     mockListDocuments.mockResolvedValue(mockDocs as any);
 
-    const result = await listDocuments({ page: 1, limit: 10 });
+    const result = await listDocuments(1, 10);
 
     expect(result).toEqual(mockDocs);
-    expect(mockListDocuments).toHaveBeenCalledWith({ page: 1, limit: 10 });
+    expect(mockListDocuments).toHaveBeenCalledWith(1, 10);
   });
 
   it('should handle different pagination parameters', async () => {
     mockListDocuments.mockResolvedValue([] as any);
 
-    await listDocuments({ page: 2, limit: 5 });
+    await listDocuments(2, 5);
 
-    expect(mockListDocuments).toHaveBeenCalledWith({ page: 2, limit: 5 });
+    expect(mockListDocuments).toHaveBeenCalledWith(2, 5);
   });
 });

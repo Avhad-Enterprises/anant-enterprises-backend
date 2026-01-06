@@ -18,11 +18,11 @@ describe('Get Session API Logic', () => {
 
   it('should return session with messages for valid user', async () => {
     const sessionId = 1;
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
 
     mockGetSessionByIdForUser.mockResolvedValue({
       id: sessionId,
-      user_id: userId,
+      user_id: '550e8400-e29b-41d4-a716-446655440000',
       title: 'Test Session',
     } as any);
 
@@ -40,9 +40,9 @@ describe('Get Session API Logic', () => {
   });
 
   it('should return null for non-existent session', async () => {
-    mockGetSessionByIdForUser.mockResolvedValue(null);
+    (mockGetSessionByIdForUser as any).mockResolvedValue(null);
 
-    const result = await getSessionByIdForUser(999, 1);
+    const result = await getSessionByIdForUser(999, '550e8400-e29b-41d4-a716-446655440000');
 
     expect(result).toBeNull();
   });

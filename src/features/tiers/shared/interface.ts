@@ -9,20 +9,20 @@
 // ============================================
 
 export interface ITier {
-    id: string; // UUID
-    name: string;
-    code: string;
-    description?: string | null;
+  id: string; // UUID
+  name: string;
+  code: string;
+  description?: string | null;
 
-    level: number;
-    parent_id?: string | null;
-    priority: number;
+  level: number;
+  parent_id?: string | null;
+  priority: number;
 
-    status: 'active' | 'inactive';
-    usage_count: number;
+  status: 'active' | 'inactive';
+  usage_count: number;
 
-    created_at: Date;
-    updated_at: Date;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // ============================================
@@ -30,7 +30,7 @@ export interface ITier {
 // ============================================
 
 export interface IProductTier {
-    product_id: string;
-    tier_id: string;
-    is_primary: boolean;
+  product_id: string;
+  tier_id: string;
+  is_primary: boolean;
 }

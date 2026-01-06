@@ -169,7 +169,11 @@ describe('User API Integration Tests', () => {
         name: 'Test',
       };
 
-      const response = await apiHelper.put(`/api/users/${NON_EXISTENT_UUID}`, updateData, adminToken);
+      const response = await apiHelper.put(
+        `/api/users/${NON_EXISTENT_UUID}`,
+        updateData,
+        adminToken
+      );
 
       expect(response.status).toBe(404);
       expect(response.body.error.message).toContain('not found');

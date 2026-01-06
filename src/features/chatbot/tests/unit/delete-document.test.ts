@@ -21,7 +21,7 @@ describe('Delete Document API Logic', () => {
 
   it('should delete document when it exists', async () => {
     const documentId = 1;
-    const userId = 1;
+    const userId = '550e8400-e29b-41d4-a716-446655440000';
 
     mockGetDocumentById.mockResolvedValue({
       id: documentId,

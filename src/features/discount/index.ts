@@ -7,16 +7,16 @@
 import { Router } from 'express';
 
 class DiscountRoute {
-    public path = '/discounts';
-    public router = Router();
+  public path = '/discounts';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private initializeRoutes() {
-        // defined later
-    }
+  private initializeRoutes() {
+    // defined later
+  }
 }
 
 export default DiscountRoute;

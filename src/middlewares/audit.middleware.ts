@@ -90,7 +90,6 @@ export const auditMiddleware = (req: Request, res: Response, next: NextFunction)
     }
 
     // Call original end function
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return originalEnd.apply(this, args as Parameters<typeof originalEnd>);
   };
 

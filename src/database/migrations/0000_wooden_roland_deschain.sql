@@ -1,4 +1,3 @@
-CREATE EXTENSION IF NOT EXISTS pg_trgm;--> statement-breakpoint
 CREATE TYPE "public"."blog_status" AS ENUM('public', 'private', 'draft');--> statement-breakpoint
 CREATE TYPE "public"."bundle_status" AS ENUM('draft', 'active', 'inactive', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."bundle_type" AS ENUM('fixed_price', 'percentage_discount');--> statement-breakpoint
@@ -1414,7 +1413,6 @@ CREATE INDEX "products_sku_idx" ON "products" USING btree ("sku");--> statement-
 CREATE INDEX "products_status_idx" ON "products" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "products_category_idx" ON "products" USING btree ("category_tier_1","category_tier_2");--> statement-breakpoint
 CREATE INDEX "products_search_vector_idx" ON "products" USING gin ("search_vector");--> statement-breakpoint
-CREATE INDEX "products_title_trgm_idx" ON "products" USING gin ("product_title" gin_trgm_ops);--> statement-breakpoint
 CREATE INDEX "products_tags_idx" ON "products" USING gin ("tags");--> statement-breakpoint
 CREATE INDEX "products_price_idx" ON "products" USING btree ("selling_price");--> statement-breakpoint
 CREATE INDEX "products_category_price_status_idx" ON "products" USING btree ("category_tier_1","selling_price","status","is_deleted");--> statement-breakpoint

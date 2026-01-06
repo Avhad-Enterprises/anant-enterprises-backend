@@ -25,19 +25,47 @@ import { like, inArray, eq } from 'drizzle-orm';
 
 // 1. TIERS (Categories)
 const tierData = [
-    // Level 1 (Root categories)
-    { name: 'Residential Purifiers', code: 'residential-purifiers', level: 1, parent_id: null, priority: 1 },
-    { name: 'Commercial Purifiers', code: 'commercial-purifiers', level: 1, parent_id: null, priority: 2 },
-    { name: 'Accessories', code: 'accessories', level: 1, parent_id: null, priority: 3 },
-    // Level 2 (Sub-categories) - Will be linked after insertion
-    { name: 'RO Systems', code: 'ro-systems', level: 2, parent_id: null, priority: 1 }, // Parent: Residential
-    { name: 'UV Systems', code: 'uv-systems', level: 2, parent_id: null, priority: 2 }, // Parent: Residential
-    { name: 'Spare Parts', code: 'spare-parts', level: 2, parent_id: null, priority: 1 }, // Parent: Accessories
+  // Level 1 (Root categories)
+  {
+    name: 'Residential Purifiers',
+    code: 'residential-purifiers',
+    level: 1,
+    parent_id: null,
+    priority: 1,
+  },
+  {
+    name: 'Commercial Purifiers',
+    code: 'commercial-purifiers',
+    level: 1,
+    parent_id: null,
+    priority: 2,
+  },
+  { name: 'Accessories', code: 'accessories', level: 1, parent_id: null, priority: 3 },
+  // Level 2 (Sub-categories) - Will be linked after insertion
+  { name: 'RO Systems', code: 'ro-systems', level: 2, parent_id: null, priority: 1 }, // Parent: Residential
+  { name: 'UV Systems', code: 'uv-systems', level: 2, parent_id: null, priority: 2 }, // Parent: Residential
+  { name: 'Spare Parts', code: 'spare-parts', level: 2, parent_id: null, priority: 1 }, // Parent: Accessories
 ];
 
 // Product SKU prefixes for cleanup
-const TEST_SKU_PREFIXES = ['AP-', 'PF-', 'COMM-', 'ACC-', 'SP-', 'LE-', 'DRAFT-', 'ARCH-', 'SCHED-'];
-const TEST_COLLECTION_SLUGS = ['best-sellers', 'new-arrivals', 'budget-friendly', 'premium-collection', 'draft-collection'];
+const TEST_SKU_PREFIXES = [
+  'AP-',
+  'PF-',
+  'COMM-',
+  'ACC-',
+  'SP-',
+  'LE-',
+  'DRAFT-',
+  'ARCH-',
+  'SCHED-',
+];
+const TEST_COLLECTION_SLUGS = [
+  'best-sellers',
+  'new-arrivals',
+  'budget-friendly',
+  'premium-collection',
+  'draft-collection',
+];
 
 async function seedData() {
     console.log('🌱 Starting comprehensive seed for Products and Collections...\n');
@@ -627,7 +655,7 @@ async function seedData() {
 }
 
 // Run the seed
-seedData().catch((err) => {
-    console.error('❌ Seeding failed:', err);
-    process.exit(1);
+seedData().catch(err => {
+  console.error('❌ Seeding failed:', err);
+  process.exit(1);
 });

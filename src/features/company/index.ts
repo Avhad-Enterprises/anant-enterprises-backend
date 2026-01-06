@@ -7,16 +7,16 @@
 import { Router } from 'express';
 
 class CompanyRoute {
-    public path = '/companies';
-    public router = Router();
+  public path = '/companies';
+  public router = Router();
 
-    constructor() {
-        this.initializeRoutes();
-    }
+  constructor() {
+    this.initializeRoutes();
+  }
 
-    private initializeRoutes() {
-        // defined later
-    }
+  private initializeRoutes() {
+    // defined later
+  }
 }
 
 export default CompanyRoute;

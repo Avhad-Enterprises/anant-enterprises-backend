@@ -15,32 +15,28 @@ import { findUserById } from '../shared/queries';
 import { IUser } from '../shared/interface';
 
 async function getCurrentUser(id: string): Promise<IUser> {
-    const user = await findUserById(id);
+  const user = await findUserById(id);
 
-    if (!user) {
-        throw new HttpException(404, 'User not found');
-    }
+  if (!user) {
+    throw new HttpException(404, 'User not found');
+  }
 
-    return user as IUser;
+  return user as IUser;
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    // Get the authenticated user's ID from the JWT token (set by requireAuth middleware)
-    if (!req.userId) {
-        throw new HttpException(401, 'Authentication required');
-    }
+  // Get the authenticated user's ID from the JWT token (set by requireAuth middleware)
+  if (!req.userId) {
+    throw new HttpException(401, 'Authentication required');
+  }
 
-    const user = await getCurrentUser(req.userId);
-    const userResponse = sanitizeUser(user);
+  const user = await getCurrentUser(req.userId);
+  const userResponse = sanitizeUser(user);
 
-    ResponseFormatter.success(res, userResponse, 'User retrieved successfully');
+  ResponseFormatter.success(res, userResponse, 'User retrieved successfully');
 };
 
 const router = Router();
-router.get(
-    '/me',
-    requireAuth,
-    handler
-);
+router.get('/me', requireAuth, handler);
 
 export default router;

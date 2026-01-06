@@ -91,7 +91,10 @@ describe('Permission Middleware', () => {
       const middleware = requirePermission(['users:read', 'users:update']);
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasAllPermissions).toHaveBeenCalledWith('user-uuid', ['users:read', 'users:update']);
+      expect(mockHasAllPermissions).toHaveBeenCalledWith('user-uuid', [
+        'users:read',
+        'users:update',
+      ]);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 
@@ -116,7 +119,10 @@ describe('Permission Middleware', () => {
       const middleware = requireAnyPermission(['admin:system', 'users:read']);
       await middleware(mockRequest as RequestWithUser, mockResponse as Response, nextFunction);
 
-      expect(mockHasAnyPermission).toHaveBeenCalledWith('user-uuid', ['admin:system', 'users:read']);
+      expect(mockHasAnyPermission).toHaveBeenCalledWith('user-uuid', [
+        'admin:system',
+        'users:read',
+      ]);
       expect(nextFunction).toHaveBeenCalledWith();
     });
 

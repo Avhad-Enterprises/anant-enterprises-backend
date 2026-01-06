@@ -5,7 +5,6 @@
 
 import request from 'supertest';
 import app from '@tests/utils';
-import { dbHelper } from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
 import { roles, userRoles } from '../../shared/rbac.schema';
@@ -13,9 +12,9 @@ import { eq } from 'drizzle-orm';
 
 describe('DELETE /api/rbac/roles/:roleId - Delete Role', () => {
   let superadminToken: string;
-  let superadminUserId: number;
+  let superadminUserId: string;
   let regularUserToken: string;
-  let testUserId: number;
+  let testUserId: string;
   let testRole: any;
   let systemRole: any;
 
@@ -103,7 +102,7 @@ describe('DELETE /api/rbac/roles/:roleId - Delete Role', () => {
   describe('Validation Errors', () => {
     it('should reject non-existent role ID', async () => {
       const response = await request(app)
-        .delete('/api/rbac/roles/99999')
+        .delete('/api/rbac/roles/00000000-0000-0000-0000-000000000000')
         .set('Authorization', `Bearer ${superadminToken}`);
 
       expect(response.status).toBe(404);
