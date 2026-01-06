@@ -100,4 +100,51 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers['authorization'];
+
+    // If no auth header, just continue as anonymous
+    // The endpoint will handle the case of missing user
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    if (!token || token === 'null') {
+      return next();
+    }
+
+    // Verify Supabase JWT token
+    const authUser = await verifySupabaseToken(token);
+
+    if (!authUser) {
+      // If token provided but invalid, we could either:
+      // 1. Return 401 (strict)
+      // 2. Continue as guest (permissive)
+      // Choosing strict to help frontend detect expired sessions
+      return next(new HttpException(401, 'Invalid or expired token'));
+    }
+
+    // Get the public.users record
+    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
+
+    if (!publicUser[0]) {
+      return next(new HttpException(401, 'User not found'));
+    }
+
+    // Attach user information
+    req.userId = publicUser[0].id;
+    req.userAgent = req.headers['user-agent'] || 'Unknown';
+    req.clientIP = req.ip || req.connection?.remoteAddress || 'Unknown';
+
+    next();
+  } catch (error) {
+    // On error, we'll fail safe to 401 if a token was attempted but failed hard
+    logger.warn('Optional auth error:', { error });
+    return next(new HttpException(401, 'Authentication error'));
+  }
+};
+
 export default requireAuth;

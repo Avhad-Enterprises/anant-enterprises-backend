@@ -121,11 +121,31 @@ const handler = async (req: Request, res: Response) => {
         max: Math.ceil(Number(priceRangeData?.max) || 200000),
     };
 
-    const filterOptions: FilterOptions = {
+    // 5. Get in-stock count (products with inventory > 0)
+    const stockCountData = await db.execute(sql`
+        SELECT COUNT(DISTINCT p.id) AS in_stock_count
+        FROM ${products} p
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE p.status = 'active' 
+          AND p.is_deleted = false
+          AND (i.available_quantity - COALESCE(i.reserved_quantity, 0)) > 0
+    `);
+
+    const inStockCount = Number((stockCountData.rows[0] as any)?.in_stock_count) || 0;
+
+    const stockFilter = {
+        inStock: {
+            label: 'In Stock',
+            count: inStockCount,
+        },
+    };
+
+    const filterOptions = {
         categories,
         technologies,
         ratings,
         priceRange,
+        stockFilter,
     };
 
     return ResponseFormatter.success(res, filterOptions, 'Filter options retrieved successfully');

@@ -34,8 +34,14 @@ class ProductRoute implements Route {
         // Collection Page Enhancement Routes
         const { default: getProductFiltersRouter } = await import('./apis/get-product-filters');
 
+        // Search Enhancement Routes
+        const { default: searchAutocompleteRouter } = await import('./apis/search-autocomplete');
+        const { default: popularSearchesRouter } = await import('./apis/popular-searches');
+
         // CRITICAL: Register static routes BEFORE parameterized routes
-        // /search, /compare, /filters must come before /:id to avoid route collision
+        // /search/autocomplete, /search/popular must come before /search
+        this.router.use(this.path, searchAutocompleteRouter);   // GET /products/search/autocomplete
+        this.router.use(this.path, popularSearchesRouter);      // GET /products/search/popular
         this.router.use(this.path, searchProductsRouter);
         this.router.use(this.path, getComparisonProductsRouter);
         this.router.use(this.path, getProductFiltersRouter);

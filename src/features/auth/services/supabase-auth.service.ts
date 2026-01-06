@@ -165,6 +165,7 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
     } else {
       // Create new user record with auth_id
       await db.insert(users).values({
+        auth_id: authId,
         name: userData.name || 'User',
         email: userData.email,
         phone_number: userData.phone_number || '',
