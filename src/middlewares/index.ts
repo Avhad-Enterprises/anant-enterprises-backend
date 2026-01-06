@@ -48,3 +48,11 @@ export { sanitizeInput } from './sanitize.middleware';
 // Audit middleware
 export { default as auditMiddleware } from './audit.middleware';
 export { auditMiddleware as auditMiddlewareNamed } from './audit.middleware';
+
+// Payment rate limiting middleware
+export {
+  paymentCreateRateLimit,
+  paymentVerifyRateLimit,
+  refundRateLimit,
+  webhookRateLimit,
+} from './payment-rate-limit.middleware';

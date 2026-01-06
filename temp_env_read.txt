@@ -1,0 +1,37 @@
+﻿JWT_SECRET=your-super-secure-256-bit-secret-key-that-is-at-least-32-chars-long-12345
+PORT=8000
+
+
+# Database Configuration (Local Supabase)
+DATABASE_URL=postgresql://postgres.irnyfhmqwiblbilfmgxk:fsuvGWjCyH3j7ktD@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+
+# Supabase Configuration (Local Development)
+SUPABASE_URL=https://irnyfhmqwiblbilfmgxk.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_tvrBzlwIlBkxaMR25pn9jw_PbfBgPY6
+SUPABASE_SECRET_KEY=sb_secret_0iaXPoczfJTHWOVC_lIL0Q_loazPbOQ
+
+
+# Supabase Local Env Vars
+POSTGRES_PASSWORD=postgres
+ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+
+# Redis Configuration (Docker container)
+REDIS_HOST=redis-18176.c301.ap-south-1-1.ec2.cloud.redislabs.com
+REDIS_PORT=18176
+REDIS_PASSWORD="fCaHGGn8H1nGSpN9ujZZXZptIaRmLDSA"
+
+# Chatbot Configuration
+GROQ_API_KEY=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
+PINECONE_API_KEY=pcsk_4pEmXF_T3Do1MbbJTnvSnT4UG3vqr5ihZbidoTe51bNw4x4edxtnLLojdNNjzxmyUZRoWX
+PINECONE_INDEX_NAME=nira
+HUGGINGFACE_TOKEN=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
+
+# Email Configuration
+EMAIL_USER=adityapatil93564@gmail.com
+EMAIL_PASSWORD=lllj jrps xbct otlp
+APP_NAME=Anant Enterprises Dev
+
+# Security Configuration
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080,http://localhost:57270,http://localhost:65440,http://localhost:50651
+FRONTEND_URL=http://localhost:3000

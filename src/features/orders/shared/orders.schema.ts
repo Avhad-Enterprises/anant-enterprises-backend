@@ -113,6 +113,12 @@ export const orders = pgTable(
     paid_at: timestamp('paid_at'),
     currency: varchar('currency', { length: 3 }).default('INR').notNull(),
 
+    // Razorpay Integration
+    razorpay_order_id: varchar('razorpay_order_id', { length: 50 }),
+    payment_link_expires_at: timestamp('payment_link_expires_at'),
+    payment_attempts: integer('payment_attempts').default(0).notNull(),
+    last_payment_error: varchar('last_payment_error', { length: 500 }),
+
     // Pricing
     subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0.00').notNull(),
 
@@ -204,6 +210,7 @@ export const orders = pgTable(
     fulfillmentStatusIdx: index('orders_fulfillment_status_idx').on(table.fulfillment_status),
     createdAtIdx: index('orders_created_at_idx').on(table.created_at),
     draftPaymentIdx: index('orders_draft_payment_idx').on(table.is_draft, table.payment_status),
+    razorpayOrderIdIdx: index('orders_razorpay_order_id_idx').on(table.razorpay_order_id),
   })
 );
 

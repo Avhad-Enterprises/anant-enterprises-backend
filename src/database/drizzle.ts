@@ -124,6 +124,11 @@ import {
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
 } from '../features/orders';
+import {
+  paymentTransactions,
+  paymentTransactionStatusEnum,
+  paymentWebhookLogs,
+} from '../features/payments/shared';
 
 /**
  * Database connection configuration
@@ -146,10 +151,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-      rejectUnauthorized: false, // Supabase uses self-signed certificates
-      // If using self-signed certs, set DATABASE_SSL_CA env var
-      ca: process.env.DATABASE_SSL_CA || undefined,
-    }
+    rejectUnauthorized: false, // Supabase uses self-signed certificates
+    // If using self-signed certs, set DATABASE_SSL_CA env var
+    ca: process.env.DATABASE_SSL_CA || undefined,
+  }
   : undefined;
 
 export const pool = new Pool({
@@ -346,6 +351,10 @@ export const schema = {
   paymentStatusEnum,
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
+  // Payments feature
+  paymentTransactions,
+  paymentTransactionStatusEnum,
+  paymentWebhookLogs,
 };
 
 /**
