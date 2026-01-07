@@ -8,7 +8,7 @@
  * instances, consider using rate-limit-redis package.
  */
 
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { logger } from '../utils';
 
 /**
@@ -28,9 +28,9 @@ export const paymentCreateRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
+    keyGenerator: (req, res) => {
         // Use user ID if authenticated, otherwise IP
-        return (req as { userId?: string }).userId || req.ip || 'unknown';
+        return (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown');
     },
     skip: () => {
         // Skip rate limiting in test environment
@@ -62,7 +62,7 @@ export const paymentVerifyRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => (req as { userId?: string }).userId || req.ip || 'unknown',
+    keyGenerator: (req, res) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });
 
@@ -79,7 +79,7 @@ export const refundRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => (req as { userId?: string }).userId || req.ip || 'unknown',
+    keyGenerator: (req, res) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });
 
@@ -94,6 +94,6 @@ export const webhookRateLimit = rateLimit({
     message: { status: 'error', message: 'Rate limit exceeded' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => req.ip || 'unknown',
+    keyGenerator: (req, res) => ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });
