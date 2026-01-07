@@ -18,6 +18,15 @@ const querySchema = paginationSchema.extend({
     status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']).optional(),
 });
 
+interface OrderItemSummary {
+    id: string;
+    product_name: string;
+    product_image: string | null;
+    quantity: number;
+    cost_price: string;
+    line_total: string;
+}
+
 interface OrderSummary {
     id: string;
     order_number: string;
@@ -27,7 +36,7 @@ interface OrderSummary {
     total_quantity: number;
     items_count: number;
     created_at: Date;
-    first_item_image: string | null;
+    items: OrderItemSummary[];
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -67,21 +76,31 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .limit(limit)
         .offset(offset);
 
-    // Enrich with first item image and items count
+    // Enrich with items
     const enrichedOrders: OrderSummary[] = await Promise.all(
         userOrders.map(async (order) => {
             const items = await db
                 .select({
+                    id: orderItems.id,
+                    product_name: orderItems.product_name,
                     product_image: orderItems.product_image,
+                    quantity: orderItems.quantity,
+                    cost_price: orderItems.cost_price,
+                    line_total: orderItems.line_total,
                 })
                 .from(orderItems)
-                .where(eq(orderItems.order_id, order.id))
-                .limit(1);
-
-            const [itemCount] = await db
-                .select({ count: count() })
-                .from(orderItems)
                 .where(eq(orderItems.order_id, order.id));
+
+            const itemsCount = items.length;
+
+            const mappedItems: OrderItemSummary[] = items.map(item => ({
+                id: item.id,
+                product_name: item.product_name,
+                product_image: item.product_image,
+                quantity: item.quantity,
+                cost_price: item.cost_price,
+                line_total: item.line_total,
+            }));
 
             return {
                 id: order.id,
@@ -90,9 +109,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 payment_status: order.payment_status,
                 total_amount: order.total_amount,
                 total_quantity: order.total_quantity,
-                items_count: itemCount?.count || 0,
+                items_count: itemsCount,
                 created_at: order.created_at,
-                first_item_image: items[0]?.product_image || null,
+                items: mappedItems,
             };
         })
     );

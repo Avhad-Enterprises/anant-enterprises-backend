@@ -260,7 +260,9 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, result, message, statusCode);
 };
 
+import { optionalAuth } from '../../../middlewares/auth.middleware';
+
 const router = Router();
-router.post('/validate', handler);
+router.post('/validate', optionalAuth, handler);
 
 export default router;

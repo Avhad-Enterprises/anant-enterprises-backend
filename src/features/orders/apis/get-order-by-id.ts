@@ -47,6 +47,21 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .from(orderItems)
         .where(eq(orderItems.order_id, orderId));
 
+    // Helper to map address - defined inside handler to have access to types if needed, or just pure function
+    const mapAddress = (addr: any) => {
+        if (!addr) return null;
+        return {
+            name: addr.recipient_name,
+            phone: addr.phone_number,
+            address_line1: addr.address_line1,
+            address_line2: addr.address_line2 || '',
+            city: addr.city,
+            state: addr.state_province,
+            pincode: addr.postal_code,
+            country: addr.country,
+        };
+    };
+
     // Get shipping address
     let shippingAddress = null;
     if (order.shipping_address_id) {
@@ -55,7 +70,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             .from(userAddresses)
             .where(eq(userAddresses.id, order.shipping_address_id))
             .limit(1);
-        shippingAddress = addr || null;
+        shippingAddress = mapAddress(addr);
     }
 
     // Get billing address
@@ -66,47 +81,58 @@ const handler = async (req: RequestWithUser, res: Response) => {
             .from(userAddresses)
             .where(eq(userAddresses.id, order.billing_address_id))
             .limit(1);
-        billingAddress = addr || null;
+        billingAddress = mapAddress(addr);
     } else {
         billingAddress = shippingAddress;
     }
 
     return ResponseFormatter.success(res, {
-        order: {
-            id: order.id,
-            order_number: order.order_number,
-            order_status: order.order_status,
-            payment_status: order.payment_status,
-            payment_method: order.payment_method,
-            currency: order.currency,
-            subtotal: order.subtotal,
-            discount_amount: order.discount_amount,
-            discount_code: order.discount_code,
-            shipping_amount: order.shipping_amount,
-            tax_amount: order.tax_amount,
-            total_amount: order.total_amount,
-            total_quantity: order.total_quantity,
-            fulfillment_status: order.fulfillment_status,
-            order_tracking: order.order_tracking,
-            customer_note: order.customer_note,
-            created_at: order.created_at,
-            updated_at: order.updated_at,
-        },
+        id: order.id,
+        order_number: order.order_number,
+        user_id: order.user_id,
+        created_at: order.created_at,
+
+        // Status
+        order_status: order.order_status,
+        payment_status: order.payment_status,
+        fulfillment_status: order.fulfillment_status,
+
+        // Amounts
+        subtotal: order.subtotal,
+        discount_amount: order.discount_amount,
+        shipping_amount: order.shipping_amount,
+        tax_amount: order.tax_amount,
+        total_amount: order.total_amount,
+        currency: order.currency,
+
+        // Details
+        total_quantity: order.total_quantity,
+        payment_method: order.payment_method,
+        shipping_address_id: order.shipping_address_id,
+        billing_address_id: order.billing_address_id,
+
+        order_tracking: order.order_tracking,
+        customer_note: order.customer_note,
+        updated_at: order.updated_at,
+
+        // Expanded Data
+        shipping_address: shippingAddress,
+        billing_address: billingAddress,
         items: items.map(item => ({
             id: item.id,
+            order_id: item.order_id,
             product_id: item.product_id,
+            sku: item.sku,
             product_name: item.product_name,
             product_image: item.product_image,
-            sku: item.sku,
             cost_price: item.cost_price,
             quantity: item.quantity,
             line_total: item.line_total,
+            // Extra backend fields not in strict frontend type but harmless
             quantity_fulfilled: item.quantity_fulfilled,
             quantity_cancelled: item.quantity_cancelled,
             quantity_returned: item.quantity_returned,
         })),
-        shipping_address: shippingAddress,
-        billing_address: billingAddress,
     }, 'Order details retrieved successfully');
 };
 

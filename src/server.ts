@@ -14,6 +14,8 @@ import CartRoute from './features/cart';
 import WishlistRoute from './features/wishlist';
 import OrdersRoute from './features/orders';
 import ReviewRoute from './features/reviews';
+import PaymentsRoute from './features/payments';
+import WebhooksRoute from './features/webhooks';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -55,6 +57,8 @@ async function bootstrap() {
       new WishlistRoute(),  // Wishlist endpoints
       new OrdersRoute(),    // Orders endpoints
       new ReviewRoute(),    // Reviews endpoints
+      new PaymentsRoute(),  // Payment/Razorpay endpoints
+      new WebhooksRoute(),  // External webhook endpoints
     ]);
 
     server = app.listen();

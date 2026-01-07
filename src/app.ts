@@ -113,7 +113,26 @@ class App {
     this.app.use('/api/auth/refresh-token', authRateLimit);
     this.app.use('/api/', apiRateLimit);
 
-    // Body parsing
+    // Raw body capture for Razorpay webhooks (MUST be before express.json())
+    // Signature verification requires the raw, unparsed body
+    this.app.use('/api/webhooks/razorpay', (req, res, next) => {
+      let rawBody = '';
+      req.setEncoding('utf8');
+      req.on('data', chunk => {
+        rawBody += chunk;
+      });
+      req.on('end', () => {
+        (req as express.Request & { rawBody: string }).rawBody = rawBody;
+        try {
+          req.body = JSON.parse(rawBody);
+        } catch {
+          req.body = {};
+        }
+        next();
+      });
+    });
+
+    // Body parsing (regular routes)
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ limit: '10mb', extended: true }));
 

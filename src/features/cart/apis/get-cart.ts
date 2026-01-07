@@ -56,6 +56,8 @@ const handler = async (req: Request, res: Response) => {
     const userId = userReq.userId || null;
     const sessionId = req.headers['x-session-id'] as string || null;
 
+    console.log('[GET /cart] Request - userId:', userId, 'sessionId:', sessionId);
+
     if (!userId && !sessionId) {
         return ResponseFormatter.success(res, {
             id: null,
@@ -75,7 +77,7 @@ const handler = async (req: Request, res: Response) => {
         } as CartResponse, 'Empty cart');
     }
 
-    // Find active cart
+    // Find active cart (exclude converted carts)
     let cart;
     if (userId) {
         [cart] = await db
@@ -83,23 +85,26 @@ const handler = async (req: Request, res: Response) => {
             .from(carts)
             .where(and(
                 eq(carts.user_id, userId),
-                eq(carts.cart_status, 'active'),
+                eq(carts.cart_status, 'active'), // CRITICAL: Only get active carts
                 eq(carts.is_deleted, false)
             ))
             .limit(1);
+        console.log('[GET /cart] User cart lookup - found:', !!cart, 'status:', cart?.cart_status);
     } else if (sessionId) {
         [cart] = await db
             .select()
             .from(carts)
             .where(and(
                 eq(carts.session_id, sessionId),
-                eq(carts.cart_status, 'active'),
+                eq(carts.cart_status, 'active'), // CRITICAL: Only get active carts
                 eq(carts.is_deleted, false)
             ))
             .limit(1);
+        console.log('[GET /cart] Session cart lookup - found:', !!cart, 'status:', cart?.cart_status);
     }
 
     if (!cart) {
+        console.log('[GET /cart] No active cart found');
         return ResponseFormatter.success(res, {
             id: null,
             currency: 'INR',

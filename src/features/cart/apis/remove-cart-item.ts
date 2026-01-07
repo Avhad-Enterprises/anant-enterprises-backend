@@ -105,7 +105,9 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, null, `"${cartItem.product_name || 'Item'}" removed from cart`);
 };
 
+import { optionalAuth } from '../../../middlewares/auth.middleware';
+
 const router = Router();
-router.delete('/items/:id', handler);
+router.delete('/items/:id', optionalAuth, handler);
 
 export default router;
