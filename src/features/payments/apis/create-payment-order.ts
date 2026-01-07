@@ -71,24 +71,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
             .limit(1);
 
         if (!order) {
-            throw new HttpException(404, 'Order not found', {
-                code: 'ORDER_NOT_FOUND',
-            });
+            throw new HttpException(404, 'Order not found', 'ORDER_NOT_FOUND');
         }
 
         // Check if order is already paid
         if (order.payment_status === 'paid') {
-            throw new HttpException(400, 'Order is already paid', {
-                code: 'ORDER_ALREADY_PAID',
-                details: `Order ${order.order_number} has already been paid.`,
-            });
+            throw new HttpException(400, `Order ${order.order_number} is already paid`, 'ORDER_ALREADY_PAID');
         }
 
         // Check if order is cancelled
         if (order.order_status === 'cancelled') {
-            throw new HttpException(400, 'Cannot process payment for cancelled order', {
-                code: 'ORDER_CANCELLED',
-            });
+            throw new HttpException(400, 'Cannot process payment for cancelled order', 'ORDER_CANCELLED');
         }
 
         // Check for existing pending Razorpay order (reuse if not expired)
@@ -113,7 +106,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
                 // Fetch user info for prefill
                 const [user] = await db
-                    .select({ name: users.full_name, email: users.email, phone: users.phone })
+                    .select({ name: users.name, email: users.email, phone: users.phone_number })
                     .from(users)
                     .where(eq(users.id, userId))
                     .limit(1);
@@ -176,7 +169,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         // Fetch user info for prefill
         const [user] = await db
-            .select({ name: users.full_name, email: users.email, phone: users.phone })
+            .select({ name: users.name, email: users.email, phone: users.phone_number })
             .from(users)
             .where(eq(users.id, userId))
             .limit(1);

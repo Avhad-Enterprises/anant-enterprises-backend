@@ -60,9 +60,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
             razorpayOrderId: body.razorpay_order_id,
             userId,
         });
-        throw new HttpException(404, 'Payment not found', {
-            code: 'PAYMENT_NOT_FOUND',
-        });
+        if (!transaction) {
+            logger.warn('Payment verification failed - transaction not found', {
+                razorpayOrderId: body.razorpay_order_id,
+                userId,
+            });
+            throw new HttpException(404, 'Payment not found', 'PAYMENT_NOT_FOUND');
+        }
     }
 
     // Verify the order belongs to the user
@@ -143,11 +147,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             })
             .where(eq(orders.id, order.id));
 
-        throw new HttpException(400, 'Payment verification failed', {
-            code: 'INVALID_SIGNATURE',
-            recoverable: false,
-            details: 'The payment signature is invalid. Please contact support.',
-        });
+        throw new HttpException(400, 'Payment verification failed', 'INVALID_SIGNATURE');
     }
 
     // Signature is valid - update transaction

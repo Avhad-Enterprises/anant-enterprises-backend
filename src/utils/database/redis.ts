@@ -11,6 +11,8 @@ export const redisClient = createClient({
   password: config.REDIS_PASSWORD || undefined,
 });
 
+export const redis = redisClient;
+
 /** Track if Redis is connected and ready */
 let isRedisConnected = false;
 

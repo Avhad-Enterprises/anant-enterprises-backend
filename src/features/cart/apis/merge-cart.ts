@@ -69,18 +69,51 @@ const handler = async (req: Request, res: Response) => {
     // Parse and validate request body
     const { session_id: sessionId } = mergeCartSchema.parse(req.body);
 
+    console.log('[POST /cart/merge] Merge request - userId:', userId, 'sessionId:', sessionId);
+
     // Find guest cart by session_id
     const [guestCart] = await db
         .select()
         .from(carts)
         .where(and(
             eq(carts.session_id, sessionId),
-            eq(carts.cart_status, 'active'),
-            eq(carts.is_deleted, false)
+            eq(carts.is_deleted, false) // Don't filter by status yet
         ))
         .limit(1);
 
-    if (!guestCart) {
+    // Check if cart was already converted (idempotency)
+    if (guestCart && guestCart.cart_status === 'converted') {
+        console.log('[POST /cart/merge] Guest cart already converted, skipping merge');
+
+        // Return user's current cart
+        const [userCart] = await db
+            .select()
+            .from(carts)
+            .where(and(
+                eq(carts.user_id, userId),
+                eq(carts.cart_status, 'active'),
+                eq(carts.is_deleted, false)
+            ))
+            .limit(1);
+
+        const userCartItems = userCart ? await db
+            .select()
+            .from(cartItems)
+            .where(and(
+                eq(cartItems.cart_id, userCart.id),
+                eq(cartItems.is_deleted, false)
+            )) : [];
+
+        return ResponseFormatter.success(res, {
+            merged: false,
+            message: 'Guest cart already merged',
+            cart_id: userCart?.id,
+            itemCount: userCartItems.length,
+        }, 'Cart already merged');
+    }
+
+    if (!guestCart || guestCart.cart_status !== 'active') {
+        console.log('[POST /cart/merge] No active guest cart found');
         // No guest cart to merge - that's okay, just return user's cart
         const [userCart] = await db
             .select()
@@ -254,6 +287,8 @@ const handler = async (req: Request, res: Response) => {
             updated_at: new Date(),
         })
         .where(eq(carts.id, guestCart.id));
+
+    console.log('[POST /cart/merge] Guest cart marked as converted, itemsMerged:', itemsMerged);
 
     // Get final cart state
     const finalItems = await db

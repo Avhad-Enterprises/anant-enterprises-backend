@@ -73,9 +73,9 @@ export const validateEnv = () => {
     HUGGINGFACE_TOKEN: str({ desc: 'HuggingFace token for BGE-M3 embeddings' }),
 
     // Razorpay Payment Gateway
-    RAZORPAY_KEY_ID: str({ default: '', desc: 'Razorpay API Key ID (rzp_test_xxx or rzp_live_xxx)' }),
-    RAZORPAY_KEY_SECRET: str({ default: '', desc: 'Razorpay API Key Secret' }),
-    RAZORPAY_WEBHOOK_SECRET: str({ default: '', desc: 'Razorpay Webhook Secret for signature verification' }),
+    RAZORPAY_KEY_ID: str({ desc: 'Razorpay API Key ID (rzp_test_xxx or rzp_live_xxx)' }),
+    RAZORPAY_KEY_SECRET: str({ desc: 'Razorpay API Key Secret' }),
+    RAZORPAY_WEBHOOK_SECRET: str({ desc: 'Razorpay Webhook Secret for signature verification' }),
   });
 
   // Additional JWT secret validation

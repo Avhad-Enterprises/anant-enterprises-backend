@@ -77,7 +77,9 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, null, 'Cart cleared successfully');
 };
 
+import { optionalAuth } from '../../../middlewares/auth.middleware';
+
 const router = Router();
-router.delete('/', handler);
+router.delete('/', optionalAuth, handler);
 
 export default router;
