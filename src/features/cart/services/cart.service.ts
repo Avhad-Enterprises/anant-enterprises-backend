@@ -106,7 +106,7 @@ export class CartService {
                 variant_id: undefined,
                 name: item.product_name!,
                 quantity: item.quantity,
-                price: Number(item.cost_price), // Original price
+                price: Number(item.final_price), // Use correct selling price (which includes product discount)
             })),
             cart_subtotal: cartSubtotal,
             user_id: userId || cart.user_id || undefined,
@@ -180,11 +180,15 @@ export class CartService {
         let totalDiscountAmount = 0;
 
         // Reset items to base state variables (in memory)
+        // IMPORTANT: We use `final_price` as the base because `add-to-cart` sets it to the Selling Price.
+        // We do not want to reset it to `cost_price` (MSRP) because that would remove product-level discounts.
+        // We assume `final_price` in DB correctly reflects the "Price to Customer before Coupon".
         const calculationItems = items.map(item => ({
             ...item,
-            final_price: Number(item.cost_price), // Reset to cost/list price
-            discount_amount: 0,
-            line_total: Number(item.cost_price) * item.quantity
+            final_price: Number(item.final_price), // Keep selling price
+            // discount_amount: Number(item.discount_amount), // Ideally keep product discount tracking if needed, 
+            // but for coupon calc, we treat current state as base.
+            line_total: Number(item.final_price) * item.quantity
         }));
 
         // Apply Discounts
@@ -202,7 +206,7 @@ export class CartService {
                     variant_id: undefined,
                     name: item.product_name!,
                     quantity: item.quantity,
-                    price: Number(item.cost_price),
+                    price: Number(item.final_price),
                 })),
                 cart_subtotal: cartSubtotal,
                 user_id: cart.user_id || undefined,
@@ -255,7 +259,7 @@ export class CartService {
         }
 
         // Calculate Totals
-        const subtotal = calculationItems.reduce((sum, item) => sum + (Number(item.cost_price) * item.quantity), 0);
+        const subtotal = calculationItems.reduce((sum, item) => sum + (Number(item.final_price) * item.quantity), 0);
         // Note: item.cost_price in my assumption earlier is Selling Price.
         // item.discount_amount (product/sale discount) is NOT subtracted from subtotal usually. Subtotal is sum of selling prices.
         // Wait, `add-to-cart` sets `discount_amount` as `compare_at - selling`.
