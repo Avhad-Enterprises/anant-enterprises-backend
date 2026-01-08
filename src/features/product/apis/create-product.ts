@@ -29,16 +29,16 @@ const createProductSchema = z.object({
 
   status: z.enum(['draft', 'active', 'archived', 'schedule']).default('draft'),
   scheduled_publish_at: z.string().datetime().optional().nullable(),
+  scheduled_publish_time: z.string().optional().nullable(),
   is_delisted: z.boolean().default(false),
   delist_date: z.string().datetime().optional().nullable(),
-  sales_channels: z.array(z.string()).default([]),
+  featured: z.boolean().default(false),
 
   cost_price: decimalSchema.default('0.00'),
   selling_price: decimalSchema,
   compare_at_price: decimalSchema.optional().nullable(),
 
   sku: z.string().min(1, 'SKU is required'),
-  barcode: z.string().optional().nullable(),
   hsn_code: z.string().optional().nullable(),
 
   weight: decimalSchema.optional().nullable(),
@@ -60,6 +60,8 @@ const createProductSchema = z.object({
 
   meta_title: z.string().optional().nullable(),
   meta_description: z.string().optional().nullable(),
+  product_url: z.string().optional().nullable(),
+  admin_comment: z.string().optional().nullable(),
 
   is_limited_edition: z.boolean().default(false),
   is_preorder_enabled: z.boolean().default(false),

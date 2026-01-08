@@ -122,6 +122,12 @@ export const INITIAL_PERMISSIONS = [
     description: 'Manage chatbot documents',
   },
 
+  // Product Management
+  { name: 'products:create', resource: 'products', action: 'create', description: 'Create new products' },
+  { name: 'products:read', resource: 'products', action: 'read', description: 'View all products (including drafts)' },
+  { name: 'products:update', resource: 'products', action: 'update', description: 'Update existing products' },
+  { name: 'products:delete', resource: 'products', action: 'delete', description: 'Delete products' },
+
   // Wildcard Permission (for superadmin)
   { name: '*', resource: '*', action: '*', description: 'Full system access (wildcard)' },
 ] as const;
@@ -154,6 +160,10 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'admin:invitations',
     'chatbot:use',
     'chatbot:documents',
+    'products:create',
+    'products:read',
+    'products:update',
+    'products:delete',
   ],
   superadmin: ['*'], // Wildcard - all permissions
 };

@@ -15,6 +15,13 @@
       "when": 1767703344192,
       "tag": "0001_amused_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767806701938,
+      "tag": "0002_loose_magneto",
+      "breakpoints": true
     }
   ]
 }

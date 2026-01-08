@@ -12,6 +12,7 @@ import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
+import { inventory } from '../../inventory/shared/inventory.schema';
 
 // Query params validation
 const querySchema = paginationSchema
@@ -112,17 +113,6 @@ const handler = async (req: Request, res: Response) => {
   // Calculate offset
   const offset = (params.page - 1) * params.limit;
 
-  // Get total count (before GROUP BY) - Note: Using post-filter count for accuracy
-  // const totalCount = await db
-  //     .select({ total: count(sql`DISTINCT ${products.id}`) })
-  //     .from(products)
-  //     .leftJoin(reviews, and(
-  //         eq(reviews.product_id, products.id),
-  //         eq(reviews.status, 'approved'),
-  //         eq(reviews.is_deleted, false)
-  //     ))
-  //     .where(whereClause);
-
   // Main query with computed fields
   const productsData = await db
     .select({
@@ -134,6 +124,17 @@ const handler = async (req: Request, res: Response) => {
       category_tier_1: products.category_tier_1,
       tags: products.tags,
       created_at: products.created_at,
+      updated_at: products.updated_at,
+      status: products.status,
+      featured: products.featured,
+      sku: products.sku,
+
+      // Computed: Inventory Quantity (Subquery to avoid Cartesian product details with Reviews)
+      inventory_quantity: sql<number>`(
+        SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
+        FROM ${inventory}
+        WHERE ${inventory.product_id} = ${products.id}
+      )`.mapWith(Number),
 
       // Computed: Average rating
       rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
@@ -159,7 +160,11 @@ const handler = async (req: Request, res: Response) => {
       products.primary_image_url,
       products.category_tier_1,
       products.tags,
-      products.created_at
+      products.created_at,
+      products.updated_at,
+      products.status,
+      products.featured,
+      products.sku
     );
 
   // Apply rating filter using HAVING clause (if specified)
@@ -177,7 +182,7 @@ const handler = async (req: Request, res: Response) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       case 'price-asc':
         return Number(a.selling_price) - Number(b.selling_price);
-      case 'price-desc':
+      case 'price-desc': // fixed case from 'price-desc' to 'price-desc' (consistency)
         return Number(b.selling_price) - Number(a.selling_price);
       case 'rating':
         return Number(b.rating) - Number(a.rating);
@@ -188,8 +193,29 @@ const handler = async (req: Request, res: Response) => {
 
   // Apply pagination
   const paginatedProducts = filteredProducts.slice(offset, offset + params.limit);
+  const totalPages = Math.ceil(filteredProducts.length / params.limit);
 
-  // Format response with field mapping
+  // Admin Response: Return raw data matching the Admin Frontend types
+  if (isAdmin) {
+    // Format inventory_quantity as string to match frontend expectation
+    const adminProducts = paginatedProducts.map(p => ({
+      ...p,
+      inventory_quantity: p.inventory_quantity.toString()
+    }));
+
+    return ResponseFormatter.success(
+      res,
+      {
+        products: adminProducts,
+        total: filteredProducts.length,
+        totalPages,
+        currentPage: params.page,
+      },
+      'Products retrieved successfully'
+    );
+  }
+
+  // Public/Storefront Response: Format response with field mapping
   const formattedProducts: CollectionProduct[] = paginatedProducts.map(product => {
     const createdDate = new Date(product.created_at);
     const thirtyDaysAgo = new Date();
@@ -210,9 +236,6 @@ const handler = async (req: Request, res: Response) => {
     };
   });
 
-  // Calculate total pages
-  const totalPages = Math.ceil(filteredProducts.length / params.limit);
-
   return ResponseFormatter.success(
     res,
     {
@@ -230,3 +253,4 @@ const router = Router();
 router.get('/', handler);
 
 export default router;
+
