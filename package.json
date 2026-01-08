@@ -96,6 +96,7 @@
     "mammoth": "^1.11.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
+    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
     "pdfjs-dist": "^5.4.530",
     "pg": "^8.16.3",

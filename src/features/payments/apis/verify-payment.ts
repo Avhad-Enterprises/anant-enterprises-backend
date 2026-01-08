@@ -177,6 +177,40 @@ const handler = async (req: RequestWithUser, res: Response) => {
         })
         .where(eq(orders.id, order.id));
 
+    // Record discount usage if applicable (Fire and Forget)
+    if (order.discount_code && order.discount_id) {
+        // Run asynchronously to not block the response
+        (async () => {
+            try {
+                // Import dynamically to avoid circular dependencies if any
+                const { discountCodeService } = await import('../../discount/services');
+
+                await discountCodeService.recordUsage({
+                    discount_id: order.discount_id!,
+                    discount_code: order.discount_code!,
+                    user_id: userId,
+                    order_id: order.id,
+                    order_number: order.order_number,
+                    discount_type: order.discount_type || 'unknown',
+                    discount_amount: Number(order.discount_amount),
+                    order_subtotal: Number(order.subtotal),
+                    order_total: Number(order.total_amount),
+                    items_count: order.total_quantity
+                });
+
+                logger.info('Discount usage recorded', {
+                    code: order.discount_code,
+                    orderId: order.id
+                });
+            } catch (error) {
+                logger.error('Failed to record discount usage', {
+                    orderId: order.id,
+                    error
+                });
+            }
+        })();
+    }
+
     logger.info('Payment verified successfully', {
         orderId: order.id,
         orderNumber: order.order_number,
