@@ -90,6 +90,37 @@ const handler = async (req: Request, res: Response) => {
             ))
             .limit(1);
         console.log('[GET /cart] User cart lookup - found:', !!cart, 'status:', cart?.cart_status);
+
+        // FALLBACK: If no user cart found but session ID provided, check for unmigrated guest cart
+        // This handles the case where cart merge failed during login
+        if (!cart && sessionId) {
+            console.log('[GET /cart] No user cart found, checking for unmigrated guest cart with session:', sessionId);
+            const [guestCart] = await db
+                .select()
+                .from(carts)
+                .where(and(
+                    eq(carts.session_id, sessionId),
+                    eq(carts.cart_status, 'active'),
+                    eq(carts.is_deleted, false)
+                ))
+                .limit(1);
+
+            if (guestCart) {
+                // Auto-assign guest cart to user (simple merge - just reassign ownership)
+                console.log('[GET /cart] Found unmigrated guest cart, assigning to user:', guestCart.id);
+                await db.update(carts)
+                    .set({
+                        user_id: userId,
+                        session_id: null, // Clear session_id since it's now user-owned
+                        updated_at: new Date(),
+                    })
+                    .where(eq(carts.id, guestCart.id));
+
+                // Use the now-assigned cart
+                cart = { ...guestCart, user_id: userId, session_id: null };
+                console.log('[GET /cart] Successfully assigned guest cart to user');
+            }
+        }
     } else if (sessionId) {
         [cart] = await db
             .select()
