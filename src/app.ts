@@ -140,7 +140,8 @@ class App {
     this.app.use(sanitizeInput);
 
     // Audit logging (after body parsing and sanitization, captures clean request body)
-    this.app.use(auditMiddleware);
+    // DISABLED: Too verbose for development
+    // this.app.use(auditMiddleware);
   }
 
   private initializeRoutes(routes: Routes[]) {

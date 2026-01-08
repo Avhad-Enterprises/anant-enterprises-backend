@@ -63,9 +63,10 @@ export const products = pgTable(
         // Status & Availability
         status: productStatusEnum('status').default('draft').notNull(),
         scheduled_publish_at: timestamp('scheduled_publish_at'),
+        scheduled_publish_time: varchar('scheduled_publish_time', { length: 10 }), // HH:MM format
         is_delisted: boolean('is_delisted').default(false).notNull(),
         delist_date: timestamp('delist_date'),
-        sales_channels: jsonb('sales_channels').default([]).notNull(), // e.g. ["web", "app"]
+        featured: boolean('featured').default(false).notNull(), // Featured product flag
 
         // Pricing
         cost_price: decimal('cost_price', { precision: 10, scale: 2 }).default('0.00').notNull(),
@@ -74,7 +75,6 @@ export const products = pgTable(
 
         // Inventory & Logistics
         sku: varchar('sku', { length: 100 }).unique().notNull(),
-        barcode: varchar('barcode', { length: 50 }),
         hsn_code: varchar('hsn_code', { length: 20 }),
         // CRITICAL FIX #7: Removed inventory_quantity - use inventory table instead
         // Query: SELECT SUM(available_quantity) FROM inventory WHERE product_id = ?
@@ -120,6 +120,10 @@ export const products = pgTable(
         // SEO
         meta_title: varchar('meta_title', { length: 255 }),
         meta_description: text('meta_description'),
+        product_url: varchar('product_url', { length: 500 }), // Custom product URL
+
+        // Admin Notes
+        admin_comment: text('admin_comment'), // Admin notes/comments
 
         // Flags
         is_limited_edition: boolean('is_limited_edition').default(false).notNull(),

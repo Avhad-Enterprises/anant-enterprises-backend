@@ -43,16 +43,16 @@ export interface IProduct {
 
   status: 'draft' | 'active' | 'archived' | 'schedule';
   scheduled_publish_at?: Date | null;
+  scheduled_publish_time?: string | null;
   is_delisted: boolean;
   delist_date?: Date | null;
-  sales_channels: string[]; // JSONB array -> string[]
+  featured: boolean;
 
   cost_price: string; // Decimal string
   selling_price: string; // Decimal string
   compare_at_price?: string | null; // Decimal string
 
   sku: string;
-  barcode?: string | null;
   hsn_code?: string | null;
 
   weight?: string | null;
@@ -84,6 +84,8 @@ export interface IProduct {
 
   meta_title?: string | null;
   meta_description?: string | null;
+  product_url?: string | null;
+  admin_comment?: string | null;
 
   is_limited_edition: boolean;
   is_preorder_enabled: boolean;
@@ -98,28 +100,6 @@ export interface IProduct {
   is_deleted: boolean;
   deleted_at?: Date | null;
   deleted_by?: string | null;
-}
-
-// ============================================
-// PRODUCT VARIANT
-// ============================================
-
-export interface IProductVariant {
-  id: string; // UUID
-  product_id: string;
-
-  option_name: string;
-  option_value: string;
-
-  sku: string;
-  price?: string | null;
-  inventory_quantity: number;
-
-  image_url?: string | null;
-
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
 }
 
 // ============================================

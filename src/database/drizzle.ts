@@ -39,7 +39,7 @@ import {
   countries,
   regions,
 } from '../features/settings';
-import { products, productVariants, productFaqs, productStatusEnum } from '../features/product';
+import { products, productFaqs, productStatusEnum } from '../features/product';
 import {
   collections,
   collectionRules,
@@ -253,7 +253,6 @@ export const schema = {
   regions,
   // Product feature
   products,
-  productVariants,
   productFaqs,
   productStatusEnum,
   // Collection feature

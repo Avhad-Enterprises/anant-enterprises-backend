@@ -43,7 +43,6 @@ interface ProductDetailResponse {
 
   // Inventory
   sku: string;
-  barcode: string | null;
 
   // Computed: Stock availability
   inStock: boolean;
@@ -59,6 +58,7 @@ interface ProductDetailResponse {
   category_tier_1: string | null;
   category_tier_2: string | null;
   category_tier_3: string | null;
+  category_tier_4: string | null;
 
   // Computed: Reviews
   rating: number;
@@ -67,6 +67,34 @@ interface ProductDetailResponse {
   // Timestamps
   created_at: Date;
   updated_at: Date;
+
+  // Extended Fields for Admin
+  weight: string | null;
+  length: string | null;
+  breadth: string | null;
+  height: string | null;
+  pickup_location: string | null;
+
+  meta_title: string | null;
+  meta_description: string | null;
+  product_url: string | null;
+
+  hsn_code: string | null;
+
+  tags: unknown; // jsonb
+  highlights: unknown; // jsonb
+  features: unknown; // jsonb
+  specs: unknown; // jsonb
+  brand_name: string | null;
+
+  admin_comment: string | null;
+
+  is_limited_edition: boolean;
+  is_preorder_enabled: boolean;
+  is_gift_wrap_available: boolean;
+
+  size_group: string | null;
+  accessories_group: string | null;
 }
 
 async function getProductDetailById(id: string, userId?: string): Promise<ProductDetailResponse> {
@@ -81,22 +109,55 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
       short_description: products.short_description,
       full_description: products.full_description,
       status: products.status,
+      scheduled_publish_at: products.scheduled_publish_at,
+      scheduled_publish_time: products.scheduled_publish_time,
+      is_delisted: products.is_delisted,
+      delist_date: products.delist_date,
+      featured: products.featured,
       cost_price: products.cost_price,
       selling_price: products.selling_price,
       compare_at_price: products.compare_at_price,
       sku: products.sku,
-      barcode: products.barcode,
       primary_image_url: products.primary_image_url,
       additional_images: products.additional_images,
       category_tier_1: products.category_tier_1,
       category_tier_2: products.category_tier_2,
       category_tier_3: products.category_tier_3,
+      category_tier_4: products.category_tier_4,
       created_at: products.created_at,
       updated_at: products.updated_at,
 
+      // New Fields
+      weight: products.weight,
+      length: products.length,
+      breadth: products.breadth,
+      height: products.height,
+      pickup_location: products.pickup_location,
+
+      meta_title: products.meta_title,
+      meta_description: products.meta_description,
+      product_url: products.product_url,
+
+      hsn_code: products.hsn_code,
+
+      tags: products.tags,
+      highlights: products.highlights,
+      features: products.features,
+      specs: products.specs,
+      brand_name: products.brand_name,
+
+      admin_comment: products.admin_comment,
+
+      is_limited_edition: products.is_limited_edition,
+      is_preorder_enabled: products.is_preorder_enabled,
+      is_gift_wrap_available: products.is_gift_wrap_available,
+
+      size_group: products.size_group,
+      accessories_group: products.accessories_group,
+
       // Computed: Total stock from inventory
-      total_stock: sql<number>`(
-        SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
+      total_stock: sql<string>`(
+        SELECT CAST(COALESCE(SUM(${inventory.available_quantity}), 0) AS TEXT)
         FROM ${inventory}
         WHERE ${inventory.product_id} = ${products.id}
       )`,
@@ -177,7 +238,6 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
 
     // Inventory
     sku: productData.sku,
-    barcode: productData.barcode,
     inStock: (productData.total_stock || 0) > 0,
     total_stock: Number(productData.total_stock) || 0,
 
@@ -190,6 +250,7 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
     category_tier_1: productData.category_tier_1,
     category_tier_2: productData.category_tier_2,
     category_tier_3: productData.category_tier_3,
+    category_tier_4: productData.category_tier_4,
 
     // Reviews
     rating: Number(productData.avg_rating) || 0,
@@ -198,6 +259,34 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
     // Timestamps
     created_at: productData.created_at,
     updated_at: productData.updated_at,
+
+    // Extended Fields
+    weight: productData.weight,
+    length: productData.length,
+    breadth: productData.breadth,
+    height: productData.height,
+    pickup_location: productData.pickup_location,
+
+    meta_title: productData.meta_title,
+    meta_description: productData.meta_description,
+    product_url: productData.product_url,
+
+    hsn_code: productData.hsn_code,
+
+    tags: productData.tags,
+    highlights: productData.highlights,
+    features: productData.features,
+    specs: productData.specs,
+    brand_name: productData.brand_name,
+
+    admin_comment: productData.admin_comment,
+
+    is_limited_edition: productData.is_limited_edition,
+    is_preorder_enabled: productData.is_preorder_enabled,
+    is_gift_wrap_available: productData.is_gift_wrap_available,
+
+    size_group: productData.size_group,
+    accessories_group: productData.accessories_group,
   };
 
   return response;
