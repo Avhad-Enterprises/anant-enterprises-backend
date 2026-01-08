@@ -16,9 +16,11 @@ import OrdersRoute from './features/orders';
 import ReviewRoute from './features/reviews';
 import PaymentsRoute from './features/payments';
 import WebhooksRoute from './features/webhooks';
+import DiscountRoute from './features/discount';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
+import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
 
 let server: import('http').Server;
 
@@ -59,7 +61,11 @@ async function bootstrap() {
       new ReviewRoute(),    // Reviews endpoints
       new PaymentsRoute(),  // Payment/Razorpay endpoints
       new WebhooksRoute(),  // External webhook endpoints
+      new DiscountRoute(),  // Discount endpoints
     ]);
+
+    // Initialize Cron Jobs
+    initializeDiscountCron();
 
     server = app.listen();
 

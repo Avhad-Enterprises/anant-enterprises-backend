@@ -76,14 +76,50 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + Number(item.line_subtotal), 0);
-    const discountTotal = items.reduce((sum, item) => sum + Number(item.discount_amount), 0);
+    // Calculate totals - Use Cart Totals which include order-level discounts
+    const subtotal = Number(cart.subtotal);
+    const discountTotal = Number(cart.discount_total);
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    // For now, simplified tax and shipping
+    // For now, simplified tax and shipping (should come from cart if we had it there)
     const shippingAmount = 0; // Free shipping
     const taxAmount = 0; // Tax calculated separately if needed
-    const totalAmount = subtotal - discountTotal + shippingAmount + taxAmount;
+
+    // Grand total should match cart's grand_total roughly, but let's recalculate to be safe with shipping/tax
+    const totalAmount = Math.max(subtotal - discountTotal + shippingAmount + taxAmount, 0);
+
+    // Resolve Discount Details if applied
+    let discountId = null;
+    let discountCodeId = null;
+    let discountCode = null;
+
+    // Check for applied discount codes
+    const appliedCodes = (cart.applied_discount_codes as string[]) || [];
+    if (appliedCodes.length > 0) {
+        discountCode = appliedCodes[0]; // Take the first one
+
+        // Lookup discount details
+        // We need discount_id and discount_code_id (code string itself?)
+        // The schema says `discount_code_id` references `discountCodes.code`.
+        // `discount_id` references `discounts.id`.
+
+        // Dynamic import to avoid circular dep if any, or just import schemas
+        const { discountCodes } = await import('../../discount/shared/discount-codes.schema');
+
+        const [codeDetails] = await db
+            .select({
+                code: discountCodes.code,
+                discount_id: discountCodes.discount_id
+            })
+            .from(discountCodes)
+            .where(eq(discountCodes.code, discountCode))
+            .limit(1);
+
+        if (codeDetails) {
+            discountCodeId = codeDetails.code;
+            discountId = codeDetails.discount_id;
+        }
+    }
 
     // Create order
     const orderNumber = generateOrderNumber();
@@ -101,6 +137,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
         currency: cart.currency,
         subtotal: subtotal.toFixed(2),
         discount_amount: discountTotal.toFixed(2),
+        discount_id: discountId,
+        discount_code_id: discountCodeId,
+        discount_code: discountCode,
         shipping_amount: shippingAmount.toFixed(2),
         tax_amount: taxAmount.toFixed(2),
         total_amount: totalAmount.toFixed(2),
