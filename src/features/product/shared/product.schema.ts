@@ -36,7 +36,6 @@ export const productStatusEnum = pgEnum('product_status', [
     'draft',
     'active',
     'archived',
-    'schedule',
 ]);
 
 // ============================================
@@ -62,10 +61,6 @@ export const products = pgTable(
 
         // Status & Availability
         status: productStatusEnum('status').default('draft').notNull(),
-        scheduled_publish_at: timestamp('scheduled_publish_at'),
-        scheduled_publish_time: varchar('scheduled_publish_time', { length: 10 }), // HH:MM format
-        is_delisted: boolean('is_delisted').default(false).notNull(),
-        delist_date: timestamp('delist_date'),
         featured: boolean('featured').default(false).notNull(), // Featured product flag
 
         // Pricing
@@ -84,7 +79,6 @@ export const products = pgTable(
         length: decimal('length', { precision: 8, scale: 2 }), // cm
         breadth: decimal('breadth', { precision: 8, scale: 2 }), // cm
         height: decimal('height', { precision: 8, scale: 2 }), // cm
-        pickup_location: varchar('pickup_location', { length: 100 }), // Store/Warehouse ID
 
         // Categorization
         // Hierarchical category structure using tiers table
@@ -93,25 +87,8 @@ export const products = pgTable(
         category_tier_3: uuid('category_tier_3').references(() => tiers.id, { onDelete: 'set null' }),
         category_tier_4: uuid('category_tier_4').references(() => tiers.id, { onDelete: 'set null' }),
 
-        // Brand (Product Page Enhancement)
-        brand_name: varchar('brand_name', { length: 255 }),
-        brand_slug: varchar('brand_slug', { length: 255 }),
-
-        // Feature Tags (Product Page Enhancement)
-        tags: jsonb('tags').default([]), // ["RO", "UV", "UF"]
-
-        // Bullet Point Highlights (Product Page Enhancement)
-        highlights: jsonb('highlights').default([]), // ["10L capacity", "5 year warranty"]
-
-        // Feature Cards with Icons (Product Page Enhancement)
-        features: jsonb('features').default([]), // [{ icon: "Shield", title: "5 Year Warranty", description: "..." }]
-
-        // Technical Specifications (Product Page Enhancement)
-        specs: jsonb('specs'), // { technology: "RO+UV", storage: "10L", ... }
-
-        // Grouping
-        size_group: varchar('size_group', { length: 100 }),
-        accessories_group: varchar('accessories_group', { length: 100 }),
+        // Tags
+        tags: jsonb('tags').default([]), // ["tag1", "tag2"]
 
         // Media
         primary_image_url: text('primary_image_url'),
@@ -121,15 +98,6 @@ export const products = pgTable(
         meta_title: varchar('meta_title', { length: 255 }),
         meta_description: text('meta_description'),
         product_url: varchar('product_url', { length: 500 }), // Custom product URL
-
-        // Admin Notes
-        admin_comment: text('admin_comment'), // Admin notes/comments
-
-        // Flags
-        is_limited_edition: boolean('is_limited_edition').default(false).notNull(),
-        is_preorder_enabled: boolean('is_preorder_enabled').default(false).notNull(),
-        preorder_release_date: timestamp('preorder_release_date'),
-        is_gift_wrap_available: boolean('is_gift_wrap_available').default(false).notNull(),
 
         // Audit Fields
         created_at: timestamp('created_at').defaultNow().notNull(),
@@ -142,14 +110,13 @@ export const products = pgTable(
         deleted_at: timestamp('deleted_at'),
         deleted_by: uuid('deleted_by'),
 
-        // Search Optimization (Phase 3 - Batch 1)
-        // Full-text search vector combining title, description, and brand
+        // Search Optimization
+        // Full-text search vector combining title and description
         // Enables fast, ranked search results with PostgreSQL text search
         search_vector: tsvector('search_vector').generatedAlwaysAs(
             sql`to_tsvector('english', 
                     COALESCE(product_title, '') || ' ' || 
-                    COALESCE(short_description, '') || ' ' || 
-                    COALESCE(brand_name, '')
+                    COALESCE(short_description, '')
                 )`
         ),
     },

@@ -5,6 +5,7 @@
  */
 
 import { Router } from 'express';
+import getTiers from './apis/get-tiers';
 
 class TierRoute {
   public path = '/tiers';
@@ -15,7 +16,7 @@ class TierRoute {
   }
 
   private initializeRoutes() {
-    // defined later
+    this.router.use('/', getTiers);
   }
 }
 

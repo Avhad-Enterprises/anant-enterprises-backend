@@ -13,6 +13,7 @@ import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
+import { sql } from 'drizzle-orm';
 import { findProductBySku, findProductBySlug } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
@@ -27,11 +28,7 @@ const createProductSchema = z.object({
   short_description: z.string().optional(),
   full_description: z.string().optional(),
 
-  status: z.enum(['draft', 'active', 'archived', 'schedule']).default('draft'),
-  scheduled_publish_at: z.string().datetime().optional().nullable(),
-  scheduled_publish_time: z.string().optional().nullable(),
-  is_delisted: z.boolean().default(false),
-  delist_date: z.string().datetime().optional().nullable(),
+  status: z.enum(['draft', 'active', 'archived']).default('draft'),
   featured: z.boolean().default(false),
 
   cost_price: decimalSchema.default('0.00'),
@@ -45,15 +42,11 @@ const createProductSchema = z.object({
   length: decimalSchema.optional().nullable(),
   breadth: decimalSchema.optional().nullable(),
   height: decimalSchema.optional().nullable(),
-  pickup_location: z.string().optional().nullable(),
 
   category_tier_1: z.string().optional().nullable(),
   category_tier_2: z.string().optional().nullable(),
   category_tier_3: z.string().optional().nullable(),
   category_tier_4: z.string().optional().nullable(),
-
-  size_group: z.string().optional().nullable(),
-  accessories_group: z.string().optional().nullable(),
 
   primary_image_url: z.string().url().optional().nullable(),
   additional_images: z.array(z.string().url()).default([]),
@@ -61,12 +54,17 @@ const createProductSchema = z.object({
   meta_title: z.string().optional().nullable(),
   meta_description: z.string().optional().nullable(),
   product_url: z.string().optional().nullable(),
-  admin_comment: z.string().optional().nullable(),
 
-  is_limited_edition: z.boolean().default(false),
-  is_preorder_enabled: z.boolean().default(false),
-  preorder_release_date: z.string().datetime().optional().nullable(),
-  is_gift_wrap_available: z.boolean().default(false),
+  tags: z.array(z.string()).optional().default([]),
+
+  // FAQs - array of question/answer pairs
+  faqs: z.array(z.object({
+    question: z.string().min(1, 'Question is required'),
+    answer: z.string().min(1, 'Answer is required'),
+  })).optional().default([]),
+
+  // Inventory - initial stock quantity
+  inventory_quantity: z.number().int().nonnegative().optional().default(0),
 });
 
 type CreateProductData = z.infer<typeof createProductSchema>;
@@ -87,9 +85,6 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
   // Convert datetime strings to Date objects
   const productData: typeof products.$inferInsert = {
     ...data,
-    scheduled_publish_at: data.scheduled_publish_at ? new Date(data.scheduled_publish_at) : null,
-    delist_date: data.delist_date ? new Date(data.delist_date) : null,
-    preorder_release_date: data.preorder_release_date ? new Date(data.preorder_release_date) : null,
     created_by: createdBy,
     updated_by: createdBy,
   };
@@ -98,6 +93,39 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
   if (!newProduct) {
     throw new HttpException(500, 'Failed to create product');
+  }
+
+  // Store FAQs if provided
+  if (data.faqs && data.faqs.length > 0) {
+    const { productFaqs } = await import('../shared/product-faqs.schema');
+    const faqsData = data.faqs.map(faq => ({
+      product_id: newProduct.id,
+      question: faq.question,
+      answer: faq.answer,
+    }));
+    await db.insert(productFaqs).values(faqsData);
+  }
+
+  // Create initial inventory record if quantity provided
+  if (data.inventory_quantity && data.inventory_quantity > 0) {
+    const { inventory } = await import('../../inventory/shared/inventory.schema');
+    const { inventoryLocations } = await import('../../inventory/shared/inventory-locations.schema');
+
+    // Get default location or create one if doesn't exist
+    const [defaultLocation] = await db.select().from(inventoryLocations).where(sql`name = 'Default Location'`).limit(1);
+
+    if (defaultLocation) {
+      await db.insert(inventory).values({
+        product_id: newProduct.id,
+        location_id: defaultLocation.id,
+        product_name: newProduct.product_title,
+        sku: newProduct.sku,
+        available_quantity: data.inventory_quantity,
+        required_quantity: 0,
+        reserved_quantity: 0,
+        status: 'Enough Stock',
+      });
+    }
   }
 
   // Cache the new product

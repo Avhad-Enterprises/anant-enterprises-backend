@@ -40,11 +40,7 @@ const updateProductSchema = z.object({
   short_description: z.string().optional().nullable(),
   full_description: z.string().optional().nullable(),
 
-  status: z.enum(['draft', 'active', 'archived', 'schedule']).optional(),
-  scheduled_publish_at: z.string().datetime().optional().nullable(),
-  scheduled_publish_time: z.string().optional().nullable(),
-  is_delisted: z.boolean().optional(),
-  delist_date: z.string().datetime().optional().nullable(),
+  status: z.enum(['draft', 'active', 'archived']).optional(),
   featured: z.boolean().optional(),
 
   cost_price: decimalSchema.optional(),
@@ -61,15 +57,11 @@ const updateProductSchema = z.object({
   length: decimalSchema.optional().nullable(),
   breadth: decimalSchema.optional().nullable(),
   height: decimalSchema.optional().nullable(),
-  pickup_location: z.string().optional().nullable(),
 
   category_tier_1: z.string().optional().nullable(),
   category_tier_2: z.string().optional().nullable(),
   category_tier_3: z.string().optional().nullable(),
   category_tier_4: z.string().optional().nullable(),
-
-  size_group: z.string().optional().nullable(),
-  accessories_group: z.string().optional().nullable(),
 
   primary_image_url: z.string().url().optional().nullable(),
   additional_images: z.array(z.string().url()).optional(),
@@ -77,14 +69,14 @@ const updateProductSchema = z.object({
   meta_title: z.string().optional().nullable(),
   meta_description: z.string().optional().nullable(),
   product_url: z.string().optional().nullable(),
-  admin_comment: z.string().optional().nullable(),
-
-  is_limited_edition: z.boolean().optional(),
-  is_preorder_enabled: z.boolean().optional(),
-  preorder_release_date: z.string().datetime().optional().nullable(),
-  is_gift_wrap_available: z.boolean().optional(),
 
   tags: z.array(z.string()).optional(),
+
+  // FAQs - array of question/answer pairs
+  faqs: z.array(z.object({
+    question: z.string().min(1, 'Question is required'),
+    answer: z.string().min(1, 'Answer is required'),
+  })).optional(),
 });
 
 type UpdateProduct = z.infer<typeof updateProductSchema>;
@@ -157,28 +149,32 @@ async function updateProduct(
     }
   }
 
+  // Handle FAQ update - replace all FAQs
+  if (data.faqs !== undefined) {
+    const { productFaqs } = await import('../shared/product-faqs.schema');
+
+    // Delete existing FAQs
+    await db.delete(productFaqs).where(eq(productFaqs.product_id, id));
+
+    // Insert new FAQs if provided
+    if (data.faqs && data.faqs.length > 0) {
+      const faqsData = data.faqs.map(faq => ({
+        product_id: id,
+        question: faq.question,
+        answer: faq.answer,
+      }));
+      await db.insert(productFaqs).values(faqsData);
+    }
+  }
+
   // Convert datetime strings to Date objects - build incrementally
-  // Extract inventory_quantity to avoid passing it to products table update
-  const { inventory_quantity, ...productFields } = data;
+  // Extract inventory_quantity and faqs to avoid passing them to products table update
+  const { inventory_quantity, faqs, ...productFields } = data;
 
   const updateData: Record<string, unknown> = {
     ...productFields,
     updated_by: updatedBy,
   };
-
-  if (data.scheduled_publish_at !== undefined) {
-    updateData.scheduled_publish_at = data.scheduled_publish_at
-      ? new Date(data.scheduled_publish_at)
-      : null;
-  }
-  if (data.delist_date !== undefined) {
-    updateData.delist_date = data.delist_date ? new Date(data.delist_date) : null;
-  }
-  if (data.preorder_release_date !== undefined) {
-    updateData.preorder_release_date = data.preorder_release_date
-      ? new Date(data.preorder_release_date)
-      : null;
-  }
 
   const [result] = await db
     .update(products)
@@ -201,10 +197,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
-
-  const paramsSchema = z.object({
-    id: uuidSchema,
-  });
 
   const { id } = paramsSchema.parse(req.params);
   const updateData: UpdateProduct = req.body;

@@ -15,89 +15,17 @@ import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
+import { IProductDetailResponse } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
+import { productFaqs } from '../shared/product-faqs.schema';
 import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
   id: uuidSchema,
 });
 
-interface ProductDetailResponse {
-  // Core product fields (keep backend names)
-  id: string;
-  slug: string;
-  product_title: string;
-  secondary_title: string | null;
-  short_description: string | null;
-  full_description: string | null;
-  status: string;
-
-  // Pricing
-  cost_price: string;
-  selling_price: string;
-  compare_at_price: string | null;
-
-  // Computed: Discount percentage
-  discount: number | null;
-
-  // Inventory
-  sku: string;
-
-  // Computed: Stock availability
-  inStock: boolean;
-  total_stock: number;
-
-  // Media
-  primary_image_url: string | null;
-  additional_images: string[];
-  // Combined images array
-  images: string[];
-
-  // Categorization
-  category_tier_1: string | null;
-  category_tier_2: string | null;
-  category_tier_3: string | null;
-  category_tier_4: string | null;
-
-  // Computed: Reviews
-  rating: number;
-  review_count: number;
-
-  // Timestamps
-  created_at: Date;
-  updated_at: Date;
-
-  // Extended Fields for Admin
-  weight: string | null;
-  length: string | null;
-  breadth: string | null;
-  height: string | null;
-  pickup_location: string | null;
-
-  meta_title: string | null;
-  meta_description: string | null;
-  product_url: string | null;
-
-  hsn_code: string | null;
-
-  tags: unknown; // jsonb
-  highlights: unknown; // jsonb
-  features: unknown; // jsonb
-  specs: unknown; // jsonb
-  brand_name: string | null;
-
-  admin_comment: string | null;
-
-  is_limited_edition: boolean;
-  is_preorder_enabled: boolean;
-  is_gift_wrap_available: boolean;
-
-  size_group: string | null;
-  accessories_group: string | null;
-}
-
-async function getProductDetailById(id: string, userId?: string): Promise<ProductDetailResponse> {
+async function getProductDetailById(id: string, userId?: string): Promise<IProductDetailResponse> {
   // Fetch product with computed fields using optimized subqueries
   const [productData] = await db
     .select({
@@ -109,15 +37,12 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
       short_description: products.short_description,
       full_description: products.full_description,
       status: products.status,
-      scheduled_publish_at: products.scheduled_publish_at,
-      scheduled_publish_time: products.scheduled_publish_time,
-      is_delisted: products.is_delisted,
-      delist_date: products.delist_date,
       featured: products.featured,
       cost_price: products.cost_price,
       selling_price: products.selling_price,
       compare_at_price: products.compare_at_price,
       sku: products.sku,
+      hsn_code: products.hsn_code,
       primary_image_url: products.primary_image_url,
       additional_images: products.additional_images,
       category_tier_1: products.category_tier_1,
@@ -127,33 +52,19 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
       created_at: products.created_at,
       updated_at: products.updated_at,
 
-      // New Fields
+      // Dimensions
       weight: products.weight,
       length: products.length,
       breadth: products.breadth,
       height: products.height,
-      pickup_location: products.pickup_location,
 
+      // SEO
       meta_title: products.meta_title,
       meta_description: products.meta_description,
       product_url: products.product_url,
 
-      hsn_code: products.hsn_code,
-
+      // Tags
       tags: products.tags,
-      highlights: products.highlights,
-      features: products.features,
-      specs: products.specs,
-      brand_name: products.brand_name,
-
-      admin_comment: products.admin_comment,
-
-      is_limited_edition: products.is_limited_edition,
-      is_preorder_enabled: products.is_preorder_enabled,
-      is_gift_wrap_available: products.is_gift_wrap_available,
-
-      size_group: products.size_group,
-      accessories_group: products.accessories_group,
 
       // Computed: Total stock from inventory
       total_stock: sql<string>`(
@@ -200,6 +111,16 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
     }
   }
 
+  // Fetch FAQs for this product
+  const faqsData = await db
+    .select({
+      id: productFaqs.id,
+      question: productFaqs.question,
+      answer: productFaqs.answer,
+    })
+    .from(productFaqs)
+    .where(eq(productFaqs.product_id, id));
+
   // Calculate discount percentage
   let discount: number | null = null;
   if (productData.compare_at_price && productData.selling_price) {
@@ -220,7 +141,7 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
   }
 
   // Build response
-  const response: ProductDetailResponse = {
+  const response: IProductDetailResponse = {
     // Core fields
     id: productData.id,
     slug: productData.slug,
@@ -238,7 +159,7 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
 
     // Inventory
     sku: productData.sku,
-    inStock: (productData.total_stock || 0) > 0,
+    inStock: Number(productData.total_stock || 0) > 0,
     total_stock: Number(productData.total_stock) || 0,
 
     // Media
@@ -265,7 +186,6 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
     length: productData.length,
     breadth: productData.breadth,
     height: productData.height,
-    pickup_location: productData.pickup_location,
 
     meta_title: productData.meta_title,
     meta_description: productData.meta_description,
@@ -273,20 +193,17 @@ async function getProductDetailById(id: string, userId?: string): Promise<Produc
 
     hsn_code: productData.hsn_code,
 
-    tags: productData.tags,
-    highlights: productData.highlights,
-    features: productData.features,
-    specs: productData.specs,
-    brand_name: productData.brand_name,
+    tags: (productData.tags as string[]) || [],
 
-    admin_comment: productData.admin_comment,
+    // Featured
+    featured: productData.featured,
 
-    is_limited_edition: productData.is_limited_edition,
-    is_preorder_enabled: productData.is_preorder_enabled,
-    is_gift_wrap_available: productData.is_gift_wrap_available,
-
-    size_group: productData.size_group,
-    accessories_group: productData.accessories_group,
+    // FAQs
+    faqs: faqsData.map(faq => ({
+      id: faq.id,
+      question: faq.question,
+      answer: faq.answer,
+    })),
   };
 
   return response;

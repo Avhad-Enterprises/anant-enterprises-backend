@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
+import { ICollectionProduct } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 
@@ -18,7 +19,7 @@ import { inventory } from '../../inventory/shared/inventory.schema';
 const querySchema = paginationSchema
   .extend({
     // Admin filters
-    status: z.enum(['draft', 'active', 'archived', 'schedule']).optional(),
+    status: z.enum(['draft', 'active', 'archived']).optional(),
     category_tier_1: z.string().optional(),
 
     // Public collection filters
@@ -32,20 +33,6 @@ const querySchema = paginationSchema
     sort: z.enum(['newest', 'price-asc', 'price-desc', 'rating']).default('newest'),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
-
-interface CollectionProduct {
-  id: string;
-  name: string;
-  tags: string[] | null;
-  rating: number;
-  reviews: number;
-  price: number;
-  originalPrice: number | null;
-  image: string | null;
-  isNew: boolean;
-  category: string;
-  technologies: string[];
-}
 
 const handler = async (req: Request, res: Response) => {
   const params = querySchema.parse(req.query);
@@ -216,7 +203,7 @@ const handler = async (req: Request, res: Response) => {
   }
 
   // Public/Storefront Response: Format response with field mapping
-  const formattedProducts: CollectionProduct[] = paginatedProducts.map(product => {
+  const formattedProducts: ICollectionProduct[] = paginatedProducts.map(product => {
     const createdDate = new Date(product.created_at);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
