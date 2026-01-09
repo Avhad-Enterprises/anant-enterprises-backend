@@ -2,11 +2,17 @@
  * POST /api/webhooks/razorpay
  *
  * Handles asynchronous payment events from Razorpay.
- * This is the primary source of truth for payment status.
+ * THIS IS THE SINGLE SOURCE OF TRUTH FOR PAYMENT STATUS.
+ *
+ * The client-side /verify endpoint only marks payments as 'authorized'.
+ * This webhook handler is responsible for:
+ * - Confirming payments (marking as 'paid' / 'captured')
+ * - Recording payment failures
+ * - Processing refunds
  *
  * Supported Events:
  * - payment.authorized: Payment authorized (for 2-step capture)
- * - payment.captured: Payment successfully captured
+ * - payment.captured: Payment successfully captured (SOURCE OF TRUTH)
  * - payment.failed: Payment attempt failed
  * - refund.processed: Refund successfully processed
  * - refund.failed: Refund failed
@@ -15,11 +21,12 @@
  * SECURITY:
  * - Verifies webhook signature before processing
  * - Uses idempotency to prevent duplicate processing
- * - Returns 200 OK even on processing errors (to prevent retries)
+ * - Wraps all updates in database transactions
+ * - Returns 200 OK even on processing errors (to prevent infinite retries)
  */
 
 import { Router, Request, Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray, ne } from 'drizzle-orm';
 import { logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
@@ -63,10 +70,7 @@ const handler = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'error', message: 'Missing body' });
     }
 
-    // Verify signature FIRST
-    const isValid = RazorpayService.verifyWebhookSignature(rawBody, signature);
-
-    // Parse the event
+    // Parse the event FIRST (before signature check to get event details for logging)
     let event: IRazorpayWebhookEvent;
     try {
         event = JSON.parse(rawBody);
@@ -75,30 +79,72 @@ const handler = async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'error', message: 'Invalid JSON' });
     }
 
-    const eventId = `${event.event}_${Date.now()}`;
     const eventType = event.event as SupportedEvent;
 
-    // Extract references for logging
+    // Extract references for idempotency and logging
     const razorpayOrderId = event.payload?.payment?.entity?.order_id
         || event.payload?.order?.entity?.id;
     const razorpayPaymentId = event.payload?.payment?.entity?.id
         || event.payload?.refund?.entity?.payment_id;
 
-    // Log webhook receipt
+    // Create unique event identifier for idempotency
+    // Use payment_id + event_type for uniqueness (same payment can have multiple event types)
+    const eventIdentifier = `${razorpayPaymentId || razorpayOrderId}_${eventType}`;
+
+    // Verify signature FIRST
+    const isValid = RazorpayService.verifyWebhookSignature(rawBody, signature);
+
+    // IDEMPOTENCY CHECK BEFORE INSERT - prevent duplicate processing
+    const existingLog = await db.query.paymentWebhookLogs.findFirst({
+        where: and(
+            eq(paymentWebhookLogs.event_id, eventIdentifier),
+            eq(paymentWebhookLogs.processed, true)
+        ),
+    });
+
+    if (existingLog) {
+        logger.info('Webhook already processed (idempotency hit)', {
+            eventType,
+            razorpayPaymentId,
+            eventIdentifier,
+        });
+        return res.status(200).json({ status: 'already_processed' });
+    }
+
+    // Log webhook receipt (use unique eventIdentifier instead of timestamp-based id)
+    let webhookLogId: string | null = null;
     try {
-        await db.insert(paymentWebhookLogs).values({
-            event_id: eventId,
+        const [inserted] = await db.insert(paymentWebhookLogs).values({
+            event_id: eventIdentifier,
             event_type: eventType,
             razorpay_order_id: razorpayOrderId,
             razorpay_payment_id: razorpayPaymentId,
             raw_payload: event,
             signature_verified: isValid,
             received_at: new Date(),
-        });
+        }).onConflictDoNothing().returning({ id: paymentWebhookLogs.id });
+
+        webhookLogId = inserted?.id || null;
+
+        // If insert did nothing (conflict), check if already processed
+        if (!webhookLogId) {
+            const existing = await db.query.paymentWebhookLogs.findFirst({
+                where: eq(paymentWebhookLogs.event_id, eventIdentifier),
+            });
+            if (existing?.processed) {
+                logger.info('Webhook already processed (conflict)', { eventType, eventIdentifier });
+                return res.status(200).json({ status: 'already_processed' });
+            }
+            webhookLogId = existing?.id || null;
+        }
     } catch (error) {
-        logger.error('Failed to log webhook', {
-            error: error instanceof Error ? error.message : String(error),
-        });
+        // Unique constraint violation - already exists
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes('unique') || errorMessage.includes('duplicate')) {
+            logger.info('Webhook duplicate detected', { eventType, eventIdentifier });
+            return res.status(200).json({ status: 'already_processed' });
+        }
+        logger.error('Failed to log webhook', { error: errorMessage });
     }
 
     // Reject invalid signatures
@@ -114,20 +160,6 @@ const handler = async (req: Request, res: Response) => {
     if (!SUPPORTED_EVENTS.includes(eventType as SupportedEvent)) {
         logger.info('Ignoring unsupported webhook event', { eventType });
         return res.status(200).json({ status: 'ignored', message: 'Unsupported event type' });
-    }
-
-    // Check idempotency - prevent duplicate processing
-    const existingLog = await db.query.paymentWebhookLogs.findFirst({
-        where: and(
-            eq(paymentWebhookLogs.razorpay_payment_id, razorpayPaymentId || ''),
-            eq(paymentWebhookLogs.event_type, eventType),
-            eq(paymentWebhookLogs.processed, true)
-        ),
-    });
-
-    if (existingLog) {
-        logger.info('Webhook already processed', { eventType, razorpayPaymentId });
-        return res.status(200).json({ status: 'already_processed' });
     }
 
     // Process the event
@@ -162,13 +194,15 @@ const handler = async (req: Request, res: Response) => {
         }
 
         // Mark webhook as processed
-        await db
-            .update(paymentWebhookLogs)
-            .set({
-                processed: true,
-                processed_at: new Date(),
-            })
-            .where(eq(paymentWebhookLogs.event_id, eventId));
+        if (webhookLogId) {
+            await db
+                .update(paymentWebhookLogs)
+                .set({
+                    processed: true,
+                    processed_at: new Date(),
+                })
+                .where(eq(paymentWebhookLogs.id, webhookLogId));
+        }
 
         logger.info('Webhook processed successfully', {
             eventType,
@@ -188,15 +222,17 @@ const handler = async (req: Request, res: Response) => {
         });
 
         // Log error but return 200 to prevent Razorpay retries
-        await db
-            .update(paymentWebhookLogs)
-            .set({
-                processing_error: errorMessage,
-                retry_count: 1,
-            })
-            .where(eq(paymentWebhookLogs.event_id, eventId));
+        if (webhookLogId) {
+            await db
+                .update(paymentWebhookLogs)
+                .set({
+                    processing_error: errorMessage,
+                    retry_count: 1,
+                })
+                .where(eq(paymentWebhookLogs.id, webhookLogId));
+        }
 
-        // Return 200 to prevent retries for application errors
+        // Return 200 to prevent infinite retries for application errors
         return res.status(200).json({ status: 'error', message: errorMessage });
     }
 };
@@ -207,52 +243,69 @@ const handler = async (req: Request, res: Response) => {
 
 /**
  * Handle payment.captured event
- * This is the primary confirmation that payment was successful
+ * THIS IS THE SOURCE OF TRUTH - marks payment as 'paid'
  */
 async function handlePaymentCaptured(payment: IRazorpayPaymentEntity) {
     const { id: paymentId, order_id: razorpayOrderId, amount, method } = payment;
 
-    logger.info('Processing payment.captured', { paymentId, razorpayOrderId, amount, method });
+    logger.info('Processing payment.captured (source of truth)', { paymentId, razorpayOrderId, amount, method });
 
-    // Find the transaction
-    const transaction = await db.query.paymentTransactions.findFirst({
-        where: eq(paymentTransactions.razorpay_order_id, razorpayOrderId),
-    });
+    // Find the transaction first (outside transaction for read)
+    const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.razorpay_order_id, razorpayOrderId))
+        .limit(1);
 
     if (!transaction) {
         logger.warn('Transaction not found for captured payment', { razorpayOrderId });
         return;
     }
 
-    // Update transaction
-    await db
-        .update(paymentTransactions)
-        .set({
-            status: 'captured',
-            razorpay_payment_id: paymentId,
-            payment_method: method,
-            payment_method_details: extractPaymentMethodDetails(payment),
-            webhook_verified: true,
-            webhook_received_at: new Date(),
-            verified_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(paymentTransactions.id, transaction.id));
+    // Skip if already captured (idempotency)
+    if (transaction.status === 'captured' && transaction.webhook_verified) {
+        logger.info('Transaction already captured, skipping', { razorpayOrderId });
+        return;
+    }
 
-    // Update order
-    await db
-        .update(orders)
-        .set({
-            payment_status: 'paid',
-            order_status: 'confirmed',
-            transaction_id: paymentId,
-            paid_at: new Date(),
-            last_payment_error: null,
-            updated_at: new Date(),
-        })
-        .where(eq(orders.id, transaction.order_id));
+    // Use transaction for atomic updates
+    await db.transaction(async (tx) => {
+        // Update transaction to 'captured' (final status)
+        await tx
+            .update(paymentTransactions)
+            .set({
+                status: 'captured',
+                razorpay_payment_id: paymentId,
+                payment_method: method,
+                payment_method_details: extractPaymentMethodDetails(payment),
+                webhook_verified: true,
+                webhook_received_at: new Date(),
+                verified_at: new Date(),
+                updated_at: new Date(),
+            })
+            .where(eq(paymentTransactions.id, transaction.id));
 
-    logger.info('Payment captured - order confirmed', {
+        // Update order to 'paid' and 'confirmed' (SOURCE OF TRUTH)
+        await tx
+            .update(orders)
+            .set({
+                payment_status: 'paid',
+                order_status: 'confirmed',
+                transaction_id: paymentId,
+                paid_at: new Date(),
+                last_payment_error: null,
+                updated_at: new Date(),
+            })
+            .where(
+                and(
+                    eq(orders.id, transaction.order_id),
+                    // Only update if not already in final state
+                    ne(orders.payment_status, 'refunded')
+                )
+            );
+    });
+
+    logger.info('Payment captured - order confirmed (SOURCE OF TRUTH)', {
         orderId: transaction.order_id,
         paymentId,
         amount: amount / 100, // Convert paise to rupees for logging
@@ -267,33 +320,49 @@ async function handlePaymentAuthorized(payment: IRazorpayPaymentEntity) {
 
     logger.info('Processing payment.authorized', { paymentId, razorpayOrderId });
 
-    const transaction = await db.query.paymentTransactions.findFirst({
-        where: eq(paymentTransactions.razorpay_order_id, razorpayOrderId),
-    });
+    // Find the transaction first
+    const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.razorpay_order_id, razorpayOrderId))
+        .limit(1);
 
     if (!transaction) {
         logger.warn('Transaction not found for authorized payment', { razorpayOrderId });
         return;
     }
 
-    await db
-        .update(paymentTransactions)
-        .set({
-            status: 'authorized',
-            razorpay_payment_id: paymentId,
-            webhook_received_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(paymentTransactions.id, transaction.id));
+    // Skip if already in a terminal state
+    if (['captured', 'refunded'].includes(transaction.status)) {
+        logger.info('Transaction already in terminal state, skipping authorized', { razorpayOrderId });
+        return;
+    }
 
-    // Update order to authorized status
-    await db
-        .update(orders)
-        .set({
-            payment_status: 'authorized',
-            updated_at: new Date(),
-        })
-        .where(eq(orders.id, transaction.order_id));
+    await db.transaction(async (tx) => {
+        await tx
+            .update(paymentTransactions)
+            .set({
+                status: 'authorized',
+                razorpay_payment_id: paymentId,
+                webhook_received_at: new Date(),
+                updated_at: new Date(),
+            })
+            .where(eq(paymentTransactions.id, transaction.id));
+
+        // Update order to authorized status (if not already paid)
+        await tx
+            .update(orders)
+            .set({
+                payment_status: 'authorized',
+                updated_at: new Date(),
+            })
+            .where(
+                and(
+                    eq(orders.id, transaction.order_id),
+                    inArray(orders.payment_status, ['pending', 'failed'])
+                )
+            );
+    });
 }
 
 /**
@@ -317,38 +386,55 @@ async function handlePaymentFailed(payment: IRazorpayPaymentEntity) {
         errorDescription: error_description,
     });
 
-    const transaction = await db.query.paymentTransactions.findFirst({
-        where: eq(paymentTransactions.razorpay_order_id, razorpayOrderId),
-    });
+    // Find the transaction first
+    const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.razorpay_order_id, razorpayOrderId))
+        .limit(1);
 
     if (!transaction) {
         logger.warn('Transaction not found for failed payment', { razorpayOrderId });
         return;
     }
 
-    await db
-        .update(paymentTransactions)
-        .set({
-            status: 'failed',
-            razorpay_payment_id: paymentId,
-            error_code,
-            error_description,
-            error_source,
-            error_step,
-            error_reason,
-            webhook_received_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(paymentTransactions.id, transaction.id));
+    // Skip if already in a success state (failure arrived out of order)
+    if (['captured', 'refunded'].includes(transaction.status)) {
+        logger.info('Transaction already in success state, ignoring failure', { razorpayOrderId });
+        return;
+    }
 
-    await db
-        .update(orders)
-        .set({
-            payment_status: 'failed',
-            last_payment_error: error_description || error_reason || 'Payment failed',
-            updated_at: new Date(),
-        })
-        .where(eq(orders.id, transaction.order_id));
+    await db.transaction(async (tx) => {
+        await tx
+            .update(paymentTransactions)
+            .set({
+                status: 'failed',
+                razorpay_payment_id: paymentId,
+                error_code,
+                error_description,
+                error_source,
+                error_step,
+                error_reason,
+                webhook_received_at: new Date(),
+                updated_at: new Date(),
+            })
+            .where(eq(paymentTransactions.id, transaction.id));
+
+        await tx
+            .update(orders)
+            .set({
+                payment_status: 'failed',
+                last_payment_error: error_description || error_reason || 'Payment failed',
+                updated_at: new Date(),
+            })
+            .where(
+                and(
+                    eq(orders.id, transaction.order_id),
+                    // Only mark as failed if not already paid
+                    inArray(orders.payment_status, ['pending', 'authorized'])
+                )
+            );
+    });
 }
 
 /**
@@ -359,9 +445,12 @@ async function handleRefundProcessed(refund: IRazorpayRefundEntity) {
 
     logger.info('Processing refund.processed', { refundId, paymentId, amount });
 
-    const transaction = await db.query.paymentTransactions.findFirst({
-        where: eq(paymentTransactions.razorpay_payment_id, paymentId),
-    });
+    // Find the transaction first
+    const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.razorpay_payment_id, paymentId))
+        .limit(1);
 
     if (!transaction) {
         logger.warn('Transaction not found for refund', { paymentId });
@@ -375,25 +464,27 @@ async function handleRefundProcessed(refund: IRazorpayRefundEntity) {
 
     const isFullRefund = totalRefunded >= orderAmount;
 
-    await db
-        .update(paymentTransactions)
-        .set({
-            status: isFullRefund ? 'refunded' : 'partially_refunded',
-            refund_id: refundId,
-            refund_amount: totalRefunded.toFixed(2),
-            refunded_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(paymentTransactions.id, transaction.id));
+    await db.transaction(async (tx) => {
+        await tx
+            .update(paymentTransactions)
+            .set({
+                status: isFullRefund ? 'refunded' : 'partially_refunded',
+                refund_id: refundId,
+                refund_amount: totalRefunded.toFixed(2),
+                refunded_at: new Date(),
+                updated_at: new Date(),
+            })
+            .where(eq(paymentTransactions.id, transaction.id));
 
-    await db
-        .update(orders)
-        .set({
-            payment_status: isFullRefund ? 'refunded' : 'partially_refunded',
-            order_status: isFullRefund ? 'refunded' : undefined,
-            updated_at: new Date(),
-        })
-        .where(eq(orders.id, transaction.order_id));
+        await tx
+            .update(orders)
+            .set({
+                payment_status: isFullRefund ? 'refunded' : 'partially_refunded',
+                order_status: isFullRefund ? 'refunded' : undefined,
+                updated_at: new Date(),
+            })
+            .where(eq(orders.id, transaction.order_id));
+    });
 }
 
 /**
@@ -405,9 +496,11 @@ async function handleRefundFailed(refund: IRazorpayRefundEntity) {
     logger.warn('Refund failed', { refundId, paymentId });
 
     // Log for admin review - refund failure needs manual intervention
-    const transaction = await db.query.paymentTransactions.findFirst({
-        where: eq(paymentTransactions.razorpay_payment_id, paymentId),
-    });
+    const [transaction] = await db
+        .select()
+        .from(paymentTransactions)
+        .where(eq(paymentTransactions.razorpay_payment_id, paymentId))
+        .limit(1);
 
     if (transaction) {
         await db
@@ -422,14 +515,14 @@ async function handleRefundFailed(refund: IRazorpayRefundEntity) {
 
 /**
  * Handle order.paid event
+ * Secondary confirmation - ensures order is marked paid even if payment.captured was missed
  */
 async function handleOrderPaid(order: { id: string; amount_paid: number; status: string }) {
     const { id: razorpayOrderId, amount_paid, status } = order;
 
     logger.info('Processing order.paid', { razorpayOrderId, amountPaid: amount_paid, status });
 
-    // This is a confirmation event - the payment should already be captured
-    // Use this as a secondary verification
+    // Find the order first
     const [dbOrder] = await db
         .select()
         .from(orders)
@@ -441,19 +534,21 @@ async function handleOrderPaid(order: { id: string; amount_paid: number; status:
         return;
     }
 
-    // Ensure order is marked as paid
-    if (dbOrder.payment_status !== 'paid') {
-        await db
-            .update(orders)
-            .set({
-                payment_status: 'paid',
-                order_status: 'confirmed',
-                paid_at: new Date(),
-                updated_at: new Date(),
-            })
-            .where(eq(orders.id, dbOrder.id));
+    // Ensure order is marked as paid (backup for payment.captured)
+    if (dbOrder.payment_status !== 'paid' && dbOrder.payment_status !== 'refunded') {
+        await db.transaction(async (tx) => {
+            await tx
+                .update(orders)
+                .set({
+                    payment_status: 'paid',
+                    order_status: 'confirmed',
+                    paid_at: new Date(),
+                    updated_at: new Date(),
+                })
+                .where(eq(orders.id, dbOrder.id));
+        });
 
-        logger.info('Order status updated via order.paid event', {
+        logger.info('Order status updated via order.paid event (backup)', {
             orderId: dbOrder.id,
             previousStatus: dbOrder.payment_status,
         });

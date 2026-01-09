@@ -59,6 +59,7 @@ interface CartResponse {
     totalQuantity: number;
     hasStockIssues: boolean;
     hasPriceChanges: boolean;
+    hasUnmergedGuestCart: boolean; // True if there's a guest cart that should be merged
 }
 
 const handler = async (req: Request, res: Response) => {
@@ -90,6 +91,8 @@ const handler = async (req: Request, res: Response) => {
 
     // Find active cart (exclude converted carts)
     let cart;
+    let hasUnmergedGuestCart = false;
+
     if (userId) {
         [cart] = await db
             .select()
@@ -102,12 +105,11 @@ const handler = async (req: Request, res: Response) => {
             .limit(1);
         console.log('[GET /cart] User cart lookup - found:', !!cart, 'status:', cart?.cart_status);
 
-        // FALLBACK: If no user cart found but session ID provided, check for unmigrated guest cart
-        // This handles the case where cart merge failed during login
-        if (!cart && sessionId) {
-            console.log('[GET /cart] No user cart found, checking for unmigrated guest cart with session:', sessionId);
+        // Check if there's an unmerged guest cart (for frontend to trigger merge if needed)
+        // NOTE: We no longer auto-assign here to avoid side effects in GET requests
+        if (sessionId) {
             const [guestCart] = await db
-                .select()
+                .select({ id: carts.id })
                 .from(carts)
                 .where(and(
                     eq(carts.session_id, sessionId),
@@ -117,19 +119,19 @@ const handler = async (req: Request, res: Response) => {
                 .limit(1);
 
             if (guestCart) {
-                // Auto-assign guest cart to user (simple merge - just reassign ownership)
-                console.log('[GET /cart] Found unmigrated guest cart, assigning to user:', guestCart.id);
-                await db.update(carts)
-                    .set({
-                        user_id: userId,
-                        session_id: null, // Clear session_id since it's now user-owned
-                        updated_at: new Date(),
-                    })
-                    .where(eq(carts.id, guestCart.id));
+                hasUnmergedGuestCart = true;
+                console.log('[GET /cart] Found unmerged guest cart:', guestCart.id);
 
-                // Use the now-assigned cart
-                cart = { ...guestCart, user_id: userId, session_id: null };
-                console.log('[GET /cart] Successfully assigned guest cart to user');
+                // If user has no cart, use the guest cart for display (read-only)
+                // The frontend should trigger a merge to properly assign it
+                if (!cart) {
+                    [cart] = await db
+                        .select()
+                        .from(carts)
+                        .where(eq(carts.id, guestCart.id))
+                        .limit(1);
+                    console.log('[GET /cart] Using guest cart for display (frontend should trigger merge)');
+                }
             }
         }
     } else if (sessionId) {
@@ -291,6 +293,7 @@ const handler = async (req: Request, res: Response) => {
         totalQuantity,
         hasStockIssues,
         hasPriceChanges,
+        hasUnmergedGuestCart,
     };
 
     return ResponseFormatter.success(res, response, 'Cart retrieved successfully');
