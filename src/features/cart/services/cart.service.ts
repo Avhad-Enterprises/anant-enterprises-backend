@@ -18,7 +18,6 @@ import { HttpException } from '../../../utils';
 import {
     discountValidationService,
     discountCalculationService,
-    discountService,
     type ValidationContext
 } from '../../discount/services';
 
@@ -36,36 +35,85 @@ export class CartService {
     }
 
     /**
+     * Ensure a cart exists and is active (not converted/abandoned)
+     * Throws an error if cart doesn't exist or is not active
+     */
+    async ensureActiveCart(cartId: string): Promise<Cart> {
+        const cart = await this.getCart(cartId);
+        if (!cart) {
+            throw new HttpException(404, 'Cart not found');
+        }
+        if (cart.cart_status !== 'active') {
+            throw new HttpException(400, `Cart is no longer active (status: ${cart.cart_status})`);
+        }
+        if (cart.is_deleted) {
+            throw new HttpException(404, 'Cart has been deleted');
+        }
+        return cart;
+    }
+
+    /**
+     * Get an active cart by user ID or session ID
+     * Returns undefined if no active cart found
+     */
+    async getActiveCart(userId?: string, sessionId?: string): Promise<Cart | undefined> {
+        if (!userId && !sessionId) {
+            return undefined;
+        }
+
+        // For authenticated users, first try to find their user cart
+        if (userId) {
+            const [userCart] = await db
+                .select()
+                .from(carts)
+                .where(and(
+                    eq(carts.user_id, userId),
+                    eq(carts.cart_status, 'active'),
+                    eq(carts.is_deleted, false)
+                ))
+                .limit(1);
+
+            if (userCart) {
+                return userCart;
+            }
+        }
+
+        // For guests or if no user cart found, try by session ID
+        if (sessionId) {
+            const [sessionCart] = await db
+                .select()
+                .from(carts)
+                .where(and(
+                    eq(carts.session_id, sessionId),
+                    eq(carts.cart_status, 'active'),
+                    eq(carts.is_deleted, false)
+                ))
+                .limit(1);
+
+            return sessionCart;
+        }
+
+        return undefined;
+    }
+
+    /**
      * Get or create a cart
+     * - For authenticated users: returns their user cart, or creates one
+     * - For guests: returns session cart, or creates one
+     * - IMPORTANT: Does NOT auto-merge guest carts. Use merge-cart API for that.
      */
     async getOrCreateCart(userId?: string, sessionId?: string): Promise<Cart> {
         if (!userId && !sessionId) {
             throw new HttpException(400, 'Either user authentication or session ID is required');
         }
 
-        // 1. Try to find existing active cart
-        const conditions = [
-            eq(carts.cart_status, 'active'),
-            eq(carts.is_deleted, false)
-        ];
-
-        if (userId) {
-            conditions.push(eq(carts.user_id, userId));
-        } else if (sessionId) {
-            conditions.push(eq(carts.session_id, sessionId));
-        }
-
-        const [existingCart] = await db
-            .select()
-            .from(carts)
-            .where(and(...conditions))
-            .limit(1);
-
+        // Try to find existing active cart
+        const existingCart = await this.getActiveCart(userId, sessionId);
         if (existingCart) {
             return existingCart;
         }
 
-        // 2. Create new cart
+        // Create new cart
         const [newCart] = await db.insert(carts).values({
             user_id: userId ? userId : undefined,
             session_id: sessionId ? sessionId : undefined,
@@ -74,6 +122,7 @@ export class CartService {
             created_by: userId ? userId : undefined,
         }).returning();
 
+        console.log('[CartService] Created new cart:', { cartId: newCart.id, userId, sessionId });
         return newCart;
     }
 

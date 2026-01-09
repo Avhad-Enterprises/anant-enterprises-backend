@@ -47,8 +47,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     const body = createOrderSchema.parse(req.body);
 
+    // Get session ID from header (for guest cart fallback)
+    const sessionId = req.headers['x-session-id'] as string || null;
+
     // Find user's active cart
-    const [cart] = await db
+    let [cart] = await db
         .select()
         .from(carts)
         .where(and(
@@ -57,6 +60,35 @@ const handler = async (req: RequestWithUser, res: Response) => {
             eq(carts.is_deleted, false)
         ))
         .limit(1);
+
+    // FALLBACK: If no user cart found but session ID provided, check for unmerged guest cart
+    // This handles the case where cart merge didn't complete during login
+    if (!cart && sessionId) {
+        console.log('[create-order] No user cart found, checking for guest cart with session:', sessionId);
+        const [guestCart] = await db
+            .select()
+            .from(carts)
+            .where(and(
+                eq(carts.session_id, sessionId),
+                eq(carts.cart_status, 'active'),
+                eq(carts.is_deleted, false)
+            ))
+            .limit(1);
+
+        if (guestCart) {
+            // Auto-assign guest cart to user for this order
+            console.log('[create-order] Found unmerged guest cart, assigning to user:', guestCart.id);
+            await db.update(carts)
+                .set({
+                    user_id: userId,
+                    updated_at: new Date(),
+                })
+                .where(eq(carts.id, guestCart.id));
+
+            // Use the now-assigned cart
+            cart = { ...guestCart, user_id: userId };
+        }
+    }
 
     if (!cart) {
         throw new HttpException(400, 'No active cart found');
@@ -207,6 +239,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         order_status: order.order_status,
         payment_status: order.payment_status,
         total_amount: order.total_amount,
+        discount_amount: order.discount_amount,
         total_quantity: order.total_quantity,
         items_count: items.length,
         created_at: order.created_at,

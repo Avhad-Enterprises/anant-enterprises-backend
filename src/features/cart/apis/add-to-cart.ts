@@ -40,12 +40,19 @@ const handler = async (req: Request, res: Response) => {
     const userId = userReq.userId || undefined;
     const sessionId = req.headers['x-session-id'] as string || undefined;
 
+    console.log('[POST /cart/items] Request:', { userId: !!userId, sessionId: !!sessionId });
+
     // Parse and validate request body
     const data = addToCartSchema.parse(req.body);
 
-    // Get or create cart
+    // Get or create cart (validates cart is active)
     const cart = await cartService.getOrCreateCart(userId, sessionId);
+
+    // Double-check cart is still active (race condition protection)
+    await cartService.ensureActiveCart(cart.id);
+
     const cartId = cart.id;
+    console.log('[POST /cart/items] Using cart:', { cartId, cartStatus: cart.cart_status });
 
     // Validate product exists and is active
     if (data.product_id) {
