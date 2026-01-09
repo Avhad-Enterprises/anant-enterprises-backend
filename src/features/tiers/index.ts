@@ -5,9 +5,9 @@
  */
 
 import { Router } from 'express';
-import getTiers from './apis/get-tiers';
+import Route from '../../interfaces/route.interface';
 
-class TierRoute {
+class TierRoute implements Route {
   public path = '/tiers';
   public router = Router();
 
@@ -15,8 +15,21 @@ class TierRoute {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
-    this.router.use('/', getTiers);
+  private async initializeRoutes() {
+    const { default: createTierRouter } = await import('./apis/create-tier');
+    const { default: getTiersRouter } = await import('./apis/get-tiers');
+    const { default: getTierHierarchyRouter } = await import('./apis/get-tier-hierarchy');
+    const { default: getTierByIdRouter } = await import('./apis/get-tier-by-id');
+    const { default: updateTierRouter } = await import('./apis/update-tier');
+    const { default: deleteTierRouter } = await import('./apis/delete-tier');
+
+    // Register routes in order (specific routes before parametrized ones)
+    this.router.use(this.path, createTierRouter);         // POST /tiers
+    this.router.use(this.path, getTiersRouter);           // GET /tiers
+    this.router.use(this.path, getTierHierarchyRouter);   // GET /tiers/hierarchy
+    this.router.use(this.path, getTierByIdRouter);        // GET /tiers/:id
+    this.router.use(this.path, updateTierRouter);         // PUT /tiers/:id
+    this.router.use(this.path, deleteTierRouter);         // DELETE /tiers/:id
   }
 }
 

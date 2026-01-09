@@ -7,24 +7,20 @@ import { Router, Response, Request } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
-import { eq, asc, and } from 'drizzle-orm';
-
-interface TierResponse {
-    id: string;
-    name: string;
-    code: string;
-    description: string | null;
-    level: number;
-    parent_id: string | null;
-    priority: number;
-    status: string;
-}
+import { ITier } from '../shared/interface';
+import { eq, asc, and, or, like } from 'drizzle-orm';
 
 const handler = async (req: Request, res: Response) => {
-    const { level } = req.query;
+    const { level, status, parentId, search } = req.query;
 
     // Build where conditions
-    const conditions = [eq(tiers.status, 'active')];
+    const conditions = [];
+
+    // Add status filter (default to active only)
+    const statusFilter = (status as string) || 'active';
+    if (statusFilter !== 'all') {
+        conditions.push(eq(tiers.status, statusFilter as 'active' | 'inactive'));
+    }
 
     // Add level filter if specified
     if (level) {
@@ -34,14 +30,30 @@ const handler = async (req: Request, res: Response) => {
         }
     }
 
-    // Execute query with all conditions
-    const allTiers = await db
-        .select()
-        .from(tiers)
-        .where(and(...conditions))
-        .orderBy(asc(tiers.level), asc(tiers.priority), asc(tiers.name));
+    // Add parent filter if specified
+    if (parentId) {
+        conditions.push(eq(tiers.parent_id, parentId as string));
+    }
 
-    const tiersResponse: TierResponse[] = allTiers.map(tier => ({
+    // Add search filter if specified
+    if (search && typeof search === 'string') {
+        const searchTerm = `%${search}%`;
+        conditions.push(
+            or(
+                like(tiers.name, searchTerm),
+                like(tiers.code, searchTerm)
+            )
+        );
+    }
+
+    // Execute query with all conditions
+    const query = conditions.length > 0
+        ? db.select().from(tiers).where(and(...conditions))
+        : db.select().from(tiers);
+
+    const allTiers = await query.orderBy(asc(tiers.level), asc(tiers.priority), asc(tiers.name));
+
+    const tiersResponse: ITier[] = allTiers.map(tier => ({
         id: tier.id,
         name: tier.name,
         code: tier.code,
@@ -50,6 +62,9 @@ const handler = async (req: Request, res: Response) => {
         parent_id: tier.parent_id,
         priority: tier.priority,
         status: tier.status,
+        usage_count: tier.usage_count,
+        created_at: tier.created_at,
+        updated_at: tier.updated_at,
     }));
 
     ResponseFormatter.success(res, tiersResponse, 'Tiers retrieved successfully');
