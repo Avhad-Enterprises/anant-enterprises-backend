@@ -18,6 +18,7 @@ import { findProductBySku, findProductBySlug } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { IProduct } from '../shared/interface';
+import { syncTags } from '../../tags/services/tag-sync.service';
 
 // Validation schema for creating a product
 const createProductSchema = z.object({
@@ -130,6 +131,11 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
   // Cache the new product
   await productCacheService.cacheProduct(newProduct);
+
+  // Sync tags to master table
+  if (data.tags && data.tags.length > 0) {
+    await syncTags(data.tags, 'product');
+  }
 
   return newProduct as IProduct;
 }

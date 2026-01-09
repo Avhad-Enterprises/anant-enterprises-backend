@@ -5,5 +5,4 @@
  */
 
 export * from './tags.schema';
-export * from './product-tags.schema';
 export * from './interface';

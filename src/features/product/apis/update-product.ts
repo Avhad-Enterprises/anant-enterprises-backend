@@ -24,6 +24,7 @@ import { products } from '../shared/product.schema';
 import { IProduct } from '../shared/interface';
 import { productCacheService } from '../services/product-cache.service';
 import { findProductById, findProductBySku, findProductBySlug } from '../shared/queries';
+import { updateTagUsage } from '../../tags/services/tag-sync.service';
 
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
@@ -187,6 +188,13 @@ async function updateProduct(
 
   if (!result) {
     throw new HttpException(500, 'Failed to update product');
+  }
+
+  // Update tag usage counts (handle additions/removals)
+  if (data.tags !== undefined) {
+    const oldTags = (existingProduct.tags as string[]) || [];
+    const newTags = data.tags || [];
+    await updateTagUsage(oldTags, newTags, 'product');
   }
 
   return result as IProduct;
