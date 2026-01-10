@@ -18,9 +18,11 @@ import PaymentsRoute from './features/payments';
 import WebhooksRoute from './features/webhooks';
 import TagRoute from './features/tags';
 import TierRoute from './features/tiers';
+import DiscountRoute from './features/discount';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
+import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
 
 let server: import('http').Server;
 
@@ -63,7 +65,11 @@ async function bootstrap() {
       new WebhooksRoute(),  // External webhook endpoints
       new TagRoute(),       // Tags master table
       new TierRoute(),      // Tiers feature
+      new DiscountRoute(),  // Discount endpoints
     ]);
+
+    // Initialize Cron Jobs
+    initializeDiscountCron();
 
     server = app.listen();
 

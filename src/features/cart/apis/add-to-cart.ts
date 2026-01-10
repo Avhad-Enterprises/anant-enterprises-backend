@@ -11,7 +11,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { carts } from '../shared/carts.schema';
+// carts removed
 import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/product.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -33,120 +33,19 @@ const addToCartSchema = z.object({
     { message: 'Either product_id or bundle_id is required' }
 );
 
-
-
-/**
- * Get or create cart for user/session
- */
-async function getOrCreateCart(userId: string | null, sessionId: string | null): Promise<string> {
-    if (!userId && !sessionId) {
-        throw new HttpException(400, 'Either user authentication or session ID is required');
-    }
-
-    // Find existing active cart
-    let existingCart;
-    if (userId) {
-        [existingCart] = await db
-            .select({ id: carts.id })
-            .from(carts)
-            .where(and(
-                eq(carts.user_id, userId),
-                eq(carts.cart_status, 'active'),
-                eq(carts.is_deleted, false)
-            ))
-            .limit(1);
-    } else if (sessionId) {
-        [existingCart] = await db
-            .select({ id: carts.id })
-            .from(carts)
-            .where(and(
-                eq(carts.session_id, sessionId),
-                eq(carts.cart_status, 'active'),
-                eq(carts.is_deleted, false)
-            ))
-            .limit(1);
-    }
-
-    if (existingCart) {
-        return existingCart.id;
-    }
-
-    // Create new cart
-    const [newCart] = await db.insert(carts).values({
-        user_id: userId,
-        session_id: sessionId,
-        cart_status: 'active',
-        source: 'web',
-        created_by: userId,
-    }).returning({ id: carts.id });
-
-    if (!newCart) {
-        throw new HttpException(500, 'Failed to create cart');
-    }
-
-    return newCart.id;
-}
-
-/**
- * Check stock availability for a product
- */
-async function checkStockAvailability(productId: string, requestedQuantity: number): Promise<{ available: boolean; totalStock: number }> {
-    const [stockData] = await db
-        .select({
-            totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
-        })
-        .from(inventory)
-        .where(eq(inventory.product_id, productId));
-
-    const totalStock = Number(stockData?.totalStock) || 0;
-    return {
-        available: totalStock >= requestedQuantity,
-        totalStock,
-    };
-}
-
-/**
- * Recalculate cart totals
- */
-async function recalculateCartTotals(cartId: string): Promise<void> {
-    // Get all active cart items
-    const items = await db
-        .select({
-            line_total: cartItems.line_total,
-            line_subtotal: cartItems.line_subtotal,
-            discount_amount: cartItems.discount_amount,
-        })
-        .from(cartItems)
-        .where(and(
-            eq(cartItems.cart_id, cartId),
-            eq(cartItems.is_deleted, false)
-        ));
-
-    const subtotal = items.reduce((sum, item) => sum + Number(item.line_subtotal), 0);
-    const discountTotal = items.reduce((sum, item) => sum + Number(item.discount_amount), 0);
-    const grandTotal = items.reduce((sum, item) => sum + Number(item.line_total), 0);
-
-    await db.update(carts)
-        .set({
-            subtotal: subtotal.toFixed(2),
-            discount_total: discountTotal.toFixed(2),
-            grand_total: grandTotal.toFixed(2),
-            last_activity_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(carts.id, cartId));
-}
+import { cartService } from '../services';
 
 const handler = async (req: Request, res: Response) => {
     const userReq = req as RequestWithUser;
-    const userId = userReq.userId || null;
-    const sessionId = req.headers['x-session-id'] as string || null;
+    const userId = userReq.userId || undefined;
+    const sessionId = req.headers['x-session-id'] as string || undefined;
 
     // Parse and validate request body
     const data = addToCartSchema.parse(req.body);
 
     // Get or create cart
-    const cartId = await getOrCreateCart(userId, sessionId);
+    const cart = await cartService.getOrCreateCart(userId, sessionId);
+    const cartId = cart.id;
 
     // Validate product exists and is active
     if (data.product_id) {
@@ -176,9 +75,17 @@ const handler = async (req: Request, res: Response) => {
         }
 
         // Check stock availability
-        const stockCheck = await checkStockAvailability(data.product_id, data.quantity);
-        if (!stockCheck.available) {
-            throw new HttpException(400, `Insufficient stock. Only ${stockCheck.totalStock} units available.`);
+        // TODO: Move this checking logic to InventoryService or CartService
+        const [stockData] = await db
+            .select({
+                totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
+            })
+            .from(inventory)
+            .where(eq(inventory.product_id, data.product_id));
+
+        const totalStock = Number(stockData?.totalStock) || 0;
+        if (totalStock < data.quantity) {
+            throw new HttpException(400, `Insufficient stock. Only ${totalStock} units available.`);
         }
 
         // Check if item already exists in cart
@@ -194,6 +101,7 @@ const handler = async (req: Request, res: Response) => {
 
         const sellingPrice = Number(product.selling_price);
         const compareAtPrice = product.compare_at_price ? Number(product.compare_at_price) : sellingPrice;
+        // Discount amount is per unit
         const discountAmount = Math.max(compareAtPrice - sellingPrice, 0);
 
         if (existingItem) {
@@ -201,9 +109,8 @@ const handler = async (req: Request, res: Response) => {
             const newQuantity = existingItem.quantity + data.quantity;
 
             // Verify stock for new quantity
-            const newStockCheck = await checkStockAvailability(data.product_id, newQuantity);
-            if (!newStockCheck.available) {
-                throw new HttpException(400, `Cannot add more items. Only ${newStockCheck.totalStock} units available.`);
+            if (totalStock < newQuantity) {
+                throw new HttpException(400, `Cannot add more items. Only ${totalStock} units available.`);
             }
 
             const lineSubtotal = compareAtPrice * newQuantity;
@@ -214,12 +121,14 @@ const handler = async (req: Request, res: Response) => {
                     quantity: newQuantity,
                     line_subtotal: lineSubtotal.toFixed(2),
                     line_total: lineTotal.toFixed(2),
-                    discount_amount: (discountAmount * newQuantity).toFixed(2),
+                    discount_amount: (discountAmount * newQuantity).toFixed(2), // Product discount
                     updated_at: new Date(),
                 })
                 .where(eq(cartItems.id, existingItem.id));
         } else {
             // Create new cart item
+            // cost_price = compareAt (List Price)
+            // final_price = sellingPrice (Sale Price)
             const lineSubtotal = compareAtPrice * data.quantity;
             const lineTotal = sellingPrice * data.quantity;
 
@@ -227,8 +136,8 @@ const handler = async (req: Request, res: Response) => {
                 cart_id: cartId,
                 product_id: data.product_id,
                 quantity: data.quantity,
-                cost_price: product.selling_price,
-                final_price: product.selling_price,
+                cost_price: compareAtPrice.toFixed(2),
+                final_price: sellingPrice.toFixed(2),
                 discount_amount: (discountAmount * data.quantity).toFixed(2),
                 line_subtotal: lineSubtotal.toFixed(2),
                 line_total: lineTotal.toFixed(2),
@@ -240,16 +149,11 @@ const handler = async (req: Request, res: Response) => {
         }
     }
 
-    // TODO: Handle bundle_id case similarly
-
-    // Recalculate cart totals
-    await recalculateCartTotals(cartId);
+    // Recalculate cart totals (handling discounts)
+    await cartService.recalculate(cartId);
 
     // Fetch updated cart
-    const [updatedCart] = await db
-        .select()
-        .from(carts)
-        .where(eq(carts.id, cartId));
+    const updatedCart = await cartService.getCart(cartId);
 
     const cartItemsList = await db
         .select()

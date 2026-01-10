@@ -34,6 +34,15 @@ interface CartItemResponse {
     currentPrice: string | null;
 }
 
+// Discount metadata for frontend display
+interface AppliedDiscountInfo {
+    code: string;
+    type: 'percentage' | 'fixed_amount' | 'free_shipping' | 'buy_x_get_y';
+    title: string;
+    value: string | null;
+    savings: string;
+}
+
 interface CartResponse {
     id: string | null;
     currency: string;
@@ -44,6 +53,7 @@ interface CartResponse {
     grand_total: string;
     applied_discount_codes: string[];
     applied_giftcard_codes: string[];
+    applied_discounts: AppliedDiscountInfo[]; // NEW: Discount metadata
     items: CartItemResponse[];
     itemCount: number;
     totalQuantity: number;
@@ -69,6 +79,7 @@ const handler = async (req: Request, res: Response) => {
             grand_total: '0.00',
             applied_discount_codes: [],
             applied_giftcard_codes: [],
+            applied_discounts: [],
             items: [],
             itemCount: 0,
             totalQuantity: 0,
@@ -90,6 +101,37 @@ const handler = async (req: Request, res: Response) => {
             ))
             .limit(1);
         console.log('[GET /cart] User cart lookup - found:', !!cart, 'status:', cart?.cart_status);
+
+        // FALLBACK: If no user cart found but session ID provided, check for unmigrated guest cart
+        // This handles the case where cart merge failed during login
+        if (!cart && sessionId) {
+            console.log('[GET /cart] No user cart found, checking for unmigrated guest cart with session:', sessionId);
+            const [guestCart] = await db
+                .select()
+                .from(carts)
+                .where(and(
+                    eq(carts.session_id, sessionId),
+                    eq(carts.cart_status, 'active'),
+                    eq(carts.is_deleted, false)
+                ))
+                .limit(1);
+
+            if (guestCart) {
+                // Auto-assign guest cart to user (simple merge - just reassign ownership)
+                console.log('[GET /cart] Found unmigrated guest cart, assigning to user:', guestCart.id);
+                await db.update(carts)
+                    .set({
+                        user_id: userId,
+                        session_id: null, // Clear session_id since it's now user-owned
+                        updated_at: new Date(),
+                    })
+                    .where(eq(carts.id, guestCart.id));
+
+                // Use the now-assigned cart
+                cart = { ...guestCart, user_id: userId, session_id: null };
+                console.log('[GET /cart] Successfully assigned guest cart to user');
+            }
+        }
     } else if (sessionId) {
         [cart] = await db
             .select()
@@ -115,6 +157,7 @@ const handler = async (req: Request, res: Response) => {
             grand_total: '0.00',
             applied_discount_codes: [],
             applied_giftcard_codes: [],
+            applied_discounts: [],
             items: [],
             itemCount: 0,
             totalQuantity: 0,
@@ -197,6 +240,41 @@ const handler = async (req: Request, res: Response) => {
     const hasStockIssues = enrichedItems.some(item => !item.inStock);
     const hasPriceChanges = enrichedItems.some(item => item.priceChanged);
 
+    // Fetch discount metadata for applied codes
+    const appliedCodes = (cart.applied_discount_codes as string[]) || [];
+    let appliedDiscounts: AppliedDiscountInfo[] = [];
+
+    if (appliedCodes.length > 0) {
+        try {
+            // Dynamically import to avoid circular dependencies
+            const { discountCodes } = await import('../../discount/shared/discount-codes.schema');
+            const { discounts } = await import('../../discount/shared/discount.schema');
+
+            // Fetch discount info for each code
+            const discountInfoResults = await db
+                .select({
+                    code: discountCodes.code,
+                    type: discounts.type,
+                    title: discounts.title,
+                    value: discounts.value,
+                })
+                .from(discountCodes)
+                .innerJoin(discounts, eq(discountCodes.discount_id, discounts.id))
+                .where(sql`UPPER(${discountCodes.code}) IN (${sql.raw(appliedCodes.map(c => `'${c.toUpperCase()}'`).join(','))})`);
+
+            appliedDiscounts = discountInfoResults.map(d => ({
+                code: d.code,
+                type: d.type as 'percentage' | 'fixed_amount' | 'free_shipping' | 'buy_x_get_y',
+                title: d.title,
+                value: d.value,
+                savings: cart.discount_total, // Total savings for now
+            }));
+        } catch (error) {
+            console.error('[GET /cart] Error fetching discount metadata:', error);
+            // Continue without discount metadata
+        }
+    }
+
     const response: CartResponse = {
         id: cart.id,
         currency: cart.currency,
@@ -205,8 +283,9 @@ const handler = async (req: Request, res: Response) => {
         shipping_total: cart.shipping_total,
         tax_total: cart.tax_total,
         grand_total: cart.grand_total,
-        applied_discount_codes: (cart.applied_discount_codes as string[]) || [],
+        applied_discount_codes: appliedCodes,
         applied_giftcard_codes: (cart.applied_giftcard_codes as string[]) || [],
+        applied_discounts: appliedDiscounts,
         items: enrichedItems,
         itemCount: enrichedItems.length,
         totalQuantity,

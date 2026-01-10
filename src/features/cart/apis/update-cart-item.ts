@@ -20,36 +20,7 @@ const updateCartItemSchema = z.object({
     quantity: z.number().int().min(1).max(100),
 });
 
-/**
- * Recalculate cart totals
- */
-async function recalculateCartTotals(cartId: string): Promise<void> {
-    const items = await db
-        .select({
-            line_total: cartItems.line_total,
-            line_subtotal: cartItems.line_subtotal,
-            discount_amount: cartItems.discount_amount,
-        })
-        .from(cartItems)
-        .where(and(
-            eq(cartItems.cart_id, cartId),
-            eq(cartItems.is_deleted, false)
-        ));
-
-    const subtotal = items.reduce((sum, item) => sum + Number(item.line_subtotal), 0);
-    const discountTotal = items.reduce((sum, item) => sum + Number(item.discount_amount), 0);
-    const grandTotal = items.reduce((sum, item) => sum + Number(item.line_total), 0);
-
-    await db.update(carts)
-        .set({
-            subtotal: subtotal.toFixed(2),
-            discount_total: discountTotal.toFixed(2),
-            grand_total: grandTotal.toFixed(2),
-            last_activity_at: new Date(),
-            updated_at: new Date(),
-        })
-        .where(eq(carts.id, cartId));
-}
+import { cartService } from '../services';
 
 const handler = async (req: Request, res: Response) => {
     const userReq = req as RequestWithUser;
@@ -154,8 +125,8 @@ const handler = async (req: Request, res: Response) => {
         })
         .where(eq(cartItems.id, itemId));
 
-    // Recalculate cart totals
-    await recalculateCartTotals(cart.id);
+    // Recalculate cart totals (handling discounts)
+    await cartService.recalculate(cart.id);
 
     // Fetch updated item
     const [updatedItem] = await db
