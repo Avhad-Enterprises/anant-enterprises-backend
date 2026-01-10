@@ -21,6 +21,7 @@ type AddressUpdateData = Partial<{
   phone_country_code: string;
   phone_number: string;
   address_line1: string;
+  address_line2: string;
   city: string;
   state_province: string;
   postal_code: string;
@@ -36,7 +37,8 @@ const bodySchema = z.object({
   type: z.enum(['Home', 'Office', 'Other']).optional(),
   name: shortTextSchema.optional(),
   phone: shortTextSchema.optional(),
-  addressLine: shortTextSchema.optional(),
+  addressLine1: shortTextSchema.optional(),
+  addressLine2: z.string().optional(),
   city: shortTextSchema.optional(),
   state: shortTextSchema.optional(),
   pincode: shortTextSchema.optional(),
@@ -59,7 +61,7 @@ const mapToBackendType = (
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const { userId, id: addressId } = req.params;
-  const { type, name, phone, addressLine, city, state, pincode, isDefault } = req.body;
+  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, isDefault } = req.body;
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db
@@ -93,8 +95,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
     updateData.phone_country_code = phoneMatch?.[1] || '';
     updateData.phone_number = phoneMatch?.[2]?.replace(/\s/g, '') || phone;
   }
-  if (addressLine) {
-    updateData.address_line1 = addressLine;
+  if (addressLine1) {
+    updateData.address_line1 = addressLine1;
+  }
+  if (addressLine2 !== undefined) {
+    updateData.address_line2 = addressLine2;
   }
   if (city) {
     updateData.city = city;
@@ -147,7 +152,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
       phone:
         phone ||
         `${existingAddress.phone_country_code || ''}${existingAddress.phone_number || ''}`.trim(),
-      addressLine: updatedAddress.address_line1,
+      addressLine1: updatedAddress.address_line1,
+      addressLine2: updatedAddress.address_line2 || '',
       city: updatedAddress.city,
       state: updatedAddress.state_province,
       pincode: updatedAddress.postal_code,
