@@ -110,7 +110,15 @@ async function updateProduct(
   }
 
   // Handle Inventory Update
+  console.log('📦 [updateProduct] Checking inventory_quantity:', {
+    hasInventoryQuantity: data.inventory_quantity !== undefined,
+    inventoryValue: data.inventory_quantity,
+    dataKeys: Object.keys(data)
+  });
+
   if (data.inventory_quantity !== undefined) {
+    console.log('📦 [updateProduct] Updating inventory to:', data.inventory_quantity);
+
     // Check if inventory record exists
     const existingInventory = await db
       .select()
@@ -118,9 +126,12 @@ async function updateProduct(
       .where(eq(inventory.product_id, id))
       .limit(1);
 
+    console.log('📦 [updateProduct] Existing inventory:', existingInventory);
+
     if (existingInventory.length > 0) {
       // Update existing inventory logic (simple override for now)
       // Note: Ideally we should handle stock adjustments via transactions or dedicated endpoints
+      console.log('📦 [updateProduct] Updating existing inventory record');
       await db
         .update(inventory)
         .set({
@@ -128,8 +139,10 @@ async function updateProduct(
           updated_at: new Date()
         })
         .where(eq(inventory.id, existingInventory[0].id));
+      console.log('✅ [updateProduct] Inventory updated successfully');
     } else {
-      // Create new inventory record in default location
+      // Create new inventory record
+      console.log('📦 [updateProduct] Creating new inventory record');
       const defaultLocation = await db
         .select()
         .from(inventoryLocations)
@@ -137,6 +150,7 @@ async function updateProduct(
         .limit(1);
 
       if (defaultLocation.length > 0) {
+        // Create with location
         await db.insert(inventory).values({
           product_id: id,
           location_id: defaultLocation[0].id,
@@ -146,8 +160,21 @@ async function updateProduct(
           product_name: data.product_title || existingProduct.product_title,
           status: 'Enough Stock'
         });
+        console.log('✅ [updateProduct] New inventory record created with location');
+      } else {
+        console.error('❌ [updateProduct] Cannot create inventory - no active location found');
+        console.error('❌ Please create an active inventory location first');
+        console.error('💡 Quick fix: Run this SQL in your database:');
+        console.error(`
+INSERT INTO inventory_locations (location_code, name, type, is_active)
+VALUES ('WH-DEFAULT-01', 'Default Warehouse', 'warehouse', true)
+ON CONFLICT (location_code) DO NOTHING;
+        `);
+        throw new HttpException(400, 'Cannot create inventory: No active inventory location found. Please create an inventory location first.');
       }
     }
+  } else {
+    console.log('⏭️ [updateProduct] Skipping inventory update - inventory_quantity is undefined');
   }
 
   // Handle FAQ update - replace all FAQs
@@ -170,10 +197,18 @@ async function updateProduct(
 
   // Convert datetime strings to Date objects - build incrementally
   // Extract inventory_quantity and faqs to avoid passing them to products table update
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { inventory_quantity, faqs, ...productFields } = data;
 
+  // Transform empty strings to null for category tiers (DB expects UUID or null)
+  const cleanedFields = { ...productFields };
+  if (cleanedFields.category_tier_1 === '') cleanedFields.category_tier_1 = null;
+  if (cleanedFields.category_tier_2 === '') cleanedFields.category_tier_2 = null;
+  if (cleanedFields.category_tier_3 === '') cleanedFields.category_tier_3 = null;
+  if (cleanedFields.category_tier_4 === '') cleanedFields.category_tier_4 = null;
+
   const updateData: Record<string, unknown> = {
-    ...productFields,
+    ...cleanedFields,
     updated_by: updatedBy,
   };
 

@@ -48,6 +48,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .where(eq(orderItems.order_id, orderId));
 
     // Helper to map address - defined inside handler to have access to types if needed, or just pure function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapAddress = (addr: any) => {
         if (!addr) return null;
         return {

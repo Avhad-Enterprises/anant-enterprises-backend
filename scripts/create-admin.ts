@@ -55,7 +55,9 @@ function getDatabaseUrl(): string {
 }
 
 // Import schemas after env is configured
-import { users } from '../src/features/user';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { db } from '../src/database';
+import { users } from '../src/features/user/shared/user.schema';
 import { roles, userRoles } from '../src/features/rbac';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
@@ -114,7 +116,7 @@ async function createAdminUser() {
       console.log(`   ID: ${existingUser.id}`);
       console.log(`   Name: ${existingUser.name}`);
       userId = existingUser.id;
-      
+
       // Check their roles via RBAC
       const userRole = await db
         .select({ roleName: roles.name, roleId: roles.id })
@@ -122,24 +124,24 @@ async function createAdminUser() {
         .innerJoin(roles, eq(userRoles.role_id, roles.id))
         .where(eq(userRoles.user_id, existingUser.id))
         .limit(1);
-      
+
       if (userRole.length > 0) {
         console.log(`   Role: ${userRole[0].roleName}`);
         console.log('✅ Admin user is already properly configured!');
         return;
       } else {
         console.log('⚠️  No role assigned to this user. Assigning admin role...');
-        
+
         // Get admin role ID
         const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
-        
+
         if (!adminRole) {
           throw new Error(
             'Admin role not found in RBAC system.\n' +
-              'Please run: npm run db:seed (to seed RBAC roles and permissions)'
+            'Please run: npm run db:seed (to seed RBAC roles and permissions)'
           );
         }
-        
+
         // Assign admin role
         await db
           .insert(userRoles)
@@ -149,7 +151,7 @@ async function createAdminUser() {
             assigned_by: existingUser.id, // Self-assigned
           })
           .onConflictDoNothing();
-        
+
         console.log('✅ Admin role assigned successfully!');
         console.log(`   Role: admin`);
         return;
@@ -179,7 +181,7 @@ async function createAdminUser() {
 
     console.log('✅ Admin user created in Supabase Auth');
     console.log(`   Auth ID: ${authData.user.id}`);
-    
+
     userId = authData.user.id;
 
     // Create user in custom users table
@@ -206,9 +208,9 @@ async function createAdminUser() {
     if (!adminRole) {
       throw new Error(
         'Admin role not found in RBAC system.\n' +
-          'Please run the following commands first:\n' +
-          '  1. npm run db:migrate (to create tables)\n' +
-          '  2. npm run db:seed (to seed RBAC roles and permissions)'
+        'Please run the following commands first:\n' +
+        '  1. npm run db:migrate (to create tables)\n' +
+        '  2. npm run db:seed (to seed RBAC roles and permissions)'
       );
     }
 

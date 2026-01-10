@@ -52,11 +52,13 @@ const validationMiddleware = (
         // Log the warning but allow the request to proceed with original (unvalidated but checked) data
         // attached to a new property for manual retrieval if needed
         logger.warn(`Could not overwrite req.${target} with validated data`, { error });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (req as any)[`validated_${target}`] = result.data;
       }
 
       next();
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       // Log unexpected validation errors
       logger.error('Validation middleware error:', {
         error: error instanceof Error ? error.message : 'Unknown error',

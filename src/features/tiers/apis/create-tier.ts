@@ -20,7 +20,6 @@ const createTierSchema = z.object({
     description: z.string().optional(),
     level: z.number().int().min(1).max(4),
     parent_id: z.string().uuid().optional(),
-    priority: z.number().int().default(0),
     status: z.enum(['active', 'inactive']).default('active'),
 });
 
@@ -98,7 +97,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
             description: data.description || null,
             level: data.level,
             parent_id: data.parent_id || null,
-            priority: data.priority,
             status: data.status,
             usage_count: 0,
         })
@@ -113,7 +111,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
             description: newTier.description,
             level: newTier.level,
             parent_id: newTier.parent_id,
-            priority: newTier.priority,
             status: newTier.status,
             usage_count: newTier.usage_count,
             created_at: newTier.created_at,

@@ -188,48 +188,44 @@ class ChatbotCacheService {
   ): Promise<{ documents: ChatbotDocument[]; total: number }> {
     const offset = (page - 1) * limit;
 
-    try {
-      const documents = await db
-        .select({
-          id: chatbotDocuments.id,
-          name: chatbotDocuments.name,
-          description: chatbotDocuments.description,
-          file_url: chatbotDocuments.file_url,
-          file_path: chatbotDocuments.file_path,
-          file_size: chatbotDocuments.file_size,
-          mime_type: chatbotDocuments.mime_type,
-          status: chatbotDocuments.status,
-          chunk_count: chatbotDocuments.chunk_count,
-          error_message: chatbotDocuments.error_message,
-          created_at: chatbotDocuments.created_at,
-          updated_at: chatbotDocuments.updated_at,
-          is_embedded: chatbotDocuments.is_embedded,
-          created_by: chatbotDocuments.created_by,
-          updated_by: chatbotDocuments.updated_by,
-          is_deleted: chatbotDocuments.is_deleted,
-          deleted_by: chatbotDocuments.deleted_by,
-          deleted_at: chatbotDocuments.deleted_at,
-        })
-        .from(chatbotDocuments)
-        .where(eq(chatbotDocuments.is_deleted, false))
-        .orderBy(desc(chatbotDocuments.created_at))
-        .limit(limit)
-        .offset(offset);
+    const documents = await db
+      .select({
+        id: chatbotDocuments.id,
+        name: chatbotDocuments.name,
+        description: chatbotDocuments.description,
+        file_url: chatbotDocuments.file_url,
+        file_path: chatbotDocuments.file_path,
+        file_size: chatbotDocuments.file_size,
+        mime_type: chatbotDocuments.mime_type,
+        status: chatbotDocuments.status,
+        chunk_count: chatbotDocuments.chunk_count,
+        error_message: chatbotDocuments.error_message,
+        created_at: chatbotDocuments.created_at,
+        updated_at: chatbotDocuments.updated_at,
+        is_embedded: chatbotDocuments.is_embedded,
+        created_by: chatbotDocuments.created_by,
+        updated_by: chatbotDocuments.updated_by,
+        is_deleted: chatbotDocuments.is_deleted,
+        deleted_by: chatbotDocuments.deleted_by,
+        deleted_at: chatbotDocuments.deleted_at,
+      })
+      .from(chatbotDocuments)
+      .where(eq(chatbotDocuments.is_deleted, false))
+      .orderBy(desc(chatbotDocuments.created_at))
+      .limit(limit)
+      .offset(offset);
 
-      const allIds = await db
-        .select({ id: chatbotDocuments.id })
-        .from(chatbotDocuments)
-        .where(eq(chatbotDocuments.is_deleted, false));
+    const allIds = await db
+      .select({ id: chatbotDocuments.id })
+      .from(chatbotDocuments)
+      .where(eq(chatbotDocuments.is_deleted, false));
 
-      const total = allIds.length;
+    const total = allIds.length;
 
-      return {
-        documents,
-        total,
-      };
-    } catch (e) {
-      throw e;
-    }
+    return {
+      documents,
+      total,
+    };
   }
 
   private async cacheDocuments(

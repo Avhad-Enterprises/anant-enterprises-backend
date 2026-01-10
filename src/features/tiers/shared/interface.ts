@@ -16,7 +16,6 @@ export interface ITier {
 
   level: number;
   parent_id?: string | null;
-  priority: number;
 
   status: 'active' | 'inactive';
   usage_count: number;

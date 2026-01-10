@@ -153,7 +153,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         // Fetch user for prefill
         const [user] = await db
-            .select({ name: users.full_name, email: users.email, phone: users.phone })
+            .select({ name: users.name, email: users.email, phone: users.phone_number })
             .from(users)
             .where(eq(users.id, userId))
             .limit(1);

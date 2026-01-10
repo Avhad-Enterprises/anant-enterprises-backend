@@ -5,7 +5,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, asc } from 'drizzle-orm';
+import { asc } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
@@ -17,7 +17,6 @@ interface TierNode {
     code: string;
     description: string | null;
     level: number;
-    priority: number;
     status: 'active' | 'inactive';
     usage_count: number;
     children: TierNode[];
@@ -38,7 +37,6 @@ function buildHierarchy(allTiers: Tier[]): TierNode[] {
             code: tier.code,
             description: tier.description,
             level: tier.level,
-            priority: tier.priority,
             status: tier.status,
             usage_count: tier.usage_count,
             children: [],
@@ -60,12 +58,9 @@ function buildHierarchy(allTiers: Tier[]): TierNode[] {
         }
     });
 
-    // Sort children at each level by priority then name
+    // Sort children at each level by name
     const sortChildren = (node: TierNode) => {
         node.children.sort((a, b) => {
-            if (a.priority !== b.priority) {
-                return a.priority - b.priority;
-            }
             return a.name.localeCompare(b.name);
         });
         node.children.forEach(sortChildren);
@@ -77,12 +72,11 @@ function buildHierarchy(allTiers: Tier[]): TierNode[] {
 }
 
 const handler = async (req: Request, res: Response) => {
-    // Get all active tiers
+    // Get all tiers (including inactive)
     const allTiers = await db
         .select()
         .from(tiers)
-        .where(eq(tiers.status, 'active'))
-        .orderBy(asc(tiers.level), asc(tiers.priority), asc(tiers.name));
+        .orderBy(asc(tiers.level), asc(tiers.name));
 
     // Build hierarchical structure
     const hierarchy = buildHierarchy(allTiers);

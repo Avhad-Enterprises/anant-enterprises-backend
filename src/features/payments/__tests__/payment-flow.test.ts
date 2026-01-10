@@ -5,6 +5,7 @@
  * Uses mocked database and Razorpay SDK.
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 import request from 'supertest';
 import express from 'express';
 import crypto from 'crypto';

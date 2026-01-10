@@ -48,6 +48,7 @@ const handler = async (req: Request, res: Response) => {
     }
 
     // Prepare response
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response: any = {
         id: tier.id,
         name: tier.name,

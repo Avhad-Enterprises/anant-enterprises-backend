@@ -16,10 +16,9 @@ const handler = async (req: Request, res: Response) => {
     // Build where conditions
     const conditions = [];
 
-    // Add status filter (default to active only)
-    const statusFilter = (status as string) || 'active';
-    if (statusFilter !== 'all') {
-        conditions.push(eq(tiers.status, statusFilter as 'active' | 'inactive'));
+    // Add status filter if specified (don't default to active)
+    if (status && status !== '') {
+        conditions.push(eq(tiers.status, status as 'active' | 'inactive'));
     }
 
     // Add level filter if specified
@@ -51,7 +50,7 @@ const handler = async (req: Request, res: Response) => {
         ? db.select().from(tiers).where(and(...conditions))
         : db.select().from(tiers);
 
-    const allTiers = await query.orderBy(asc(tiers.level), asc(tiers.priority), asc(tiers.name));
+    const allTiers = await query.orderBy(asc(tiers.level), asc(tiers.name));
 
     const tiersResponse: ITier[] = allTiers.map(tier => ({
         id: tier.id,
@@ -60,7 +59,6 @@ const handler = async (req: Request, res: Response) => {
         description: tier.description,
         level: tier.level,
         parent_id: tier.parent_id,
-        priority: tier.priority,
         status: tier.status,
         usage_count: tier.usage_count,
         created_at: tier.created_at,

@@ -39,7 +39,8 @@ export const tiers = pgTable(
     // Hierarchy
     level: integer('level').notNull(), // 1=Root, 2=Sub, etc.
     parent_id: uuid('parent_id'), // Self-reference to parent tier
-    priority: integer('priority').default(0).notNull(), // Sorting order
+    priority: integer('priority').default(0).notNull(), // Display order
+
 
     // Status
     status: tierStatusEnum('status').default('active').notNull(),

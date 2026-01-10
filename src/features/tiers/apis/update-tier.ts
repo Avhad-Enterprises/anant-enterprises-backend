@@ -22,7 +22,6 @@ const updateTierSchema = z.object({
     name: z.string().min(1).max(255).trim().optional(),
     code: z.string().min(1).max(255).trim().optional(),
     description: z.string().optional(),
-    priority: z.number().int().optional(),
     status: z.enum(['active', 'inactive']).optional(),
 });
 
@@ -85,7 +84,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
             description: updated.description,
             level: updated.level,
             parent_id: updated.parent_id,
-            priority: updated.priority,
             status: updated.status,
             usage_count: updated.usage_count,
             updated_at: updated.updated_at,

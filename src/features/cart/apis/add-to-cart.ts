@@ -33,7 +33,7 @@ const addToCartSchema = z.object({
     { message: 'Either product_id or bundle_id is required' }
 );
 
-type AddToCartData = z.infer<typeof addToCartSchema>;
+
 
 /**
  * Get or create cart for user/session

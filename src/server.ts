@@ -17,6 +17,7 @@ import ReviewRoute from './features/reviews';
 import PaymentsRoute from './features/payments';
 import WebhooksRoute from './features/webhooks';
 import TagRoute from './features/tags';
+import TierRoute from './features/tiers';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
@@ -61,6 +62,7 @@ async function bootstrap() {
       new PaymentsRoute(),  // Payment/Razorpay endpoints
       new WebhooksRoute(),  // External webhook endpoints
       new TagRoute(),       // Tags master table
+      new TierRoute(),      // Tiers feature
     ]);
 
     server = app.listen();
