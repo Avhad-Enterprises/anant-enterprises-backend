@@ -16,6 +16,8 @@ import OrdersRoute from './features/orders';
 import ReviewRoute from './features/reviews';
 import PaymentsRoute from './features/payments';
 import WebhooksRoute from './features/webhooks';
+import TagRoute from './features/tags';
+import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
@@ -61,6 +63,8 @@ async function bootstrap() {
       new ReviewRoute(),    // Reviews endpoints
       new PaymentsRoute(),  // Payment/Razorpay endpoints
       new WebhooksRoute(),  // External webhook endpoints
+      new TagRoute(),       // Tags master table
+      new TierRoute(),      // Tiers feature
       new DiscountRoute(),  // Discount endpoints
     ]);
 

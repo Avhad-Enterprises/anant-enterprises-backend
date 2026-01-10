@@ -5,5 +5,4 @@
  */
 
 export * from './tiers.schema';
-export * from './product-tiers.schema';
 export * from './interface';

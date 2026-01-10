@@ -79,7 +79,8 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
         const sanitizedBody = sanitizeValue(req.body) as Record<string, unknown>;
         try {
             req.body = sanitizedBody;
-        } catch (error) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+        } catch (error: any) {
             // In Express 5 or some environments, req.body might be read-only.
             try {
                 Object.defineProperty(req, 'body', {
@@ -99,6 +100,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
         const sanitized = sanitizeValue(req.query);
         // Mutate existing query object instead of reassigning to avoid setter error
         Object.keys(req.query).forEach(key => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             delete (req.query as any)[key];
         });
         Object.assign(req.query, sanitized);

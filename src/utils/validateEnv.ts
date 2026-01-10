@@ -59,7 +59,7 @@ export const validateEnv = () => {
     // File upload configuration
     ALLOWED_FILE_TYPES: str({
       default:
-        'application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/gif,image/webp,image/svg+xml',
     }),
 
     // Chatbot - Groq LLM

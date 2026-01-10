@@ -23,40 +23,13 @@ class ProductRoute implements Route {
     const { default: getProductByIdRouter } = await import('./apis/get-product-by-id');
     const { default: updateProductRouter } = await import('./apis/update-product');
     const { default: deleteProductRouter } = await import('./apis/delete-product');
-    const { default: getProductReviewsRouter } = await import('./apis/get-product-reviews');
 
-    // Product Page Enhancement Routes
-    const { default: searchProductsRouter } = await import('./apis/search-products');
-    const { default: getRelatedProductsRouter } = await import('./apis/get-related-products');
-    const { default: getProductBundlesRouter } = await import('./apis/get-product-bundles');
-    const { default: getComparisonProductsRouter } = await import('./apis/get-comparison-products');
-
-    // Collection Page Enhancement Routes
-    const { default: getProductFiltersRouter } = await import('./apis/get-product-filters');
-
-        // Search Enhancement Routes
-        const { default: searchAutocompleteRouter } = await import('./apis/search-autocomplete');
-        const { default: popularSearchesRouter } = await import('./apis/popular-searches');
-
-        // CRITICAL: Register static routes BEFORE parameterized routes
-        // /search/autocomplete, /search/popular must come before /search
-        this.router.use(this.path, searchAutocompleteRouter);   // GET /products/search/autocomplete
-        this.router.use(this.path, popularSearchesRouter);      // GET /products/search/popular
-        this.router.use(this.path, searchProductsRouter);
-        this.router.use(this.path, getComparisonProductsRouter);
-        this.router.use(this.path, getProductFiltersRouter);
-
-    // Standard CRUD routes
-    this.router.use(this.path, createProductRouter);
-    this.router.use(this.path, getAllProductsRouter);
-    this.router.use(this.path, getProductByIdRouter);
-    this.router.use(this.path, updateProductRouter);
-    this.router.use(this.path, deleteProductRouter);
-    this.router.use(this.path, getProductReviewsRouter);
-
-    // Parameterized routes (must come after static routes)
-    this.router.use(this.path, getRelatedProductsRouter);
-    this.router.use(this.path, getProductBundlesRouter);
+    // Register core CRUD routes
+    this.router.use(this.path, createProductRouter);        // POST /products
+    this.router.use(this.path, getAllProductsRouter);       // GET /products
+    this.router.use(this.path, getProductByIdRouter);       // GET /products/:id
+    this.router.use(this.path, updateProductRouter);        // PUT /products/:id
+    this.router.use(this.path, deleteProductRouter);        // DELETE /products/:id
   }
 }
 

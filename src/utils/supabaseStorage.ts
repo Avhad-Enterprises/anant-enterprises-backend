@@ -103,8 +103,8 @@ export async function getTransformedImageUrl(
 }
 
 /**
- * Upload a file buffer to Supabase Storage (private by default)
- * Files are stored securely and accessed via pre-signed URLs
+ * Upload a file buffer to Supabase Storage (public access for images)
+ * Product images need to be publicly accessible from the browser
  */
 export async function uploadToStorage(
   buffer: Buffer,
@@ -117,12 +117,13 @@ export async function uploadToStorage(
 
     // Sanitize filename to prevent path traversal
     const sanitizedFilename = filename
-      .replace(/^\.+/, '') // Remove leading dots
+      .replace(/^\\.+/, '') // Remove leading dots
       .replace(/[^a-zA-Z0-9.-]/g, '_');
 
-    // Create a folder structure: uploads/{userId}/{timestamp}_{filename}
+    // Create a folder structure: {userId}/{timestamp}_{filename}
+    // Don't include "uploads/" prefix since bucket is already named "uploads"
     const timestamp = Date.now();
-    const key = `uploads/${userId}/${timestamp}_${sanitizedFilename}`;
+    const key = `${userId}/${timestamp}_${sanitizedFilename}`;
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage.from(bucket).upload(key, buffer, {
@@ -140,14 +141,18 @@ export async function uploadToStorage(
       throw new HttpException(500, 'Upload succeeded but no path returned');
     }
 
-    // Generate initial pre-signed URL for immediate access
-    const url = await getPresignedDownloadUrl(data.path);
+    // Get public URL instead of signed URL for browser accessibility
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+
+    if (!publicUrlData?.publicUrl) {
+      throw new HttpException(500, 'Failed to generate public URL');
+    }
 
     logger.info(`File uploaded to Supabase Storage: ${data.path}`);
 
     return {
       key: data.path,
-      url,
+      url: publicUrlData.publicUrl,
       bucket,
       size: buffer.length,
       contentType: mimetype,

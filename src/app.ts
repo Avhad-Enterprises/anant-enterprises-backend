@@ -6,7 +6,7 @@ import { requestIdMiddleware } from './middlewares';
 import { securityMiddleware } from './middlewares';
 import { corsMiddleware } from './middlewares';
 import { requestLoggerMiddleware } from './middlewares';
-import { auditMiddleware, sanitizeInput } from './middlewares';
+import { sanitizeInput } from './middlewares'; // auditMiddleware removed as it's commented out
 import type { Route as Routes } from './interfaces';
 import { errorMiddleware } from './middlewares';
 import { logger } from './utils';
@@ -76,7 +76,7 @@ class App {
     const port = Number(this.port);
     const server = this.app.listen(port, '0.0.0.0', () => {
       logger.info(
-        `🚀 Anant Enterprises Backend API listening on port ${port}. Environment: ${this.env}.`
+        `🚀 Anant Enterprises Backend API listening on port ${port}.Environment: ${this.env}.`
       );
     });
 

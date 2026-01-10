@@ -128,6 +128,18 @@ export const INITIAL_PERMISSIONS = [
   { name: 'products:update', resource: 'products', action: 'update', description: 'Update existing products' },
   { name: 'products:delete', resource: 'products', action: 'delete', description: 'Delete products' },
 
+  // Tag Management
+  { name: 'tags:create', resource: 'tags', action: 'create', description: 'Create new tags' },
+  { name: 'tags:read', resource: 'tags', action: 'read', description: 'View all tags' },
+  { name: 'tags:update', resource: 'tags', action: 'update', description: 'Update existing tags' },
+  { name: 'tags:delete', resource: 'tags', action: 'delete', description: 'Delete tags' },
+
+  // Tier Management
+  { name: 'tiers:create', resource: 'tiers', action: 'create', description: 'Create new tiers' },
+  { name: 'tiers:read', resource: 'tiers', action: 'read', description: 'View all tiers' },
+  { name: 'tiers:update', resource: 'tiers', action: 'update', description: 'Update existing tiers' },
+  { name: 'tiers:delete', resource: 'tiers', action: 'delete', description: 'Delete tiers' },
+
   // Wildcard Permission (for superadmin)
   { name: '*', resource: '*', action: '*', description: 'Full system access (wildcard)' },
 ] as const;
@@ -164,6 +176,14 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'products:read',
     'products:update',
     'products:delete',
+    'tags:create',
+    'tags:read',
+    'tags:update',
+    'tags:delete',
+    'tiers:create',
+    'tiers:read',
+    'tiers:update',
+    'tiers:delete',
   ],
   superadmin: ['*'], // Wildcard - all permissions
 };

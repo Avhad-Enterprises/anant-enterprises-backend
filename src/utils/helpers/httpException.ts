@@ -6,12 +6,22 @@ class HttpException extends Error {
   public status: number;
   public message: string;
   public code: string;
+  public details?: unknown;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(status: number, message: string, context?: string | unknown) {
     super(message);
     this.status = status;
     this.message = message;
-    this.code = code || this.getDefaultCode(status);
+
+    if (typeof context === 'string') {
+      this.code = context;
+    } else if (typeof context === 'object' && context !== null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.code = (context as any).code || this.getDefaultCode(status);
+      this.details = context;
+    } else {
+      this.code = this.getDefaultCode(status);
+    }
   }
 
   private getDefaultCode(status: number): string {

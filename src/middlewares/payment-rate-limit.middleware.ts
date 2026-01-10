@@ -28,7 +28,7 @@ export const paymentCreateRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => {
+    keyGenerator: (req) => {
         // Use user ID if authenticated, otherwise IP
         return (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown');
     },
@@ -62,7 +62,7 @@ export const paymentVerifyRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
+    keyGenerator: (req) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });
 
@@ -79,7 +79,7 @@ export const refundRateLimit = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
+    keyGenerator: (req) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });
 
@@ -94,6 +94,6 @@ export const webhookRateLimit = rateLimit({
     message: { status: 'error', message: 'Rate limit exceeded' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req, res) => ipKeyGenerator(req.ip || 'unknown'),
+    keyGenerator: (req) => ipKeyGenerator(req.ip || 'unknown'),
     skip: () => process.env.NODE_ENV === 'test',
 });

@@ -49,8 +49,8 @@ import {
   collectionSortOrderEnum,
   conditionMatchTypeEnum,
 } from '../features/collection';
-import { tiers, productTiers, tierStatusEnum } from '../features/tiers';
-import { tags, productTags } from '../features/tags';
+import { tiers, tierStatusEnum } from '../features/tiers';
+import { tags } from '../features/tags';
 import {
   discounts,
   discountCodes,
@@ -265,11 +265,9 @@ export const schema = {
   conditionMatchTypeEnum,
   // Tier feature
   tiers,
-  productTiers,
   tierStatusEnum,
   // Tags feature
   tags,
-  productTags,
   // Discount feature
   discounts,
   discountCodes,

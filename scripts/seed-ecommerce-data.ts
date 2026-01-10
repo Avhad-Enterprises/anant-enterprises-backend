@@ -18,7 +18,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { db, closeDatabase } from '../src/database/drizzle';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { db, closeDatabase } from '../src/database';
 import { users } from '../src/features/user/shared/user.schema';
 import { userAddresses } from '../src/features/user/shared/addresses.schema';
 import { products } from '../src/features/product/shared/product.schema';

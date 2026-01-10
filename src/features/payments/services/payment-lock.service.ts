@@ -38,8 +38,9 @@ class PaymentLockServiceClass {
         const lockKey = `${PaymentLockServiceClass.LOCK_PREFIX}${orderId}`;
 
         try {
-            // SET with NX (only if not exists) and EX (expiry)
-            const result = await redis.set(lockKey, Date.now().toString(), 'EX', ttlSeconds, 'NX');
+            // SET with NX (only if not exists) and PX (expiry in ms) or EX (seconds)
+            // Redis v4/v5 syntax: .set(key, value, { EX: ttl, NX: true })
+            const result = await redis.set(lockKey, Date.now().toString(), { EX: ttlSeconds, NX: true });
             const acquired = result === 'OK';
 
             if (acquired) {

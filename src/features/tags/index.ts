@@ -5,8 +5,9 @@
  */
 
 import { Router } from 'express';
+import Route from '../../interfaces/route.interface';
 
-class TagRoute {
+class TagRoute implements Route {
   public path = '/tags';
   public router = Router();
 
@@ -14,8 +15,19 @@ class TagRoute {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
-    // defined later
+  private async initializeRoutes() {
+    const { default: createTagRouter } = await import('./apis/create-tag');
+    const { default: getTagsRouter } = await import('./apis/get-tags');
+    const { default: getTagByIdRouter } = await import('./apis/get-tag-by-id');
+    const { default: updateTagRouter } = await import('./apis/update-tag');
+    const { default: deleteTagRouter } = await import('./apis/delete-tag');
+
+    // Register routes in order
+    this.router.use(this.path, createTagRouter);      // POST /tags
+    this.router.use(this.path, getTagsRouter);         // GET /tags
+    this.router.use(this.path, getTagByIdRouter);      // GET /tags/:id
+    this.router.use(this.path, updateTagRouter);       // PUT /tags/:id
+    this.router.use(this.path, deleteTagRouter);       // DELETE /tags/:id
   }
 }
 
@@ -23,3 +35,6 @@ export default TagRoute;
 
 // Shared resources
 export * from './shared';
+
+// Services
+export * from './services/tag-sync.service';
