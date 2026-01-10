@@ -48,7 +48,7 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction):
       return callback(new Error('CORS: Origin not allowed'));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Session-ID'],
     maxAge: 86400, // 24 hours
     optionsSuccessStatus: 200, // Some legacy browsers choke on 204

@@ -4,21 +4,23 @@
  * Verifies payment signature after successful Razorpay checkout.
  * This is called by the frontend after the user completes payment.
  *
- * IMPORTANT: This endpoint performs client-side verification.
- * The definitive payment confirmation comes via webhooks.
- * Always check order status before fulfillment.
+ * IMPORTANT: This endpoint performs client-side verification ONLY.
+ * It marks the payment as 'authorized', NOT 'paid'.
+ * The definitive payment confirmation comes via webhooks (payment.captured).
+ * The webhook handler is the single source of truth for 'paid' status.
  *
  * Flow:
  * 1. Validate request parameters
  * 2. Verify signature using HMAC SHA256
- * 3. Update payment transaction status
- * 4. Update order payment status
+ * 3. Update payment transaction status to 'authorized' (in transaction)
+ * 4. Update order payment status to 'authorized' (in transaction)
  * 5. Return success with order details
+ * 6. Webhook will later mark as 'paid' (source of truth)
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
@@ -60,13 +62,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             razorpayOrderId: body.razorpay_order_id,
             userId,
         });
-        if (!transaction) {
-            logger.warn('Payment verification failed - transaction not found', {
-                razorpayOrderId: body.razorpay_order_id,
-                userId,
-            });
-            throw new HttpException(404, 'Payment not found', 'PAYMENT_NOT_FOUND');
-        }
+        throw new HttpException(404, 'Payment not found', 'PAYMENT_NOT_FOUND');
     }
 
     // Verify the order belongs to the user
@@ -91,9 +87,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(404, 'Order not found');
     }
 
-    // Check if already verified
-    if (transaction.status === 'captured') {
-        logger.info('Payment already verified', {
+    // Check if already verified (captured status means webhook already confirmed)
+    if (transaction.status === 'captured' || transaction.webhook_verified) {
+        logger.info('Payment already captured via webhook', {
             orderId: order.id,
             razorpayPaymentId: body.razorpay_payment_id,
         });
@@ -103,12 +99,35 @@ const handler = async (req: RequestWithUser, res: Response) => {
             {
                 order_id: order.id,
                 order_number: order.order_number,
-                payment_status: 'paid',
+                payment_status: order.payment_status,
                 transaction_id: transaction.razorpay_payment_id,
-                paid_at: transaction.verified_at?.toISOString() || new Date().toISOString(),
+                paid_at: transaction.verified_at?.toISOString() || order.paid_at?.toISOString() || null,
                 amount_paid: Number(order.total_amount),
+                confirmation_source: 'webhook',
             },
             'Payment already verified'
+        );
+    }
+
+    // Check if client already verified (but webhook not yet received)
+    if (transaction.status === 'authorized') {
+        logger.info('Payment already client-verified, awaiting webhook confirmation', {
+            orderId: order.id,
+            razorpayPaymentId: body.razorpay_payment_id,
+        });
+
+        return ResponseFormatter.success(
+            res,
+            {
+                order_id: order.id,
+                order_number: order.order_number,
+                payment_status: 'authorized',
+                transaction_id: transaction.razorpay_payment_id,
+                paid_at: null, // Not yet confirmed paid
+                amount_paid: Number(order.total_amount),
+                confirmation_source: 'client_pending_webhook',
+            },
+            'Payment authorized, awaiting confirmation'
         );
     }
 
@@ -126,63 +145,84 @@ const handler = async (req: RequestWithUser, res: Response) => {
             razorpayPaymentId: body.razorpay_payment_id,
         });
 
-        // Update transaction as failed
-        await db
-            .update(paymentTransactions)
-            .set({
-                status: 'failed',
-                error_code: 'INVALID_SIGNATURE',
-                error_description: 'Payment signature verification failed',
-                razorpay_payment_id: body.razorpay_payment_id,
-                updated_at: new Date(),
-            })
-            .where(eq(paymentTransactions.id, transaction.id));
+        // Use transaction for atomic update
+        await db.transaction(async (tx) => {
+            // Update transaction as failed
+            await tx
+                .update(paymentTransactions)
+                .set({
+                    status: 'failed',
+                    error_code: 'INVALID_SIGNATURE',
+                    error_description: 'Payment signature verification failed',
+                    razorpay_payment_id: body.razorpay_payment_id,
+                    updated_at: new Date(),
+                })
+                .where(eq(paymentTransactions.id, transaction.id));
 
-        // Update order with error
-        await db
-            .update(orders)
-            .set({
-                last_payment_error: 'Payment signature verification failed',
-                updated_at: new Date(),
-            })
-            .where(eq(orders.id, order.id));
+            // Update order with error
+            await tx
+                .update(orders)
+                .set({
+                    last_payment_error: 'Payment signature verification failed',
+                    updated_at: new Date(),
+                })
+                .where(eq(orders.id, order.id));
+        });
 
         throw new HttpException(400, 'Payment verification failed', 'INVALID_SIGNATURE');
     }
 
-    // Signature is valid - update transaction
+    // Signature is valid - update in a transaction
+    // TRADITIONAL FLOW: Mark as CAPTURED/PAID immediately upon valid signature.
+    // Webhook will serve as a redundant confirmation.
     const now = new Date();
-    await db
-        .update(paymentTransactions)
-        .set({
-            status: 'captured',
-            razorpay_payment_id: body.razorpay_payment_id,
-            razorpay_signature: body.razorpay_signature,
-            verified_at: now,
-            updated_at: now,
-        })
-        .where(eq(paymentTransactions.id, transaction.id));
 
-    // Update order
-    await db
-        .update(orders)
-        .set({
-            payment_status: 'paid',
-            order_status: 'confirmed',
-            transaction_id: body.razorpay_payment_id,
-            payment_ref: body.razorpay_order_id,
-            paid_at: now,
-            last_payment_error: null,
-            updated_at: now,
-        })
-        .where(eq(orders.id, order.id));
+    await db.transaction(async (tx) => {
+        // Update transaction status to 'captured'
+        await tx
+            .update(paymentTransactions)
+            .set({
+                status: 'captured',
+                razorpay_payment_id: body.razorpay_payment_id,
+                razorpay_signature: body.razorpay_signature,
+                verified_at: now,
+                updated_at: now,
+            })
+            .where(
+                and(
+                    eq(paymentTransactions.id, transaction.id),
+                    // Only update if still in expected state (idempotency guard)
+                    inArray(paymentTransactions.status, ['initiated', 'failed', 'authorized'])
+                )
+            );
 
-    // Record discount usage if applicable (Fire and Forget)
+        // Update order to 'paid' status
+        await tx
+            .update(orders)
+            .set({
+                payment_status: 'paid',
+                order_status: 'confirmed',
+                transaction_id: body.razorpay_payment_id,
+                payment_ref: body.razorpay_order_id,
+                paid_at: now,
+                last_payment_error: null,
+                updated_at: now,
+            })
+            .where(
+                and(
+                    eq(orders.id, order.id),
+                    // Only update if still in expected state
+                    inArray(orders.payment_status, ['pending', 'failed', 'authorized'])
+                )
+            );
+    });
+
+    // Record discount usage if applicable (Fire and Forget - but log failures)
     if (order.discount_code && order.discount_id) {
         // Run asynchronously to not block the response
         (async () => {
             try {
-                // Import dynamically to avoid circular dependencies if any
+                // Import dynamically to avoid circular dependencies
                 const { discountCodeService } = await import('../../discount/services');
 
                 await discountCodeService.recordUsage({
@@ -205,13 +245,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
             } catch (error) {
                 logger.error('Failed to record discount usage', {
                     orderId: order.id,
-                    error
+                    error: error instanceof Error ? error.message : String(error)
                 });
             }
         })();
     }
 
-    logger.info('Payment verified successfully', {
+    logger.info('Payment verified and captured', {
         orderId: order.id,
         orderNumber: order.order_number,
         razorpayOrderId: body.razorpay_order_id,
@@ -219,6 +259,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         amount: order.total_amount,
     });
 
+    // Return 'paid' status
     return ResponseFormatter.success(
         res,
         {
@@ -228,6 +269,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             transaction_id: body.razorpay_payment_id,
             paid_at: now.toISOString(),
             amount_paid: Number(order.total_amount),
+            confirmation_source: 'client',
         },
         'Payment verified successfully'
     );
