@@ -14,6 +14,7 @@ import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
+import { getSearchTerms, buildProductSearchConditions, calculateRelevanceScore } from '../shared/search-utils';
 
 const querySchema = searchSchema.extend({
   category: z.string().optional(),
@@ -23,29 +24,34 @@ const querySchema = searchSchema.extend({
 const handler = async (req: Request, res: Response) => {
   const { q, category, limit } = querySchema.parse(req.query);
 
-  // Build where conditions
-  const searchPattern = `%${q}%`;
-  const conditions = [
-    eq(products.status, 'active'),
-    eq(products.is_deleted, false),
-    or(
-      ilike(products.product_title, searchPattern),
-      ilike(products.secondary_title, searchPattern),
-      ilike(products.category_tier_1, searchPattern),
-      ilike(products.category_tier_2, searchPattern),
-      ilike(products.sku, searchPattern)
-    ),
-  ];
-
-  // Add category filter if provided
-  if (category) {
-    conditions.push(
-      or(
-        ilike(products.category_tier_1, `%${category}%`),
-        ilike(products.category_tier_2, `%${category}%`)
-      )
-    );
+  if (!q || !q.trim()) {
+    return ResponseFormatter.success(res, [], 'Empty query');
   }
+
+  // Split query into terms for "fuzzy-like" matching
+  const terms = getSearchTerms(q);
+  const { exactMatch, allTermsMatch, anyTermMatch, searchPattern } = buildProductSearchConditions(q, terms);
+
+  // Base visibility conditions
+  const baseConditions = and(
+    eq(products.status, 'active'),
+    eq(products.is_deleted, false)
+  );
+
+  // Category filter
+  const categoryCondition = category
+    ? or(
+      ilike(products.category_tier_1, `%${category}%`),
+      ilike(products.category_tier_2, `%${category}%`)
+    )
+    : undefined;
+
+  // Combine all search logic
+  const whereClause = and(
+    baseConditions,
+    categoryCondition,
+    or(exactMatch, allTermsMatch, anyTermMatch)
+  );
 
   // Search products with computed fields
   const searchResults = await db
@@ -59,7 +65,7 @@ const handler = async (req: Request, res: Response) => {
       category_tier_1: products.category_tier_1,
       sku: products.sku,
 
-      // Computed: Average rating
+      // Computed fields
       rating: sql<number>`(
         SELECT COALESCE(AVG(${reviews.rating}), 0)
         FROM ${reviews}
@@ -67,8 +73,6 @@ const handler = async (req: Request, res: Response) => {
           AND ${reviews.status} = 'approved'
           AND ${reviews.is_deleted} = false
       )`,
-
-      // Computed: Review count
       review_count: sql<number>`(
         SELECT COUNT(${reviews.id})
         FROM ${reviews}
@@ -76,29 +80,34 @@ const handler = async (req: Request, res: Response) => {
           AND ${reviews.status} = 'approved'
           AND ${reviews.is_deleted} = false
       )`,
-
-      // Computed: Stock availability
       total_stock: sql<number>`(
         SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
         FROM ${inventory}
         WHERE ${inventory.product_id} = ${products.id}
       )`,
+
+      // Relevance Score Calculation
+      relevance: calculateRelevanceScore(searchPattern, terms).as('relevance')
     })
     .from(products)
-    .where(and(...conditions))
-    .orderBy(
-      // Exact matches first
-      sql`CASE WHEN ${products.product_title} ILIKE ${q + '%'} THEN 0 ELSE 1 END`,
-      products.product_title
-    )
+    .where(whereClause)
+    .orderBy(sql`relevance DESC`, products.product_title)
     .limit(limit);
 
   // Format results
   const formattedResults = searchResults.map(product => ({
-    ...product,
+    id: product.id,
+    product_title: product.product_title,
+    secondary_title: product.secondary_title,
+    selling_price: product.selling_price,
+    compare_at_price: product.compare_at_price,
+    primary_image_url: product.primary_image_url,
+    category_tier_1: product.category_tier_1,
+    sku: product.sku,
     rating: Number(product.rating) || 0,
     review_count: Number(product.review_count) || 0,
     inStock: (product.total_stock || 0) > 0,
+    relevance: Number(product.relevance)
   }));
 
   return ResponseFormatter.success(
