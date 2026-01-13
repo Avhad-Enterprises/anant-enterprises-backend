@@ -104,6 +104,7 @@ const handler = async (req: Request, res: Response) => {
   const productsData = await db
     .select({
       id: products.id,
+      slug: products.slug,
       product_title: products.product_title,
       selling_price: products.selling_price,
       compare_at_price: products.compare_at_price,
@@ -141,6 +142,7 @@ const handler = async (req: Request, res: Response) => {
     .where(whereClause)
     .groupBy(
       products.id,
+      products.slug,
       products.product_title,
       products.selling_price,
       products.compare_at_price,

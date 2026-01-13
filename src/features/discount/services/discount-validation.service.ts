@@ -12,7 +12,7 @@
 * - Payment method exclusions
 */
 
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import {
     discounts,
@@ -29,7 +29,6 @@ import {
     discountExclusions,
 } from '../shared/discount-advanced.schema';
 import { discountUsage } from '../shared/discount-usage.schema';
-import type { IValidateDiscountRequest, IValidateDiscountResponse } from '../shared/interface';
 import { logger } from '../../../utils';
 
 // ============================================

@@ -68,7 +68,11 @@ if (isDev || process.env.LOG_TO_CONSOLE === 'true') {
 
 const stream = {
   write: (message: string) => {
-    logger.info(message.substring(0, message.lastIndexOf('\n')));
+    if (message) {
+      const lastNewline = message.lastIndexOf('\n');
+      const cleanMessage = lastNewline > 0 ? message.substring(0, lastNewline) : message;
+      logger.info(cleanMessage);
+    }
   },
 };
 

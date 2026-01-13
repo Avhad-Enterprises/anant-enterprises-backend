@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { eq, and, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
+import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { IProductDetailResponse } from '../shared/interface';
@@ -22,10 +22,20 @@ import { productFaqs } from '../shared/product-faqs.schema';
 import { rbacCacheService } from '../../rbac';
 
 const paramsSchema = z.object({
-  id: uuidSchema,
+  id: z.string(),
 });
 
-async function getProductDetailById(id: string, userId?: string): Promise<IProductDetailResponse> {
+// UUID regex for validation
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function getProductDetailById(idOrSlug: string, userId?: string): Promise<IProductDetailResponse> {
+  const isUuid = uuidRegex.test(idOrSlug);
+
+  // Build condition based on input type
+  const matchCondition = isUuid
+    ? eq(products.id, idOrSlug)
+    : eq(products.slug, idOrSlug);
+
   // Fetch product with computed fields using optimized subqueries
   const [productData] = await db
     .select({
@@ -92,7 +102,7 @@ async function getProductDetailById(id: string, userId?: string): Promise<IProdu
       )`,
     })
     .from(products)
-    .where(and(eq(products.id, id), eq(products.is_deleted, false)))
+    .where(and(matchCondition, eq(products.is_deleted, false)))
     .limit(1);
 
   if (!productData) {
@@ -119,7 +129,7 @@ async function getProductDetailById(id: string, userId?: string): Promise<IProdu
       answer: productFaqs.answer,
     })
     .from(productFaqs)
-    .where(eq(productFaqs.product_id, id));
+    .where(eq(productFaqs.product_id, productData.id));
 
   // Calculate discount percentage
   let discount: number | null = null;
