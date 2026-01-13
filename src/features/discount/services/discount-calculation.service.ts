@@ -8,7 +8,7 @@
  * - Free shipping
  */
 
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../../database';
 import { type Discount } from '../shared/discount.schema';
 import {

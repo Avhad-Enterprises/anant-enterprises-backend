@@ -2,10 +2,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { closeDatabase, db } from './drizzle';
-import { discountService, CreateDiscountInput } from '../features/discount/services';
+import { discountService } from '../features/discount/services';
 import { products } from '../features/product/shared/product.schema';
 import { logger } from '../utils';
-import { sql } from 'drizzle-orm';
 
 /**
  * Seed database with test discounts

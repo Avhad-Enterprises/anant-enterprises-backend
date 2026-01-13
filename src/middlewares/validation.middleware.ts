@@ -48,12 +48,14 @@ const validationMiddleware = (
           configurable: true,
         });
       } catch (error) {
-        // Fallback for environments where properties are strictly read-only or non-configurable
-        // Log the warning but allow the request to proceed with original (unvalidated but checked) data
-        // attached to a new property for manual retrieval if needed
-        logger.warn(`Could not overwrite req.${target} with validated data`, { error });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (req as any)[`validated_${target}`] = result.data;
+        // Critical error - cannot apply validated data
+        logger.error(`Failed to apply validated data to req.${target}`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          target,
+          path: req.path,
+          requestId: req.requestId,
+        });
+        return next(new HttpException(500, 'Validation application failed'));
       }
 
       next();

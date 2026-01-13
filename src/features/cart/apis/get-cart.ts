@@ -86,6 +86,7 @@ const handler = async (req: Request, res: Response) => {
             totalQuantity: 0,
             hasStockIssues: false,
             hasPriceChanges: false,
+            hasUnmergedGuestCart: false,
         } as CartResponse, 'Empty cart');
     }
 
@@ -165,6 +166,7 @@ const handler = async (req: Request, res: Response) => {
             totalQuantity: 0,
             hasStockIssues: false,
             hasPriceChanges: false,
+            hasUnmergedGuestCart: false,
         } as CartResponse, 'No active cart found');
     }
 

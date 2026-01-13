@@ -21,6 +21,7 @@ import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
+import { isProduction } from './utils/validateEnv';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
 import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
 
@@ -40,6 +41,9 @@ async function bootstrap() {
     // Initialize Redis connection
     const redisConnected = await testRedisConnection();
     if (!redisConnected) {
+      if (isProduction) {
+        throw new Error('Redis connection required in production environment');
+      }
       logger.warn('⚠️ Redis not available - using in-memory caching as fallback');
     } else {
       logger.info('✅ Redis connected');
@@ -86,7 +90,22 @@ async function bootstrap() {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    process.exit(1); // Stop if critical services fail
+
+    // Perform cleanup before exit
+    try {
+      if (pool) {
+        await pool.end();
+        logger.info('✅ Database connections closed');
+      }
+      if (redisClient && redisClient.isOpen) {
+        await redisClient.quit();
+        logger.info('✅ Redis connection closed');
+      }
+    } catch (cleanupError) {
+      logger.error('❌ Error during cleanup:', cleanupError);
+    }
+
+    process.exit(1);
   }
 }
 
