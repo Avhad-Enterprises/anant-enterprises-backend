@@ -23,11 +23,15 @@ class ProductRoute implements Route {
     const { default: getProductByIdRouter } = await import('./apis/get-product-by-id');
     const { default: updateProductRouter } = await import('./apis/update-product');
     const { default: deleteProductRouter } = await import('./apis/delete-product');
+    const { default: getProductBySlugRouter } = await import('./apis/get-product-by-slug');
+    const { default: getProductFiltersRouter } = await import('./apis/get-product-filters');
 
     // Register core CRUD routes
     this.router.use(this.path, createProductRouter);        // POST /products
     this.router.use(this.path, getAllProductsRouter);       // GET /products
+    this.router.use(this.path, getProductFiltersRouter);    // GET /products/filters (MUST BE BEFORE :id)
     this.router.use(this.path, getProductByIdRouter);       // GET /products/:id
+    this.router.use(this.path, getProductBySlugRouter);     // GET /products/slug/:slug
     this.router.use(this.path, updateProductRouter);        // PUT /products/:id
     this.router.use(this.path, deleteProductRouter);        // DELETE /products/:id
   }
