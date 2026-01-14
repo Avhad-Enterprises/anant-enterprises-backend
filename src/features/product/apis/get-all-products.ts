@@ -30,6 +30,9 @@ const querySchema = paginationSchema
     minPrice: z.preprocess(val => (val ? Number(val) : 0), z.number().min(0)),
     maxPrice: z.preprocess(val => (val ? Number(val) : 200000), z.number().min(0)),
 
+    // Search
+    search: z.string().optional(),
+
     // Sorting
     sort: z.enum(['newest', 'price-asc', 'price-desc', 'rating']).default('newest'),
   })
@@ -60,23 +63,47 @@ const handler = async (req: Request, res: Response) => {
       conditions.push(eq(products.status, 'active'));
     }
 
+    // Search Logic (Full Text + SKU + Tags)
+    if (params.search && params.search.trim().length > 0) {
+      const searchQuery = params.search.trim();
+
+      const fullTextCondition = sql`${products.search_vector} @@ plainto_tsquery('english', ${searchQuery})`;
+      const skuCondition = sql`${products.sku} ILIKE ${`%${searchQuery}%`}`;
+      const tagsCondition = sql`${products.tags}::text ILIKE ${`%${searchQuery}%`}`;
+
+      const searchConditions = or(fullTextCondition, skuCondition, tagsCondition);
+      if (searchConditions) {
+        conditions.push(searchConditions);
+      }
+    }
 
 
-    // Category filter (slugified matching via Subquery)
+
+    // Category filter (Recursive CTE for Hierarchical Matching)
     if (params.categories) {
       const categoryList = params.categories.split(',').map(c => c.trim().toLowerCase());
 
-      // Check if product belongs to any tier that matches the requested slugs
       if (categoryList.length > 0) {
+        // Recursive CTE to get the selected tier(s) and ALL their descendants
+        // Then filter products that belong to ANY of those resolved Tier IDs
         conditions.push(sql`EXISTS (
-          SELECT 1 FROM ${tiers} t
-          WHERE (
-               t.id = ${products.category_tier_1}
-            OR t.id = ${products.category_tier_2}
-            OR t.id = ${products.category_tier_3}
-            OR t.id = ${products.category_tier_4}
+          WITH RECURSIVE tier_tree AS (
+            -- Anchor member: Select IDs of the chosen categories by code
+            SELECT id FROM ${tiers} WHERE code IN ${categoryList}
+            
+            UNION ALL
+            
+            -- Recursive member: Select children of the accumulated tiers
+            SELECT t.id FROM ${tiers} t
+            INNER JOIN tier_tree tt ON t.parent_id = tt.id
           )
-          AND t.code IN ${categoryList}
+          -- Final check: Does the product belong to any of these tiers?
+          SELECT 1 FROM tier_tree
+          WHERE 
+               tier_tree.id = ${products.category_tier_1}
+            OR tier_tree.id = ${products.category_tier_2}
+            OR tier_tree.id = ${products.category_tier_3}
+            OR tier_tree.id = ${products.category_tier_4}
         )`);
       }
     }
@@ -84,18 +111,22 @@ const handler = async (req: Request, res: Response) => {
     // Technology filter (uses tags field - JSONB array overlap)
     if (params.technologies) {
       const techList = params.technologies.split(',').map(t => t.trim().toLowerCase());
-      // Check if any tag in the array matches (case-insensitive)
+
+      // Use efficient JSONB operator ?| (exists any) if available, otherwise fallback to array expansion
+      // Since availability of ?| depends on drivers, sticking to EXISTS with parameterized values is safer
+
       const techConditions = techList.map(
         tech =>
           sql`EXISTS (
-                  SELECT 1 FROM jsonb_array_elements_text(COALESCE(${products.tags}, '[]'::jsonb)) AS tag
-                  WHERE LOWER(tag) = ${tech}
-              )`
+              SELECT 1 FROM jsonb_array_elements_text(COALESCE(${products.tags}, '[]'::jsonb)) AS tag
+              WHERE LOWER(tag) = ${tech}
+          )`
       );
+
       if (techConditions.length > 0) {
-        const orCondition = or(...techConditions);
-        if (orCondition) {
-          conditions.push(orCondition);
+        const combinedTech = or(...techConditions);
+        if (combinedTech) {
+          conditions.push(combinedTech);
         }
       }
     }
@@ -126,6 +157,7 @@ const handler = async (req: Request, res: Response) => {
         status: products.status,
         featured: products.featured,
         sku: products.sku,
+        slug: products.slug,
 
         // Computed: Inventory Quantity (Subquery to avoid Cartesian product details with Reviews)
         inventory_quantity: sql<number>`(
@@ -149,6 +181,7 @@ const handler = async (req: Request, res: Response) => {
           eq(reviews.is_deleted, false)
         )
       )
+      .where(whereClause)
       .groupBy(
         products.id,
         products.product_title,
@@ -161,7 +194,8 @@ const handler = async (req: Request, res: Response) => {
         products.updated_at,
         products.status,
         products.featured,
-        products.sku
+        products.sku,
+        products.slug
       );
 
     // Apply rating filter using HAVING clause (if specified)
@@ -220,6 +254,7 @@ const handler = async (req: Request, res: Response) => {
 
       return {
         id: product.id,
+        slug: product.slug,
         name: product.product_title,
         tags: (product.tags as string[]) || [],
         rating: Number(product.rating) || 0,

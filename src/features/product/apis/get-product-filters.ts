@@ -1,5 +1,5 @@
 import { Router, Response, Request } from 'express';
-import { sql } from 'drizzle-orm';
+import { sql, eq, and, isNull } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
@@ -8,16 +8,66 @@ import { reviews } from '../../reviews/shared/reviews.schema';
 
 const handler = async (req: Request, res: Response) => {
     try {
-        // 1. Get Categories (Level 1 Tiers)
-        const categoriesData = await db
+        const { categories: categoryCode } = req.query;
+
+        // 1. Determine Parent Tier Context
+        let parentTierId = null;
+        let parentTierLevel = 0;
+
+        if (categoryCode && typeof categoryCode === 'string') {
+            const parentTier = await db.query.tiers.findFirst({
+                where: and(
+                    eq(tiers.code, categoryCode),
+                    eq(tiers.status, 'active')
+                ),
+                columns: {
+                    id: true,
+                    level: true
+                }
+            });
+
+            if (parentTier) {
+                parentTierId = parentTier.id;
+                parentTierLevel = parentTier.level;
+            }
+        }
+
+        // 2. Fetch Appropriate Categories (Tiers)
+        // If parent context exists, fetch its immediate children.
+        // Otherwise, fetch root level (Level 1) tiers.
+
+        const categoriesQuery = db
             .select({
                 id: tiers.code,
                 label: tiers.name,
+                // usage_count: tiers.usage_count // REPLACE stale column with dynamic count
+                usage_count: sql<number>`(
+                    SELECT COUNT(*)
+                    FROM ${products} p
+                    WHERE p.status = 'active' 
+                    AND p.is_deleted = false
+                    AND (
+                           p.category_tier_1 = tiers.id
+                        OR p.category_tier_2 = tiers.id
+                        OR p.category_tier_3 = tiers.id
+                        OR p.category_tier_4 = tiers.id
+                    )
+                )`.mapWith(Number)
             })
             .from(tiers)
-            .where(sql`${tiers.level} = 1 AND ${tiers.status} = 'active'`);
+            .where(
+                and(
+                    eq(tiers.status, 'active'),
+                    parentTierId
+                        ? eq(tiers.parent_id, parentTierId)
+                        : eq(tiers.level, 1)
+                )
+            )
+            .orderBy(tiers.priority, tiers.name); // Add sorting for better UX
 
-        // 2. Get Price Range
+        const categoriesData = await categoriesQuery;
+
+        // 3. Get Price Range
         const [priceRange] = await db
             .select({
                 min: sql<number>`MIN(${products.selling_price})`,
@@ -26,7 +76,7 @@ const handler = async (req: Request, res: Response) => {
             .from(products)
             .where(sql`${products.status} = 'active' AND ${products.is_deleted} = false`);
 
-        // 3. Technologies Aggregation
+        // 4. Technologies Aggregation
         const technologiesData = await db.execute(sql`
         SELECT 
             LOWER(tag) as id, 
@@ -41,7 +91,7 @@ const handler = async (req: Request, res: Response) => {
         ORDER BY count DESC
     `);
 
-        // 4. Ratings (Product level aggregation)
+        // 5. Ratings (Product level aggregation)
         const ratingCounts = await db.execute(sql`
         WITH product_ratings AS (
             SELECT 
@@ -73,7 +123,7 @@ const handler = async (req: Request, res: Response) => {
                 categories: categoriesData.map(c => ({
                     id: c.id,
                     label: c.label,
-                    count: 0 // Categories count requires more complex join, skipping for now
+                    count: c.usage_count || 0
                 })),
                 technologies: technologiesData.rows.map((t: any) => ({
                     id: t.id,
@@ -84,13 +134,23 @@ const handler = async (req: Request, res: Response) => {
                 priceRange: {
                     min: Number(priceRange?.min || 0),
                     max: Number(priceRange?.max || 200000)
+                },
+                // Optional: Return context about the current level for UI adjustments
+                context: {
+                    level: parentTierLevel + 1,
+                    parent: categoryCode || null
                 }
             },
             'Filter options retrieved successfully'
         );
     } catch (error) {
         console.error('Error fetching filter options:', error);
-        return ResponseFormatter.error(res, error as Error);
+        return ResponseFormatter.error(
+            res,
+            'FILTER_FETCH_ERROR',
+            error instanceof Error ? error.message : 'Unknown error occurred',
+            500
+        );
     }
 };
 
