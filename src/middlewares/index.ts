@@ -1,8 +1,4 @@
-/**
- * Middlewares Index
- *
- * Re-exports all middleware functions for convenient imports
- */
+// Middlewares Index
 
 // Authentication middleware
 export { default as requireAuth } from './auth.middleware';
@@ -11,6 +7,9 @@ export { requireAuth as requireAuthNamed } from './auth.middleware';
 // Authorization/Permission middleware
 export {
   requirePermission,
+  // ... (omitting middle lines for brevity, wait, replace_file_content needs exact match. better to do targeted replacements)
+  // I will target the specific trace lines I added.
+
   requireAnyPermission,
   checkOwnershipOrPermission,
   requireOwnerOrPermission,

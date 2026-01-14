@@ -29,6 +29,7 @@ export interface IBlog {
   status: 'public' | 'private' | 'draft';
   published_at?: Date | null;
   views_count: number;
+  admin_comment?: string | null;
 
   created_at: Date;
   updated_at: Date;
