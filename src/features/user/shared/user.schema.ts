@@ -7,6 +7,8 @@ import {
   date,
   index,
   pgEnum,
+  text,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 // ============================================
@@ -44,6 +46,7 @@ export const users = pgTable(
 
     // Basic info
     name: varchar('name', { length: 255 }).notNull(),
+    display_name: varchar('display_name', { length: 100 }),
     email: varchar('email', { length: 255 }).unique().notNull(),
     password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
     email_verified: boolean('email_verified').default(false).notNull(), // Email verification status from Supabase Auth
@@ -60,8 +63,13 @@ export const users = pgTable(
     date_of_birth: date('date_of_birth'),
     gender: genderEnum('gender'),
 
+    // Metadata & Classification
+    tags: text('tags').array(),
+    metadata: jsonb('metadata'), // Stores GDPR, privacy version, security stats (last_login, etc)
+
     // Regional preferences
-    preferred_language: varchar('preferred_language', { length: 10 }).default('en').notNull(), // ISO 639-1
+    preferred_language: varchar('preferred_language', { length: 10 }).default('en').notNull(), // Primary language
+    languages: text('languages').array(), // All spoken languages
     preferred_currency: varchar('preferred_currency', { length: 3 }).default('INR').notNull(), // ISO 4217
     timezone: varchar('timezone', { length: 50 }).default('Asia/Kolkata').notNull(), // IANA timezone
 
