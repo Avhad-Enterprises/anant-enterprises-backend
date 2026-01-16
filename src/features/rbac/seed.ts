@@ -140,6 +140,12 @@ export const INITIAL_PERMISSIONS = [
   { name: 'tiers:update', resource: 'tiers', action: 'update', description: 'Update existing tiers' },
   { name: 'tiers:delete', resource: 'tiers', action: 'delete', description: 'Delete tiers' },
 
+  // Blog Management
+  { name: 'blogs:create', resource: 'blogs', action: 'create', description: 'Create new blogs' },
+  { name: 'blogs:read', resource: 'blogs', action: 'read', description: 'View all blogs' },
+  { name: 'blogs:update', resource: 'blogs', action: 'update', description: 'Update existing blogs' },
+  { name: 'blogs:delete', resource: 'blogs', action: 'delete', description: 'Delete blogs' },
+
   // Wildcard Permission (for superadmin)
   { name: '*', resource: '*', action: '*', description: 'Full system access (wildcard)' },
 ] as const;
@@ -156,6 +162,7 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'uploads:create',
     'uploads:delete:own',
     'chatbot:use',
+    'blogs:read', // Users can read blogs
   ],
   admin: [
     'users:read',
@@ -184,6 +191,10 @@ export const ROLE_PERMISSIONS_MAP: Record<string, string[]> = {
     'tiers:read',
     'tiers:update',
     'tiers:delete',
+    'blogs:create',
+    'blogs:read',
+    'blogs:update',
+    'blogs:delete',
   ],
   superadmin: ['*'], // Wildcard - all permissions
 };

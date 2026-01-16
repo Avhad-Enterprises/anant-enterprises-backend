@@ -16,6 +16,7 @@ export interface HealthCheckResult {
       idle: number;
       waiting: number;
     };
+    latency?: number;
   };
   timestamp: Date;
 }
@@ -29,9 +30,11 @@ export interface HealthCheckResult {
  */
 export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
   const timestamp = new Date();
+  const startTime = Date.now();
 
   try {
     await db.execute(sql`SELECT 1 as test`);
+    const latency = Date.now() - startTime;
 
     const result: HealthCheckResult = {
       status: 'healthy',
@@ -44,6 +47,7 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
           idle: pool.idleCount,
           waiting: pool.waitingCount,
         },
+        latency,
       },
       timestamp,
     };

@@ -35,6 +35,7 @@ class App {
 
     // Health check endpoint with dependency status
     this.app.get('/health', async (req, res) => {
+      const startTime = Date.now();
       try {
         // Check database health
         const dbHealth = await checkDatabaseHealth();
@@ -47,26 +48,30 @@ class App {
           timestamp: new Date().toISOString(),
           environment: this.env,
           uptime: process.uptime(),
+          responseTime: Date.now() - startTime,
           memory: {
             used: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
             total: Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) / 100,
+            percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100),
           },
           version: '1.0.0',
           dependencies: {
             database: {
               status: dbHealth.status,
               poolStats: dbHealth.details.poolStats,
+              latency: dbHealth.details.latency,
             },
             redis: {
               status: redisHealthy ? 'healthy' : 'unavailable',
             },
           },
         });
-      } catch {
+      } catch (error) {
         res.status(503).json({
           status: 'unhealthy',
           timestamp: new Date().toISOString(),
           error: 'Health check failed',
+          responseTime: Date.now() - startTime,
         });
       }
     });
@@ -76,12 +81,13 @@ class App {
     const port = Number(this.port);
     const server = this.app.listen(port, '0.0.0.0', () => {
       logger.info(
-        `🚀 Anant Enterprises Backend API listening on port ${port}.Environment: ${this.env}.`
+        `🚀 Anant Enterprises Backend API listening on port ${port}. Environment: ${this.env}.`
       );
     });
 
     // Configure server timeouts to prevent resource exhaustion
-    server.timeout = 30000; // 30 seconds request timeout
+    const requestTimeout = Number(process.env.REQUEST_TIMEOUT) || 30000;
+    server.timeout = requestTimeout; // Configurable request timeout (default 30s)
     server.keepAliveTimeout = 65000; // Slightly higher than ALB default (60s)
     server.headersTimeout = 66000; // Slightly higher than keepAliveTimeout
 
@@ -115,22 +121,24 @@ class App {
 
     // Raw body capture for Razorpay webhooks (MUST be before express.json())
     // Signature verification requires the raw, unparsed body
-    this.app.use('/api/webhooks/razorpay', (req, res, next) => {
-      let rawBody = '';
-      req.setEncoding('utf8');
-      req.on('data', chunk => {
-        rawBody += chunk;
-      });
-      req.on('end', () => {
-        (req as express.Request & { rawBody: string }).rawBody = rawBody;
+    this.app.use(
+      '/api/webhooks/razorpay',
+      express.raw({
+        type: 'application/json',
+        limit: '1mb',
+        verify: (req, res, buf) => {
+          (req as express.Request & { rawBody: string }).rawBody = buf.toString('utf8');
+        },
+      }),
+      (req, res, next) => {
         try {
-          req.body = JSON.parse(rawBody);
+          req.body = JSON.parse((req as express.Request & { rawBody: string }).rawBody);
         } catch {
           req.body = {};
         }
         next();
-      });
-    });
+      }
+    );
 
     // Body parsing (regular routes)
     this.app.use(express.json({ limit: '10mb' }));
@@ -138,10 +146,6 @@ class App {
 
     // Input sanitization (XSS protection) - runs BEFORE validation
     this.app.use(sanitizeInput);
-
-    // Audit logging (after body parsing and sanitization, captures clean request body)
-    // DISABLED: Too verbose for development
-    // this.app.use(auditMiddleware);
   }
 
   private initializeRoutes(routes: Routes[]) {

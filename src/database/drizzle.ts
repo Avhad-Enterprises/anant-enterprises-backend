@@ -76,7 +76,8 @@ import {
   catalogueRuleMatchTypeEnum,
   catalogueAdjustmentTypeEnum,
 } from '../features/catalogue';
-import { blogs, blogSubsections, blogStatusEnum } from '../features/blog';
+import { blogs, blogStatusEnum } from '../features/blog/shared/blog.schema';
+import { blogSubsections } from '../features/blog/shared/blog-subsections.schema';
 import {
   reviews,
   productQuestions,

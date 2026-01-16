@@ -33,7 +33,7 @@ async function getUserById(id: string): Promise<IUser> {
 
 const handler = async (req: RequestWithUser, res: Response) => {
   // Get the ID from the URL params (validated by Zod)
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const requestedUserId = id;
 
   const user = await getUserById(requestedUserId);

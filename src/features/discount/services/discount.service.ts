@@ -5,7 +5,7 @@
  * Used by admin APIs for creating, updating, and managing discounts.
  */
 
-import { eq, and, or, ilike, desc, asc, sql, inArray, isNull } from 'drizzle-orm';
+import { eq, and, or, ilike, desc, asc, sql, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import {
     discounts,
@@ -607,7 +607,7 @@ class DiscountService {
      * Soft delete a discount
      */
     async deleteDiscount(id: string, deletedBy?: string): Promise<boolean> {
-        const result = await db
+        await db
             .update(discounts)
             .set({
                 is_deleted: true,
@@ -778,7 +778,7 @@ class DiscountService {
         const now = new Date();
 
         // Activate scheduled discounts
-        const activatedResult = await db
+        await db
             .update(discounts)
             .set({ status: 'active', updated_at: now })
             .where(
@@ -791,7 +791,7 @@ class DiscountService {
             );
 
         // Expire active discounts
-        const expiredResult = await db
+        await db
             .update(discounts)
             .set({ status: 'expired', updated_at: now })
             .where(

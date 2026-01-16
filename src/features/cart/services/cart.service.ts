@@ -8,12 +8,10 @@
  * - Stock validation
  */
 
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../../../database';
 import { carts, type Cart } from '../shared/carts.schema';
 import { cartItems, type CartItem } from '../shared/cart-items.schema';
-import { products } from '../../product/shared/product.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
 import { HttpException } from '../../../utils';
 import {
     discountValidationService,

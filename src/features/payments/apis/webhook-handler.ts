@@ -94,57 +94,45 @@ const handler = async (req: Request, res: Response) => {
     // Verify signature FIRST
     const isValid = RazorpayService.verifyWebhookSignature(rawBody, signature);
 
-    // IDEMPOTENCY CHECK BEFORE INSERT - prevent duplicate processing
-    const existingLog = await db.query.paymentWebhookLogs.findFirst({
-        where: and(
-            eq(paymentWebhookLogs.event_id, eventIdentifier),
-            eq(paymentWebhookLogs.processed, true)
-        ),
-    });
-
-    if (existingLog) {
-        logger.info('Webhook already processed (idempotency hit)', {
-            eventType,
-            razorpayPaymentId,
-            eventIdentifier,
-        });
-        return res.status(200).json({ status: 'already_processed' });
-    }
-
-    // Log webhook receipt (use unique eventIdentifier instead of timestamp-based id)
+    // Log webhook receipt with idempotency protection
+    // Use INSERT ... ON CONFLICT DO UPDATE to handle race conditions atomically
     let webhookLogId: string | null = null;
     try {
-        const [inserted] = await db.insert(paymentWebhookLogs).values({
-            event_id: eventIdentifier,
-            event_type: eventType,
-            razorpay_order_id: razorpayOrderId,
-            razorpay_payment_id: razorpayPaymentId,
-            raw_payload: event,
-            signature_verified: isValid,
-            received_at: new Date(),
-        }).onConflictDoNothing().returning({ id: paymentWebhookLogs.id });
+        const [inserted] = await db
+            .insert(paymentWebhookLogs)
+            .values({
+                event_id: eventIdentifier,
+                event_type: eventType,
+                razorpay_order_id: razorpayOrderId,
+                razorpay_payment_id: razorpayPaymentId,
+                raw_payload: event,
+                signature_verified: isValid,
+                received_at: new Date(),
+            })
+            .onConflictDoUpdate({
+                target: paymentWebhookLogs.event_id,
+                set: {
+                    received_at: new Date(),
+                },
+            })
+            .returning({ id: paymentWebhookLogs.id, processed: paymentWebhookLogs.processed });
 
         webhookLogId = inserted?.id || null;
 
-        // If insert did nothing (conflict), check if already processed
-        if (!webhookLogId) {
-            const existing = await db.query.paymentWebhookLogs.findFirst({
-                where: eq(paymentWebhookLogs.event_id, eventIdentifier),
+        // Check if already processed (idempotency)
+        if (inserted?.processed) {
+            logger.info('Webhook already processed (idempotency hit)', {
+                eventType,
+                razorpayPaymentId,
+                eventIdentifier,
             });
-            if (existing?.processed) {
-                logger.info('Webhook already processed (conflict)', { eventType, eventIdentifier });
-                return res.status(200).json({ status: 'already_processed' });
-            }
-            webhookLogId = existing?.id || null;
-        }
-    } catch (error) {
-        // Unique constraint violation - already exists
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('unique') || errorMessage.includes('duplicate')) {
-            logger.info('Webhook duplicate detected', { eventType, eventIdentifier });
             return res.status(200).json({ status: 'already_processed' });
         }
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         logger.error('Failed to log webhook', { error: errorMessage });
+        // Return 200 to prevent webhook retries on database errors
+        return res.status(200).json({ status: 'error', message: 'Database error' });
     }
 
     // Reject invalid signatures

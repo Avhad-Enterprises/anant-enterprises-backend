@@ -1,0 +1,11 @@
+ALTER TABLE "customer_profiles" ADD COLUMN "risk_profile" varchar(20) DEFAULT 'low';--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "loyalty_enrolled" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "loyalty_tier" varchar(50);--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "loyalty_points" numeric(12, 2) DEFAULT '0';--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "loyalty_enrollment_date" timestamp;--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "subscription_plan" varchar(100);--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "subscription_status" varchar(20);--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "billing_cycle" varchar(20);--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "subscription_start_date" timestamp;--> statement-breakpoint
+ALTER TABLE "customer_profiles" ADD COLUMN "auto_renew" boolean DEFAULT false;--> statement-breakpoint
+CREATE INDEX "customer_profiles_risk_idx" ON "customer_profiles" USING btree ("risk_profile");
