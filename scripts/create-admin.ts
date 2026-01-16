@@ -29,6 +29,7 @@ import { Pool } from 'pg';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../src/utils/supabase';
 const nodeEnv = process.env.NODE_ENV || 'development';
 if (nodeEnv === 'development') {
   dotenv.config({ path: '.env.dev' });
@@ -71,7 +72,8 @@ async function createAdminUser() {
   console.log(`📍 Environment: ${nodeEnv}`);
   console.log(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
 
-  // Create Supabase admin client
+  // No need to create Supabase client here as we're using the shared one
+  /*
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseServiceKey = process.env.SERVICE_ROLE_KEY;
 
@@ -90,6 +92,7 @@ async function createAdminUser() {
       persistSession: false,
     },
   });
+  */
 
   // Create database connection
   const pool = new Pool({ connectionString: dbUrl, max: 1 });

@@ -25,6 +25,7 @@ import { IProduct } from '../shared/interface';
 import { productCacheService } from '../services/product-cache.service';
 import { findProductById, findProductBySku, findProductBySlug } from '../shared/queries';
 import { updateTagUsage } from '../../tags/services/tag-sync.service';
+import { updateTierUsage } from '../../tiers/services/tier-sync.service';
 
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
@@ -231,6 +232,21 @@ ON CONFLICT (location_code) DO NOTHING;
     const newTags = data.tags || [];
     await updateTagUsage(oldTags, newTags, 'product');
   }
+
+  // Update tier usage counts (handle category changes)
+  const oldTiers = [
+    existingProduct.category_tier_1,
+    existingProduct.category_tier_2,
+    existingProduct.category_tier_3,
+    existingProduct.category_tier_4,
+  ];
+  const newTiers = [
+    cleanedFields.category_tier_1 ?? existingProduct.category_tier_1,
+    cleanedFields.category_tier_2 ?? existingProduct.category_tier_2,
+    cleanedFields.category_tier_3 ?? existingProduct.category_tier_3,
+    cleanedFields.category_tier_4 ?? existingProduct.category_tier_4,
+  ];
+  await updateTierUsage(oldTiers, newTiers);
 
   return result as IProduct;
 }

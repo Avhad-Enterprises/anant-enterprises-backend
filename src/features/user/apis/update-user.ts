@@ -27,6 +27,8 @@ const updateUserSchema = z.object({
   name: shortTextSchema.optional(),
   email: emailSchema.optional(),
   phone_number: z.string().optional(),
+  timezone: z.string().max(100).optional(),
+  preferred_language: z.string().max(50).optional(),
 });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
@@ -62,6 +64,8 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     updated_by: requesterId,
   };
 
+  console.log('Updating users table with data:', JSON.stringify(updateData, null, 2));
+
   const [result] = await db
     .update(users)
     .set({
@@ -84,12 +88,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
+  console.log('>>> Handler received req.body:', JSON.stringify(req.body, null, 2));
+
   const paramsSchema = z.object({
     id: uuidSchema,
   });
 
   const { id } = paramsSchema.parse(req.params);
   const updateData: UpdateUser = req.body;
+
+  console.log('>>> updateData after assignment:', JSON.stringify(updateData, null, 2));
 
   const user = await updateUser(id, updateData, userId);
 

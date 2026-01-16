@@ -19,6 +19,7 @@ import WebhooksRoute from './features/webhooks';
 import TagRoute from './features/tags';
 import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
+import ProfileRoute from './features/profile';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -70,6 +71,7 @@ async function bootstrap() {
       new TagRoute(),       // Tags master table
       new TierRoute(),      // Tiers feature
       new DiscountRoute(),  // Discount endpoints
+      new ProfileRoute(),   // Profile settings and preferences
     ]);
 
     // Initialize Cron Jobs
