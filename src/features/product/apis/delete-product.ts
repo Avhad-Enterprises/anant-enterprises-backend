@@ -17,6 +17,8 @@ import { db } from '../../../database';
 import { products } from '../shared/product.schema';
 import { findProductById } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
+import { decrementTierUsage } from '../../tiers/services/tier-sync.service';
+import { decrementTagUsage } from '../../tags/services/tag-sync.service';
 
 const paramsSchema = z.object({
   id: uuidSchema,
@@ -31,6 +33,7 @@ async function deleteProduct(
     throw new HttpException(404, 'Product not found');
   }
 
+  // Soft delete the product
   await db
     .update(products)
     .set({
@@ -39,6 +42,20 @@ async function deleteProduct(
       deleted_at: new Date(),
     })
     .where(eq(products.id, id));
+
+  // Decrement tier usage counts
+  await decrementTierUsage([
+    existingProduct.category_tier_1,
+    existingProduct.category_tier_2,
+    existingProduct.category_tier_3,
+    existingProduct.category_tier_4,
+  ]);
+
+  // Decrement tag usage counts
+  const tags = (existingProduct.tags as string[]) || [];
+  if (tags.length > 0) {
+    await decrementTagUsage(tags);
+  }
 
   return { sku: existingProduct.sku, slug: existingProduct.slug };
 }

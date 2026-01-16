@@ -20,6 +20,7 @@ import WebhooksRoute from './features/webhooks';
 import TagRoute from './features/tags';
 import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
+import ProfileRoute from './features/profile';
 import BlogRoute from './features/blog';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
@@ -72,6 +73,7 @@ async function bootstrap() {
       new TagRoute(),       // Tags master table
       new TierRoute(),      // Tiers feature
       new DiscountRoute(),  // Discount endpoints
+      new ProfileRoute(),   // Profile settings and preferences
       new BlogRoute(),      // Blog endpoints
     ]);
 

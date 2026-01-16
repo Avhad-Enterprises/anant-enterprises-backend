@@ -130,6 +130,9 @@ import {
   paymentTransactionStatusEnum,
   paymentWebhookLogs,
 } from '../features/payments/shared';
+import {
+  sessions,
+} from '../features/profile/shared/sessions.schema';
 
 /**
  * Database connection configuration
@@ -353,6 +356,8 @@ export const schema = {
   paymentTransactions,
   paymentTransactionStatusEnum,
   paymentWebhookLogs,
+  // Profile feature
+  sessions,
 };
 
 /**
