@@ -29,6 +29,7 @@ const updateUserSchema = z.object({
   phone_number: z.string().optional(),
   timezone: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
+  user_type: z.enum(['individual', 'business']).optional(),
 });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;

@@ -1,63 +1,86 @@
 /**
  * POST /api/profile/sessions/logout
- * Revoke sessions
- * - If scope='all', revokes all user sessions (signs out from all devices)
+ * Revoke sessions using Supabase Admin API
+ * - If scope='all', revokes all user sessions globally (signs out from all devices)
  * - If scope='current', just returns success (frontend handles clearing)
  */
 
-import { Router, Response } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { supabase } from '../../../utils/supabase';
-import { db } from '../../../database';
-import { users } from '../../user/shared/user.schema';
-import { eq } from 'drizzle-orm';
 
 const logoutSessionSchema = z.object({
   sessionId: z.string().optional(),
   scope: z.enum(['current', 'all', 'others']).default('current'),
 });
 
-const handler = async (req: RequestWithUser, res: Response) => {
-  const userId = req.userId;
-  if (!userId) {
-    throw new HttpException(401, 'Authentication required');
-  }
-
-  const { scope } = logoutSessionSchema.parse(req.body);
-
-  if (scope === 'all') {
-    // Lookup proper auth_id from users table
-    const [user] = await db
-      .select({ auth_id: users.auth_id })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user || !user.auth_id) {
-      throw new HttpException(404, 'User not found or not linked to authentication provider');
+const handler = async (req: RequestWithUser, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      throw new HttpException(401, 'Authentication required');
     }
 
-    // Sign out user from all devices (revokes refresh tokens)
-    const { error } = await supabase.auth.admin.signOut(user.auth_id);
+    // Get the JWT from the Authorization header (already validated by requireAuth)
+    const authHeader = req.headers.authorization;
+    const jwt = authHeader?.replace('Bearer ', '');
+
+    if (!jwt) {
+      throw new HttpException(401, 'No valid session token found');
+    }
+
+    const body = req.body || {};
+    const { scope } = logoutSessionSchema.parse(body);
+
+    if (scope === 'all') {
+      // Use Supabase Admin API to sign out user globally
+      // This revokes all refresh tokens, forcing re-login on all devices
+      // when their current access token expires
+      console.log(`[logout-session] Attempting global signOut for user ${userId}`);
+      console.log(`[logout-session] JWT length: ${jwt.length}, starts with: ${jwt.substring(0, 20)}...`);
+
+      const result = await supabase.auth.admin.signOut(jwt, 'global');
+
+      console.log(`[logout-session] Supabase signOut result:`, JSON.stringify(result, null, 2));
+
+      if (result.error) {
+        console.error('[logout-session] Supabase signOut error:', result.error);
+        throw new HttpException(500, `Failed to revoke sessions: ${result.error.message}`);
+      }
+
+      console.log(`[logout-session] User ${userId} logged out from all sessions globally - SUCCESS`);
+      return ResponseFormatter.success(res, null, 'All sessions revoked successfully. Please log in again on all devices.');
+    }
+
+    if (scope === 'others') {
+      // Sign out from other devices, keep current session
+      const { error } = await supabase.auth.admin.signOut(jwt, 'others');
+
+      if (error) {
+        console.error('[logout-session] Supabase signOut others error:', error);
+        throw new HttpException(500, `Failed to revoke other sessions: ${error.message}`);
+      }
+
+      console.log(`[logout-session] User ${userId} logged out from other sessions`);
+      return ResponseFormatter.success(res, null, 'Other sessions revoked successfully.');
+    }
+
+    // scope === 'current': Sign out current session only
+    const { error } = await supabase.auth.admin.signOut(jwt, 'local');
 
     if (error) {
-      throw new HttpException(500, `Failed to revoke sessions: ${error.message}`);
+      console.error('[logout-session] Supabase signOut local error:', error);
+      // Don't throw - frontend will still clear local tokens
     }
 
-    return ResponseFormatter.success(res, null, 'All sessions revoked successfully');
+    return ResponseFormatter.success(res, null, 'Logged out successfully');
+  } catch (error) {
+    next(error);
+    return;
   }
-
-  // logic for 'others' is not possible without tracking sessions
-  if (scope === 'others') {
-    return ResponseFormatter.success(res, null, 'Revoking other sessions is not supported without session tracking. Please use "Log out everywhere".');
-  }
-
-  // scope === 'current': Backend doesn't need to do anything for stateless JWT/Supabase
-  // Frontend clears the token.
-  ResponseFormatter.success(res, null, 'Logged out successfully');
 };
 
 const router = Router();

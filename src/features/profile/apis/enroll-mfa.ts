@@ -44,8 +44,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
     console.log(`[MFA] Starting enrollment via User Client for auth_id: ${user.auth_id}`);
 
     // Call MFA enroll using the USER client (not admin)
+    // Use a unique friendly name based on timestamp to avoid conflicts
+    const friendlyName = `TOTP-${Date.now()}`;
     const { data, error } = await supabaseUser.auth.mfa.enroll({
       factorType: 'totp',
+      friendlyName,
     });
 
     if (error) {
