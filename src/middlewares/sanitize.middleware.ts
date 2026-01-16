@@ -3,48 +3,92 @@ import DOMPurify from 'isomorphic-dompurify';
 import { logger } from '../utils';
 
 /**
+ * Fields that should allow rich HTML content while still being sanitized for XSS
+ * These fields use a permissive sanitization that allows formatting tags
+ */
+const RICH_HTML_FIELDS = ['content', 'description', 'fullDescription', 'body'];
+
+/**
+ * Safe HTML tags allowed in rich content fields (for blog posts, descriptions, etc.)
+ * Only formatting tags are allowed - no scripts, iframes, or other potentially dangerous elements
+ */
+const SAFE_HTML_TAGS = [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'br', 'hr',
+    'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+    'ul', 'ol', 'li',
+    'blockquote', 'pre', 'code',
+    'a', 'img',
+    'span', 'div',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+];
+
+/**
+ * Safe HTML attributes allowed in rich content fields
+ */
+const SAFE_HTML_ATTRS = [
+    'href', 'src', 'alt', 'title', 'class', 'id',
+    'target', 'rel', 'width', 'height', 'style',
+];
+
+/**
+ * Sanitizes a string value, allowing HTML for rich content fields
+ */
+function sanitizeString(value: string, fieldName?: string): string {
+    const isRichHtmlField = fieldName && RICH_HTML_FIELDS.includes(fieldName);
+
+    let sanitized = DOMPurify.sanitize(value, isRichHtmlField ? {
+        ALLOWED_TAGS: SAFE_HTML_TAGS,
+        ALLOWED_ATTR: SAFE_HTML_ATTRS,
+        KEEP_CONTENT: true,
+    } : {
+        ALLOWED_TAGS: [], // Strip ALL HTML tags for non-rich fields
+        ALLOWED_ATTR: [],
+        KEEP_CONTENT: true,
+    });
+
+    // Fallback for environments where DOMPurify might fail
+    if (!sanitized || sanitized === 'undefined') {
+        sanitized = value;
+    }
+
+    // Log if sanitization changed the value (potential XSS attack) - but not for rich HTML fields
+    if (!isRichHtmlField && sanitized !== value) {
+        logger.warn('Input sanitization triggered - potential XSS attempt detected', {
+            original: String(value).slice(0, 100),
+            sanitized: String(sanitized).slice(0, 100),
+            stripped: String(value).length - String(sanitized).length,
+        });
+    }
+
+    return sanitized;
+}
+
+/**
  * Recursively sanitizes object properties
- * Removes HTML tags and JavaScript from string values
+ * Removes HTML tags and JavaScript from string values (except for rich HTML fields)
  *
  * @param value - The value to sanitize (string, object, array, or primitive)
- * @returns Sanitized value with HTML/JavaScript stripped
+ * @param fieldName - Optional field name for context-aware sanitization
+ * @returns Sanitized value
  */
-function sanitizeValue(value: unknown): unknown {
-    // Handle string values - strip HTML/JavaScript
+function sanitizeValue(value: unknown, fieldName?: string): unknown {
+    // Handle string values
     if (typeof value === 'string') {
-        let sanitized = DOMPurify.sanitize(value, {
-            ALLOWED_TAGS: [], // Strip ALL HTML tags
-            ALLOWED_ATTR: [], // Strip ALL attributes
-            KEEP_CONTENT: true, // Keep text content
-        });
-
-        // Fallback for environments where DOMPurify might fail or return "undefined" string
-        if (!sanitized || sanitized === 'undefined') {
-            sanitized = value;
-        }
-
-        // Log if sanitization changed the value (potential XSS attack)
-        if (sanitized !== value) {
-            logger.warn('Input sanitization triggered - potential XSS attempt detected', {
-                original: String(value).slice(0, 100), // Log first 100 chars
-                sanitized: String(sanitized).slice(0, 100),
-                stripped: String(value).length - String(sanitized).length,
-            });
-        }
-
-        return sanitized;
+        return sanitizeString(value, fieldName);
     }
 
     // Handle arrays - recursively sanitize each element
     if (Array.isArray(value)) {
-        return value.map(sanitizeValue);
+        return value.map(item => sanitizeValue(item, fieldName));
     }
 
     // Handle objects - recursively sanitize each property
     if (value && typeof value === 'object') {
         const sanitized: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(value)) {
-            sanitized[key] = sanitizeValue(val);
+            // Pass the field name for context-aware sanitization
+            sanitized[key] = sanitizeValue(val, key);
         }
         return sanitized;
     }
@@ -57,19 +101,14 @@ function sanitizeValue(value: unknown): unknown {
  * Input Sanitization Middleware
  *
  * Protects against XSS (Cross-Site Scripting) attacks by:
- * - Stripping HTML tags from all string inputs
- * - Removing JavaScript code from user inputs
+ * - Stripping dangerous HTML/JavaScript from all string inputs
+ * - Allowing safe HTML tags in designated rich content fields (content, description, etc.)
  * - Sanitizing both request body and query parameters
  *
  * Applied to all POST, PUT, PATCH requests before validation.
- * Runs recursively on nested objects and arrays.
- *
- * Example:
- * Input:  { comment: "<script>alert('XSS')</script>" }
- * Output: { comment: "alert('XSS')" }
  */
 export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
-    // Skip sanitization in test environment to avoid interference with request body
+    // Skip sanitization in test environment
     if (process.env.NODE_ENV === 'test') {
         return next();
     }
@@ -79,9 +118,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
         const sanitizedBody = sanitizeValue(req.body) as Record<string, unknown>;
         try {
             req.body = sanitizedBody;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
         } catch (error: any) {
-            // In Express 5 or some environments, req.body might be read-only.
             try {
                 Object.defineProperty(req, 'body', {
                     value: sanitizedBody,
@@ -95,12 +132,10 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction): 
         }
     }
 
-    // Sanitize query parameters (GET requests with user input)
+    // Sanitize query parameters (GET requests with user input) - always strip HTML
     if (req.query && typeof req.query === 'object') {
         const sanitized = sanitizeValue(req.query);
-        // Mutate existing query object instead of reassigning to avoid setter error
         Object.keys(req.query).forEach(key => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             delete (req.query as any)[key];
         });
         Object.assign(req.query, sanitized);
