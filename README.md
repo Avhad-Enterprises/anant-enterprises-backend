@@ -19,7 +19,7 @@ REST API backend for Anant Enterprises with authentication, user management, fil
 3. **Setup database:** `npm run db:migrate && npm run db:seed`
 4. **Start server:** `npm run dev`
 
-The API runs at `http://localhost:8000/api/v1`
+The API runs at `http://localhost:8000/api`
 
 ## Project Structure
 
@@ -84,9 +84,10 @@ Required environment variables for local development (`.env.dev`) and production
 
 - `DATABASE_URL` — PostgreSQL connection string (format: `postgresql://user:pass@host:port/db`)
 - `SUPABASE_URL` — Supabase project URL
-- `SUPABASE_KEY` — Supabase anon key
-- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (admin access)
-- `PORT` — Server port (default: 5000)
+- `SUPABASE_PUBLISHABLE_KEY` — Supabase publishable key (recommended)
+- `SUPABASE_SECRET_KEY` — Supabase secret key
+- `PORT` — Server port (default: 8000)
+- `REQUEST_TIMEOUT` — Request timeout in milliseconds (default: 30000)
 - `NODE_ENV` — Environment (`development`, `production`, `test`)
 
 ### Redis Cache
@@ -139,10 +140,16 @@ This API includes comprehensive security measures:
 
 ### Rate Limiting
 
-- **Auth endpoints** (`/api/auth/*`): 5 requests per 15 minutes
-- **General API** (`/api/*`): 100 requests per minute
-- **File uploads**: 10 requests per minute
-- Automatically disabled in development/test environments
+Production rate limits (automatically disabled in development/test):
+
+| Endpoint Type | Limit | Window | Notes |
+|---------------|-------|--------|-------|
+| **Auth endpoints** (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh-token`) | 5 requests | 15 minutes | Prevents brute-force attacks |
+| **General API** (`/api/*`) | 100 requests | 1 minute | Standard API protection |
+
+**Redis Backing:** In production, rate limits are distributed across instances using Redis. Development/test environments use in-memory storage.
+
+**Important:** Redis is mandatory in production. The server will fail to start if Redis is unavailable in production mode.
 
 ### Additional Security
 

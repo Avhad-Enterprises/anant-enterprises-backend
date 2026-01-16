@@ -60,7 +60,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         userAgent,
         url: req.originalUrl,
         method: req.method,
-        authId: authUser.id,
       });
       return next(new HttpException(401, 'User not found'));
     }
@@ -73,7 +72,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     // Log successful authentication
     logger.info('Authentication successful', {
       userId: publicUser[0].id,
-      authId: authUser.id,
       ip: clientIP,
       userAgent: userAgent.substring(0, 100), // Truncate for logging
       url: req.originalUrl,

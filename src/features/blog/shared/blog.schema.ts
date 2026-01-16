@@ -41,6 +41,9 @@ export const blogs = pgTable(
     main_image_pc_url: text('main_image_pc_url'),
     main_image_mobile_url: text('main_image_mobile_url'),
 
+    // Admin Fields
+    admin_comment: text('admin_comment'),
+
     // 3. Categorization & Metadata
     category: varchar('category', { length: 100 }), // e.g., 'Product Guide'
     tags: jsonb('tags').default([]), // Search keywords

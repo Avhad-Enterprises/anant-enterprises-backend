@@ -71,6 +71,7 @@ export const products = pgTable(
         // Inventory & Logistics
         sku: varchar('sku', { length: 100 }).unique().notNull(),
         hsn_code: varchar('hsn_code', { length: 20 }),
+        barcode: varchar('barcode', { length: 50 }),
         // CRITICAL FIX #7: Removed inventory_quantity - use inventory table instead
         // Query: SELECT SUM(available_quantity) FROM inventory WHERE product_id = ?
 

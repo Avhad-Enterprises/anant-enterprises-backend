@@ -79,6 +79,6 @@ EXPOSE 8000
 
 # Healthcheck for container orchestration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/health | grep -q '"status":"healthy"' || exit 1
 
 CMD ["node", "build/server.js"]
