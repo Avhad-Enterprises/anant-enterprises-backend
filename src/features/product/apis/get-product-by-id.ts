@@ -11,7 +11,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
@@ -220,7 +220,8 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { id } = req.params;
+  const idParam = req.params.id;
+  const id = Array.isArray(idParam) ? idParam[0] : idParam;
   const userId = req.userId; // May be undefined for public access
 
   const productDetail = await getProductDetailById(id, userId);

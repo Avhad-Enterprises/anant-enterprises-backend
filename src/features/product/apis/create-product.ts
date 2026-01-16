@@ -8,12 +8,11 @@ import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
-import { sql } from 'drizzle-orm';
 import { findProductBySku, findProductBySlug } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
@@ -107,26 +106,17 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     await db.insert(productFaqs).values(faqsData);
   }
 
-  // Create initial inventory record if quantity provided
-  if (data.inventory_quantity && data.inventory_quantity > 0) {
-    const { inventory } = await import('../../inventory/shared/inventory.schema');
-    const { inventoryLocations } = await import('../../inventory/shared/inventory-locations.schema');
+  // Always create inventory record for new products
+  {
+    const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
 
-    // Get default location or create one if doesn't exist
-    const [defaultLocation] = await db.select().from(inventoryLocations).where(sql`name = 'Default Location'`).limit(1);
-
-    if (defaultLocation) {
-      await db.insert(inventory).values({
-        product_id: newProduct.id,
-        location_id: defaultLocation.id,
-        product_name: newProduct.product_title,
-        sku: newProduct.sku,
-        available_quantity: data.inventory_quantity,
-        required_quantity: 0,
-        reserved_quantity: 0,
-        status: 'Enough Stock',
-      });
-    }
+    await createInventoryForProduct(
+      newProduct.id,
+      newProduct.product_title,
+      newProduct.sku,
+      data.inventory_quantity || 0,
+      createdBy
+    );
   }
 
   // Cache the new product
