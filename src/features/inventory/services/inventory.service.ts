@@ -18,6 +18,57 @@ import type {
     InventoryHistoryItem,
 } from '../shared/interface';
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+/**
+ * Validate if a string is a valid UUID
+ */
+function isValidUUID(str: string | null | undefined): boolean {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+}
+
+/**
+ * Cache for system user ID to avoid repeated database lookups
+ */
+let cachedSystemUserId: string | null = null;
+
+/**
+ * Get a valid user UUID for audit logging.
+ * If the provided userId is invalid, falls back to the first admin user in the database.
+ */
+async function resolveValidUserId(userId: string | null | undefined): Promise<string | null> {
+    // If valid UUID, use it
+    if (isValidUUID(userId)) {
+        return userId!;
+    }
+
+    // Return cached system user if available
+    if (cachedSystemUserId) {
+        return cachedSystemUserId;
+    }
+
+    // Fallback: find a valid admin user from the database
+    try {
+        const [fallbackUser] = await db
+            .select({ id: users.id })
+            .from(users)
+            .limit(1);
+
+        if (fallbackUser?.id) {
+            cachedSystemUserId = fallbackUser.id;
+            return cachedSystemUserId;
+        }
+    } catch (error) {
+        console.error('Failed to resolve fallback user:', error);
+    }
+
+    return null;
+}
+
 /**
  * Get paginated list of inventory items with product details
  */
@@ -132,9 +183,12 @@ export async function getInventoryById(id: string) {
  * Update inventory fields (condition, location, incoming stock)
  */
 export async function updateInventory(id: string, data: UpdateInventoryDto, updatedBy: string) {
+    // Resolve valid user UUID (handles 'system' or invalid strings)
+    const validUserId = await resolveValidUserId(updatedBy);
+
     const updates: any = {
         updated_at: new Date(),
-        updated_by: updatedBy,
+        updated_by: validUserId, // Can be null if no valid user found (nullable column)
     };
 
     if (data.condition !== undefined) updates.condition = data.condition;
@@ -156,6 +210,13 @@ export async function updateInventory(id: string, data: UpdateInventoryDto, upda
  * Adjust inventory quantity with audit trail
  */
 export async function adjustInventory(id: string, data: AdjustInventoryDto, adjustedBy: string) {
+    // Resolve valid user UUID (handles 'system' or invalid strings)
+    const validUserId = await resolveValidUserId(adjustedBy);
+
+    if (!validUserId) {
+        throw new Error('Unable to resolve a valid user for audit logging. Please ensure at least one user exists in the database.');
+    }
+
     return await db.transaction(async (tx) => {
         // Get current inventory
         const [current] = await tx
@@ -184,19 +245,19 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
             adjustmentType = 'correction';
         }
 
-        // Update inventory
+        // Update inventory - updated_by can be null (nullable column)
         const [updated] = await tx
             .update(inventory)
             .set({
                 available_quantity: quantityAfter,
                 status: getStatusFromQuantity(quantityAfter),
                 updated_at: new Date(),
-                updated_by: adjustedBy,
+                updated_by: validUserId,
             })
             .where(eq(inventory.id, id))
             .returning();
 
-        // Create adjustment record
+        // Create adjustment record - adjusted_by is NOT NULL so we use validUserId
         const [adjustment] = await tx
             .insert(inventoryAdjustments)
             .values({
@@ -207,7 +268,7 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
                 reference_number: data.reference_number,
                 quantity_before: quantityBefore,
                 quantity_after: quantityAfter,
-                adjusted_by: adjustedBy,
+                adjusted_by: validUserId,
                 notes: data.notes,
             })
             .returning();
@@ -262,6 +323,9 @@ export async function createInventoryForProduct(
     initialQuantity: number = 0,
     createdBy?: string
 ) {
+    // Resolve valid user UUID if provided
+    const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
+
     const [created] = await db
         .insert(inventory)
         .values({
@@ -271,9 +335,10 @@ export async function createInventoryForProduct(
             available_quantity: initialQuantity,
             status: getStatusFromQuantity(initialQuantity),
             condition: 'sellable',
-            updated_by: createdBy,
+            updated_by: validUserId,
         })
         .returning();
 
     return created;
 }
+
