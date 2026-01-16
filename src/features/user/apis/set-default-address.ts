@@ -38,14 +38,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(404, 'Address not found');
   }
 
-  // Unset other defaults of the same type
+  // Unset ALL other defaults for this user (only one default allowed)
   await db
     .update(userAddresses)
     .set({ is_default: false })
     .where(
       and(
         eq(userAddresses.user_id, userId),
-        eq(userAddresses.address_type, existingAddress.address_type),
         eq(userAddresses.is_deleted, false)
       )
     );
