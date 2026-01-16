@@ -1,8 +1,8 @@
 /**
  * Inventory Schema
  *
- * Core inventory tracking with shortage monitoring and status management.
- * Includes computed shortage_quantity column and auto-status updates.
+ * Core inventory tracking with product link and condition management.
+ * Auto-created when products are created with initial inventory quantity.
  */
 
 import {
@@ -17,17 +17,23 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
-import { inventoryLocations } from './inventory-locations.schema';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // ENUMS
 // ============================================
 
+export const inventoryConditionEnum = pgEnum('inventory_condition', [
+  'sellable',
+  'damaged',
+  'quarantined',
+  'expired',
+]);
+
 export const inventoryStatusEnum = pgEnum('inventory_status', [
-  'Enough Stock',
-  'Shortage',
-  'In Production',
-  'Low Stock',
+  'in_stock',
+  'low_stock',
+  'out_of_stock',
 ]);
 
 // ============================================
@@ -42,57 +48,43 @@ export const inventory = pgTable(
     product_id: uuid('product_id')
       .references(() => products.id, { onDelete: 'cascade' })
       .notNull(),
-    location_id: uuid('location_id')
-      .references(() => inventoryLocations.id, { onDelete: 'cascade' })
-      .notNull(),
 
     // Product Reference (denormalized for reporting performance)
     product_name: varchar('product_name', { length: 255 }).notNull(),
     sku: varchar('sku', { length: 100 }).notNull(),
 
     // Quantity Tracking
-    required_quantity: integer('required_quantity').default(0).notNull(),
     available_quantity: integer('available_quantity').default(0).notNull(),
+    reserved_quantity: integer('reserved_quantity').default(0).notNull(), // Committed to orders/carts
 
-    // HIGH PRIORITY FIX #21: Reservation tracking
-    reserved_quantity: integer('reserved_quantity').default(0).notNull(), // Stock held for carts
-    reservation_expires_at: timestamp('reservation_expires_at'), // When to release reserved stock
+    // Incoming Stock (from Purchase Orders)
+    incoming_quantity: integer('incoming_quantity').default(0).notNull(),
+    incoming_po_reference: varchar('incoming_po_reference', { length: 100 }),
+    incoming_eta: timestamp('incoming_eta'),
 
-    // Computed Column: shortage_quantity = MAX(required - available, 0)
-    // Note: Drizzle doesn't support GENERATED columns directly, so we'll use a custom SQL
-    shortage_quantity: integer('shortage_quantity').generatedAlwaysAs(
-      sql`GREATEST(required_quantity - available_quantity, 0)`
-    ),
+    // Condition & Status
+    condition: inventoryConditionEnum('condition').default('sellable').notNull(),
+    status: inventoryStatusEnum('status').default('in_stock').notNull(),
 
-    // Status (will be updated via application logic or triggers)
-    status: inventoryStatusEnum('status').default('Enough Stock').notNull(),
-
-    // Location (denormalized for quick access)
+    // Location
     location: varchar('location', { length: 255 }),
 
-    // Tracking
-    last_counted_at: timestamp('last_counted_at'),
-    next_count_due: timestamp('next_count_due'),
-
     // Audit Fields
+    updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
   },
   table => ({
     // Indexes
-    productLocationIdx: index('inventory_product_location_idx').on(
-      table.product_id,
-      table.location_id
-    ),
-    statusIdx: index('inventory_status_idx').on(table.status),
-    shortageIdx: index('inventory_shortage_idx').on(table.shortage_quantity),
+    productIdx: index('inventory_product_idx').on(table.product_id),
     skuIdx: index('inventory_sku_idx').on(table.sku),
+    statusIdx: index('inventory_status_idx').on(table.status),
+    conditionIdx: index('inventory_condition_idx').on(table.condition),
 
-    // PHASE 3 BATCH 5: CHECK CONSTRAINTS
-    // Ensure quantities are non-negative
+    // CHECK CONSTRAINTS
     availableQtyCheck: check('inventory_available_qty_check', sql`available_quantity >= 0`),
-
     reservedQtyCheck: check('inventory_reserved_qty_check', sql`reserved_quantity >= 0`),
+    incomingQtyCheck: check('inventory_incoming_qty_check', sql`incoming_quantity >= 0`),
   })
 );
 

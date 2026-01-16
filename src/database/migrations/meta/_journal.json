@@ -50,6 +50,13 @@
       "when": 1768465477571,
       "tag": "0006_silky_justin_hammer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1768483403004,
+      "tag": "0007_nosy_moonstone",
+      "breakpoints": true
     }
   ]
 }
