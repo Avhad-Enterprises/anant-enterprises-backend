@@ -31,6 +31,7 @@ const handler = async (req: Request, res: Response) => {
                 featured: products.featured,
                 sku: products.sku,
                 slug: products.slug,
+                short_description: products.short_description,
 
                 // Computed: Inventory Quantity
                 inventory_quantity: sql<number>`(
@@ -74,7 +75,8 @@ const handler = async (req: Request, res: Response) => {
                 products.status,
                 products.featured,
                 products.sku,
-                products.slug
+                products.slug,
+                products.short_description
             )
             .orderBy(desc(products.created_at));
 
@@ -97,6 +99,7 @@ const handler = async (req: Request, res: Response) => {
                 isNew: createdDate > thirtyDaysAgo,
                 category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
                 technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
+                description: product.short_description,
             };
         });
 
