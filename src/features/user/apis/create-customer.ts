@@ -1,0 +1,114 @@
+/**
+ * POST /api/users/customer
+ * Create a new customer (B2C or B2B)
+ */
+
+import { Router, Response } from 'express';
+import { z } from 'zod';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
+import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger } from '../../../utils';
+import { db } from '../../../database';
+import { users } from '../shared/user.schema';
+import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
+import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
+
+// Validation Schema
+const createCustomerSchema = z.object({
+    // Required User Fields
+    name: shortTextSchema,
+    email: emailSchema,
+    phone_number: z.string().optional(),
+    user_type: z.enum(['individual', 'business']).default('individual'),
+    tags: z.array(z.string()).optional(),
+
+    // Optional User Fields
+    date_of_birth: z.string().optional(),
+    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+
+    // Customer (Individual) Profile Fields
+    segment: z.enum(customerSegmentEnum.enumValues).optional(),
+    notes: z.string().optional(),
+
+    // Business (B2B) Profile Fields
+    company_legal_name: z.string().optional(),
+    tax_id: z.string().optional(), // GSTIN
+    credit_limit: z.number().or(z.string()).optional(),
+    payment_terms: z.enum(paymentTermsEnum.enumValues).optional(),
+});
+
+type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
+
+const handler = async (req: RequestWithUser, res: Response) => {
+    const data: CreateCustomerDto = req.body;
+
+    logger.info('Creating new customer', { email: data.email, type: data.user_type });
+
+    try {
+        const result = await db.transaction(async (tx) => {
+            // 1. Create User
+            const [newUser] = await tx.insert(users)
+                .values({
+                    name: data.name,
+                    email: data.email,
+                    phone_number: data.phone_number,
+                    user_type: data.user_type,
+                    tags: data.tags || [],
+                    date_of_birth: data.date_of_birth || undefined,
+                    gender: data.gender,
+                })
+                .returning();
+
+            // 2. Create Profile Based on Type
+            if (data.user_type === 'business') {
+                // Create Business Profile
+                await tx.insert(businessCustomerProfiles)
+                    .values({
+                        user_id: newUser.id,
+                        business_type: 'sole_proprietor', // Default
+                        company_legal_name: data.company_legal_name || data.name,
+                        business_email: data.email,
+                        tax_id: data.tax_id,
+                        credit_limit: data.credit_limit ? String(data.credit_limit) : '0',
+                        payment_terms: data.payment_terms || 'immediate',
+                        notes: data.notes,
+                    });
+            } else {
+                // Create Individual Customer Profile
+                await tx.insert(customerProfiles)
+                    .values({
+                        user_id: newUser.id,
+                        segment: data.segment || 'new',
+                        notes: data.notes,
+                    });
+            }
+
+            return newUser;
+        });
+
+        logger.info(`Customer created successfully: ${result.id}`);
+        ResponseFormatter.success(res, result, 'Customer created successfully', 201);
+
+    } catch (error: any) {
+        logger.error('Error creating customer:', error);
+
+        // Handle unique constraint violation (duplicate email)
+        if (error.code === '23505') {
+            throw new HttpException(409, 'A customer with this email already exists');
+        }
+
+        throw new HttpException(500, 'Failed to create customer');
+    }
+};
+
+const router = Router();
+
+router.post(
+    '/customer',
+    requireAuth,
+    requirePermission('users:create'),
+    validationMiddleware(createCustomerSchema),
+    handler
+);
+
+export default router;

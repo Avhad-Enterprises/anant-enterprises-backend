@@ -30,6 +30,8 @@ const updateUserSchema = z.object({
   timezone: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
   user_type: z.enum(['individual', 'business']).optional(),
+  date_of_birth: z.string().datetime().or(z.string()).optional(), // Accept ISO string for date
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
@@ -99,6 +101,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const updateData: UpdateUser = req.body;
 
   console.log('>>> updateData after assignment:', JSON.stringify(updateData, null, 2));
+  console.log('DEBUG: updateUser request body:', updateData);
 
   const user = await updateUser(id, updateData, userId);
 

@@ -111,19 +111,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
     updateData.postal_code = pincode;
   }
 
-  // If setting as default, unset other defaults of the same type
+  // If setting as default, unset ALL other defaults (only one default allowed)
   if (isDefault !== undefined) {
     updateData.is_default = isDefault;
 
     if (isDefault) {
-      const addressType = updateData.address_type || existingAddress.address_type;
       await db
         .update(userAddresses)
         .set({ is_default: false })
         .where(
           and(
             eq(userAddresses.user_id, userId),
-            eq(userAddresses.address_type, addressType),
             eq(userAddresses.is_deleted, false)
           )
         );

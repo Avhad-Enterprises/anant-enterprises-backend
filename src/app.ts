@@ -81,7 +81,7 @@ class App {
     const port = Number(this.port);
     const server = this.app.listen(port, '0.0.0.0', () => {
       logger.info(
-        `🚀 Anant Enterprises Backend API listening on port ${port}.Environment: ${this.env}.`
+        `🚀 Anant Enterprises Backend API listening on port ${port}. Environment: ${this.env}.`
       );
     });
 

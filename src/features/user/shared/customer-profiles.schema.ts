@@ -82,6 +82,25 @@ export const customerProfiles = pgTable(
     suspended_reason: text('suspended_reason'),
     suspended_until: timestamp('suspended_until'),
 
+    // Risk Profile
+    risk_profile: varchar('risk_profile', { length: 20 }).default('low'), // low, medium, high
+
+    // Loyalty Program
+    loyalty_enrolled: boolean('loyalty_enrolled').default(false).notNull(),
+    loyalty_tier: varchar('loyalty_tier', { length: 50 }),
+    loyalty_points: decimal('loyalty_points', { precision: 12, scale: 2 }).default('0'),
+    loyalty_enrollment_date: timestamp('loyalty_enrollment_date'),
+
+    // Subscription
+    subscription_plan: varchar('subscription_plan', { length: 100 }),
+    subscription_status: varchar('subscription_status', { length: 20 }), // active, paused, cancelled
+    billing_cycle: varchar('billing_cycle', { length: 20 }), // monthly, yearly
+    subscription_start_date: timestamp('subscription_start_date'),
+    auto_renew: boolean('auto_renew').default(false),
+
+    // Notes
+    notes: text('notes'),
+
     // Audit fields
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
@@ -91,6 +110,7 @@ export const customerProfiles = pgTable(
     referralCodeIdx: index('customer_profiles_referral_code_idx').on(table.referral_code),
     statusIdx: index('customer_profiles_status_idx').on(table.account_status),
     segmentIdx: index('customer_profiles_segment_idx').on(table.segment),
+    riskIdx: index('customer_profiles_risk_idx').on(table.risk_profile),
   })
 );
 

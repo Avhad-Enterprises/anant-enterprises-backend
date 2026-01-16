@@ -150,9 +150,10 @@ export interface ICollectionProduct {
   isNew: boolean;
   category: string;
   technologies: string[];
+  description: string | null;
 }
 
-// Note: Removed storefront-specific interfaces (IComparisonProduct, IProductBundle, 
+// Note: Removed storefront-specific interfaces (IComparisonProduct, IProductBundle,
 // IBundleItemDetail, IFilterOption, IRatingOption, IPriceRange) as those APIs were removed.
 
 

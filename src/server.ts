@@ -1,3 +1,4 @@
+
 import App from './app';
 import { logger } from './utils';
 import UserRoute from './features/user';
@@ -20,6 +21,7 @@ import TagRoute from './features/tags';
 import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
 import ProfileRoute from './features/profile';
+import BlogRoute from './features/blog';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -72,6 +74,7 @@ async function bootstrap() {
       new TierRoute(),      // Tiers feature
       new DiscountRoute(),  // Discount endpoints
       new ProfileRoute(),   // Profile settings and preferences
+      new BlogRoute(),      // Blog endpoints
     ]);
 
     // Initialize Cron Jobs

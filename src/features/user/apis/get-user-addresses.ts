@@ -24,6 +24,8 @@ interface AddressResponse {
   name: string;
   phone: string;
   addressLine: string;
+  addressLine1: string;
+  addressLine2: string;
   city: string;
   state: string;
   pincode: string;
@@ -62,6 +64,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     name: addr.recipient_name,
     phone: addr.phone_number ? `${addr.phone_country_code || ''}${addr.phone_number}`.trim() : '',
     addressLine: [addr.address_line1, addr.address_line2].filter(Boolean).join(', '),
+    addressLine1: addr.address_line1 || '',
+    addressLine2: addr.address_line2 || '',
     city: addr.city,
     state: addr.state_province,
     pincode: addr.postal_code,
