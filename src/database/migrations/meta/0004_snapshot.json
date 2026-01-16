@@ -1,5 +1,5 @@
 {
-  "id": "715773b1-1c43-44ce-b6ed-05b4277373dd",
+  "id": "2cbcb5a8-130a-4e25-890e-59ccca0faefb",
   "prevId": "67f5646d-c043-45bb-bc32-3af172f63f7f",
   "version": "7",
   "dialect": "postgresql",
@@ -577,12 +577,6 @@
         },
         "main_image_mobile_url": {
           "name": "main_image_mobile_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "admin_comment": {
-          "name": "admin_comment",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -8020,12 +8014,6 @@
         "hsn_code": {
           "name": "hsn_code",
           "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "barcode": {
-          "name": "barcode",
-          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },

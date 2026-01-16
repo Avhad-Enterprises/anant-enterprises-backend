@@ -51,7 +51,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   const backendType = mapToBackendType(type);
 
-  // If setting as default, unset other defaults of the same type
+  // If setting as default, unset ALL other defaults (only one default allowed)
   if (isDefault) {
     await db
       .update(userAddresses)
@@ -59,7 +59,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
       .where(
         and(
           eq(userAddresses.user_id, userId),
-          eq(userAddresses.address_type, backendType),
           eq(userAddresses.is_deleted, false)
         )
       );

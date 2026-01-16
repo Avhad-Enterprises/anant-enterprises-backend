@@ -27,6 +27,8 @@ const updateUserSchema = z.object({
   name: shortTextSchema.optional(),
   email: emailSchema.optional(),
   phone_number: z.string().optional(),
+  date_of_birth: z.string().datetime().or(z.string()).optional(), // Accept ISO string for date
+  gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
@@ -90,6 +92,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   const { id } = paramsSchema.parse(req.params);
   const updateData: UpdateUser = req.body;
+
+  console.log('DEBUG: updateUser request body:', updateData);
 
   const user = await updateUser(id, updateData, userId);
 
