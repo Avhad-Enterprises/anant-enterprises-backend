@@ -22,6 +22,12 @@ import {
 } from './services/inventory.service';
 import backfillInventoryRouter from './apis/backfill-inventory';
 
+// Phase 3: Multi-location APIs (TEMPORARILY DISABLED - circular dependency issue)
+// import getProductLocations from './apis/get-product-locations';
+// import createTransfer from './apis/create-transfer';
+// import executeTransfer from './apis/execute-transfer';
+// import listTransfers from './apis/list-transfers';
+
 // ============================================
 // SCHEMAS
 // ============================================
@@ -92,6 +98,12 @@ class InventoryRoute {
 
     // GET /api/inventory (LIST - must be LAST)
     this.router.get(this.path, this.getAllInventory);
+
+    // Phase 3: Multi-location routes (TEMPORARILY DISABLED)
+    // this.router.use(this.path, getProductLocations);
+    // this.router.use(this.path, createTransfer);
+    // this.router.use(this.path, executeTransfer);
+    // this.router.use(this.path, listTransfers);
   }
 
   // ============================================

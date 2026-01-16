@@ -16,6 +16,8 @@ import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/product.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
+import { reserveCartStock, releaseCartStock } from '../../inventory/services/inventory.service';
+import { CART_RESERVATION_CONFIG } from '../../../config/cart-reservation.config';
 
 // Validation schema
 const addToCartSchema = z.object({
@@ -132,6 +134,28 @@ const handler = async (req: Request, res: Response) => {
                     updated_at: new Date(),
                 })
                 .where(eq(cartItems.id, existingItem.id));
+
+            // Phase 2: Re-reserve with new quantity
+            if (CART_RESERVATION_CONFIG.ENABLED) {
+                try {
+                    // Release old reservation and create new one
+                    await releaseCartStock(existingItem.id);
+                    await reserveCartStock(
+                        data.product_id,
+                        newQuantity,
+                        existingItem.id,
+                        CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
+                    );
+                    console.log('[add-to-cart] Updated cart reservation:', {
+                        product_id: data.product_id,
+                        old_qty: existingItem.quantity,
+                        new_qty: newQuantity,
+                    });
+                } catch (error: any) {
+                    console.warn('[add-to-cart] Failed to update cart reservation:', error.message);
+                    // Continue - cart still works without reservation
+                }
+            }
         } else {
             // Create new cart item
             // cost_price = compareAt (List Price)
@@ -139,7 +163,7 @@ const handler = async (req: Request, res: Response) => {
             const lineSubtotal = compareAtPrice * data.quantity;
             const lineTotal = sellingPrice * data.quantity;
 
-            await db.insert(cartItems).values({
+            const [cartItem] = await db.insert(cartItems).values({
                 cart_id: cartId,
                 product_id: data.product_id,
                 quantity: data.quantity,
@@ -152,7 +176,28 @@ const handler = async (req: Request, res: Response) => {
                 product_image_url: product.primary_image_url,
                 product_sku: product.sku,
                 customization_data: data.customization_data,
-            });
+            }).returning();
+
+            // Phase 2: Reserve stock with 30-minute timeout
+            if (CART_RESERVATION_CONFIG.ENABLED && cartItem) {
+                try {
+                    const reservation = await reserveCartStock(
+                        data.product_id,
+                        data.quantity,
+                        cartItem.id,
+                        CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
+                    );
+                    console.log('[add-to-cart] Stock reserved for cart:', {
+                        reservation_id: reservation.reservation_id,
+                        expires_at: reservation.expires_at,
+                        product_id: data.product_id,
+                        quantity: data.quantity,
+                    });
+                } catch (error: any) {
+                    console.warn('[add-to-cart] Failed to reserve stock:', error.message);
+                    // Continue - cart still works without reservation
+                }
+            }
         }
     }
 

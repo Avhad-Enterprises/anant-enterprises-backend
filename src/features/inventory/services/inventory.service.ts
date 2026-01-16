@@ -342,3 +342,461 @@ export async function createInventoryForProduct(
     return created;
 }
 
+// ============================================
+// ORDER-INVENTORY INTEGRATION
+// ============================================
+
+/**
+ * Validate if stock is available for given products
+ * @returns Array of validation results
+ */
+export async function validateStockAvailability(
+    items: Array<{ product_id: string; quantity: number }>
+): Promise<import('../shared/interface').StockValidationResult[]> {
+    const results: import('../shared/interface').StockValidationResult[] = [];
+
+    for (const item of items) {
+        const [stock] = await db
+            .select({
+                product_id: inventory.product_id,
+                available_quantity: inventory.available_quantity,
+                reserved_quantity: inventory.reserved_quantity,
+                product_name: inventory.product_name,
+            })
+            .from(inventory)
+            .where(eq(inventory.product_id, item.product_id));
+
+        if (!stock) {
+            results.push({
+                available: false,
+                product_id: item.product_id,
+                requested_quantity: item.quantity,
+                available_quantity: 0,
+                reserved_quantity: 0,
+                message: 'Product not found in inventory',
+            });
+            continue;
+        }
+
+        const actuallyAvailable = stock.available_quantity - stock.reserved_quantity;
+        const isAvailable = actuallyAvailable >= item.quantity;
+
+        results.push({
+            available: isAvailable,
+            product_id: item.product_id,
+            requested_quantity: item.quantity,
+            available_quantity: stock.available_quantity,
+            reserved_quantity: stock.reserved_quantity,
+            product_name: stock.product_name,
+            message: isAvailable
+                ? undefined
+                : `${stock.product_name}: Only ${actuallyAvailable} units available (requested ${item.quantity})`,
+        });
+    }
+
+    return results;
+}
+
+/**
+ * Reserve stock for an order (increases reserved_quantity)
+ * Must be called within a transaction
+ */
+export async function reserveStockForOrder(
+    items: Array<{ product_id: string; quantity: number }>,
+    orderId: string,
+    userId: string
+): Promise<void> {
+    const validUserId = await resolveValidUserId(userId);
+
+    return await db.transaction(async (tx) => {
+        // Step 1: Validate stock availability
+        const validations = await validateStockAvailability(items);
+        const failures = validations.filter((v) => !v.available);
+
+        if (failures.length > 0) {
+            const messages = failures.map((f) => f.message).join('; ');
+            throw new Error(`Insufficient stock: ${messages}`);
+        }
+
+        // Step 2: Reserve stock for each item
+        for (const item of items) {
+            const [updated] = await tx
+                .update(inventory)
+                .set({
+                    reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
+                    updated_at: new Date(),
+                    updated_by: validUserId,
+                })
+                .where(eq(inventory.product_id, item.product_id))
+                .returning();
+
+            if (!updated) {
+                throw new Error(`Failed to reserve stock for product ${item.product_id}`);
+            }
+
+            // Create audit record
+            await tx.insert(inventoryAdjustments).values({
+                inventory_id: updated.id,
+                adjustment_type: 'correction',
+                quantity_change: 0,
+                reason: `Stock reserved for order`,
+                reference_number: orderId,
+                quantity_before: updated.available_quantity,
+                quantity_after: updated.available_quantity,
+                adjusted_by: validUserId!,
+                notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
+            });
+        }
+    });
+}
+
+/**
+ * Fulfill order inventory (decreases available_quantity AND reserved_quantity)
+ * Called when order is shipped
+ */
+export async function fulfillOrderInventory(
+    orderId: string,
+    userId: string
+): Promise<void> {
+    const validUserId = await resolveValidUserId(userId);
+
+    if (!validUserId) {
+        throw new Error('Valid user ID required for inventory fulfillment');
+    }
+
+    return await db.transaction(async (tx) => {
+        // Dynamic import to avoid circular dependency
+        const { orderItems } = await import('../../orders/shared/order-items.schema');
+        const { orders } = await import('../../orders/shared/orders.schema');
+
+        // Get order items
+        const items = await tx
+            .select({
+                product_id: orderItems.product_id,
+                quantity: orderItems.quantity,
+                product_name: orderItems.product_name,
+            })
+            .from(orderItems)
+            .where(eq(orderItems.order_id, orderId));
+
+        if (items.length === 0) {
+            throw new Error('No order items found');
+        }
+
+        // Get order number for reference
+        const [order] = await tx
+            .select({ order_number: orders.order_number })
+            .from(orders)
+            .where(eq(orders.id, orderId));
+
+        if (!order) {
+            throw new Error('Order not found');
+        }
+
+        // Fulfill each item
+        for (const item of items) {
+            if (!item.product_id) continue;
+
+            // Get current inventory
+            const [current] = await tx
+                .select()
+                .from(inventory)
+                .where(eq(inventory.product_id, item.product_id));
+
+            if (!current) {
+                throw new Error(`Inventory not found for product ${item.product_name}`);
+            }
+
+            const quantityBefore = current.available_quantity;
+            const quantityAfter = quantityBefore - item.quantity;
+
+            if (quantityAfter < 0) {
+                throw new Error(
+                    `Insufficient stock for ${item.product_name}: available=${quantityBefore}, needed=${item.quantity}`
+                );
+            }
+
+            // Update inventory: reduce both available and reserved
+            const [updated] = await tx
+                .update(inventory)
+                .set({
+                    available_quantity: quantityAfter,
+                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                    status: getStatusFromQuantity(quantityAfter),
+                    updated_at: new Date(),
+                    updated_by: validUserId,
+                })
+                .where(eq(inventory.product_id, item.product_id))
+                .returning();
+
+            // Create adjustment record
+            await tx.insert(inventoryAdjustments).values({
+                inventory_id: updated.id,
+                adjustment_type: 'decrease',
+                quantity_change: -item.quantity,
+                reason: `Order ${order.order_number} shipped`,
+                reference_number: order.order_number,
+                quantity_before: quantityBefore,
+                quantity_after: quantityAfter,
+                adjusted_by: validUserId,
+                notes: `Fulfilled ${item.quantity} units`,
+            });
+        }
+    });
+}
+
+/**
+ * Release stock reservation (decreases reserved_quantity)
+ * Called when order is cancelled before shipment
+ */
+export async function releaseReservation(
+    orderId: string,
+    userId: string
+): Promise<void> {
+    const validUserId = await resolveValidUserId(userId);
+
+    if (!validUserId) {
+        throw new Error('Valid user ID required for reservation release');
+    }
+
+    return await db.transaction(async (tx) => {
+        // Dynamic import to avoid circular dependency
+        const { orderItems } = await import('../../orders/shared/order-items.schema');
+        const { orders } = await import('../../orders/shared/orders.schema');
+
+        // Get order items
+        const items = await tx
+            .select({
+                product_id: orderItems.product_id,
+                quantity: orderItems.quantity,
+            })
+            .from(orderItems)
+            .where(eq(orderItems.order_id, orderId));
+
+        if (items.length === 0) {
+            throw new Error('No order items found');
+        }
+
+        // Get order number
+        const [order] = await tx
+            .select({ order_number: orders.order_number })
+            .from(orders)
+            .where(eq(orders.id, orderId));
+
+        // Release reservation for each item
+        for (const item of items) {
+            if (!item.product_id) continue;
+
+            const [current] = await tx
+                .select()
+                .from(inventory)
+                .where(eq(inventory.product_id, item.product_id));
+
+            if (!current) continue;
+
+            // Update: reduce reserved_quantity only
+            const [updated] = await tx
+                .update(inventory)
+                .set({
+                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                    updated_at: new Date(),
+                    updated_by: validUserId,
+                })
+                .where(eq(inventory.product_id, item.product_id))
+                .returning();
+
+            // Create adjustment record
+            await tx.insert(inventoryAdjustments).values({
+                inventory_id: updated.id,
+                adjustment_type: 'correction',
+                quantity_change: 0,
+                reason: `Order ${order?.order_number || orderId} cancelled`,
+                reference_number: order?.order_number || orderId,
+                quantity_before: current.available_quantity,
+                quantity_after: current.available_quantity,
+                adjusted_by: validUserId,
+                notes: `Released ${item.quantity} units reservation`,
+            });
+        }
+    });
+}
+
+// ============================================
+// CART RESERVATION SYSTEM (Phase 2)
+// ============================================
+
+/**
+ * Reserve stock for a cart item (with timeout)
+ * @param productId - Product to reserve
+ * @param quantity - Quantity to reserve
+ * @param cartItemId - Cart item ID for tracking
+ * @param expirationMinutes - Timeout in minutes (default: 30)
+ */
+export async function reserveCartStock(
+    productId: string,
+    quantity: number,
+    cartItemId: string,
+    expirationMinutes: number = 30
+): Promise<{ reservation_id: string; expires_at: Date }> {
+    return await db.transaction(async (tx) => {
+        // Step 1: Validate stock availability
+        const validations = await validateStockAvailability([{ product_id: productId, quantity }]);
+        const [validation] = validations;
+
+        if (!validation.available) {
+            throw new Error(validation.message || 'Insufficient stock');
+        }
+
+        // Step 2: Reserve stock
+        await tx
+            .update(inventory)
+            .set({
+                reserved_quantity: sql`${inventory.reserved_quantity} + ${quantity}`,
+                updated_at: new Date(),
+            })
+            .where(eq(inventory.product_id, productId));
+
+        // Step 3: Create reservation record in cart_items
+        const reservationId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
+
+        const { cartItems } = await import('../../cart/shared/cart-items.schema');
+
+        await tx
+            .update(cartItems)
+            .set({
+                reservation_id: reservationId,
+                reserved_at: new Date(),
+                reservation_expires_at: expiresAt,
+            })
+            .where(eq(cartItems.id, cartItemId));
+
+        return { reservation_id: reservationId, expires_at: expiresAt };
+    });
+}
+
+/**
+ * Release stock reservation for a cart item
+ * @param cartItemId - Cart item ID
+ */
+export async function releaseCartStock(cartItemId: string): Promise<void> {
+    return await db.transaction(async (tx) => {
+        const { cartItems } = await import('../../cart/shared/cart-items.schema');
+
+        // Get cart item with reservation
+        const [item] = await tx
+            .select({
+                product_id: cartItems.product_id,
+                quantity: cartItems.quantity,
+                reservation_id: cartItems.reservation_id,
+            })
+            .from(cartItems)
+            .where(eq(cartItems.id, cartItemId));
+
+        if (!item || !item.product_id || !item.reservation_id) {
+            return; // Nothing to release
+        }
+
+        // Release reservation
+        await tx
+            .update(inventory)
+            .set({
+                reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                updated_at: new Date(),
+            })
+            .where(eq(inventory.product_id, item.product_id));
+
+        // Clear reservation fields
+        await tx
+            .update(cartItems)
+            .set({
+                reservation_id: null,
+                reserved_at: null,
+                reservation_expires_at: null,
+            })
+            .where(eq(cartItems.id, cartItemId));
+    });
+}
+
+/**
+ * Extend cart reservation (called during checkout)
+ * @param cartId - Cart ID
+ * @param additionalMinutes - Time to extend (default: 60 for checkout)
+ */
+export async function extendCartReservation(
+    cartId: string,
+    additionalMinutes: number = 60
+): Promise<void> {
+    const { cartItems } = await import('../../cart/shared/cart-items.schema');
+
+    const newExpiresAt = new Date(Date.now() + additionalMinutes * 60 * 1000);
+
+    await db
+        .update(cartItems)
+        .set({
+            reservation_expires_at: newExpiresAt,
+        })
+        .where(
+            and(
+                eq(cartItems.cart_id, cartId),
+                eq(cartItems.is_deleted, false)
+            )
+        );
+}
+
+/**
+ * Cleanup expired cart reservations (called by cron job)
+ * Returns count of cleaned up items
+ */
+export async function cleanupExpiredCartReservations(): Promise<number> {
+    const { cartItems } = await import('../../cart/shared/cart-items.schema');
+
+    // Find expired items
+    const expiredItems = await db
+        .select({
+            id: cartItems.id,
+            product_id: cartItems.product_id,
+            quantity: cartItems.quantity,
+            reservation_id: cartItems.reservation_id,
+        })
+        .from(cartItems)
+        .where(
+            and(
+                sql`${cartItems.reservation_expires_at} IS NOT NULL`,
+                sql`${cartItems.reservation_expires_at} < NOW()`
+            )
+        );
+
+    if (expiredItems.length === 0) {
+        return 0;
+    }
+
+    // Release each expired reservation
+    for (const item of expiredItems) {
+        if (!item.product_id) continue;
+
+        await db.transaction(async (tx) => {
+            // Release from inventory
+            await tx
+                .update(inventory)
+                .set({
+                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                    updated_at: new Date(),
+                })
+                .where(eq(inventory.product_id, item.product_id));
+
+            // Clear reservation from cart item
+            await tx
+                .update(cartItems)
+                .set({
+                    reservation_id: null,
+                    reserved_at: null,
+                    reservation_expires_at: null,
+                })
+                .where(eq(cartItems.id, item.id));
+        });
+    }
+
+    logger.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
+    return expiredItems.length;
+}

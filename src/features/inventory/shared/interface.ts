@@ -80,3 +80,22 @@ export interface InventoryHistoryItem {
   adjusted_at: Date;
   notes?: string;
 }
+
+// ============================================
+// Order-Inventory Integration Types
+// ============================================
+
+export interface ReserveStockDto {
+  product_id: string;
+  quantity: number;
+}
+
+export interface StockValidationResult {
+  available: boolean;
+  product_id: string;
+  requested_quantity: number;
+  available_quantity: number;
+  reserved_quantity: number;
+  product_name?: string;
+  message?: string;
+}

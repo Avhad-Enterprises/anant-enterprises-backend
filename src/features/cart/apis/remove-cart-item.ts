@@ -11,6 +11,8 @@ import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
 import { RequestWithUser } from '../../../interfaces';
+import { releaseCartStock } from '../../inventory/services/inventory.service';
+import { CART_RESERVATION_CONFIG } from '../../../config/cart-reservation.config';
 
 import { cartService } from '../services';
 
@@ -59,6 +61,17 @@ const handler = async (req: Request, res: Response) => {
     }
     if (!userId && sessionId && cart.session_id !== sessionId) {
         throw new HttpException(403, 'Not authorized to modify this cart');
+    }
+
+    // Phase 2: Release stock reservation before deletion
+    if (CART_RESERVATION_CONFIG.ENABLED) {
+        try {
+            await releaseCartStock(itemId);
+            console.log('[remove-cart-item] Released cart stock reservation:', itemId);
+        } catch (error: any) {
+            console.error('[remove-cart-item] Failed to release stock reservation:', error.message);
+            // Continue with deletion even if release fails
+        }
     }
 
     // Soft delete the cart item
