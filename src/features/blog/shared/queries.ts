@@ -25,11 +25,23 @@ export const findBlogById = async (id: string) => {
 };
 
 /**
- * Find blog by Slug
+ * Find blog by Slug with subsections
  */
 export const findBlogBySlug = async (slug: string) => {
+    // Fetch blog
     const result = await db.select().from(blogs).where(eq(blogs.slug, slug)).limit(1);
-    return result[0] || null;
+    const blog = result[0];
+
+    if (!blog) return null;
+
+    // Fetch subsections
+    const subsections = await db
+        .select()
+        .from(blogSubsections)
+        .where(eq(blogSubsections.blog_id, blog.id))
+        .orderBy(blogSubsections.sort_order);
+
+    return { ...blog, subsections };
 };
 
 /**
