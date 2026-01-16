@@ -82,6 +82,13 @@ async function bootstrap() {
     // Initialize Cron Jobs
     initializeDiscountCron();
 
+    // Phase 2: Start cart reservation cleanup (every 5 minutes)
+    if (process.env.NODE_ENV !== 'test') {
+      const { startCartReservationCleanup } = await import('./jobs/cleanup-expired-reservations');
+      startCartReservationCleanup();
+    }
+
+
     server = app.listen();
 
     // Setup graceful shutdown with resources

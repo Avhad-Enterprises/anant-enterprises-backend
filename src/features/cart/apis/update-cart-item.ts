@@ -14,6 +14,8 @@ import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/product.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
+import { releaseCartStock, reserveCartStock } from '../../inventory/services/inventory.service';
+import { CART_RESERVATION_CONFIG } from '../../../config/cart-reservation.config';
 
 // Validation schema
 const updateCartItemSchema = z.object({
@@ -124,6 +126,26 @@ const handler = async (req: Request, res: Response) => {
             updated_at: new Date(),
         })
         .where(eq(cartItems.id, itemId));
+
+    // Phase 2: Update reservation with new quantity
+    if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
+        try {
+            await releaseCartStock(itemId);
+            await reserveCartStock(
+                cartItem.product_id,
+                quantity,
+                itemId,
+                CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
+            );
+            console.log('[update-cart-item] Updated cart reservation:', {
+                item_id: itemId,
+                new_quantity: quantity,
+            });
+        } catch (error: any) {
+            console.warn('[update-cart-item] Failed to update reservation:', error.message);
+            // Continue - cart still works without reservation
+        }
+    }
 
     // Recalculate cart totals (handling discounts)
     await cartService.recalculate(cart.id);

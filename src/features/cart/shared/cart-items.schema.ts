@@ -62,9 +62,11 @@ export const cartItems = pgTable(
     // Customization
     customization_data: jsonb('customization_data').default({}),
 
-    // HIGH PRIORITY FIX #10: Inventory Reservation
+    // Inventory Reservation (Phase 1 & 2)
     reserved_from_location_id: uuid('reserved_from_location_id'), // FK to inventory_locations
     reserved_at: timestamp('reserved_at'),
+    reservation_id: uuid('reservation_id'), // Phase 2: Unique reservation identifier
+    reservation_expires_at: timestamp('reservation_expires_at'), // Phase 2: Auto-timeout
 
     // HIGH PRIORITY FIX #22: Bundle Snapshot (if bundle_id is set)
     bundle_snapshot: jsonb('bundle_snapshot').default(null), // Store bundle contents at time of adding

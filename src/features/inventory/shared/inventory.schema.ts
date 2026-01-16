@@ -18,6 +18,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
+import { inventoryLocations } from './inventory-locations.schema';
+
 
 // ============================================
 // ENUMS
@@ -49,6 +51,12 @@ export const inventory = pgTable(
       .references(() => products.id, { onDelete: 'cascade' })
       .notNull(),
 
+    // Phase 3: Location tracking (replaces text-based location field)
+    location_id: uuid('location_id')
+      .references(() => inventoryLocations.id)
+      .notNull(),
+
+
     // Product Reference (denormalized for reporting performance)
     product_name: varchar('product_name', { length: 255 }).notNull(),
     sku: varchar('sku', { length: 100 }).notNull(),
@@ -66,8 +74,7 @@ export const inventory = pgTable(
     condition: inventoryConditionEnum('condition').default('sellable').notNull(),
     status: inventoryStatusEnum('status').default('in_stock').notNull(),
 
-    // Location
-    location: varchar('location', { length: 255 }),
+    // REMOVED in Phase 3: location varchar (migrated to location_id FK)
 
     // Audit Fields
     updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
@@ -80,6 +87,10 @@ export const inventory = pgTable(
     skuIdx: index('inventory_sku_idx').on(table.sku),
     statusIdx: index('inventory_status_idx').on(table.status),
     conditionIdx: index('inventory_condition_idx').on(table.condition),
+
+    // Phase 3: Multi-location indexes
+    locationIdx: index('inventory_location_id_idx').on(table.location_id),
+    productLocationIdx: index('inventory_product_location_idx').on(table.product_id, table.location_id),
 
     // CHECK CONSTRAINTS
     availableQtyCheck: check('inventory_available_qty_check', sql`available_quantity >= 0`),
