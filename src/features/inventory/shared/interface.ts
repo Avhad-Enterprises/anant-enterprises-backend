@@ -45,7 +45,7 @@ export interface InventoryWithProduct {
   incoming_eta?: Date;
   condition: 'sellable' | 'damaged' | 'quarantined' | 'expired';
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
-  location?: string;
+  location_id: string; // Changed from location?: string
   updated_by?: string;
   updated_by_name?: string;
   created_at: Date;
