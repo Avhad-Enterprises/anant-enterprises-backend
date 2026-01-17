@@ -20,7 +20,8 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId, id: addressId } = req.params;
+  const userId = req.params.userId as string;
+  const addressId = req.params.id as string;
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db
@@ -70,7 +71,7 @@ router.patch(
   '/:userId/addresses/:id/default',
   requireAuth,
   validationMiddleware(paramsSchema, 'params'),
-  requireOwnerOrPermission('userId', 'users:write'),
+  requireOwnerOrPermission('userId', 'users:update'),
   handler
 );
 

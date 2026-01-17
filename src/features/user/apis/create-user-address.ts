@@ -33,19 +33,19 @@ const bodySchema = z.object({
 // Map frontend type to backend address_type enum
 const mapToBackendType = (
   type: 'Home' | 'Office' | 'Other'
-): 'billing' | 'shipping' | 'both' | 'company' => {
+): 'billing' | 'shipping' | 'both' | 'company' | 'other' => {
   switch (type) {
     case 'Home':
       return 'shipping';
     case 'Office':
       return 'company';
     case 'Other':
-      return 'both';
+      return 'other';
   }
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId } = req.params;
+  const userId = req.params.userId as string;
   const { type, name, phone, addressLine1, addressLine2, city, state, pincode, isDefault } =
     req.body;
 
@@ -113,7 +113,7 @@ router.post(
   requireAuth,
   validationMiddleware(paramsSchema, 'params'),
   validationMiddleware(bodySchema, 'body'),
-  requireOwnerOrPermission('userId', 'users:write'),
+  requireOwnerOrPermission('userId', 'users:update'),
   handler
 );
 

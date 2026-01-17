@@ -31,7 +31,7 @@ import { users } from './user.schema';
 // ENUMS
 // ============================================
 
-export const addressTypeEnum = pgEnum('address_type', ['billing', 'shipping', 'both', 'company']);
+export const addressTypeEnum = pgEnum('address_type', ['billing', 'shipping', 'both', 'company', 'other']);
 
 // ============================================
 // USER ADDRESSES TABLE

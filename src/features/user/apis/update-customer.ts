@@ -22,9 +22,12 @@ const updateCustomerSchema = z.object({
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).optional(),
     tags: z.array(z.string()).optional(),
+    display_name: z.string().max(100).optional(),
     date_of_birth: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
     preferred_language: z.string().optional(),
+    languages: z.array(z.string()).optional(),
+    profile_image_url: z.string().optional().nullable(),
 
     // Customer (Individual) Profile Fields
     segment: z.enum(customerSegmentEnum.enumValues).optional(),
@@ -75,9 +78,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (data.phone_number !== undefined) userUpdates.phone_number = data.phone_number;
             if (data.user_type) userUpdates.user_type = data.user_type;
             if (data.tags) userUpdates.tags = data.tags;
+            if (data.display_name !== undefined) userUpdates.display_name = data.display_name || null;
             if (data.date_of_birth !== undefined) userUpdates.date_of_birth = data.date_of_birth || null;
             if (data.gender !== undefined) userUpdates.gender = data.gender || null;
+            if (data.profile_image_url !== undefined) userUpdates.profile_image_url = data.profile_image_url;
             if (data.preferred_language !== undefined) userUpdates.preferred_language = data.preferred_language;
+            if (data.languages !== undefined) userUpdates.languages = data.languages;
 
             // Fetch current user type if not provided, to know which profile to update
             // However, for efficiency, if user_type IS provided, we use it.
