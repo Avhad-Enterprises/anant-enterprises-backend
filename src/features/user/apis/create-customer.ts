@@ -9,6 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
+import { eq } from 'drizzle-orm';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
@@ -49,6 +50,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
     logger.info('Creating new customer', { email: data.email, type: data.user_type });
 
     try {
+        // Check if user already exists
+        const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, data.email));
+
+        if (existingUser) {
+            throw new HttpException(409, 'A customer with this email already exists');
+        }
+
         const result = await db.transaction(async (tx) => {
             // 1. Create User
             const [newUser] = await tx.insert(users)
@@ -98,14 +109,24 @@ const handler = async (req: RequestWithUser, res: Response) => {
         ResponseFormatter.success(res, result, 'Customer created successfully', 201);
 
     } catch (error: any) {
-        logger.error('Error creating customer:', error);
+        logger.error('Error creating customer:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+            detail: error.detail
+        });
 
         // Handle unique constraint violation (duplicate email)
         if (error.code === '23505') {
             throw new HttpException(409, 'A customer with this email already exists');
         }
 
-        throw new HttpException(500, 'Failed to create customer');
+        // If it's already an HttpException, rethrow it
+        if (error instanceof HttpException) {
+            throw error;
+        }
+
+        throw new HttpException(500, `Failed to create customer: ${error.message}`);
     }
 };
 

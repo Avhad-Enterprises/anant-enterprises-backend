@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, ne, and, not } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, HttpException, logger } from '../../../utils';
@@ -70,6 +70,23 @@ const handler = async (req: RequestWithUser, res: Response) => {
     logger.info(`Updating customer ${id}`, data);
 
     try {
+        // Check for duplicate email if attempting to change it
+        if (data.email) {
+            const [existingUser] = await db
+                .select()
+                .from(users)
+                .where(
+                    and(
+                        eq(users.email, data.email),
+                        ne(users.id, id) // Exclude current user
+                    )
+                );
+
+            if (existingUser) {
+                throw new HttpException(409, 'A customer with this email already exists');
+            }
+        }
+
         await db.transaction(async (tx) => {
             // 1. Update User Table (Basic Info)
             const userUpdates: any = {};
@@ -187,9 +204,24 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         ResponseFormatter.success(res, { id, ...data }, 'Customer updated successfully');
 
-    } catch (error) {
-        logger.error('Error updating customer:', error);
-        throw new HttpException(500, 'Failed to update customer details');
+    } catch (error: any) {
+        logger.error('Error updating customer:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+            detail: error.detail
+        });
+
+        // Handle unique constraint violation (duplicate email)
+        if (error.code === '23505') {
+            throw new HttpException(409, 'A customer with this email already exists');
+        }
+
+        if (error instanceof HttpException) {
+            throw error;
+        }
+
+        throw new HttpException(500, `Failed to update customer details: ${error.message}`);
     }
 };
 

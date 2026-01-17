@@ -23,6 +23,7 @@ class AdminInviteRoute implements Route {
     const { default: getInvitationDetailsRouter } = await import('./apis/get-invitation-details');
     const { default: acceptInvitationRouter } = await import('./apis/accept-invitation');
     const { default: updateInvitationRouter } = await import('./apis/update-invitation');
+    const { default: deleteInvitationRouter } = await import('./apis/delete-invitation');
 
     // Mount API routes
     this.router.use(this.path, createInvitationRouter); // POST / - admin only
@@ -30,6 +31,7 @@ class AdminInviteRoute implements Route {
     this.router.use(this.path, getInvitationDetailsRouter); // GET /details - public
     this.router.use(this.path, acceptInvitationRouter); // POST /accept - public
     this.router.use(this.path, updateInvitationRouter); // PUT /:id - admin only
+    this.router.use(this.path, deleteInvitationRouter); // DELETE /:id - admin only
   }
 }
 
