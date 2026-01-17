@@ -1,5 +1,5 @@
 import { Router, Response, Request } from 'express';
-import { sql, eq, and, isNull } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';

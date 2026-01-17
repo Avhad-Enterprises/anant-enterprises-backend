@@ -1,8 +1,7 @@
-import { eq, desc, inArray, sql, and, ilike } from 'drizzle-orm';
+import { eq, desc, inArray, sql, and } from 'drizzle-orm';
 import { db } from '../../../database';
-import { blogs, type Blog, type NewBlog } from './blog.schema';
+import { blogs, type NewBlog } from './blog.schema';
 import { blogSubsections, type NewBlogSubsection } from './blog-subsections.schema';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Find blog by ID with subsections

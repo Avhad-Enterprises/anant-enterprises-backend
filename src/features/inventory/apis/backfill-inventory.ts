@@ -10,7 +10,8 @@ import { Router, Response, NextFunction } from 'express';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { products } from '../../product/shared/product.schema';
-import { sql, notInArray } from 'drizzle-orm';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
+import { sql, eq } from 'drizzle-orm';
 import { ResponseFormatter, logger } from '../../../utils';
 import { RequestWithUser } from '../../../interfaces';
 
@@ -40,9 +41,21 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
 
         logger.info(`Found ${productsWithoutInventory.length} products without inventory`);
 
+        // Get default location
+        const defaultLocation = await db
+            .select()
+            .from(inventoryLocations)
+            .where(eq(inventoryLocations.is_active, true))
+            .limit(1);
+
+        if (defaultLocation.length === 0) {
+            throw new Error('No active inventory location found. Please create a location first.');
+        }
+
         // Create inventory records for each product
         const inventoryRecords = productsWithoutInventory.map(product => ({
             product_id: product.id,
+            location_id: defaultLocation[0].id,
             product_name: product.product_title,
             sku: product.sku,
             available_quantity: 0,
@@ -65,9 +78,11 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
                 sku: p.sku,
             })),
         }, `Created inventory for ${inventoryRecords.length} products`);
+        return;
     } catch (error) {
         logger.error('Error in inventory backfill:', error);
         next(error);
+        return;
     }
 };
 

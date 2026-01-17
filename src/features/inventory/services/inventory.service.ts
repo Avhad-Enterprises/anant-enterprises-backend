@@ -4,12 +4,14 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, ilike, sql, count } from 'drizzle-orm';
+import { eq, and, desc, ilike, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
+import { logger } from '../../../utils';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -94,7 +96,7 @@ export async function getInventoryList(params: InventoryListParams) {
     }
 
     if (location) {
-        conditions.push(ilike(inventory.location, `%${location}%`));
+        conditions.push(ilike(inventoryLocations.name, `%${location}%`));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -103,6 +105,7 @@ export async function getInventoryList(params: InventoryListParams) {
     const [countResult] = await db
         .select({ total: sql<number>`count(*)` })
         .from(inventory)
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause);
 
     const total = countResult?.total ?? 0;
@@ -121,7 +124,7 @@ export async function getInventoryList(params: InventoryListParams) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location: inventory.location,
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -132,6 +135,7 @@ export async function getInventoryList(params: InventoryListParams) {
         })
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause)
         .orderBy(desc(inventory.updated_at))
         .limit(limit)
@@ -162,7 +166,7 @@ export async function getInventoryById(id: string) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location: inventory.location,
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -174,6 +178,7 @@ export async function getInventoryById(id: string) {
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
         .leftJoin(users, eq(inventory.updated_by, users.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(eq(inventory.id, id));
 
     return item as InventoryWithProduct | undefined;
@@ -326,10 +331,22 @@ export async function createInventoryForProduct(
     // Resolve valid user UUID if provided
     const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
 
+    // Get default location
+    const [defaultLocation] = await db
+        .select()
+        .from(inventoryLocations)
+        .where(eq(inventoryLocations.is_active, true))
+        .limit(1);
+
+    if (!defaultLocation) {
+        throw new Error('No active inventory location found');
+    }
+
     const [created] = await db
         .insert(inventory)
         .values({
             product_id: productId,
+            location_id: defaultLocation.id,
             product_name: productName,
             sku: sku,
             available_quantity: initialQuantity,
@@ -783,7 +800,7 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                     updated_at: new Date(),
                 })
-                .where(eq(inventory.product_id, item.product_id));
+                .where(eq(inventory.product_id, item.product_id as string));
 
             // Clear reservation from cart item
             await tx

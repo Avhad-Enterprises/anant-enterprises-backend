@@ -9,7 +9,7 @@ import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { locationAllocationRules } from '../shared/location-allocation-rules.schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { logger } from '../../../utils';
 
 // ============================================
