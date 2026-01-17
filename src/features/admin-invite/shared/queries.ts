@@ -185,3 +185,23 @@ export const updateInvitation = async (
 
   return updatedInvitation;
 };
+
+/**
+ * Soft delete invitation by ID
+ */
+export const deleteInvitation = async (
+  id: number,
+  deletedBy: string
+): Promise<Invitation | undefined> => {
+  const [deletedInvitation] = await db
+    .update(invitations)
+    .set({
+      is_deleted: true,
+      deleted_by: deletedBy,
+      deleted_at: new Date(),
+    })
+    .where(and(eq(invitations.id, id), eq(invitations.is_deleted, false)))
+    .returning();
+
+  return deletedInvitation;
+};
