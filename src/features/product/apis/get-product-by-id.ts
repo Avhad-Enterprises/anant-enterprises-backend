@@ -20,6 +20,7 @@ import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
 import { rbacCacheService } from '../../rbac';
+import { optionalAuth } from '../../../middlewares/auth.middleware';
 
 const paramsSchema = z.object({
   id: z.string(),
@@ -230,6 +231,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.get('/:id', validationMiddleware(paramsSchema, 'params'), handler);
+router.get('/:id', optionalAuth, validationMiddleware(paramsSchema, 'params'), handler);
 
 export default router;

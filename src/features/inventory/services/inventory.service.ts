@@ -4,13 +4,14 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, ilike, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { logger } from '../../../utils';
 import type {
     InventoryListParams,
@@ -95,11 +96,9 @@ export async function getInventoryList(params: InventoryListParams) {
         conditions.push(eq(inventory.status, status as any));
     }
 
-    // TODO: location filter requires location_id (UUID) instead of location name
-    // Admin panel currently sends location names, need locations API first
-    // if (location) {
-    //     conditions.push(eq(inventory.location_id, location));
-    // }
+    if (location) {
+        conditions.push(ilike(inventoryLocations.name, `%${location}%`));
+    }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -126,7 +125,7 @@ export async function getInventoryList(params: InventoryListParams) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location_id: inventory.location_id, // Changed from inventory.location
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -168,7 +167,7 @@ export async function getInventoryById(id: string) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location_id: inventory.location_id, // Changed from inventory.location
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -199,7 +198,8 @@ export async function updateInventory(id: string, data: UpdateInventoryDto, upda
     };
 
     if (data.condition !== undefined) updates.condition = data.condition;
-    if (data.location !== undefined) updates.location = data.location;
+    // Phase 3: location is now location_id (UUID)
+    if (data.location !== undefined) updates.location_id = data.location;
     if (data.incoming_quantity !== undefined) updates.incoming_quantity = data.incoming_quantity;
     if (data.incoming_po_reference !== undefined) updates.incoming_po_reference = data.incoming_po_reference;
     if (data.incoming_eta !== undefined) updates.incoming_eta = new Date(data.incoming_eta);
@@ -334,17 +334,36 @@ export async function createInventoryForProduct(
     // Resolve valid user UUID if provided
     const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
 
-    // If no location provided, get the first active location from database
-    let resolvedLocationId = locationId;
-    if (!resolvedLocationId) {
+    // Resolve Location (Phase 3 Requirement)
+    let targetLocationId = locationId;
+
+    if (!targetLocationId) {
+        // Find the first active location
         const { inventoryLocations } = await import('../shared/inventory-locations.schema');
-        // Get first active location (no is_default column exists)
-        const [activeLocation] = await db
+        const [defaultLocation] = await db
             .select({ id: inventoryLocations.id })
             .from(inventoryLocations)
             .where(eq(inventoryLocations.is_active, true))
             .limit(1);
 
+        if (defaultLocation) {
+            targetLocationId = defaultLocation.id;
+        } else {
+            // Auto-create a default location if none exists (Safety fallback)
+            // This prevents product creation failures on fresh databases
+            const [newLocation] = await db
+                .insert(inventoryLocations)
+                .values({
+                    location_code: 'WH-MAIN',
+                    name: 'Main Warehouse',
+                    type: 'warehouse',
+                    is_active: true,
+                    created_by: validUserId,
+                })
+                .returning();
+
+            targetLocationId = newLocation.id;
+            console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
         if (activeLocation) {
             resolvedLocationId = activeLocation.id;
         } else {
@@ -372,6 +391,7 @@ export async function createInventoryForProduct(
             status: getStatusFromQuantity(initialQuantity),
             condition: 'sellable',
             updated_by: validUserId,
+            location_id: targetLocationId!, // Guaranteed to be set now
         })
         .returning();
 
@@ -820,7 +840,7 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                     updated_at: new Date(),
                 })
-                .where(eq(inventory.product_id, productId));
+                .where(eq(inventory.product_id, item.product_id!));
 
             // Clear reservation from cart item
             await tx
@@ -834,6 +854,8 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
         });
     }
 
-    logger.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
+
+    console.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
+
     return expiredItems.length;
 }

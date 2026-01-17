@@ -16,6 +16,7 @@ import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
 import { rbacCacheService } from '../../rbac';
+import { optionalAuth } from '../../../middlewares/auth.middleware';
 
 const paramsSchema = z.object({
     slug: z.string().min(1),
@@ -206,7 +207,8 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { slug } = req.params;
+    const slugParam = req.params.slug;
+    const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam;
     const userId = req.userId; // May be undefined for public access
 
     const productDetail = await getProductDetailBySlug(slug, userId);
@@ -215,6 +217,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.get('/slug/:slug', validationMiddleware(paramsSchema, 'params'), handler);
+router.get('/slug/:slug', optionalAuth, validationMiddleware(paramsSchema, 'params'), handler);
 
 export default router;
