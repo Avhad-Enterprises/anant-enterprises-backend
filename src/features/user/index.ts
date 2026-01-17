@@ -25,6 +25,7 @@ class UserRoute implements Route {
     const { default: getAllCustomersRouter } = await import('./apis/get-all-customers');
     const { default: createCustomerRouter } = await import('./apis/create-customer');
     const { default: updateCustomerRouter } = await import('./apis/update-customer');
+    const { default: deleteCustomerRouter } = await import('./apis/delete-customer');
     const { default: updateUserRouter } = await import('./apis/update-user');
     const { default: deleteUserRouter } = await import('./apis/delete-user');
 
@@ -62,6 +63,7 @@ class UserRoute implements Route {
     // Dynamic ID routes LAST
     this.router.use(this.path, getUserByIdRouter);
     this.router.use(this.path, updateCustomerRouter);
+    this.router.use(this.path, deleteCustomerRouter);
     this.router.use(this.path, updateUserRouter);
     this.router.use(this.path, deleteUserRouter);
   }
