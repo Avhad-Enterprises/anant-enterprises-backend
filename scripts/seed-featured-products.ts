@@ -68,7 +68,7 @@ async function seedFeaturedProducts() {
                 tags: ["RO", "UV", "UF"],
                 primary_image_url: '/assets/d0ecf442a41eba8025e1c4e406416a4fc5cccc81.png',
                 featured: true,
-                status: 'active' as const,
+
                 weight: '8.5'
             },
             {
@@ -81,10 +81,10 @@ async function seedFeaturedProducts() {
                 cost_price: '11000.00',
                 compare_at_price: '21999.00',
                 category_tier_1: residential?.id,
-                tags: ["Alkaline", "Copper"],
-                primary_image_url: 'https://images.unsplash.com/photo-1613688270362-8b26189c0782?auto=format&fit=crop&q=80&w=600',
+                tags: [], // ["Alkaline", "Copper"],
+                primary_image_url: '/assets/placeholder.png', // 'https://images.unsplash.com/photo-1613688270362-8b26189c0782?auto=format&fit=crop&q=80&w=600',
                 featured: true,
-                status: 'active' as const,
+
                 weight: '9.0'
             },
             {
@@ -100,7 +100,7 @@ async function seedFeaturedProducts() {
                 tags: ["Space Saver"],
                 primary_image_url: '/assets/d0ecf442a41eba8025e1c4e406416a4fc5cccc81.png',
                 featured: true,
-                status: 'active' as const,
+
                 weight: '7.5'
             },
             {
@@ -116,7 +116,7 @@ async function seedFeaturedProducts() {
                 tags: ["Commercial"],
                 primary_image_url: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=600',
                 featured: true,
-                status: 'active' as const,
+
                 weight: '25.0'
             }
         ];
@@ -124,30 +124,19 @@ async function seedFeaturedProducts() {
         console.log(`📦 Upserting ${featuredData.length} featured products...`);
 
         for (const pData of featuredData) {
-            // Check if exists by SKU
-            const existing = await db.query.products.findFirst({
-                where: eq(products.sku, pData.sku)
-            });
+            // Delete if exists (Idempotent cleanup to avoid Update issues)
+            await db.delete(products).where(eq(products.sku, pData.sku));
 
-            let productId: string;
-
-            if (existing) {
-                // Update
-                console.log(`   Updating: ${pData.product_title}`);
-                const [updated] = await db.update(products)
-                    .set({
-                        ...pData,
-                        updated_at: new Date()
-                    })
-                    .where(eq(products.id, existing.id))
-                    .returning();
-                productId = updated.id;
-            } else {
-                // Insert
-                console.log(`   Creating: ${pData.product_title}`);
-                const [inserted] = await db.insert(products).values(pData).returning();
-                productId = inserted.id;
-            }
+            // Insert fresh
+            console.log(`   Creating: ${pData.product_title}`);
+            const [inserted] = await db.insert(products).values({
+                ...pData,
+                status: 'active', // Restore status
+                product_title: pData.product_title,
+                primary_image_url: pData.sku === 'COPP-ION-PRO' ? 'https://images.unsplash.com/photo-1613688270362-8b26189c0782?auto=format&fit=crop&q=80&w=600' : pData.primary_image_url,
+                tags: pData.sku === 'COPP-ION-PRO' && pData.tags.length === 0 ? ["Alkaline", "Copper"] : pData.tags
+            }).returning();
+            const productId = inserted.id;
 
             // Ensure Inventory
             const invExists = await db.query.inventory.findFirst({

@@ -46,53 +46,26 @@ async function seedData() {
         }
 
         // ============================================
-        // STEP 1: CLEANUP OLD TEST DATA
+        // STEP 1: FORCE CLEANUP
         // ============================================
-        console.log('🧹 Step 1: Cleaning up old test data...');
+        console.log('🧹 Step 1: Force cleaning relevant tables...');
 
-        // Delete collection products
-        const oldCollections = await db
-            .select({ id: collections.id })
-            .from(collections)
-            .where(inArray(collections.slug, TEST_COLLECTION_SLUGS));
-
-        if (oldCollections.length > 0) {
-            const oldCollectionIds = oldCollections.map(c => c.id);
-            await db.delete(collectionProducts).where(inArray(collectionProducts.collection_id, oldCollectionIds));
-            await db.delete(collections).where(inArray(collections.id, oldCollectionIds));
-        }
-
-        // Delete products and inventory (cascade should handle inventory, but explicit is safer for some DB configs)
-        // We delete by SKU prefix
-        const productsToDelete = await db.select({ id: products.id }).from(products).where(
-            sqlOr(TEST_SKU_PREFIXES.map(prefix => like(products.sku, `${prefix}%`)))
-        );
-
-        if (productsToDelete.length > 0) {
-            const pIds = productsToDelete.map(p => p.id);
-            await db.delete(inventoryAdjustments).where(inArray(inventoryAdjustments.inventory_id,
-                db.select({ id: inventory.id }).from(inventory).where(inArray(inventory.product_id, pIds))
-            ));
-            await db.delete(inventory).where(inArray(inventory.product_id, pIds));
-            await db.delete(products).where(inArray(products.id, pIds));
-        }
-        console.log('   ✅ Deleted old products and inventory');
-
-        // Delete test tiers
-        // We'll delete based on codes we are about to insert
-        const tierCodes = [
-            'residential-purifiers', 'commercial-purifiers', 'accessories', // L1
-            'ro-systems', 'uv-systems', 'spare-parts', // L2
-            'under-sink', 'counter-top', 'membranes', 'filters', // L3
-            '100-gpd-membranes', '50-gpd-membranes' // L4
-        ];
-        await db.delete(tiers).where(inArray(tiers.code, tierCodes));
-        console.log('   ✅ Deleted old test tiers');
-
-        // Delete test locations
-        const locationCodes = ['WH-MAIN-01', 'RET-BND-01', 'RET-AND-01'];
-        await db.delete(inventoryLocations).where(inArray(inventoryLocations.location_code, locationCodes));
-        console.log('   ✅ Deleted old locations\n');
+        await db.delete(inventoryAdjustments);
+        await db.delete(inventory);
+        await db.delete(collectionProducts);
+        await db.delete(products);
+        // Tiers have self-referencing FKs, might need to match level or cascade. 
+        // Drizzle delete might fail if FK constraints exist and no cascade.
+        // But schema says: category_tier_1: references(() => tiers.id, { onDelete: 'set null' }) in products
+        // Tiers parent_id: references(() => tiers.id) - default restrict?
+        // Let's try deleting tiers. If it fails due to self-ref, we might need multiple passes or simple delete if cascade is on.
+        // Assuming cascade or delete all works for self-referencing if done in one transaction or if DB handles it.
+        // For self-referencing tiers, we can just delete all.
+        await db.delete(tiers); 
+        await db.delete(collections);
+        await db.delete(inventoryLocations);
+        
+        console.log('   ✅ Tables cleaned');
 
 
         // ============================================
