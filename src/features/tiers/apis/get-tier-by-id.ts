@@ -6,7 +6,7 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
@@ -43,7 +43,7 @@ const handler = async (req: Request, res: Response) => {
         .where(eq(tiers.id, id))
         .limit(1);
 
-    if (!tier) {
+    if (!tier || tier.is_deleted) {
         throw new HttpException(404, 'Tier not found');
     }
 
@@ -68,7 +68,7 @@ const handler = async (req: Request, res: Response) => {
         const children = await db
             .select()
             .from(tiers)
-            .where(eq(tiers.parent_id, id))
+            .where(and(eq(tiers.parent_id, id), eq(tiers.is_deleted, false)))
             .orderBy(tiers.priority, tiers.name);
 
         response.children = children.map(child => ({

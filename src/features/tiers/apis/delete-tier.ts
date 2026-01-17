@@ -6,7 +6,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
@@ -37,11 +37,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(404, 'Tier not found');
     }
 
-    // Check if tier has children
+    // Check if tier has active (non-deleted) children
     const children = await db
         .select()
         .from(tiers)
-        .where(eq(tiers.parent_id, id))
+        .where(and(eq(tiers.parent_id, id), eq(tiers.is_deleted, false)))
         .limit(1);
 
     if (children.length > 0) {
@@ -59,18 +59,23 @@ const handler = async (req: RequestWithUser, res: Response) => {
         );
     }
 
-    // Soft delete by setting status to inactive
+    // Soft delete by setting is_deleted to true
     await db
         .update(tiers)
         .set({
-            status: 'inactive',
+            is_deleted: true,
             updated_at: new Date(),
         })
         .where(eq(tiers.id, id));
 
+    // Return deleted tier info for frontend navigation
     return ResponseFormatter.success(
         res,
-        null,
+        {
+            id: existing.id,
+            level: existing.level,
+            parent_id: existing.parent_id,
+        },
         'Tier deleted successfully'
     );
 };

@@ -15,11 +15,11 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const orderId = req.params.id;
+    const orderNumberOrId = req.params.id;
 
-    logger.info(`GET /api/admin/orders/${orderId}`);
+    logger.info(`GET /api/admin/orders/${orderNumberOrId}`);
 
-    // Get order with user info
+    // Get order with user info - query by order_number (user-friendly) instead of UUID
     const [orderWithUser] = await db
         .select({
             id: orders.id,
@@ -51,7 +51,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .from(orders)
         .leftJoin(users, eq(orders.user_id, users.id))
         .where(and(
-            eq(orders.id, orderId),
+            eq(orders.order_number, orderNumberOrId),
             eq(orders.is_deleted, false)
         ))
         .limit(1);
@@ -60,11 +60,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(404, 'Order not found');
     }
 
-    // Get order items
+    // Get order items using the actual UUID from the fetched order
     const items = await db
         .select()
         .from(orderItems)
-        .where(eq(orderItems.order_id, orderId));
+        .where(eq(orderItems.order_id, orderWithUser.id));
 
     // Helper to map address
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
