@@ -9,7 +9,6 @@ import { sql, eq, and, or, desc } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/product.schema';
-import { ICollectionProduct } from '../shared/interface';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';

@@ -18,6 +18,7 @@ import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { IProduct } from '../shared/interface';
 import { syncTags } from '../../tags/services/tag-sync.service';
+import { incrementTierUsage } from '../../tiers/services/tier-sync.service';
 
 // Validation schema for creating a product
 const createProductSchema = z.object({

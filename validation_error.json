@@ -1,5 +1,0 @@
-{
-  "JWT_SECRET": {
-    "name": "EnvMissingError"
-  }
-}

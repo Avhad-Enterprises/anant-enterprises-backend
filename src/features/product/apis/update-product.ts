@@ -156,10 +156,10 @@ async function updateProduct(
           product_id: id,
           location_id: defaultLocation[0].id,
           available_quantity: data.inventory_quantity,
-          required_quantity: 0,
+          reserved_quantity: 0,
           sku: data.sku || existingProduct.sku,
           product_name: data.product_title || existingProduct.product_title,
-          status: 'Enough Stock'
+          status: 'in_stock'
         });
         console.log('✅ [updateProduct] New inventory record created with location');
       } else {

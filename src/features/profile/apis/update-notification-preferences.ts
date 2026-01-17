@@ -47,7 +47,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // updateUserById merges user_metadata at the top level.
   // So { notifications: ... } will add/replace 'notifications' key but keep 'firstName', etc.
 
-  const { data, error } = await supabase.auth.admin.updateUserById(user.auth_id, {
+  const { error } = await supabase.auth.admin.updateUserById(user.auth_id, {
     user_metadata: {
       notifications: preferences
     }

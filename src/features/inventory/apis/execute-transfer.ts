@@ -18,8 +18,10 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
         await executeTransfer(transferId, userId);
 
         return ResponseFormatter.success(res, null, 'Transfer executed successfully');
+        return;
     } catch (error: any) {
         next(new HttpException(400, error.message || 'Failed to execute transfer'));
+        return;
     }
 };
 

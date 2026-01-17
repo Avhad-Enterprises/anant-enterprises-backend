@@ -13,7 +13,6 @@ import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../u
 import { adjustInventory, getInventoryById } from '../services/inventory.service';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-import { eq } from 'drizzle-orm';
 
 const paramsSchema = z.object({
     id: uuidSchema,
