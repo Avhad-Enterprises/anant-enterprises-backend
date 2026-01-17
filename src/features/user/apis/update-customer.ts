@@ -13,6 +13,7 @@ import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, businessAccountStatusEnum, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { updateTagUsage } from '../../tags/services/tag-sync.service';
 
 // Validation Schema
 const updateCustomerSchema = z.object({
@@ -70,22 +71,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     logger.info(`Updating customer ${id}`, data);
 
     try {
-        // Check for duplicate email if attempting to change it
-        if (data.email) {
-            const [existingUser] = await db
-                .select()
-                .from(users)
-                .where(
-                    and(
-                        eq(users.email, data.email),
-                        ne(users.id, id) // Exclude current user
-                    )
-                );
-
-            if (existingUser) {
-                throw new HttpException(409, 'A customer with this email already exists');
-            }
-        }
+        // Store oldTags outside transaction for tag sync
+        let oldTags: string[] = [];
 
         await db.transaction(async (tx) => {
             // 1. Update User Table (Basic Info)
@@ -108,12 +95,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
             // But simplify: We try to update the profile that matches the user_type.
 
             let targetUserType = data.user_type;
-            if (!targetUserType) {
-                const currentUser = await tx.query.users.findFirst({
-                    where: eq(users.id, id),
-                    columns: { user_type: true }
-                });
-                targetUserType = currentUser?.user_type as 'individual' | 'business' || 'individual';
+
+            // Fetch current user to get user_type and old tags
+            const currentUser = await tx.query.users.findFirst({
+                where: eq(users.id, id),
+                columns: { user_type: true, tags: true }
+            });
+
+            if (currentUser) {
+                targetUserType = data.user_type || (currentUser.user_type as 'individual' | 'business') || 'individual';
+                oldTags = (currentUser.tags as string[]) || []; // This updates the outer scope variable
             }
 
             if (Object.keys(userUpdates).length > 0) {
@@ -202,26 +193,45 @@ const handler = async (req: RequestWithUser, res: Response) => {
             }
         });
 
+        // Update tag usage counts if tags were changed
+        if (data.tags !== undefined) {
+            const newTags = data.tags || [];
+            await updateTagUsage(oldTags, newTags, 'customer');
+        }
+
         ResponseFormatter.success(res, { id, ...data }, 'Customer updated successfully');
 
     } catch (error: any) {
-        logger.error('Error updating customer:', {
-            message: error.message,
-            code: error.code,
-            stack: error.stack,
-            detail: error.detail
+        logger.error('Error updating customer:', error);
+
+        // Drizzle ORM wraps PostgreSQL errors - the actual error is in error.cause
+        const pgError = error?.cause || error;
+        const errorCode = pgError?.code || error?.code || '';
+        const errorMessage = pgError?.message || error?.message || '';
+        const errorDetail = pgError?.detail || error?.detail || '';
+        const errorConstraint = pgError?.constraint || error?.constraint || '';
+
+        logger.info('PostgreSQL Error details:', {
+            code: errorCode,
+            constraint: errorConstraint,
+            detail: errorDetail,
+            message: errorMessage
         });
 
-        // Handle unique constraint violation (duplicate email)
-        if (error.code === '23505') {
-            throw new HttpException(409, 'A customer with this email already exists');
+        // Check for duplicate email constraint violation
+        // PostgreSQL unique violation code is '23505'
+        const isDuplicateEmail =
+            errorCode === '23505' ||
+            errorConstraint.includes('email') ||
+            errorConstraint.includes('users_email_key') ||
+            errorDetail.toLowerCase().includes('email') ||
+            errorMessage.toLowerCase().includes('duplicate key');
+
+        if (isDuplicateEmail) {
+            throw new HttpException(409, 'Email already exists');
         }
 
-        if (error instanceof HttpException) {
-            throw error;
-        }
-
-        throw new HttpException(500, `Failed to update customer details: ${error.message}`);
+        throw new HttpException(500, 'Failed to update customer details');
     }
 };
 
