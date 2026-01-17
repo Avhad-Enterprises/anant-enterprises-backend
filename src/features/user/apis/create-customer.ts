@@ -21,6 +21,7 @@ const createCustomerSchema = z.object({
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).default('individual'),
     tags: z.array(z.string()).optional(),
+    profile_image_url: z.string().optional(),
 
     // Optional User Fields
     display_name: z.string().max(100).optional(),
@@ -62,6 +63,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     gender: data.gender,
                     preferred_language: data.preferred_language || 'en',
                     languages: data.languages || [],
+                    profile_image_url: data.profile_image_url,
                 })
                 .returning();
 

@@ -7,7 +7,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException, uuidSchema, shortTextSchema } from '../../../utils';
@@ -42,7 +42,10 @@ const bodySchema = z.object({
   city: shortTextSchema.optional(),
   state: shortTextSchema.optional(),
   pincode: shortTextSchema.optional(),
+  country: shortTextSchema.optional(),
   isDefault: z.boolean().optional(),
+  isDefaultBilling: z.boolean().optional(),
+  isDefaultShipping: z.boolean().optional(),
 });
 
 // Map frontend type to backend address_type enum
@@ -62,7 +65,7 @@ const mapToBackendType = (
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId as string;
   const addressId = req.params.id as string;
-  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, isDefault } = req.body;
+  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefault, isDefaultBilling, isDefaultShipping } = req.body;
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db
@@ -80,14 +83,39 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(404, 'Address not found');
   }
 
+  // Determine Type and Default Status
+  let backendType = type ? mapToBackendType(type) : existingAddress.address_type;
+  let finalIsDefault = isDefault !== undefined ? isDefault : existingAddress.is_default;
+
+  // If new default flags are provided, they take precedence
+  if (isDefaultBilling !== undefined || isDefaultShipping !== undefined) {
+    const isBilling = isDefaultBilling !== undefined ? isDefaultBilling : (backendType === 'billing' || backendType === 'both');
+    const isShipping = isDefaultShipping !== undefined ? isDefaultShipping : (backendType === 'shipping' || backendType === 'both');
+
+    finalIsDefault = isBilling || isShipping;
+
+    if (isBilling && isShipping) {
+      backendType = 'both';
+    } else if (isBilling) {
+      backendType = 'billing';
+    } else if (isShipping) {
+      backendType = 'shipping';
+    }
+  }
+
   // Build update data
-  const updateData: AddressUpdateData = {
+  const updateData: AddressUpdateData & { country?: string; country_code?: string } = {
     updated_at: new Date(),
   };
 
-  if (type) {
-    updateData.address_type = mapToBackendType(type) as any;
+  updateData.address_type = backendType as any;
+  updateData.is_default = finalIsDefault;
+
+  if (country) {
+    updateData.country = country;
+    updateData.country_code = country === 'India' ? 'IN' : 'XX';
   }
+
   if (name) {
     updateData.recipient_name = name;
   }
@@ -112,21 +140,25 @@ const handler = async (req: RequestWithUser, res: Response) => {
     updateData.postal_code = pincode;
   }
 
-  // If setting as default, unset ALL other defaults (only one default allowed)
-  if (isDefault !== undefined) {
-    updateData.is_default = isDefault;
-
-    if (isDefault) {
-      await db
-        .update(userAddresses)
-        .set({ is_default: false })
-        .where(
-          and(
-            eq(userAddresses.user_id, userId),
-            eq(userAddresses.is_deleted, false)
-          )
-        );
+  // If setting as default, unset other defaults for this type
+  if (finalIsDefault) {
+    const typesToClear: string[] = ['both'];
+    if (backendType === 'both') {
+      typesToClear.push('billing', 'shipping');
+    } else {
+      typesToClear.push(backendType);
     }
+
+    await db
+      .update(userAddresses)
+      .set({ is_default: false })
+      .where(
+        and(
+          eq(userAddresses.user_id, userId),
+          eq(userAddresses.is_deleted, false),
+          inArray(userAddresses.address_type, typesToClear as any[])
+        )
+      );
   }
 
   // Update address
@@ -156,7 +188,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
       city: updatedAddress.city,
       state: updatedAddress.state_province,
       pincode: updatedAddress.postal_code,
+      country: updatedAddress.country,
       isDefault: updatedAddress.is_default,
+      isDefaultBilling: updatedAddress.address_type === 'billing' || updatedAddress.address_type === 'both',
+      isDefaultShipping: updatedAddress.address_type === 'shipping' || updatedAddress.address_type === 'both',
     },
     'Address updated successfully'
   );

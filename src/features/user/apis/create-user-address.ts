@@ -7,7 +7,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, uuidSchema, shortTextSchema } from '../../../utils';
@@ -27,7 +27,10 @@ const bodySchema = z.object({
   city: shortTextSchema,
   state: shortTextSchema,
   pincode: shortTextSchema,
-  isDefault: z.boolean().optional().default(false),
+  country: shortTextSchema.optional(),
+  isDefault: z.boolean().optional(),
+  isDefaultBilling: z.boolean().optional(),
+  isDefaultShipping: z.boolean().optional(),
 });
 
 // Map frontend type to backend address_type enum
@@ -46,20 +49,42 @@ const mapToBackendType = (
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId as string;
-  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, isDefault } =
+  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefault, isDefaultBilling, isDefaultShipping } =
     req.body;
 
-  const backendType = mapToBackendType(type);
+  let backendType = mapToBackendType(type);
+  let finalIsDefault = isDefault || isDefaultBilling || isDefaultShipping || false;
 
-  // If setting as default, unset ALL other defaults (only one default allowed)
-  if (isDefault) {
+  // Override type if setting specific defaults
+  if (isDefaultBilling && isDefaultShipping) {
+    backendType = 'both';
+  } else if (isDefaultBilling) {
+    backendType = 'billing';
+  } else if (isDefaultShipping) {
+    backendType = 'shipping';
+  }
+
+  // If setting as default, unset other defaults for this type
+  if (finalIsDefault) {
+    // If setting as 'both', clear defaults for billing, shipping, and both
+    // If setting as 'billing', clear defaults for billing and both
+    // If setting as 'shipping', clear defaults for shipping and both
+
+    const typesToClear: string[] = ['both'];
+    if (backendType === 'both') {
+      typesToClear.push('billing', 'shipping');
+    } else {
+      typesToClear.push(backendType);
+    }
+
     await db
       .update(userAddresses)
       .set({ is_default: false })
       .where(
         and(
           eq(userAddresses.user_id, userId),
-          eq(userAddresses.is_deleted, false)
+          eq(userAddresses.is_deleted, false),
+          inArray(userAddresses.address_type, typesToClear as any[])
         )
       );
   }
@@ -83,9 +108,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
       city: city,
       state_province: state,
       postal_code: pincode,
-      country: 'India', // Default - can be made dynamic
-      country_code: 'IN', // Default - can be made dynamic
-      is_default: isDefault,
+      country: country || 'India',
+      country_code: country === 'India' ? 'IN' : 'XX', // Simple fallback
+      is_default: finalIsDefault,
     })
     .returning();
 
@@ -101,7 +126,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
       city: newAddress.city,
       state: newAddress.state_province,
       pincode: newAddress.postal_code,
+      country: newAddress.country,
       isDefault: newAddress.is_default,
+      isDefaultBilling: newAddress.address_type === 'billing' || newAddress.address_type === 'both',
+      isDefaultShipping: newAddress.address_type === 'shipping' || newAddress.address_type === 'both',
     },
     'Address created successfully'
   );
