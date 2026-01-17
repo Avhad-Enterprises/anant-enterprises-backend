@@ -47,7 +47,8 @@ export const inventory = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     product_id: uuid('product_id')
       .references(() => products.id, { onDelete: 'cascade' })
-      .notNull(),
+      .notNull()
+      .unique(), // Each product can only have one inventory record
 
     // Product Reference (denormalized for reporting performance)
     product_name: varchar('product_name', { length: 255 }).notNull(),

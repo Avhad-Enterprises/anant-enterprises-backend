@@ -49,6 +49,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
     const data = req.body;
 
+    // Determine if this is a publish action (public or private)
+    const isPublishAction = data.visibility === 'public' || data.visibility === 'private';
+
     // Transform Frontend Data to Backend Schema
     const blogData = {
         title: data.title,
@@ -71,6 +74,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
         admin_comment: data.adminComment,
 
         created_by: userId,
+
+        // Set published_at only when publishing (public or private), null for drafts
+        published_at: isPublishAction ? new Date() : null,
     };
 
     const subsectionsData = data.subsections.map((sub: any, index: number) => ({

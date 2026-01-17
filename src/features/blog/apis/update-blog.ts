@@ -67,6 +67,20 @@ const handler = async (req: RequestWithUser, res: Response) => {
     if (data.mainImageMobile) blogUpdates.main_image_mobile_url = typeof data.mainImageMobile === 'string' ? data.mainImageMobile : undefined;
     if (data.adminComment) blogUpdates.admin_comment = data.adminComment;
 
+    // Handle published_at logic for visibility transitions
+    // Only set published_at when transitioning to 'public' or 'private' AND it's not already set
+    if (data.visibility) {
+        const isPublishAction = data.visibility === 'public' || data.visibility === 'private';
+        const wasNeverPublished = existingBlog.published_at === null;
+
+        if (isPublishAction && wasNeverPublished) {
+            // First-time publish - record the publish timestamp
+            blogUpdates.published_at = new Date();
+        }
+        // If already published (published_at exists), keep the original date
+        // If changing to draft, also keep the original date for audit trail
+    }
+
     // 2. Prepare Subsections Updates
     let subsectionsUpdates = undefined;
     if (data.subsections) {
