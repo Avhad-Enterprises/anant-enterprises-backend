@@ -69,6 +69,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         admin_comment: data.adminComment,
 
+        // Set published_at when creating with public status
+        published_at: data.visibility === 'public' ? new Date() : null,
+
         created_by: userId,
     };
 

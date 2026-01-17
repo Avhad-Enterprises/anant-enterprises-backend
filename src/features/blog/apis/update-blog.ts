@@ -67,6 +67,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
     if (data.mainImageMobile) blogUpdates.main_image_mobile_url = typeof data.mainImageMobile === 'string' ? data.mainImageMobile : undefined;
     if (data.adminComment) blogUpdates.admin_comment = data.adminComment;
 
+    // Handle published_at timestamp based on status changes
+    if (data.visibility) {
+        // If changing TO public and wasn't public before, set published_at
+        if (data.visibility === 'public' && existingBlog.status !== 'public') {
+            blogUpdates.published_at = new Date();
+        }
+        // If changing FROM public to draft/private, clear published_at
+        else if (data.visibility !== 'public' && existingBlog.status === 'public') {
+            blogUpdates.published_at = null;
+        }
+    }
+
     // 2. Prepare Subsections Updates
     let subsectionsUpdates = undefined;
     if (data.subsections) {
