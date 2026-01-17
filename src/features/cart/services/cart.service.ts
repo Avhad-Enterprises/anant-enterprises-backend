@@ -120,7 +120,6 @@ export class CartService {
             created_by: userId ? userId : undefined,
         }).returning();
 
-        console.log('[CartService] Created new cart:', { cartId: newCart.id, userId, sessionId });
         return newCart;
     }
 

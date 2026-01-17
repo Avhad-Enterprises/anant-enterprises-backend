@@ -21,7 +21,6 @@ import { cleanEnv, port, str, num } from 'envalid';
  */
 export const validateEnv = () => {
   try {
-    require('fs').writeFileSync('debug_validate_start.json', '"started"');
     const env = cleanEnv(process.env, {
       // Environment
       NODE_ENV: str({ choices: ['development', 'production', 'test'], default: 'development' }),
@@ -81,13 +80,6 @@ export const validateEnv = () => {
     }, {
       reporter: ({ errors }) => {
         if (Object.keys(errors).length > 0) {
-          console.error("ENVALID ERRORS:", errors);
-          try {
-            require('fs').writeFileSync('validation_error.json', JSON.stringify(errors, null, 2));
-            console.error("Errors written to validation_error.json");
-          } catch (e) {
-            console.error("Fs Write Failed", e);
-          }
           throw new Error("Environment validation failed");
         }
       }
@@ -100,10 +92,8 @@ export const validateEnv = () => {
 
     // Use console.log to avoid circular dependency with logger
     console.log('info: ✅ Environment variables validated.');
-    require('fs').writeFileSync('debug_validate_success.json', '"success"');
     return env;
   } catch (error) {
-    console.error('CRITICAL ERROR: Environment validation failed!', error);
     process.exit(1);
   }
 };

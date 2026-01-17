@@ -67,8 +67,6 @@ const handler = async (req: Request, res: Response) => {
     const userId = userReq.userId || null;
     const sessionId = req.headers['x-session-id'] as string || null;
 
-    console.log('[GET /cart] Request - userId:', userId, 'sessionId:', sessionId);
-
     if (!userId && !sessionId) {
         return ResponseFormatter.success(res, {
             id: null,
@@ -104,7 +102,6 @@ const handler = async (req: Request, res: Response) => {
                 eq(carts.is_deleted, false)
             ))
             .limit(1);
-        console.log('[GET /cart] User cart lookup - found:', !!cart, 'status:', cart?.cart_status);
 
         // Check if there's an unmerged guest cart (for frontend to trigger merge if needed)
         // NOTE: We no longer auto-assign here to avoid side effects in GET requests
@@ -121,7 +118,6 @@ const handler = async (req: Request, res: Response) => {
 
             if (guestCart) {
                 hasUnmergedGuestCart = true;
-                console.log('[GET /cart] Found unmerged guest cart:', guestCart.id);
 
                 // If user has no cart, use the guest cart for display (read-only)
                 // The frontend should trigger a merge to properly assign it
@@ -131,7 +127,6 @@ const handler = async (req: Request, res: Response) => {
                         .from(carts)
                         .where(eq(carts.id, guestCart.id))
                         .limit(1);
-                    console.log('[GET /cart] Using guest cart for display (frontend should trigger merge)');
                 }
             }
         }
@@ -145,11 +140,9 @@ const handler = async (req: Request, res: Response) => {
                 eq(carts.is_deleted, false)
             ))
             .limit(1);
-        console.log('[GET /cart] Session cart lookup - found:', !!cart, 'status:', cart?.cart_status);
     }
 
     if (!cart) {
-        console.log('[GET /cart] No active cart found');
         return ResponseFormatter.success(res, {
             id: null,
             currency: 'INR',
@@ -274,7 +267,6 @@ const handler = async (req: Request, res: Response) => {
                 savings: cart.discount_total, // Total savings for now
             }));
         } catch (error) {
-            console.error('[GET /cart] Error fetching discount metadata:', error);
             // Continue without discount metadata
         }
     }
