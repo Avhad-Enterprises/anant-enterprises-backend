@@ -44,7 +44,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const updateData: any = {
         order_tracking: data.tracking_number,
         updated_at: new Date(),
-        updated_by: req.user?.id || null,
+        updated_by: req.userId || null,
     };
 
     if (data.shipping_method) {

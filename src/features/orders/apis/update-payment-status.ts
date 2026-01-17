@@ -45,7 +45,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const updateData: any = {
         payment_status: data.payment_status,
         updated_at: new Date(),
-        updated_by: req.user?.id || null,
+        updated_by: req.userId || null,
     };
 
     // Set paid_at timestamp if status is paid and not already set

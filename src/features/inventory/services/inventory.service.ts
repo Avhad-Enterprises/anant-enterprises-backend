@@ -4,7 +4,7 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, ilike, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
@@ -19,7 +19,6 @@ import type {
     UpdateInventoryDto,
     InventoryHistoryItem,
 } from '../shared/interface';
-import { logger } from 'src/utils';
 
 // ============================================
 // HELPER FUNCTIONS
@@ -76,7 +75,7 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
  * Get paginated list of inventory items with product details
  */
 export async function getInventoryList(params: InventoryListParams) {
-    const { page = 1, limit = 20, search, condition, status, location } = params;
+    const { page = 1, limit = 20, search, condition, status, location: _location } = params;
     const offset = (page - 1) * limit;
 
     // Build conditions
@@ -366,7 +365,6 @@ export async function createInventoryForProduct(
         .insert(inventory)
         .values({
             product_id: productId,
-            location_id: defaultLocation.id,
             product_name: productName,
             sku: sku,
             location_id: resolvedLocationId,

@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, desc, count, like, or } from 'drizzle-orm';
+import { eq, and, desc, count } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';

@@ -72,7 +72,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             is_draft: false,
             order_status: 'confirmed',
             updated_at: new Date(),
-            updated_by: req.user?.id || null,
+            updated_by: req.userId || null,
         };
 
         // Add confirmation note to admin comment

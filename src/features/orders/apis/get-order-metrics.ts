@@ -4,7 +4,7 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, and, or, count, sum, sql } from 'drizzle-orm';
+import { eq, and, or, count, sql } from 'drizzle-orm';
 import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';

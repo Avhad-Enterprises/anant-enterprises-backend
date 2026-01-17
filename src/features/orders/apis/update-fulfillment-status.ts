@@ -44,7 +44,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const updateData: any = {
         fulfillment_status: data.fulfillment_status,
         updated_at: new Date(),
-        updated_by: req.user?.id || null,
+        updated_by: req.userId || null,
     };
 
     // Set fulfillment_date if status is fulfilled
