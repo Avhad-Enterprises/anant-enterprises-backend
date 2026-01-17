@@ -9,7 +9,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { createBlog } from '../shared/queries';
-import { blogStatusEnum } from '../shared/blog.schema';
 
 // Validation Schema
 const createBlogSchema = z.object({

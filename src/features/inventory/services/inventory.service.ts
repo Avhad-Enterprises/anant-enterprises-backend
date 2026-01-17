@@ -4,12 +4,14 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, ilike, sql, count } from 'drizzle-orm';
+import { eq, and, desc, ilike, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
+import { logger } from '../../../utils';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -106,6 +108,7 @@ export async function getInventoryList(params: InventoryListParams) {
     const [countResult] = await db
         .select({ total: sql<number>`count(*)` })
         .from(inventory)
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause);
 
     const total = countResult?.total ?? 0;
@@ -135,6 +138,7 @@ export async function getInventoryList(params: InventoryListParams) {
         })
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause)
         .orderBy(desc(inventory.updated_at))
         .limit(limit)
@@ -177,6 +181,7 @@ export async function getInventoryById(id: string) {
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
         .leftJoin(users, eq(inventory.updated_by, users.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(eq(inventory.id, id));
 
     return item as InventoryWithProduct | undefined;
@@ -361,6 +366,7 @@ export async function createInventoryForProduct(
         .insert(inventory)
         .values({
             product_id: productId,
+            location_id: defaultLocation.id,
             product_name: productName,
             sku: sku,
             location_id: resolvedLocationId,

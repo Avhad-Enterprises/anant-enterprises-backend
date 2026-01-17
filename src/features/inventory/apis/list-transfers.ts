@@ -24,8 +24,10 @@ const handler = async (req: Request, res: Response, next: NextFunction) => {
             transfers,
             count: transfers.length,
         });
+        return;
     } catch (error) {
         next(error);
+        return;
     }
 };
 

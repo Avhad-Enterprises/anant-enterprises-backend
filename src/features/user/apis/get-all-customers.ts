@@ -6,7 +6,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, ilike, or, sql } from 'drizzle-orm';
+import { eq, count, desc, and, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
