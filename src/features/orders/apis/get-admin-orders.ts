@@ -111,6 +111,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
         })
     );
 
+    // DEBUG: Log the response data
+    console.log('========== GET /api/admin/orders DEBUG ==========');
+    console.log('Query params:', params);
+    console.log('Total count:', total);
+    console.log('Enriched orders count:', enrichedOrders.length);
+    console.log('First order sample:', enrichedOrders[0] || 'No orders found');
+    console.log('=================================================');
+
     return ResponseFormatter.success(res, {
         orders: enrichedOrders,
         pagination: {
