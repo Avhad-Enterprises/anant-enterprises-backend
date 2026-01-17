@@ -1,6 +1,6 @@
 {
-  "id": "d5f4379a-2a63-45f2-99d6-96f911f23e56",
-  "prevId": "f997b084-3f2c-47a4-a772-21c70e94b031",
+  "id": "260f6bfc-40e3-4557-8c83-542a155bd808",
+  "prevId": "d5f4379a-2a63-45f2-99d6-96f911f23e56",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -11248,6 +11248,13 @@
           "notNull": true,
           "default": "'active'"
         },
+        "is_deleted": {
+          "name": "is_deleted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "usage_count": {
           "name": "usage_count",
           "type": "integer",
@@ -14160,7 +14167,8 @@
         "billing",
         "shipping",
         "both",
-        "company"
+        "company",
+        "other"
       ]
     },
     "public.business_account_status": {

@@ -50,6 +50,13 @@
       "when": 1768483403004,
       "tag": "0007_nosy_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1768652250308,
+      "tag": "0008_large_sphinx",
+      "breakpoints": true
     }
   ]
 }

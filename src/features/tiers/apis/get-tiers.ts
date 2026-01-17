@@ -16,6 +16,9 @@ const handler = async (req: Request, res: Response) => {
     // Build where conditions
     const conditions = [];
 
+    // Always exclude deleted tiers
+    conditions.push(eq(tiers.is_deleted, false));
+
     // Add status filter if specified (don't default to active)
     if (status && status !== '') {
         conditions.push(eq(tiers.status, status as 'active' | 'inactive'));

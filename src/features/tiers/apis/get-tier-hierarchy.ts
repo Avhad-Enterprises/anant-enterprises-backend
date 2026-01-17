@@ -5,7 +5,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
@@ -72,10 +72,11 @@ function buildHierarchy(allTiers: Tier[]): TierNode[] {
 }
 
 const handler = async (req: Request, res: Response) => {
-    // Get all tiers (including inactive)
+    // Get all tiers (including inactive, excluding deleted)
     const allTiers = await db
         .select()
         .from(tiers)
+        .where(eq(tiers.is_deleted, false))
         .orderBy(asc(tiers.level), asc(tiers.name));
 
     // Build hierarchical structure

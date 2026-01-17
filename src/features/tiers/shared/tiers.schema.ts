@@ -15,6 +15,7 @@ import {
   pgEnum,
   index,
   foreignKey,
+  boolean,
 } from 'drizzle-orm/pg-core';
 
 // ============================================
@@ -44,6 +45,7 @@ export const tiers = pgTable(
 
     // Status
     status: tierStatusEnum('status').default('active').notNull(),
+    is_deleted: boolean('is_deleted').default(false).notNull(),
     usage_count: integer('usage_count').default(0).notNull(), // Denormalized count
 
     // Audit Fields
