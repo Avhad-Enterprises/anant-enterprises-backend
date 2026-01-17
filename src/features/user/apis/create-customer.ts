@@ -21,10 +21,14 @@ const createCustomerSchema = z.object({
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).default('individual'),
     tags: z.array(z.string()).optional(),
+    profile_image_url: z.string().optional(),
 
     // Optional User Fields
+    display_name: z.string().max(100).optional(),
     date_of_birth: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+    preferred_language: z.string().optional(),
+    languages: z.array(z.string()).optional(),
 
     // Customer (Individual) Profile Fields
     segment: z.enum(customerSegmentEnum.enumValues).optional(),
@@ -51,11 +55,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 .values({
                     name: data.name,
                     email: data.email,
+                    display_name: data.display_name,
                     phone_number: data.phone_number,
                     user_type: data.user_type,
                     tags: data.tags || [],
                     date_of_birth: data.date_of_birth || undefined,
                     gender: data.gender,
+                    preferred_language: data.preferred_language || 'en',
+                    languages: data.languages || [],
+                    profile_image_url: data.profile_image_url,
                 })
                 .returning();
 
