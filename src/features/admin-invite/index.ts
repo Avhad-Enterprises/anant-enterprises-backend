@@ -22,12 +22,14 @@ class AdminInviteRoute implements Route {
     const { default: getInvitationsRouter } = await import('./apis/get-invitations');
     const { default: getInvitationDetailsRouter } = await import('./apis/get-invitation-details');
     const { default: acceptInvitationRouter } = await import('./apis/accept-invitation');
+    const { default: updateInvitationRouter } = await import('./apis/update-invitation');
 
     // Mount API routes
     this.router.use(this.path, createInvitationRouter); // POST / - admin only
     this.router.use(this.path, getInvitationsRouter); // GET / - admin only
     this.router.use(this.path, getInvitationDetailsRouter); // GET /details - public
     this.router.use(this.path, acceptInvitationRouter); // POST /accept - public
+    this.router.use(this.path, updateInvitationRouter); // PUT /:id - admin only
   }
 }
 
