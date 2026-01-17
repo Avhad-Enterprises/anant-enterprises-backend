@@ -12,6 +12,7 @@ import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { syncTags } from '../../tags/services/tag-sync.service';
 
 // Validation Schema
 const createCustomerSchema = z.object({
@@ -95,6 +96,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
         });
 
         logger.info(`Customer created successfully: ${result.id}`);
+
+        // Sync customer tags to master tags table
+        if (data.tags && data.tags.length > 0) {
+            await syncTags(data.tags, 'customer');
+        }
+
         ResponseFormatter.success(res, result, 'Customer created successfully', 201);
 
     } catch (error: any) {

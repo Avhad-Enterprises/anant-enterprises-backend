@@ -17,6 +17,7 @@ import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { findUserById } from '../shared/queries';
 import { userCacheService } from '../services/user-cache.service';
+import { decrementTagUsage } from '../../tags/services/tag-sync.service';
 
 const paramsSchema = z.object({
     id: uuidSchema,
@@ -41,6 +42,12 @@ async function deleteCustomer(id: string, deletedBy: string): Promise<{ email: s
             deleted_at: new Date(),
         })
         .where(eq(users.id, id));
+
+    // Decrement tag usage counts for customer tags
+    const customerTags = existingUser.tags || [];
+    if (customerTags.length > 0) {
+        await decrementTagUsage(customerTags);
+    }
 
     return { email: existingUser.email };
 }
