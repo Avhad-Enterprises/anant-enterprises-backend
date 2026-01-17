@@ -18,12 +18,14 @@ class App {
   public app: express.Application;
   public port: number;
   public env: string;
+  private routes: Routes[];
 
   constructor(routes: Routes[]) {
     // Initialize the express app
     this.app = express();
     this.port = config.PORT;
     this.env = config.NODE_ENV;
+    this.routes = routes;
 
     this.initializeMiddlewares();
     this.initializeRoutes(routes);
@@ -52,7 +54,9 @@ class App {
           memory: {
             used: Math.round((process.memoryUsage().heapUsed / 1024 / 1024) * 100) / 100,
             total: Math.round((process.memoryUsage().heapTotal / 1024 / 1024) * 100) / 100,
-            percentage: Math.round((process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100),
+            percentage: Math.round(
+              (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal) * 100
+            ),
           },
           version: '1.0.0',
           dependencies: {
@@ -153,6 +157,20 @@ class App {
     routes.forEach(route => {
       this.app.use('/api/', route.router);
     });
+  }
+
+  /**
+   * Initialize async routes - MUST be called before server starts listening
+   * This ensures routes that use dynamic imports are fully initialized
+   */
+  public async initializeAsyncRoutes(): Promise<void> {
+    await Promise.all(
+      this.routes.map(async route => {
+        if (route.init) {
+          await route.init();
+        }
+      })
+    );
   }
 
   private initializeErrorHandling() {

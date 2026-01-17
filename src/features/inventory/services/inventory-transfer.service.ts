@@ -142,14 +142,13 @@ export async function executeTransfer(
         // Create adjustment record for source (decrease)
         await tx.insert(inventoryAdjustments).values({
             inventory_id: sourceInventory.id,
-            adjustment_type: 'transfer_out',
+            adjustment_type: 'decrease',
             quantity_change: -transfer.quantity,
-            before_quantity: sourceInventory.available_quantity,
-            after_quantity: sourceInventory.available_quantity - transfer.quantity,
+            quantity_before: sourceInventory.available_quantity,
+            quantity_after: sourceInventory.available_quantity - transfer.quantity,
             reason: `Transfer to another location (${transfer.transfer_number})`,
-            reference_type: 'inventory_transfer',
-            reference_id: transfer.id,
-            created_by: userId,
+            reference_number: transfer.transfer_number,
+            adjusted_by: userId,
         });
 
         // Increase at destination (create if doesn't exist)
@@ -177,14 +176,13 @@ export async function executeTransfer(
             // Create adjustment record for destination (increase)
             await tx.insert(inventoryAdjustments).values({
                 inventory_id: destInventory.id,
-                adjustment_type: 'transfer_in',
+                adjustment_type: 'increase',
                 quantity_change: transfer.quantity,
-                before_quantity: destInventory.available_quantity,
-                after_quantity: destInventory.available_quantity + transfer.quantity,
+                quantity_before: destInventory.available_quantity,
+                quantity_after: destInventory.available_quantity + transfer.quantity,
                 reason: `Transfer from another location (${transfer.transfer_number})`,
-                reference_type: 'inventory_transfer',
-                reference_id: transfer.id,
-                created_by: userId,
+                reference_number: transfer.transfer_number,
+                adjusted_by: userId,
             });
         } else {
             // Create new inventory record at destination
@@ -204,14 +202,13 @@ export async function executeTransfer(
             // Create adjustment record
             await tx.insert(inventoryAdjustments).values({
                 inventory_id: newInventory.id,
-                adjustment_type: 'transfer_in',
+                adjustment_type: 'increase',
                 quantity_change: transfer.quantity,
-                before_quantity: 0,
-                after_quantity: transfer.quantity,
+                quantity_before: 0,
+                quantity_after: transfer.quantity,
                 reason: `Initial stock from transfer (${transfer.transfer_number})`,
-                reference_type: 'inventory_transfer',
-                reference_id: transfer.id,
-                created_by: userId,
+                reference_number: transfer.transfer_number,
+                adjusted_by: userId,
             });
         }
 

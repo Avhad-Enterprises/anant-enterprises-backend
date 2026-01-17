@@ -9,9 +9,11 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
+import { eq } from 'drizzle-orm';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { syncTags } from '../../tags/services/tag-sync.service';
 
 // Validation Schema
 const createCustomerSchema = z.object({
@@ -21,10 +23,14 @@ const createCustomerSchema = z.object({
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).default('individual'),
     tags: z.array(z.string()).optional(),
+    profile_image_url: z.string().optional(),
 
     // Optional User Fields
+    display_name: z.string().max(100).optional(),
     date_of_birth: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+    preferred_language: z.string().optional(),
+    languages: z.array(z.string()).optional(),
 
     // Customer (Individual) Profile Fields
     segment: z.enum(customerSegmentEnum.enumValues).optional(),
@@ -45,17 +51,31 @@ const handler = async (req: RequestWithUser, res: Response) => {
     logger.info('Creating new customer', { email: data.email, type: data.user_type });
 
     try {
+        // Check if user already exists
+        const [existingUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, data.email));
+
+        if (existingUser) {
+            throw new HttpException(409, 'A customer with this email already exists');
+        }
+
         const result = await db.transaction(async (tx) => {
             // 1. Create User
             const [newUser] = await tx.insert(users)
                 .values({
                     name: data.name,
                     email: data.email,
+                    display_name: data.display_name,
                     phone_number: data.phone_number,
                     user_type: data.user_type,
                     tags: data.tags || [],
                     date_of_birth: data.date_of_birth || undefined,
                     gender: data.gender,
+                    preferred_language: data.preferred_language || 'en',
+                    languages: data.languages || [],
+                    profile_image_url: data.profile_image_url,
                 })
                 .returning();
 
@@ -87,17 +107,33 @@ const handler = async (req: RequestWithUser, res: Response) => {
         });
 
         logger.info(`Customer created successfully: ${result.id}`);
+
+        // Sync customer tags to master tags table
+        if (data.tags && data.tags.length > 0) {
+            await syncTags(data.tags, 'customer');
+        }
+
         ResponseFormatter.success(res, result, 'Customer created successfully', 201);
 
     } catch (error: any) {
-        logger.error('Error creating customer:', error);
+        logger.error('Error creating customer:', {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+            detail: error.detail
+        });
 
         // Handle unique constraint violation (duplicate email)
         if (error.code === '23505') {
             throw new HttpException(409, 'A customer with this email already exists');
         }
 
-        throw new HttpException(500, 'Failed to create customer');
+        // If it's already an HttpException, rethrow it
+        if (error instanceof HttpException) {
+            throw error;
+        }
+
+        throw new HttpException(500, `Failed to create customer: ${error.message}`);
     }
 };
 

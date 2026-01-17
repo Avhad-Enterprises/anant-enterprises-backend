@@ -9,7 +9,6 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { createBlog } from '../shared/queries';
-import { blogStatusEnum } from '../shared/blog.schema';
 
 // Validation Schema
 const createBlogSchema = z.object({
@@ -69,6 +68,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
         main_image_mobile_url: typeof data.mainImageMobile === 'string' ? data.mainImageMobile : undefined,
 
         admin_comment: data.adminComment,
+
+        // Set published_at when creating with public status
+        published_at: data.visibility === 'public' ? new Date() : null,
 
         created_by: userId,
     };

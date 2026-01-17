@@ -36,8 +36,10 @@ const handler = async (req: Request, res: Response, next: NextFunction) => {
             locations: stockByLocation,
             location_count: stockByLocation.length,
         });
+        return;
     } catch (error) {
         next(error);
+        return;
     }
 };
 

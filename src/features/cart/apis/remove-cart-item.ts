@@ -69,7 +69,6 @@ const handler = async (req: Request, res: Response) => {
             await releaseCartStock(itemId);
             console.log('[remove-cart-item] Released cart stock reservation:', itemId);
         } catch (error: any) {
-            console.error('[remove-cart-item] Failed to release stock reservation:', error.message);
             // Continue with deletion even if release fails
         }
     }

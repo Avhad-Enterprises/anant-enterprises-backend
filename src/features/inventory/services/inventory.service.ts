@@ -8,9 +8,11 @@ import { eq, and, desc, ilike, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
+import { logger } from '../../../utils';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -64,7 +66,7 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
             return cachedSystemUserId;
         }
     } catch (error) {
-        console.error('Failed to resolve fallback user:', error);
+        // Failed to resolve fallback user
     }
 
     return null;
@@ -74,7 +76,7 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
  * Get paginated list of inventory items with product details
  */
 export async function getInventoryList(params: InventoryListParams) {
-    const { page = 1, limit = 20, search, condition, status, location } = params;
+    const { page = 1, limit = 20, search, condition, status, location: _location } = params;
     const offset = (page - 1) * limit;
 
     // Build conditions
@@ -104,6 +106,7 @@ export async function getInventoryList(params: InventoryListParams) {
     const [countResult] = await db
         .select({ total: sql<number>`count(*)` })
         .from(inventory)
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause);
 
     const total = countResult?.total ?? 0;
@@ -361,6 +364,19 @@ export async function createInventoryForProduct(
 
             targetLocationId = newLocation.id;
             console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
+        if (activeLocation) {
+            resolvedLocationId = activeLocation.id;
+        } else {
+            // If no active location, get any location
+            const [anyLocation] = await db
+                .select({ id: inventoryLocations.id })
+                .from(inventoryLocations)
+                .limit(1);
+
+            if (!anyLocation) {
+                throw new Error('No inventory location found. Please create a location first.');
+            }
+            resolvedLocationId = anyLocation.id;
         }
     }
 
@@ -370,6 +386,7 @@ export async function createInventoryForProduct(
             product_id: productId,
             product_name: productName,
             sku: sku,
+            location_id: resolvedLocationId,
             available_quantity: initialQuantity,
             status: getStatusFromQuantity(initialQuantity),
             condition: 'sellable',
@@ -813,6 +830,7 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
     // Release each expired reservation
     for (const item of expiredItems) {
         if (!item.product_id) continue;
+        const productId = item.product_id; // TypeScript narrows this to string
 
         await db.transaction(async (tx) => {
             // Release from inventory

@@ -86,15 +86,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     );
 
     if (supabaseError) {
-      console.error('Failed to sync password to Supabase Auth:', supabaseError);
       // We don't throw error here to allow local update to succeed, 
       // but in a real sync scenario we might want to rollback.
       // For now, logging is sufficient as local auth is growing priority.
-    } else {
-      console.log('Password synced to Supabase Auth successfully');
     }
   } catch (err) {
-    console.error('Error syncing to Supabase:', err);
+    // Error syncing to Supabase
   }
 
   ResponseFormatter.success(res, null, 'Password updated successfully');

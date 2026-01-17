@@ -40,8 +40,10 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
             'Transfer created successfully',
             201
         );
+        return;
     } catch (error) {
         next(error);
+        return;
     }
 };
 

@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, ne, and, not } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, HttpException, logger } from '../../../utils';
@@ -13,6 +13,7 @@ import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, businessAccountStatusEnum, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { updateTagUsage } from '../../tags/services/tag-sync.service';
 
 // Validation Schema
 const updateCustomerSchema = z.object({
@@ -22,9 +23,12 @@ const updateCustomerSchema = z.object({
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).optional(),
     tags: z.array(z.string()).optional(),
+    display_name: z.string().max(100).optional(),
     date_of_birth: z.string().optional(),
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
     preferred_language: z.string().optional(),
+    languages: z.array(z.string()).optional(),
+    profile_image_url: z.string().optional().nullable(),
 
     // Customer (Individual) Profile Fields
     segment: z.enum(customerSegmentEnum.enumValues).optional(),
@@ -67,6 +71,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
     logger.info(`Updating customer ${id}`, data);
 
     try {
+        // Store oldTags outside transaction for tag sync
+        let oldTags: string[] = [];
+
         await db.transaction(async (tx) => {
             // 1. Update User Table (Basic Info)
             const userUpdates: any = {};
@@ -75,9 +82,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (data.phone_number !== undefined) userUpdates.phone_number = data.phone_number;
             if (data.user_type) userUpdates.user_type = data.user_type;
             if (data.tags) userUpdates.tags = data.tags;
+            if (data.display_name !== undefined) userUpdates.display_name = data.display_name || null;
             if (data.date_of_birth !== undefined) userUpdates.date_of_birth = data.date_of_birth || null;
             if (data.gender !== undefined) userUpdates.gender = data.gender || null;
+            if (data.profile_image_url !== undefined) userUpdates.profile_image_url = data.profile_image_url;
             if (data.preferred_language !== undefined) userUpdates.preferred_language = data.preferred_language;
+            if (data.languages !== undefined) userUpdates.languages = data.languages;
 
             // Fetch current user type if not provided, to know which profile to update
             // However, for efficiency, if user_type IS provided, we use it.
@@ -85,12 +95,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
             // But simplify: We try to update the profile that matches the user_type.
 
             let targetUserType = data.user_type;
-            if (!targetUserType) {
-                const currentUser = await tx.query.users.findFirst({
-                    where: eq(users.id, id),
-                    columns: { user_type: true }
-                });
-                targetUserType = currentUser?.user_type as 'individual' | 'business' || 'individual';
+
+            // Fetch current user to get user_type and old tags
+            const currentUser = await tx.query.users.findFirst({
+                where: eq(users.id, id),
+                columns: { user_type: true, tags: true }
+            });
+
+            if (currentUser) {
+                targetUserType = data.user_type || (currentUser.user_type as 'individual' | 'business') || 'individual';
+                oldTags = (currentUser.tags as string[]) || []; // This updates the outer scope variable
             }
 
             if (Object.keys(userUpdates).length > 0) {
@@ -179,10 +193,44 @@ const handler = async (req: RequestWithUser, res: Response) => {
             }
         });
 
+        // Update tag usage counts if tags were changed
+        if (data.tags !== undefined) {
+            const newTags = data.tags || [];
+            await updateTagUsage(oldTags, newTags, 'customer');
+        }
+
         ResponseFormatter.success(res, { id, ...data }, 'Customer updated successfully');
 
-    } catch (error) {
+    } catch (error: any) {
         logger.error('Error updating customer:', error);
+
+        // Drizzle ORM wraps PostgreSQL errors - the actual error is in error.cause
+        const pgError = error?.cause || error;
+        const errorCode = pgError?.code || error?.code || '';
+        const errorMessage = pgError?.message || error?.message || '';
+        const errorDetail = pgError?.detail || error?.detail || '';
+        const errorConstraint = pgError?.constraint || error?.constraint || '';
+
+        logger.info('PostgreSQL Error details:', {
+            code: errorCode,
+            constraint: errorConstraint,
+            detail: errorDetail,
+            message: errorMessage
+        });
+
+        // Check for duplicate email constraint violation
+        // PostgreSQL unique violation code is '23505'
+        const isDuplicateEmail =
+            errorCode === '23505' ||
+            errorConstraint.includes('email') ||
+            errorConstraint.includes('users_email_key') ||
+            errorDetail.toLowerCase().includes('email') ||
+            errorMessage.toLowerCase().includes('duplicate key');
+
+        if (isDuplicateEmail) {
+            throw new HttpException(409, 'Email already exists');
+        }
+
         throw new HttpException(500, 'Failed to update customer details');
     }
 };

@@ -158,6 +158,7 @@ const handler = async (req: Request, res: Response) => {
         featured: products.featured,
         sku: products.sku,
         slug: products.slug,
+        description: products.short_description,
 
         // Computed: Inventory Quantity (Subquery to avoid Cartesian product details with Reviews)
         inventory_quantity: sql<number>`(
@@ -195,7 +196,8 @@ const handler = async (req: Request, res: Response) => {
         products.status,
         products.featured,
         products.sku,
-        products.slug
+        products.slug,
+        products.short_description
       );
 
     // Apply rating filter using HAVING clause (if specified)
@@ -265,16 +267,8 @@ const handler = async (req: Request, res: Response) => {
         isNew: createdDate > thirtyDaysAgo,
         category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
         technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
+        description: product.description,
       };
-    });
-
-    console.log('DEBUG: Response Data', {
-      filteredLength: filteredProducts.length,
-      paginatedLength: paginatedProducts.length,
-      formattedLength: formattedProducts.length,
-      offset,
-      limit: params.limit,
-      page: params.page
     });
 
     return ResponseFormatter.success(
@@ -288,7 +282,6 @@ const handler = async (req: Request, res: Response) => {
       'Products retrieved successfully'
     );
   } catch (error) {
-    console.error('Error in get-all-products:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to retrieve products',
