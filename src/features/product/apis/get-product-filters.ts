@@ -144,7 +144,6 @@ const handler = async (req: Request, res: Response) => {
             'Filter options retrieved successfully'
         );
     } catch (error) {
-        console.error('Error fetching filter options:', error);
         return ResponseFormatter.error(
             res,
             'FILTER_FETCH_ERROR',

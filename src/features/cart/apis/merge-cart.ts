@@ -51,7 +51,6 @@ async function acquireMergeLock(userId: string, sessionId: string): Promise<bool
         });
         return result === 'OK';
     } catch (error) {
-        console.error('[Cart Merge] Error acquiring lock:', error);
         return true; // Allow operation if lock acquisition fails
     }
 }
@@ -66,7 +65,7 @@ async function releaseMergeLock(userId: string, sessionId: string): Promise<void
     try {
         await redisClient.del(lockKey);
     } catch (error) {
-        console.error('[Cart Merge] Error releasing lock:', error);
+        // Error releasing lock
     }
 }
 

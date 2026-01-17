@@ -67,15 +67,15 @@ async function bootstrap() {
       new BundleRoute(),
       new CartRoute(),      // Cart endpoints
       new WishlistRoute(),  // Wishlist endpoints
-      new OrdersRoute(),    // Orders endpoints
+      new BlogRoute(),      // Blog endpoints (moved before OrdersRoute to prevent route conflict)
+      new TagRoute(),       // Tags master table (MUST be before OrdersRoute to prevent /:id catch-all)
+      new TierRoute(),      // Tiers feature (MUST be before OrdersRoute to prevent /:id catch-all)
+      new OrdersRoute(),    // Orders endpoints (has catch-all /:id route)
       new ReviewRoute(),    // Reviews endpoints
       new PaymentsRoute(),  // Payment/Razorpay endpoints
       new WebhooksRoute(),  // External webhook endpoints
-      new TagRoute(),       // Tags master table
-      new TierRoute(),      // Tiers feature
       new DiscountRoute(),  // Discount endpoints
       new ProfileRoute(),   // Profile settings and preferences
-      new BlogRoute(),      // Blog endpoints
       new InventoryRoute(), // Inventory management endpoints
     ]);
 
