@@ -23,6 +23,7 @@ import DiscountRoute from './features/discount';
 import ProfileRoute from './features/profile';
 import BlogRoute from './features/blog';
 import InventoryRoute from './features/inventory';
+import DashboardRoute from './features/dashboard';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -77,6 +78,7 @@ async function bootstrap() {
       new ProfileRoute(),   // Profile settings and preferences
       new BlogRoute(),      // Blog endpoints
       new InventoryRoute(), // Inventory management endpoints
+      new DashboardRoute(), // Dashboard statistics endpoints
     ]);
 
     // Initialize Cron Jobs

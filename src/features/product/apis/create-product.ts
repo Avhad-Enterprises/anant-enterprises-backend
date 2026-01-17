@@ -12,12 +12,14 @@ import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
+import { eq } from 'drizzle-orm';
 import { products } from '../shared/product.schema';
 import { findProductBySku, findProductBySlug } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { IProduct } from '../shared/interface';
 import { syncTags } from '../../tags/services/tag-sync.service';
+import { incrementTierUsage } from '../../tiers/services/tier-sync.service';
 
 // Validation schema for creating a product
 const createProductSchema = z.object({
@@ -65,6 +67,16 @@ const createProductSchema = z.object({
 
   // Inventory - initial stock quantity
   inventory_quantity: z.number().int().nonnegative().optional().default(0),
+}).refine((data) => {
+  if (data.compare_at_price && data.selling_price) {
+    const compareAt = parseFloat(data.compare_at_price);
+    const selling = parseFloat(data.selling_price);
+    return compareAt >= selling;
+  }
+  return true;
+}, {
+  message: "Compare at price must be greater than or equal to selling price",
+  path: ["compare_at_price"],
 });
 
 type CreateProductData = z.infer<typeof createProductSchema>;
@@ -95,63 +107,71 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     throw new HttpException(500, 'Failed to create product');
   }
 
-  // Store FAQs if provided
-  if (data.faqs && data.faqs.length > 0) {
-    const { productFaqs } = await import('../shared/product-faqs.schema');
-    const faqsData = data.faqs.map(faq => ({
-      product_id: newProduct.id,
-      question: faq.question,
-      answer: faq.answer,
-    }));
-    await db.insert(productFaqs).values(faqsData);
-  }
-
-  // Always create inventory record for new products
-  {
-    const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
-
-    await createInventoryForProduct(
-      newProduct.id,
-      newProduct.product_title,
-      newProduct.sku,
-      data.inventory_quantity || 0,
-      createdBy
-    );
-  }
-
-  // Cache the new product
-  await productCacheService.cacheProduct(newProduct);
-
-  // Sync tags to master table
-  if (data.tags && data.tags.length > 0) {
-    await syncTags(data.tags, 'product');
-  }
-
-  // Sync tier usage counts
   try {
-    console.log('[create-product] About to sync tier usage...');
-    console.log('[create-product] Tier IDs:', {
-      tier1: data.category_tier_1,
-      tier2: data.category_tier_2,
-      tier3: data.category_tier_3,
-      tier4: data.category_tier_4,
-    });
+    // Store FAQs if provided
+    if (data.faqs && data.faqs.length > 0) {
+      const { productFaqs } = await import('../shared/product-faqs.schema');
+      const faqsData = data.faqs.map(faq => ({
+        product_id: newProduct.id,
+        question: faq.question,
+        answer: faq.answer,
+      }));
+      await db.insert(productFaqs).values(faqsData);
+    }
 
-    await incrementTierUsage([
-      data.category_tier_1 ?? null,
-      data.category_tier_2 ?? null,
-      data.category_tier_3 ?? null,
-      data.category_tier_4 ?? null,
-    ]);
+    // Always create inventory record for new products
+    {
+      const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
 
-    console.log('[create-product] Tier usage synced successfully');
-  } catch (tierError) {
-    console.error('[create-product] ERROR syncing tier usage:', tierError);
-    // Don't fail product creation if tier sync fails
-    // Just log the error
+      await createInventoryForProduct(
+        newProduct.id,
+        newProduct.product_title,
+        newProduct.sku,
+        data.inventory_quantity || 0,
+        createdBy
+      );
+    }
+
+    // Cache the new product
+    await productCacheService.cacheProduct(newProduct);
+
+    // Sync tags to master table
+    if (data.tags && data.tags.length > 0) {
+      await syncTags(data.tags, 'product');
+    }
+
+    // Sync tier usage counts
+    try {
+      console.log('[create-product] About to sync tier usage...');
+      console.log('[create-product] Tier IDs:', {
+        tier1: data.category_tier_1,
+        tier2: data.category_tier_2,
+        tier3: data.category_tier_3,
+        tier4: data.category_tier_4,
+      });
+
+      await incrementTierUsage([
+        data.category_tier_1 ?? null,
+        data.category_tier_2 ?? null,
+        data.category_tier_3 ?? null,
+        data.category_tier_4 ?? null,
+      ]);
+
+      console.log('[create-product] Tier usage synced successfully');
+    } catch (tierError) {
+      console.error('[create-product] ERROR syncing tier usage:', tierError);
+      // Don't fail product creation if tier sync fails
+      // Just log the error
+    }
+
+    return newProduct as IProduct;
+
+  } catch (error) {
+    console.error('Error during product creation post-processing. Rolling back product...', error);
+    // Compensating transaction: Delete the product if any subsequent step fails
+    await db.delete(products).where(eq(products.id, newProduct.id));
+    throw error;
   }
-
-  return newProduct as IProduct;
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
