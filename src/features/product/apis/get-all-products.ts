@@ -271,15 +271,6 @@ const handler = async (req: Request, res: Response) => {
       };
     });
 
-    console.log('DEBUG: Response Data', {
-      filteredLength: filteredProducts.length,
-      paginatedLength: paginatedProducts.length,
-      formattedLength: formattedProducts.length,
-      offset,
-      limit: params.limit,
-      page: params.page
-    });
-
     return ResponseFormatter.success(
       res,
       {
@@ -291,7 +282,6 @@ const handler = async (req: Request, res: Response) => {
       'Products retrieved successfully'
     );
   } catch (error) {
-    console.error('Error in get-all-products:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to retrieve products',

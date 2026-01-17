@@ -81,12 +81,12 @@ export const validateEnv = () => {
     }, {
       reporter: ({ errors }) => {
         if (Object.keys(errors).length > 0) {
-          console.error("ENVALID ERRORS:", errors);
+          
           try {
             require('fs').writeFileSync('validation_error.json', JSON.stringify(errors, null, 2));
-            console.error("Errors written to validation_error.json");
+            
           } catch (e) {
-            console.error("Fs Write Failed", e);
+            
           }
           throw new Error("Environment validation failed");
         }
@@ -98,12 +98,9 @@ export const validateEnv = () => {
       // throw new Error('JWT_SECRET must be at least 32 characters long for security');
     }
 
-    // Use console.log to avoid circular dependency with logger
-    console.log('info: ✅ Environment variables validated.');
-    require('fs').writeFileSync('debug_validate_success.json', '"success"');
     return env;
   } catch (error) {
-    console.error('CRITICAL ERROR: Environment validation failed!', error);
+
     process.exit(1);
   }
 };

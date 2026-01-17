@@ -7,7 +7,7 @@ import { config } from '../utils/validateEnv';
  * Get allowed origins from environment or use defaults
  */
 const getAllowedOrigins = (): string[] => {
-  return config.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  return config.ALLOWED_ORIGINS.split(',').map((origin: string) => origin.trim());
 };
 
 /**

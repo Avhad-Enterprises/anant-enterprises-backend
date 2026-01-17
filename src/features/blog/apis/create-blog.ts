@@ -79,12 +79,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
         sort_order: index,
     }));
 
-    console.log('[CreateBlog] Received content:', data.content);
-    console.log('[CreateBlog] BlogData content:', blogData.content);
+    
+    
 
     const newBlog = await createBlog(blogData, subsectionsData);
 
-    console.log('[CreateBlog] Saved blog content:', newBlog.content);
+    
 
     ResponseFormatter.success(res, newBlog, 'Blog created successfully');
 };

@@ -54,7 +54,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     });
 
     if (challengeError) {
-      console.error('[MFA] Challenge error:', challengeError);
+      
       throw new HttpException(400, `Challenge failed: ${challengeError.message}`);
     }
 
@@ -66,7 +66,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     });
 
     if (verifyError) {
-      console.error('[MFA] Verify error:', verifyError);
+      
       throw new HttpException(400, `Verification failed: ${verifyError.message}`);
     }
 
@@ -74,7 +74,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   } catch (error: any) {
     if (error instanceof HttpException) throw error;
-    console.error('[MFA] Verify handler exception:', error);
+    
     throw new HttpException(500, error.message || 'Failed to verify MFA');
   }
 };

@@ -109,7 +109,7 @@ const handler = async (req: Request, res: Response) => {
             'Featured products retrieved successfully'
         );
     } catch (error) {
-        console.error('Error in get-featured-products:', error);
+        
         return res.status(500).json({
             success: false,
             message: 'Failed to retrieve featured products',

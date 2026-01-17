@@ -41,7 +41,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
       global: { headers: { Authorization: authHeader } }
     });
 
-    console.log(`[MFA] Starting enrollment via User Client for auth_id: ${user.auth_id}`);
+    
 
     // Call MFA enroll using the USER client (not admin)
     // Use a unique friendly name based on timestamp to avoid conflicts
@@ -52,12 +52,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     });
 
     if (error) {
-      console.error('[MFA] Enrollment error:', error);
+      
       throw new HttpException(400, error.message);
     }
 
     if (!data) {
-      console.error('[MFA] No data returned');
+      
       throw new HttpException(500, 'No data returned from MFA enrollment');
     }
 
@@ -72,7 +72,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }, 'MFA enrollment started');
 
   } catch (error: any) {
-    console.error('[MFA] Handler exception:', error);
+    
     throw new HttpException(500, error.message || 'Failed to start MFA enrollment');
   }
 };

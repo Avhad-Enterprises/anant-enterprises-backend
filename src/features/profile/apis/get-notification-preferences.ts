@@ -33,7 +33,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const { data: { user: authUser }, error } = await supabase.auth.admin.getUserById(user.auth_id);
 
   if (error || !authUser) {
-    console.error('Failed to fetch Supabase user:', error);
+    
     throw new HttpException(500, 'Failed to retrieve notification settings');
   }
 

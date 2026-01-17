@@ -14,6 +14,12 @@ export default [
   },
   ...tseslint.configs.recommended,
   {
+    rules: {
+      // Prevent console usage in production code
+      'no-console': ['error', { allow: ['warn', 'error'] }],
+    },
+  },
+  {
     files: ['**/*.test.ts', '**/*.spec.ts', '**/tests/**/*.ts'],
     rules: {
       // Type checking - allow flexibility in tests

@@ -65,7 +65,7 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
             return cachedSystemUserId;
         }
     } catch (error) {
-        console.error('Failed to resolve fallback user:', error);
+        
     }
 
     return null;

@@ -54,7 +54,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   });
 
   if (error) {
-    console.error('Failed to update Supabase user metadata:', error);
+    
     throw new HttpException(500, 'Failed to update notification settings');
   }
 

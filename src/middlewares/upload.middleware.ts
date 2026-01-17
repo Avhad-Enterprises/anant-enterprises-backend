@@ -12,7 +12,7 @@ import { config } from '../utils/validateEnv';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // Allowed file types - configurable via environment variable
-const ALLOWED_FILE_TYPES = config.ALLOWED_FILE_TYPES.split(',').map(type => type.trim());
+const ALLOWED_FILE_TYPES = config.ALLOWED_FILE_TYPES.split(',').map((type: string) => type.trim());
 
 /**
  * Magic numbers (file signatures) for common file types

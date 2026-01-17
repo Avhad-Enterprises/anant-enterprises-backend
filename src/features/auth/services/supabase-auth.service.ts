@@ -41,8 +41,8 @@ import type { SyncUserData, AuthResponse } from '../shared/interface';
  * ```typescript
  * const user = await verifySupabaseToken(token);
  * if (user) {
- *   console.log('User ID:', user.id);
- *   console.log('Email:', user.email);
+ *   
+ *   
  * }
  * ```
  */

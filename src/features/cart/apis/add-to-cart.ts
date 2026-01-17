@@ -42,7 +42,7 @@ const handler = async (req: Request, res: Response) => {
     const userId = userReq.userId || undefined;
     const sessionId = req.headers['x-session-id'] as string || undefined;
 
-    console.log('[POST /cart/items] Request:', { userId: !!userId, sessionId: !!sessionId });
+    
 
     // Parse and validate request body
     const data = addToCartSchema.parse(req.body);
@@ -54,7 +54,7 @@ const handler = async (req: Request, res: Response) => {
     await cartService.ensureActiveCart(cart.id);
 
     const cartId = cart.id;
-    console.log('[POST /cart/items] Using cart:', { cartId, cartStatus: cart.cart_status });
+    
 
     // Validate product exists and is active
     if (data.product_id) {
@@ -146,13 +146,7 @@ const handler = async (req: Request, res: Response) => {
                         existingItem.id,
                         CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
                     );
-                    console.log('[add-to-cart] Updated cart reservation:', {
-                        product_id: data.product_id,
-                        old_qty: existingItem.quantity,
-                        new_qty: newQuantity,
-                    });
                 } catch (error: any) {
-                    console.warn('[add-to-cart] Failed to update cart reservation:', error.message);
                     // Continue - cart still works without reservation
                 }
             }
@@ -181,20 +175,13 @@ const handler = async (req: Request, res: Response) => {
             // Phase 2: Reserve stock with 30-minute timeout
             if (CART_RESERVATION_CONFIG.ENABLED && cartItem) {
                 try {
-                    const reservation = await reserveCartStock(
+                    await reserveCartStock(
                         data.product_id,
                         data.quantity,
                         cartItem.id,
                         CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
                     );
-                    console.log('[add-to-cart] Stock reserved for cart:', {
-                        reservation_id: reservation.reservation_id,
-                        expires_at: reservation.expires_at,
-                        product_id: data.product_id,
-                        quantity: data.quantity,
-                    });
                 } catch (error: any) {
-                    console.warn('[add-to-cart] Failed to reserve stock:', error.message);
                     // Continue - cart still works without reservation
                 }
             }

@@ -130,24 +130,13 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
   // Sync tier usage counts
   try {
-    console.log('[create-product] About to sync tier usage...');
-    console.log('[create-product] Tier IDs:', {
-      tier1: data.category_tier_1,
-      tier2: data.category_tier_2,
-      tier3: data.category_tier_3,
-      tier4: data.category_tier_4,
-    });
-
     await incrementTierUsage([
       data.category_tier_1 ?? null,
       data.category_tier_2 ?? null,
       data.category_tier_3 ?? null,
       data.category_tier_4 ?? null,
     ]);
-
-    console.log('[create-product] Tier usage synced successfully');
   } catch (tierError) {
-    console.error('[create-product] ERROR syncing tier usage:', tierError);
     // Don't fail product creation if tier sync fails
     // Just log the error
   }

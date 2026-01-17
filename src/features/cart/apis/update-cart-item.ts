@@ -137,12 +137,7 @@ const handler = async (req: Request, res: Response) => {
                 itemId,
                 CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
             );
-            console.log('[update-cart-item] Updated cart reservation:', {
-                item_id: itemId,
-                new_quantity: quantity,
-            });
         } catch (error: any) {
-            console.warn('[update-cart-item] Failed to update reservation:', error.message);
             // Continue - cart still works without reservation
         }
     }

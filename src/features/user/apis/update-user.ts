@@ -13,10 +13,8 @@ import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
-import { userCacheService } from '../services/user-cache.service';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
-import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
@@ -67,14 +65,9 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     updated_by: requesterId,
   };
 
-  console.log('Updating users table with data:', JSON.stringify(updateData, null, 2));
-
   const [result] = await db
     .update(users)
-    .set({
-      ...updateData,
-      updated_at: new Date(),
-    })
+    .set(updateData)
     .where(eq(users.id, id))
     .returning();
 
@@ -91,33 +84,19 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
-  console.log('>>> Handler received req.body:', JSON.stringify(req.body, null, 2));
-
-  const paramsSchema = z.object({
-    id: uuidSchema,
-  });
-
   const { id } = paramsSchema.parse(req.params);
   const updateData: UpdateUser = req.body;
 
-  console.log('>>> updateData after assignment:', JSON.stringify(updateData, null, 2));
-  console.log('DEBUG: updateUser request body:', updateData);
-
   const user = await updateUser(id, updateData, userId);
 
-  // Invalidate cache for updated user
-  await userCacheService.invalidateUser(user.id, user.email);
-
-  const userResponse = sanitizeUser(user);
-
-  ResponseFormatter.success(res, userResponse, 'User updated successfully');
+  ResponseFormatter.success(res, user, 'User updated successfully');
 };
-
-const router = Router();
 
 const paramsSchema = z.object({
   id: uuidSchema,
 });
+
+const router = Router();
 
 router.put(
   '/:id',

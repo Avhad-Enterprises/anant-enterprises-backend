@@ -38,7 +38,7 @@ const MERGE_LOCK_TTL = 30; // 30 seconds
  */
 async function acquireMergeLock(userId: string, sessionId: string): Promise<boolean> {
     if (!isRedisReady()) {
-        console.log('[Cart Merge] Redis not available, skipping lock');
+        
         return true; // Allow operation if Redis is down
     }
 
@@ -51,7 +51,7 @@ async function acquireMergeLock(userId: string, sessionId: string): Promise<bool
         });
         return result === 'OK';
     } catch (error) {
-        console.error('[Cart Merge] Error acquiring lock:', error);
+        
         return true; // Allow operation if lock acquisition fails
     }
 }
@@ -66,7 +66,7 @@ async function releaseMergeLock(userId: string, sessionId: string): Promise<void
     try {
         await redisClient.del(lockKey);
     } catch (error) {
-        console.error('[Cart Merge] Error releasing lock:', error);
+        
     }
 }
 
@@ -112,12 +112,12 @@ const handler = async (req: Request, res: Response) => {
     // Parse and validate request body
     const { session_id: sessionId } = mergeCartSchema.parse(req.body);
 
-    console.log('[POST /cart/merge] Merge request - userId:', userId, 'sessionId:', sessionId);
+    
 
     // Try to acquire lock to prevent duplicate merges
     const lockAcquired = await acquireMergeLock(userId, sessionId);
     if (!lockAcquired) {
-        console.log('[POST /cart/merge] Lock not acquired, merge already in progress');
+        
         return ResponseFormatter.success(res, {
             merged: false,
             message: 'Merge already in progress',
@@ -139,7 +139,7 @@ const handler = async (req: Request, res: Response) => {
 
         // Check if cart was already converted (idempotency)
         if (guestCart && guestCart.cart_status === 'converted') {
-            console.log('[POST /cart/merge] Guest cart already converted, skipping merge');
+            
 
             // Return user's current cart
             const [userCart] = await db
@@ -169,7 +169,7 @@ const handler = async (req: Request, res: Response) => {
         }
 
         if (!guestCart || guestCart.cart_status !== 'active') {
-            console.log('[POST /cart/merge] No active guest cart found');
+            
             // No guest cart to merge - that's okay, just return user's cart
             const [userCart] = await db
                 .select()
@@ -344,7 +344,7 @@ const handler = async (req: Request, res: Response) => {
             })
             .where(eq(carts.id, guestCart.id));
 
-        console.log('[POST /cart/merge] Guest cart marked as converted, itemsMerged:', itemsMerged);
+        
 
         // Get final cart state
         const finalItems = await db

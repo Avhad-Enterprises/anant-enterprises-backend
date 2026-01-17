@@ -39,7 +39,7 @@ class ProfileRoute implements Route {
       this.router.use(this.path, getNotificationPreferencesRouter);
       this.router.use(this.path, updateNotificationPreferencesRouter);
     } catch (error) {
-      console.error('Failed to initialize profile routes:', error);
+      
     }
   }
 }
