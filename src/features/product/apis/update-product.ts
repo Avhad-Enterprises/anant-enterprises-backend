@@ -213,14 +213,26 @@ ON CONFLICT (location_code) DO NOTHING;
     updated_by: updatedBy,
   };
 
-  const [result] = await db
-    .update(products)
-    .set({
-      ...updateData,
-      updated_at: new Date(),
-    })
-    .where(eq(products.id, id))
-    .returning();
+  let result;
+  try {
+    [result] = await db
+      .update(products)
+      .set({
+        ...updateData,
+        updated_at: new Date(),
+      })
+      .where(eq(products.id, id))
+      .returning();
+  } catch (error: any) {
+    console.error('❌ [updateProduct] Database update failed:', {
+      error: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      updateData: updateData,
+    });
+    throw new HttpException(500, `Failed to update product: ${error.message}`);
+  }
 
   if (!result) {
     throw new HttpException(500, 'Failed to update product');

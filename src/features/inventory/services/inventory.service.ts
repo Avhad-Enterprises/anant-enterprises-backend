@@ -4,12 +4,13 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, ilike, sql, count } from 'drizzle-orm';
+import { eq, and, desc, ilike, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
+import { inventoryLocations } from '../shared/inventory-locations.schema';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -94,7 +95,7 @@ export async function getInventoryList(params: InventoryListParams) {
     }
 
     if (location) {
-        conditions.push(ilike(inventory.location, `%${location}%`));
+        conditions.push(ilike(inventoryLocations.name, `%${location}%`));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -121,7 +122,7 @@ export async function getInventoryList(params: InventoryListParams) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location: inventory.location,
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -132,6 +133,7 @@ export async function getInventoryList(params: InventoryListParams) {
         })
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(whereClause)
         .orderBy(desc(inventory.updated_at))
         .limit(limit)
@@ -162,7 +164,7 @@ export async function getInventoryById(id: string) {
             incoming_eta: inventory.incoming_eta,
             condition: inventory.condition,
             status: inventory.status,
-            location: inventory.location,
+            location: inventoryLocations.name,
             updated_by: inventory.updated_by,
             created_at: inventory.created_at,
             updated_at: inventory.updated_at,
@@ -174,6 +176,7 @@ export async function getInventoryById(id: string) {
         .from(inventory)
         .leftJoin(products, eq(inventory.product_id, products.id))
         .leftJoin(users, eq(inventory.updated_by, users.id))
+        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .where(eq(inventory.id, id));
 
     return item as InventoryWithProduct | undefined;
@@ -192,7 +195,8 @@ export async function updateInventory(id: string, data: UpdateInventoryDto, upda
     };
 
     if (data.condition !== undefined) updates.condition = data.condition;
-    if (data.location !== undefined) updates.location = data.location;
+    // Phase 3: location is now location_id (UUID)
+    if (data.location !== undefined) updates.location_id = data.location;
     if (data.incoming_quantity !== undefined) updates.incoming_quantity = data.incoming_quantity;
     if (data.incoming_po_reference !== undefined) updates.incoming_po_reference = data.incoming_po_reference;
     if (data.incoming_eta !== undefined) updates.incoming_eta = new Date(data.incoming_eta);
@@ -321,10 +325,44 @@ export async function createInventoryForProduct(
     productName: string,
     sku: string,
     initialQuantity: number = 0,
-    createdBy?: string
+    createdBy?: string,
+    locationId?: string
 ) {
     // Resolve valid user UUID if provided
     const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
+
+    // Resolve Location (Phase 3 Requirement)
+    let targetLocationId = locationId;
+
+    if (!targetLocationId) {
+        // Find the first active location
+        const { inventoryLocations } = await import('../shared/inventory-locations.schema');
+        const [defaultLocation] = await db
+            .select({ id: inventoryLocations.id })
+            .from(inventoryLocations)
+            .where(eq(inventoryLocations.is_active, true))
+            .limit(1);
+
+        if (defaultLocation) {
+            targetLocationId = defaultLocation.id;
+        } else {
+            // Auto-create a default location if none exists (Safety fallback)
+            // This prevents product creation failures on fresh databases
+            const [newLocation] = await db
+                .insert(inventoryLocations)
+                .values({
+                    location_code: 'WH-MAIN',
+                    name: 'Main Warehouse',
+                    type: 'warehouse',
+                    is_active: true,
+                    created_by: validUserId,
+                })
+                .returning();
+
+            targetLocationId = newLocation.id;
+            console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
+        }
+    }
 
     const [created] = await db
         .insert(inventory)
@@ -336,6 +374,7 @@ export async function createInventoryForProduct(
             status: getStatusFromQuantity(initialQuantity),
             condition: 'sellable',
             updated_by: validUserId,
+            location_id: targetLocationId!, // Guaranteed to be set now
         })
         .returning();
 
@@ -783,7 +822,7 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                     updated_at: new Date(),
                 })
-                .where(eq(inventory.product_id, item.product_id));
+                .where(eq(inventory.product_id, item.product_id!));
 
             // Clear reservation from cart item
             await tx
@@ -797,6 +836,8 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
         });
     }
 
-    logger.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
+
+    console.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
+
     return expiredItems.length;
 }
