@@ -12,6 +12,8 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
+import { releaseReservation } from '../../inventory/services/inventory.service';
+import { logger } from '../../../utils';
 
 const cancelSchema = z.object({
     reason: z.string().max(500).optional(),
@@ -63,7 +65,19 @@ const handler = async (req: RequestWithUser, res: Response) => {
         })
         .where(eq(orders.id, orderId));
 
-    // TODO: Restore inventory if reservation was made
+    // Release inventory reservation if order not yet shipped
+    if (order.order_status !== 'shipped' && order.order_status !== 'delivered') {
+        try {
+            await releaseReservation(orderId, userId);
+            logger.info(`Inventory reservation released for order ${order.order_number}`);
+        } catch (error: any) {
+            logger.error('Failed to release inventory reservation:', error);
+            // Continue with cancellation even if inventory release fails
+        }
+    } else {
+        logger.info(`Order ${order.order_number} already shipped - inventory not released (requires return flow)`);
+    }
+
     // TODO: Trigger refund if payment was made
 
     return ResponseFormatter.success(res, {

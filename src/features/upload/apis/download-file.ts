@@ -7,7 +7,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { HttpException } from '../../../utils';
 import { downloadFromStorage } from '../../../utils/supabaseStorage';
 import { findUploadById } from '../shared/queries';

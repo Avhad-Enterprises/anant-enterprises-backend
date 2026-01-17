@@ -22,6 +22,7 @@ import TierRoute from './features/tiers';
 import DiscountRoute from './features/discount';
 import ProfileRoute from './features/profile';
 import BlogRoute from './features/blog';
+import InventoryRoute from './features/inventory';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -75,10 +76,18 @@ async function bootstrap() {
       new DiscountRoute(),  // Discount endpoints
       new ProfileRoute(),   // Profile settings and preferences
       new BlogRoute(),      // Blog endpoints
+      new InventoryRoute(), // Inventory management endpoints
     ]);
 
     // Initialize Cron Jobs
     initializeDiscountCron();
+
+    // Phase 2: Start cart reservation cleanup (every 5 minutes)
+    if (process.env.NODE_ENV !== 'test') {
+      const { startCartReservationCleanup } = await import('./jobs/cleanup-expired-reservations');
+      startCartReservationCleanup();
+    }
+
 
     server = app.listen();
 

@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, uuidSchema, dateStringSchema } from '../../../utils';
 import { auditService } from '../services/audit.service';
 

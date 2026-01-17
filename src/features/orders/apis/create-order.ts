@@ -21,6 +21,9 @@ import { wishlistItems } from '../../wishlist/shared/wishlist-items.schema';
 import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
+import { reserveStockForOrder, validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
+
+
 
 // Request body schema
 const createOrderSchema = z.object({
@@ -153,59 +156,98 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
     }
 
-    // Create order
-    const orderNumber = generateOrderNumber();
-    const [order] = await db.insert(orders).values({
-        order_number: orderNumber,
-        user_id: userId,
-        cart_id: cart.id,
-        shipping_address_id: body.shipping_address_id,
-        billing_address_id: body.billing_address_id || body.shipping_address_id,
-        channel: 'web',
-        order_status: 'pending',
-        is_draft: false,
-        payment_method: body.payment_method,
-        payment_status: 'pending',
-        currency: cart.currency,
-        subtotal: subtotal.toFixed(2),
-        discount_amount: discountTotal.toFixed(2),
-        discount_id: discountId,
-        discount_code_id: discountCodeId,
-        discount_code: discountCode,
-        shipping_amount: shippingAmount.toFixed(2),
-        tax_amount: taxAmount.toFixed(2),
-        total_amount: totalAmount.toFixed(2),
-        total_quantity: totalQuantity,
-        customer_note: body.customer_note,
-        created_by: userId,
-        updated_by: userId,
-    }).returning();
-
-    if (!order) {
-        throw new HttpException(500, 'Failed to create order');
+    // PHASE 2: Extend cart item reservations to prevent timeout during checkout
+    try {
+        await extendCartReservation(cart.id, 60); // Extend to 1 hour
+        console.log('[create-order] Extended cart reservations for checkout:', cart.id);
+    } catch (error: any) {
+        console.warn('[create-order] Failed to extend cart reservations:', error);
+        // Continue anyway - order creation will re-validate stock
     }
 
-    // Create order items from cart items
-    const orderItemsData = items.map(item => ({
-        order_id: order.id,
-        product_id: item.product_id,
-        sku: item.product_sku,
-        product_name: item.product_name || 'Unknown Product',
-        product_image: item.product_image_url,
-        cost_price: item.final_price,
-        quantity: item.quantity,
-        line_total: item.line_total,
-    }));
+    // STEP 1: Validate stock availability
+    const stockItems = items
+        .filter(item => item.product_id)
+        .map(item => ({
+            product_id: item.product_id!,
+            quantity: item.quantity,
+        }));
 
-    await db.insert(orderItems).values(orderItemsData);
+    if (stockItems.length > 0) {
+        const validations = await validateStockAvailability(stockItems);
+        const failures = validations.filter(v => !v.available);
 
-    // Mark cart as converted
-    await db.update(carts)
-        .set({
-            cart_status: 'converted',
-            updated_at: new Date(),
-        })
-        .where(eq(carts.id, cart.id));
+        if (failures.length > 0) {
+            const errorMessages = failures.map(f => f.message).join('; ');
+            throw new HttpException(400, `Insufficient stock: ${errorMessages}`);
+        }
+    }
+
+    // Create order
+    const orderNumber = generateOrderNumber();
+
+    // STEP 2: Create order and reserve stock in transaction
+    const order = await db.transaction(async (tx) => {
+        // Reserve stock first
+        if (stockItems.length > 0) {
+            await reserveStockForOrder(stockItems, orderNumber, userId);
+        }
+
+        // Create order
+        const [newOrder] = await tx.insert(orders).values({
+            order_number: orderNumber,
+            user_id: userId,
+            cart_id: cart.id,
+            shipping_address_id: body.shipping_address_id,
+            billing_address_id: body.billing_address_id || body.shipping_address_id,
+            channel: 'web',
+            order_status: 'pending',
+            is_draft: false,
+            payment_method: body.payment_method,
+            payment_status: 'pending',
+            currency: cart.currency,
+            subtotal: subtotal.toFixed(2),
+            discount_amount: discountTotal.toFixed(2),
+            discount_id: discountId,
+            discount_code_id: discountCodeId,
+            discount_code: discountCode,
+            shipping_amount: shippingAmount.toFixed(2),
+            tax_amount: taxAmount.toFixed(2),
+            total_amount: totalAmount.toFixed(2),
+            total_quantity: totalQuantity,
+            customer_note: body.customer_note,
+            created_by: userId,
+            updated_by: userId,
+        }).returning();
+
+        if (!newOrder) {
+            throw new HttpException(500, 'Failed to create order');
+        }
+
+        // Create order items from cart items
+        const orderItemsData = items.map(item => ({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            sku: item.product_sku,
+            product_name: item.product_name || 'Unknown Product',
+            product_image: item.product_image_url,
+            cost_price: item.final_price,
+            quantity: item.quantity,
+            line_total: item.line_total,
+        }));
+
+        await tx.insert(orderItems).values(orderItemsData);
+
+        // Mark cart as converted
+        await tx.update(carts)
+            .set({
+                cart_status: 'converted',
+                updated_at: new Date(),
+            })
+            .where(eq(carts.id, cart.id));
+
+        return newOrder;
+    });
 
     // Update wishlist items with purchased_at timestamp
     const [wishlist] = await db

@@ -1,0 +1,3 @@
+Test Item ID: 109b7039-b956-4f63-9c7b-c4acaaef7e28
+Initial Quantity: 
+ERROR: {"success":false,"error":{"code":"Error","message":"Failed query: update \"inventory\" set \"available_quantity\" = $1, \"status\" = $2, \"updated_by\" = $3, \"updated_at\" = $4 where \"inventory\".\"id\" = $5 returning \"id\", \"product_id\", \"product_name\", \"sku\", \"available_quantity\", \"reserved_quantity\", \"incoming_quantity\", \"incoming_po_reference\", \"incoming_eta\", \"condition\", \"status\", \"location\", \"updated_by\", \"created_at\", \"updated_at\"\nparams: 1,low_stock,system,2026-01-16T11:00:16.883Z,109b7039-b956-4f63-9c7b-c4acaaef7e28","requestId":"a7e24ab1-959f-4ac0-a797-750a34e2a2c2","timestamp":"2026-01-16T11:00:16.928Z"}}

@@ -12,6 +12,8 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
+import { logger } from '../../../utils';
 
 const updateStatusSchema = z.object({
     order_status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']).optional(),
@@ -109,6 +111,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
     await db.update(orders)
         .set(updateData)
         .where(eq(orders.id, orderId));
+
+    // STEP: Fulfill inventory when order is shipped
+    if (body.order_status === 'shipped') {
+        try {
+            await fulfillOrderInventory(orderId, userId);
+            logger.info(`Inventory fulfilled for order ${order.order_number}`);
+        } catch (error: any) {
+            // Log error but don't block order status update
+            logger.error('Failed to fulfill inventory:', error);
+            // In production: Send alert to admin for manual reconciliation
+        }
+    }
 
     // Fetch updated order
     const [updatedOrder] = await db

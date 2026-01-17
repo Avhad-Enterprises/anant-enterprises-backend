@@ -10,7 +10,7 @@
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../../../middlewares';
-import { validationMiddleware } from '../../../middlewares';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, longTextSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
