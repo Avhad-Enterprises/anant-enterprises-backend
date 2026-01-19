@@ -11,8 +11,6 @@ import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
-import { inventoryLocations } from '../shared/inventory-locations.schema';
-import { logger } from '../../../utils';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -96,8 +94,8 @@ export async function getInventoryList(params: InventoryListParams) {
         conditions.push(eq(inventory.status, status as any));
     }
 
-    if (location) {
-        conditions.push(ilike(inventoryLocations.name, `%${location}%`));
+    if (_location) {
+        conditions.push(ilike(inventoryLocations.name, `%${_location}%`));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -118,6 +116,7 @@ export async function getInventoryList(params: InventoryListParams) {
             product_id: inventory.product_id,
             product_name: inventory.product_name,
             sku: inventory.sku,
+            location_id: inventory.location_id,
             available_quantity: inventory.available_quantity,
             reserved_quantity: inventory.reserved_quantity,
             incoming_quantity: inventory.incoming_quantity,
@@ -160,6 +159,7 @@ export async function getInventoryById(id: string) {
             product_id: inventory.product_id,
             product_name: inventory.product_name,
             sku: inventory.sku,
+            location_id: inventory.location_id,
             available_quantity: inventory.available_quantity,
             reserved_quantity: inventory.reserved_quantity,
             incoming_quantity: inventory.incoming_quantity,
@@ -339,7 +339,6 @@ export async function createInventoryForProduct(
 
     if (!targetLocationId) {
         // Find the first active location
-        const { inventoryLocations } = await import('../shared/inventory-locations.schema');
         const [defaultLocation] = await db
             .select({ id: inventoryLocations.id })
             .from(inventoryLocations)
@@ -364,20 +363,11 @@ export async function createInventoryForProduct(
 
             targetLocationId = newLocation.id;
             console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
-        if (activeLocation) {
-            resolvedLocationId = activeLocation.id;
-        } else {
-            // If no active location, get any location
-            const [anyLocation] = await db
-                .select({ id: inventoryLocations.id })
-                .from(inventoryLocations)
-                .limit(1);
-
-            if (!anyLocation) {
-                throw new Error('No inventory location found. Please create a location first.');
-            }
-            resolvedLocationId = anyLocation.id;
         }
+    }
+
+    if (!targetLocationId) {
+        throw new Error('No inventory location found. Please create a location first.');
     }
 
     const [created] = await db
@@ -386,12 +376,11 @@ export async function createInventoryForProduct(
             product_id: productId,
             product_name: productName,
             sku: sku,
-            location_id: resolvedLocationId,
+            location_id: targetLocationId,
             available_quantity: initialQuantity,
             status: getStatusFromQuantity(initialQuantity),
             condition: 'sellable',
             updated_by: validUserId,
-            location_id: targetLocationId!, // Guaranteed to be set now
         })
         .returning();
 
@@ -830,7 +819,6 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
     // Release each expired reservation
     for (const item of expiredItems) {
         if (!item.product_id) continue;
-        const productId = item.product_id; // TypeScript narrows this to string
 
         await db.transaction(async (tx) => {
             // Release from inventory
@@ -853,7 +841,6 @@ export async function cleanupExpiredCartReservations(): Promise<number> {
                 .where(eq(cartItems.id, item.id));
         });
     }
-
 
     console.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
 
