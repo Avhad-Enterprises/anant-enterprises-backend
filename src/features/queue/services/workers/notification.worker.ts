@@ -13,6 +13,8 @@ import { QueueEventType } from '../../shared/types';
 import type { EmailNotificationData, SMSNotificationData } from '../../shared/types';
 import { logger } from '../../../../utils';
 import { createTransporter, EMAIL_SENDER, APP_NAME } from '../../../../utils/email/emailConfig';
+import { notificationService } from '../../../notifications/services';
+import type { SendNotificationJobData, BatchNotificationJobData } from '../../jobs/notification.job';
 
 /**
  * Notification Worker Class
@@ -25,6 +27,18 @@ class NotificationWorker extends BaseWorker {
     protected async processJob(job: Job): Promise<void> {
         const { type, data } = job.data;
 
+        // Handle notification service events
+        if (job.name === 'send-notification') {
+            await this.handleSendNotification(data as SendNotificationJobData);
+            return;
+        }
+
+        if (job.name === 'batch-notification') {
+            await this.handleBatchNotification(data as BatchNotificationJobData);
+            return;
+        }
+
+        // Handle legacy email/SMS events
         switch (type) {
             case QueueEventType.SEND_EMAIL:
                 await this.handleSendEmail(data as EmailNotificationData);
@@ -33,8 +47,94 @@ class NotificationWorker extends BaseWorker {
                 await this.handleSendSMS(data as SMSNotificationData);
                 break;
             default:
-                logger.warn('Unknown notification event type', { type });
+                logger.warn('Unknown notification event type', { type, jobName: job.name });
         }
+    }
+
+    /**
+     * Handle send-notification job from notification service
+     */
+    private async handleSendNotification(data: SendNotificationJobData): Promise<void> {
+        logger.info('Processing send-notification job', {
+            userId: data.userId,
+            templateCode: data.templateCode,
+        });
+
+        try {
+            const notification = await notificationService.createFromTemplate(
+                data.userId,
+                data.templateCode,
+                data.variables,
+                data.options
+            );
+
+            if (!notification) {
+                logger.warn('Notification not created (filtered by preferences)', {
+                    userId: data.userId,
+                    templateCode: data.templateCode,
+                });
+                return;
+            }
+
+            logger.info('Notification created successfully', {
+                notificationId: notification.id,
+                userId: data.userId,
+            });
+        } catch (error) {
+            logger.error('Failed to create notification', {
+                userId: data.userId,
+                templateCode: data.templateCode,
+                error: error instanceof Error ? error.message : String(error),
+            });
+            throw error; // Trigger retry
+        }
+    }
+
+    /**
+     * Handle batch-notification job
+     */
+    private async handleBatchNotification(data: BatchNotificationJobData): Promise<void> {
+        logger.info('Processing batch-notification job', {
+            userCount: data.userIds.length,
+            templateCode: data.templateCode,
+        });
+
+        // Process in chunks of 50
+        const chunkSize = 50;
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < data.userIds.length; i += chunkSize) {
+            const chunk = data.userIds.slice(i, i + chunkSize);
+
+            const results = await Promise.allSettled(
+                chunk.map(userId =>
+                    notificationService.createFromTemplate(
+                        userId,
+                        data.templateCode,
+                        data.variables,
+                        data.options
+                    )
+                )
+            );
+
+            results.forEach(result => {
+                if (result.status === 'fulfilled') {
+                    successCount++;
+                } else {
+                    failCount++;
+                    logger.error('Failed to create notification in batch', {
+                        error: result.reason,
+                    });
+                }
+            });
+        }
+
+        logger.info('Batch notification processed', {
+            total: data.userIds.length,
+            success: successCount,
+            failed: failCount,
+        });
     }
 
     /**

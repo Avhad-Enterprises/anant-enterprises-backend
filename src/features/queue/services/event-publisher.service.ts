@@ -325,6 +325,75 @@ class EventPublisherService implements IEventPublisher {
             priority: JobPriority.NORMAL,
         });
     }
+
+    // ============================================
+    // NOTIFICATION EVENT HELPERS
+    // ============================================
+
+    /**
+     * Publish notification event (single notification)
+     * Queues a notification to be sent via the notification service
+     */
+    public async publishNotification(data: {
+        userId: string;
+        templateCode: string;
+        variables: Record<string, any>;
+        options?: {
+            priority?: 'low' | 'normal' | 'high' | 'urgent';
+            actionUrl?: string;
+            actionText?: string;
+            delay?: number;
+        };
+    }): Promise<void> {
+        try {
+            const { notificationQueue } = await import('../jobs/notification.job');
+            await notificationQueue.sendNotification(data);
+
+            // Assuming logger is defined elsewhere
+            // logger.info('Notification event published', {
+            //     userId: data.userId,
+            //     templateCode: data.templateCode,
+            // });
+        } catch (error) {
+            // Assuming logger is defined elsewhere
+            // logger.error('Failed to publish notification event', {
+            //     error,
+            //     userId: data.userId,
+            //     templateCode: data.templateCode,
+            // });
+        }
+    }
+
+    /**
+     * Publish batch notification event (multiple users)
+     * Queues notifications to be sent to multiple users
+     */
+    public async publishBatchNotification(data: {
+        userIds: string[];
+        templateCode: string;
+        variables: Record<string, any>;
+        options?: {
+            priority?: 'low' | 'normal' | 'high' | 'urgent';
+        };
+    }): Promise<void> {
+        try {
+            const { notificationQueue } = await import('../jobs/notification.job');
+            await notificationQueue.sendBatchNotification(data);
+
+            // Assuming logger is defined elsewhere
+            // logger.info('Batch notification event published', {
+            //     userCount: data.userIds.length,
+            //     templateCode: data.templateCode,
+            // });
+        } catch (error) {
+            // Assuming logger is defined elsewhere
+            // logger.error('Failed to publish batch notification event', {
+            //     error,
+            //     userCount: data.userIds.length,
+            //     templateCode: data.templateCode,
+            // });
+        }
+    }
 }
 
 // Export singleton instance

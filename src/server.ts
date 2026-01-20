@@ -24,6 +24,7 @@ import BlogRoute from './features/blog';
 import InventoryRoute from './features/inventory';
 import DashboardRoute from './features/dashboard';
 import QueueRoute from './features/queue';
+import NotificationRoute from './features/notifications';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -31,8 +32,11 @@ import { setupGracefulShutdown } from './utils/gracefulShutdown';
 import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
 import { startWorkers, stopWorkers } from './features/queue';
 import { config } from './utils/validateEnv';
+import { socketService } from './features/notifications/socket/socket.service';
+import { socketAuthMiddleware } from './features/notifications/socket/socket.middleware';
 
 let server: import('http').Server;
+let httpServer: import('http').Server;
 
 async function bootstrap() {
   try {
@@ -82,6 +86,7 @@ async function bootstrap() {
       new InventoryRoute(), // Inventory management endpoints
       new DashboardRoute(), // Dashboard statistics endpoints
       new QueueRoute(), // Queue admin endpoints
+      new NotificationRoute(), // Notification endpoints (user + admin)
     ]);
 
     // Initialize Cron Jobs
@@ -97,7 +102,31 @@ async function bootstrap() {
     await app.initializeAsyncRoutes();
     logger.info('✅ Async routes initialized');
 
-    server = app.listen();
+    // Create HTTP server from Express app BEFORE initializing Socket.IO
+    const http = await import('http');
+    const expressApp = app.getServer();
+    httpServer = http.createServer(expressApp);
+
+    // Initialize Socket.IO for real-time notifications
+    try {
+      socketService.initialize(httpServer);
+
+      // Add authentication middleware
+      const io = socketService.getIO();
+      if (io) {
+        io.use(socketAuthMiddleware);
+        logger.info('✅ Socket.IO initialized with authentication');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize Socket.IO', { error });
+      // Non-blocking: server continues without WebSocket support
+    }
+
+    // Start HTTP server listening
+    server = httpServer.listen(config.PORT, () => {
+      logger.info(`🌐 Server running on port ${config.PORT}`);
+      logger.info(`📍 Environment: ${isProduction ? 'production' : 'development'}`);
+    });
 
     // Start queue workers if enabled
     if (config.QUEUE_WORKERS_ENABLED === 'true' && redisConnected) {

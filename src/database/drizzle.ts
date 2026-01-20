@@ -139,6 +139,16 @@ import {
   entityTypeEnum,
   mediaTypeEnum,
 } from '../features/media-manager';
+import {
+  notifications,
+  notificationTemplates,
+  notificationPreferences,
+  notificationDeliveryLogs,
+  notificationTypeEnum,
+  notificationPriorityEnum,
+  notificationFrequencyEnum,
+  deliveryStatusEnum,
+} from '../features/notifications/shared';
 
 /**
  * Database connection configuration
@@ -368,6 +378,15 @@ export const schema = {
   entityMedia,
   entityTypeEnum,
   mediaTypeEnum,
+  // Notifications feature
+  notifications,
+  notificationTemplates,
+  notificationPreferences,
+  notificationDeliveryLogs,
+  notificationTypeEnum,
+  notificationPriorityEnum,
+  notificationFrequencyEnum,
+  deliveryStatusEnum,
 };
 
 /**
