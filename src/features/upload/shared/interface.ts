@@ -10,6 +10,10 @@ export interface Upload {
   file_size: number;
   file_path: string;
   file_url: string;
+  /** Thumbnail path in storage (for images only) */
+  thumbnail_path?: string;
+  /** Thumbnail public URL (for images only) */
+  thumbnail_url?: string;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error_message?: string;
   created_by?: string;

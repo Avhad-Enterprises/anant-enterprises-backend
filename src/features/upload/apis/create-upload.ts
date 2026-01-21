@@ -15,12 +15,17 @@ import { db } from '../../../database';
 import { uploads } from '../shared/upload.schema';
 import { Upload } from '../shared/interface';
 
-async function handleCreateUpload(file: Express.Multer.File, userId: string): Promise<Upload> {
+async function handleCreateUpload(
+  file: Express.Multer.File,
+  userId: string,
+  folder?: string
+): Promise<Upload> {
   const storageResult = await uploadToStorage(
     file.buffer,
     file.originalname,
     file.mimetype,
-    userId
+    userId,
+    folder ? { folder } : undefined
   );
 
   const [upload] = await db
@@ -46,6 +51,9 @@ async function handleCreateUpload(file: Express.Multer.File, userId: string): Pr
     created_at: upload.created_at.toISOString(),
     updated_at: upload.updated_at.toISOString(),
     deleted_at: upload.deleted_at?.toISOString(),
+    // Include thumbnail URLs if available
+    thumbnail_path: storageResult.thumbnailKey,
+    thumbnail_url: storageResult.thumbnailUrl,
   } as Upload;
 }
 
@@ -61,7 +69,10 @@ const handler = async (req: Request, res: Response, next: NextFunction) => {
       throw new HttpException(400, 'No file uploaded');
     }
 
-    const upload = await handleCreateUpload(file, userId);
+    // Extract optional folder from request body (sent with FormData)
+    const folder = req.body?.folder as string | undefined;
+
+    const upload = await handleCreateUpload(file, userId, folder);
 
     ResponseFormatter.created(res, upload, 'File uploaded successfully');
   } catch (error) {

@@ -93,7 +93,9 @@ export const products = pgTable(
 
         // Media
         primary_image_url: text('primary_image_url'),
+        thumbnail_url: text('thumbnail_url'),
         additional_images: jsonb('additional_images').default([]), // Array of URLs
+        additional_thumbnails: jsonb('additional_thumbnails').default([]), // Array of URLs
 
         // SEO
         meta_title: varchar('meta_title', { length: 255 }),

@@ -1,9 +1,17 @@
 import { supabase } from './supabase';
 import { HttpException } from './helpers/httpException';
 import { logger } from './logging/logger';
+import sharp from 'sharp';
 
 /** Pre-signed URL expiration time in seconds (1 hour) */
 const PRESIGNED_URL_EXPIRY = 3600;
+
+/** Thumbnail configuration */
+const THUMBNAIL_CONFIG = {
+  maxWidth: 400,
+  maxHeight: 400,
+  quality: 80,
+};
 
 export interface StorageUploadResult {
   key: string;
@@ -11,6 +19,10 @@ export interface StorageUploadResult {
   bucket: string;
   size: number;
   contentType: string;
+  /** Thumbnail URL (only for images) */
+  thumbnailUrl?: string;
+  /** Thumbnail storage key (only for images) */
+  thumbnailKey?: string;
 }
 
 export interface ImageTransformOptions {
@@ -103,29 +115,59 @@ export async function getTransformedImageUrl(
 }
 
 /**
+ * Options for file upload
+ */
+export interface UploadOptions {
+  /** 
+   * Custom folder path (e.g., 'products/generator-5kva').
+   * If not provided, defaults to userId-based path.
+   */
+  folder?: string;
+}
+
+/**
  * Upload a file buffer to Supabase Storage (public access for images)
  * Product images need to be publicly accessible from the browser
+ * For image files, also generates and uploads a thumbnail.
+ * @param buffer - File buffer to upload
+ * @param filename - Original filename
+ * @param mimetype - MIME type of the file
+ * @param userId - User ID (used for fallback folder or tracking)
+ * @param options - Optional upload options including custom folder path
  */
 export async function uploadToStorage(
   buffer: Buffer,
   filename: string,
   mimetype: string,
-  userId: string
+  userId: string,
+  options?: UploadOptions
 ): Promise<StorageUploadResult> {
   try {
     const bucket = getBucketName();
 
     // Sanitize filename to prevent path traversal
     const sanitizedFilename = filename
-      .replace(/^\\.+/, '') // Remove leading dots
+      .replace(/^\.+/, '') // Remove leading dots
       .replace(/[^a-zA-Z0-9.-]/g, '_');
 
-    // Create a folder structure: {userId}/{timestamp}_{filename}
-    // Don't include "uploads/" prefix since bucket is already named "uploads"
+    // Build folder path
     const timestamp = Date.now();
-    const key = `${userId}/${timestamp}_${sanitizedFilename}`;
+    let key: string;
 
-    // Upload to Supabase Storage
+    if (options?.folder) {
+      // Sanitize folder path to prevent directory traversal attacks
+      const sanitizedFolder = options.folder
+        .replace(/\.\./g, '') // Remove parent directory references
+        .replace(/^\/+|\/+$/g, '') // Remove leading/trailing slashes
+        .replace(/[^a-zA-Z0-9\-_\/]/g, '_'); // Allow alphanumeric, dash, underscore, slash
+
+      key = `${sanitizedFolder}/${timestamp}_${sanitizedFilename}`;
+    } else {
+      // Fallback to userId-based structure
+      key = `${userId}/${timestamp}_${sanitizedFilename}`;
+    }
+
+    // Upload original file to Supabase Storage
     const { data, error } = await supabase.storage.from(bucket).upload(key, buffer, {
       contentType: mimetype,
       cacheControl: '3600',
@@ -150,13 +192,68 @@ export async function uploadToStorage(
 
     logger.info(`File uploaded to Supabase Storage: ${data.path}`);
 
-    return {
+    // Initialize result
+    const result: StorageUploadResult = {
       key: data.path,
       url: publicUrlData.publicUrl,
       bucket,
       size: buffer.length,
       contentType: mimetype,
     };
+
+    // Generate and upload thumbnail for images
+    const isImage = ['image/jpeg', 'image/png', 'image/webp'].includes(mimetype);
+    if (isImage) {
+      try {
+        // Generate thumbnail using sharp
+        const thumbnailBuffer = await sharp(buffer)
+          .resize(THUMBNAIL_CONFIG.maxWidth, THUMBNAIL_CONFIG.maxHeight, {
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .jpeg({ quality: THUMBNAIL_CONFIG.quality })
+          .toBuffer();
+
+        // Generate thumbnail key (insert _thumb before extension)
+        const extIndex = key.lastIndexOf('.');
+        const thumbKey = extIndex > 0
+          ? `${key.substring(0, extIndex)}_thumb.jpg`
+          : `${key}_thumb.jpg`;
+
+        // Upload thumbnail
+        const { data: thumbData, error: thumbError } = await supabase.storage
+          .from(bucket)
+          .upload(thumbKey, thumbnailBuffer, {
+            contentType: 'image/jpeg',
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (thumbError) {
+          logger.warn('Thumbnail upload failed, continuing with original only', {
+            error: thumbError.message,
+          });
+        } else if (thumbData?.path) {
+          // Get public URL for thumbnail
+          const { data: thumbUrlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(thumbData.path);
+
+          if (thumbUrlData?.publicUrl) {
+            result.thumbnailKey = thumbData.path;
+            result.thumbnailUrl = thumbUrlData.publicUrl;
+            logger.info(`Thumbnail uploaded: ${thumbData.path}`);
+          }
+        }
+      } catch (thumbGenError) {
+        // Log but don't fail the upload if thumbnail generation fails
+        logger.warn('Thumbnail generation failed, continuing with original only', {
+          error: thumbGenError instanceof Error ? thumbGenError.message : String(thumbGenError),
+        });
+      }
+    }
+
+    return result;
   } catch (error) {
     // Log full error internally for debugging
     logger.error('Storage upload error', {
