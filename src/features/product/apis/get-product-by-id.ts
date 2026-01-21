@@ -107,6 +107,7 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     .limit(1);
 
   if (!productData) {
+    console.log(`[getProductDetailById] Product not found for input: ${idOrSlug}. isUuid: ${isUuid}`);
     throw new HttpException(404, 'Product not found');
   }
 

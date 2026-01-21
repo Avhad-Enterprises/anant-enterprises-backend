@@ -66,7 +66,9 @@ const updateProductSchema = z.object({
   category_tier_4: z.string().optional().nullable(),
 
   primary_image_url: z.string().url().optional().nullable(),
+  thumbnail_url: z.string().url().optional().nullable(),
   additional_images: z.array(z.string().url()).optional(),
+  additional_thumbnails: z.array(z.union([z.string().url(), z.literal('')])).optional(),
 
   meta_title: z.string().optional().nullable(),
   meta_description: z.string().optional().nullable(),
