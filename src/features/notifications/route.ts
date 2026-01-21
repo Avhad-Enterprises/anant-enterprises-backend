@@ -43,12 +43,12 @@ export class NotificationRoute {
         );
 
         /**
-         * GET /api/notifications/unread-count
+         * GET /api/notifications/unread/count
          * Get unread notification count
          * Note: This must come BEFORE /:id route
          */
         this.router.get(
-            '/unread-count',
+            '/unread/count',
             requireAuth,
             getUnreadCount
         );
@@ -74,11 +74,11 @@ export class NotificationRoute {
         );
 
         /**
-         * PATCH /api/notifications/read-all
+         * POST /api/notifications/mark-all-read
          * Mark all notifications as read
          */
-        this.router.patch(
-            '/read-all',
+        this.router.post(
+            '/mark-all-read',
             requireAuth,
             markAllNotificationsAsRead
         );

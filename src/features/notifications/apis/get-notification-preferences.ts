@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { preferenceService } from '../services/preference.service';
-import { ApiError } from '../../../utils/errorHandler';
+import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 
 /**
@@ -13,9 +13,12 @@ export const getNotificationPreferences = async (
     next: NextFunction
 ) => {
     try {
-        const userId = req.user?.id;
+        const userId = req.userId;
         if (!userId) {
-            throw new ApiError(401, 'Unauthorized');
+            return res.status(401).json({
+                success: false,
+                message: 'Unauthorized',
+            });
         }
 
         const preferences = await preferenceService.getAllUserPreferences(userId);

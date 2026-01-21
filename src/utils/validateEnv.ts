@@ -53,8 +53,10 @@ export const validateEnv = () => {
       SUPABASE_SECRET_KEY: str({ default: '', desc: 'New: Supabase secret key' }),
 
       // Email configuration
+      EMAIL_SERVICE: str({ default: '' }),
       EMAIL_USER: str({ default: '' }),
       EMAIL_PASSWORD: str({ default: '' }),
+      EMAIL_FROM: str({ default: '' }),
       APP_NAME: str({ default: 'Anant Enterprises' }),
 
       // Security configuration

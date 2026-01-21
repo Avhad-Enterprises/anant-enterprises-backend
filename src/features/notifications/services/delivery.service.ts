@@ -16,19 +16,25 @@ class DeliveryService {
     private initializeEmailTransporter() {
         try {
             if (config.EMAIL_SERVICE && config.EMAIL_USER && config.EMAIL_PASSWORD) {
-                this.emailTransporter = nodemailer.createTransport({
-                    service: config.EMAIL_SERVICE,
-                    auth: {
-                        user: config.EMAIL_USER,
-                        pass: config.EMAIL_PASSWORD,
-                    },
-                });
-                logger.info('Email transporter initialized');
+                try {
+                    this.emailTransporter = nodemailer.createTransport({
+                        service: config.EMAIL_SERVICE,
+                        auth: {
+                            user: config.EMAIL_USER,
+                            pass: config.EMAIL_PASSWORD,
+                        },
+                    });
+                    logger.info('Email transporter initialized');
+                } catch (transportError) {
+                    logger.error('Failed to create email transporter', { transportError });
+                    this.emailTransporter = null;
+                }
             } else {
                 logger.warn('Email configuration missing - email delivery disabled');
             }
         } catch (error) {
             logger.error('Failed to initialize email transporter', { error });
+            this.emailTransporter = null;
         }
     }
 
@@ -69,8 +75,8 @@ class DeliveryService {
                     }
                     break;
                 case 'sms':
-                    if (user.phone) {
-                        return this.sendSMS(notificationId, user.phone, content);
+                    if (user.phone_number) {
+                        return this.sendSMS(notificationId, user.phone_number, content);
                     }
                     break;
                 case 'push':
