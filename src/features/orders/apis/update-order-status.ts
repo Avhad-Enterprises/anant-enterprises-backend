@@ -12,6 +12,7 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
 import { logger } from '../../../utils';
 
@@ -122,6 +123,44 @@ const handler = async (req: RequestWithUser, res: Response) => {
             logger.error('Failed to fulfill inventory:', error);
             // In production: Send alert to admin for manual reconciliation
         }
+    }
+
+    // Send notifications based on status changes
+    try {
+        if (body.order_status === 'shipped' && order.order_status !== 'shipped') {
+            await eventPublisher.publishNotification({
+                userId: order.user_id!,
+                templateCode: 'ORDER_SHIPPED',
+                variables: {
+                    userName: 'Customer',
+                    orderNumber: order.order_number,
+                    trackingNumber: body.order_tracking || 'Not available',
+                    orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+                },
+                options: {
+                    priority: 'normal',
+                    actionUrl: `/profile/orders/${order.id}`,
+                    actionText: 'Track Order',
+                },
+            });
+        } else if (body.order_status === 'delivered' && order.order_status !== 'delivered') {
+            await eventPublisher.publishNotification({
+                userId: order.user_id!,
+                templateCode: 'ORDER_DELIVERED',
+                variables: {
+                    userName: 'Customer',
+                    orderNumber: order.order_number,
+                    orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+                },
+                options: {
+                    priority: 'normal',
+                    actionUrl: `/profile/orders/${order.id}`,
+                    actionText: 'View Order',
+                },
+            });
+        }
+    } catch (error) {
+        logger.error('Failed to send order status notification:', error);
     }
 
     // Fetch updated order

@@ -19,7 +19,7 @@ export * from './database/redis';
 
 // Email utilities
 export * from './email/emailConfig';
-export * from './email/sendInvitationEmail';
+export * from './email/email.service';
 
 // Helper utilities
 export { HttpException } from './helpers/httpException';

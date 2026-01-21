@@ -57,6 +57,20 @@
       "when": 1768652250308,
       "tag": "0008_large_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1768914956403,
+      "tag": "0009_curly_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1768921004491,
+      "tag": "0010_freezing_marten_broadcloak",
+      "breakpoints": true
     }
   ]
 }

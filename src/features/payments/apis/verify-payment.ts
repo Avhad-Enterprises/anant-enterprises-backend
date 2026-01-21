@@ -22,6 +22,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, inArray } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
 import { paymentTransactions } from '../shared/payment-transactions.schema';

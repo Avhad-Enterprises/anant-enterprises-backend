@@ -22,6 +22,7 @@ import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { reserveStockForOrder, validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
 
 
 
@@ -272,6 +273,30 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     eq(wishlistItems.product_id, productId)
                 ));
         }
+    }
+
+    // Send ORDER_CREATED notification
+    try {
+        await eventPublisher.publishNotification({
+            userId: userId!,
+            templateCode: 'ORDER_CREATED',
+            variables: {
+                userName: 'Customer', // Can be enriched with actual user name
+                orderNumber: order.order_number,
+                total: Number(order.total_amount),
+                currency: 'INR',
+                itemCount: items.length,
+                orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+            },
+            options: {
+                priority: 'high',
+                actionUrl: `/profile/orders/${order.id}`,
+                actionText: 'View Order',
+            },
+        });
+    } catch (error) {
+        // Log but don't fail the order if notification fails
+        console.error('Failed to send order notification:', error);
     }
 
     // Return order summary

@@ -38,6 +38,10 @@ export const validateEnv = () => {
       REDIS_PASSWORD: str({ default: '' }),
       REDIS_URL: str({ default: '' }),
 
+      // Queue configuration
+      QUEUE_WORKERS_ENABLED: str({ default: 'true' }),
+      QUEUE_CONCURRENCY: num({ default: 5 }),
+
       // Supabase configuration
       SUPABASE_URL: str({ default: '' }),
       SUPABASE_ANON_KEY: str({ default: '', desc: 'Legacy: Supabase anonymous key (JWT-based)' }),
@@ -49,8 +53,10 @@ export const validateEnv = () => {
       SUPABASE_SECRET_KEY: str({ default: '', desc: 'New: Supabase secret key' }),
 
       // Email configuration
+      EMAIL_SERVICE: str({ default: '' }),
       EMAIL_USER: str({ default: '' }),
       EMAIL_PASSWORD: str({ default: '' }),
+      EMAIL_FROM: str({ default: '' }),
       APP_NAME: str({ default: 'Anant Enterprises' }),
 
       // Security configuration

@@ -134,6 +134,22 @@ import {
   sessions,
 } from '../features/profile/shared/sessions.schema';
 
+import {
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
+} from '../features/media-manager';
+import {
+  notifications,
+  notificationTemplates,
+  notificationPreferences,
+  notificationDeliveryLogs,
+  notificationTypeEnum,
+  notificationPriorityEnum,
+  notificationFrequencyEnum,
+  deliveryStatusEnum,
+} from '../features/notifications/shared';
+
 /**
  * Database connection configuration
  */
@@ -358,6 +374,19 @@ export const schema = {
   paymentWebhookLogs,
   // Profile feature
   sessions,
+  // Media Manager feature
+  entityMedia,
+  entityTypeEnum,
+  mediaTypeEnum,
+  // Notifications feature
+  notifications,
+  notificationTemplates,
+  notificationPreferences,
+  notificationDeliveryLogs,
+  notificationTypeEnum,
+  notificationPriorityEnum,
+  notificationFrequencyEnum,
+  deliveryStatusEnum,
 };
 
 /**
