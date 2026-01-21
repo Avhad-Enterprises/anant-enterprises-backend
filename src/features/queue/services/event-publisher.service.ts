@@ -355,12 +355,11 @@ class EventPublisherService implements IEventPublisher {
             //     templateCode: data.templateCode,
             // });
         } catch (error) {
-            // Assuming logger is defined elsewhere
-            // logger.error('Failed to publish notification event', {
-            //     error,
-            //     userId: data.userId,
-            //     templateCode: data.templateCode,
-            // });
+            logger.error('Failed to publish notification event', {
+                error,
+                userId: data.userId,
+                templateCode: data.templateCode,
+            });
         }
     }
 
@@ -386,12 +385,11 @@ class EventPublisherService implements IEventPublisher {
             //     templateCode: data.templateCode,
             // });
         } catch (error) {
-            // Assuming logger is defined elsewhere
-            // logger.error('Failed to publish batch notification event', {
-            //     error,
-            //     userCount: data.userIds.length,
-            //     templateCode: data.templateCode,
-            // });
+            logger.error('Failed to publish batch notification event', {
+                error,
+                userCount: data.userIds.length,
+                templateCode: data.templateCode,
+            });
         }
     }
 }

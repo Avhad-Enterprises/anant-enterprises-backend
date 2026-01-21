@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import { logger } from '../../../utils';
-import { QUEUE_REDIS_CONFIG } from '../shared/config';
+import { QUEUE_REDIS_CONFIG, QueueName } from '../shared/config';
 
 export interface SendNotificationJobData {
     userId: string;
@@ -28,7 +28,7 @@ class NotificationQueue {
 
     async getQueue(): Promise<Queue<SendNotificationJobData | BatchNotificationJobData>> {
         if (!this.queue) {
-            this.queue = new Queue('notifications', {
+            this.queue = new Queue(QueueName.NOTIFICATIONS, {
                 connection: QUEUE_REDIS_CONFIG,
                 defaultJobOptions: {
                     attempts: 3,

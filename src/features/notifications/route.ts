@@ -11,6 +11,7 @@ import { deleteNotification } from './apis/delete-notification';
 import { getUnreadCount } from './apis/get-unread-count';
 import { getNotificationPreferences } from './apis/get-notification-preferences';
 import { updateNotificationPreferences } from './apis/update-notification-preferences';
+import { testNotification } from './apis/test-notification.api';
 
 // Admin endpoints
 import { broadcastNotification } from './apis/admin-broadcast-notification';
@@ -37,7 +38,7 @@ export class NotificationRoute {
          * Get all notifications for authenticated user
          */
         this.router.get(
-            '/',
+            '/notifications',
             requireAuth,
             getUserNotifications
         );
@@ -48,9 +49,20 @@ export class NotificationRoute {
          * Note: This must come BEFORE /:id route
          */
         this.router.get(
-            '/unread/count',
+            '/notifications/unread/count',
             requireAuth,
             getUnreadCount
+        );
+
+        /**
+         * GET /api/notifications/test
+         * Test endpoint to manually trigger a notification
+         * Useful for debugging WebSocket real-time notifications
+         */
+        this.router.get(
+            '/notifications/test',
+            requireAuth,
+            testNotification
         );
 
         /**
@@ -58,7 +70,7 @@ export class NotificationRoute {
          * Get notification preferences
          */
         this.router.get(
-            '/preferences',
+            '/notifications/preferences',
             requireAuth,
             getNotificationPreferences
         );
@@ -68,7 +80,7 @@ export class NotificationRoute {
          * Update notification preferences
          */
         this.router.put(
-            '/preferences',
+            '/notifications/preferences',
             requireAuth,
             updateNotificationPreferences
         );
@@ -78,7 +90,7 @@ export class NotificationRoute {
          * Mark all notifications as read
          */
         this.router.post(
-            '/mark-all-read',
+            '/notifications/mark-all-read',
             requireAuth,
             markAllNotificationsAsRead
         );
@@ -88,7 +100,7 @@ export class NotificationRoute {
          * Get single notification by ID
          */
         this.router.get(
-            '/:id',
+            '/notifications/:id',
             requireAuth,
             getNotificationById
         );
@@ -98,7 +110,7 @@ export class NotificationRoute {
          * Mark notification as read
          */
         this.router.patch(
-            '/:id/read',
+            '/notifications/:id/read',
             requireAuth,
             markNotificationAsRead
         );
@@ -108,7 +120,7 @@ export class NotificationRoute {
          * Delete notification
          */
         this.router.delete(
-            '/:id',
+            '/notifications/:id',
             requireAuth,
             deleteNotification
         );
@@ -118,55 +130,55 @@ export class NotificationRoute {
         // ====================================
 
         /**
-         * POST /api/admin/notifications/broadcast
+         * POST /api/notifications/admin/broadcast
          * Broadcast notification to multiple users
          */
         this.router.post(
-            '/admin/broadcast',
+            '/notifications/admin/broadcast',
             requireAuth,
             requirePermission('notifications:broadcast'),
             broadcastNotification
         );
 
         /**
-         * GET /api/admin/notifications/stats
+         * GET /api/notifications/admin/stats
          * Get notification statistics
          */
         this.router.get(
-            '/admin/stats',
+            '/notifications/admin/stats',
             requireAuth,
             requirePermission('notifications:view_stats'),
             getNotificationStats
         );
 
         /**
-         * GET /api/admin/notification-templates
+         * GET /api/notifications/admin/templates
          * Get all notification templates
          */
         this.router.get(
-            '/admin/templates',
+            '/notifications/admin/templates',
             requireAuth,
             requirePermission('notifications:manage_templates'),
             getAllTemplates
         );
 
         /**
-         * POST /api/admin/notification-templates
+         * POST /api/notifications/admin/templates
          * Create notification template
          */
         this.router.post(
-            '/admin/templates',
+            '/notifications/admin/templates',
             requireAuth,
             requirePermission('notifications:manage_templates'),
             createTemplate
         );
 
         /**
-         * PUT /api/admin/notification-templates/:code
+         * PUT /api/notifications/admin/templates/:code
          * Update notification template
          */
         this.router.put(
-            '/admin/templates/:code',
+            '/notifications/admin/templates/:code',
             requireAuth,
             requirePermission('notifications:manage_templates'),
             updateTemplate

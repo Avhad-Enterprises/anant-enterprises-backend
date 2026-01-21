@@ -25,20 +25,19 @@ class NotificationWorker extends BaseWorker {
     }
 
     protected async processJob(job: Job): Promise<void> {
-        const { type, data } = job.data;
-
-        // Handle notification service events
+        // Handle notification service events (job.data IS the payload directly)
         if (job.name === 'send-notification') {
-            await this.handleSendNotification(data as SendNotificationJobData);
+            await this.handleSendNotification(job.data as SendNotificationJobData);
             return;
         }
 
         if (job.name === 'batch-notification') {
-            await this.handleBatchNotification(data as BatchNotificationJobData);
+            await this.handleBatchNotification(job.data as BatchNotificationJobData);
             return;
         }
 
-        // Handle legacy email/SMS events
+        // Handle legacy event publisher events (wrapped in {type, data})
+        const { type, data } = job.data;
         switch (type) {
             case QueueEventType.SEND_EMAIL:
                 await this.handleSendEmail(data as EmailNotificationData);

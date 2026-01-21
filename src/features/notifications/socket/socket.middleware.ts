@@ -1,7 +1,6 @@
 import { Socket } from 'socket.io';
-import { verify } from 'jsonwebtoken';
-import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
+import { supabaseAnon } from '../../../utils/supabase';
 
 /**
  * Extended Socket interface with user authentication data
@@ -13,17 +12,17 @@ export interface AuthenticatedSocket extends Socket {
 /**
  * Socket.IO authentication middleware
  * 
- * Verifies JWT token from handshake auth and auto-joins user to their room.
+ * Verifies Supabase Auth JWT token from handshake auth and auto-joins user to their room.
  * Tokens should be passed in the `auth` object when connecting from the client.
  * 
  * Example client connection:
  * ```
- * const socket = io('http://localhost:5000', {
- *   auth: { token: 'your-jwt-token' }
+ * const socket = io('http://localhost:8000', {
+ *   auth: { token: 'your-supabase-jwt-token' }
  * });
  * ```
  */
-export const socketAuthMiddleware = (
+export const socketAuthMiddleware = async (
     socket: AuthenticatedSocket,
     next: (err?: Error) => void
 ) => {
@@ -38,24 +37,41 @@ export const socketAuthMiddleware = (
             return next(new Error('Authentication token required'));
         }
 
-        // Verify JWT token
-        const decoded = verify(token, config.JWT_SECRET) as { userId: string };
+        logger.info('Socket authentication attempt', {
+            socketId: socket.id,
+            tokenPreview: token.substring(0, 20) + '...',
+        });
 
-        if (!decoded.userId) {
-            logger.warn('Invalid token payload', { socketId: socket.id });
-            return next(new Error('Invalid token payload'));
+        // Verify Supabase Auth token using Supabase's built-in verification
+        const {
+            data: { user },
+            error,
+        } = await supabaseAnon.auth.getUser(token);
+
+        if (error || !user) {
+            logger.warn('Supabase token verification failed', {
+                socketId: socket.id,
+                error: error?.message,
+            });
+            return next(new Error('Invalid authentication token'));
         }
 
-        // Attach userId to socket for future use
-        socket.userId = decoded.userId;
+        logger.info('Token verified successfully', {
+            socketId: socket.id,
+            authId: user.id,
+            email: user.email,
+        });
+
+        // Attach Supabase Auth user ID to socket
+        socket.userId = user.id;
 
         // Auto-join user to their personal room
-        socket.join(`user:${decoded.userId}`);
+        socket.join(`user:${user.id}`);
 
         logger.info('Socket authenticated and user joined room', {
-            userId: decoded.userId,
+            userId: user.id,
             socketId: socket.id,
-            room: `user:${decoded.userId}`,
+            room: `user:${user.id}`,
         });
 
         next();
@@ -63,6 +79,7 @@ export const socketAuthMiddleware = (
         logger.error('Socket authentication failed', {
             socketId: socket.id,
             error: error instanceof Error ? error.message : 'Unknown error',
+            errorName: error instanceof Error ? error.name : undefined,
         });
         next(new Error('Invalid authentication token'));
     }
@@ -72,7 +89,7 @@ export const socketAuthMiddleware = (
  * Admin authentication middleware (for Phase 5)
  * Joins admins to the admin notifications room
  */
-export const adminSocketMiddleware = (
+export const adminSocketMiddleware = async (
     socket: AuthenticatedSocket,
     next: (err?: Error) => void
 ) => {
@@ -83,16 +100,23 @@ export const adminSocketMiddleware = (
             return next(new Error('Authentication token required'));
         }
 
-        // Verify JWT and check for admin role
-        const decoded = verify(token, config.JWT_SECRET) as {
-            userId: string;
-            role?: string;
-        };
+        // Verify Supabase Auth token and check for admin role
+        const {
+            data: { user },
+            error,
+        } = await supabaseAnon.auth.getUser(token);
 
-        if (decoded.role === 'admin') {
+        if (error || !user) {
+            return next(new Error('Invalid admin token'));
+        }
+
+        // Check user metadata for admin role (adjust based on your implementation)
+        const userRole = user.user_metadata?.role || user.app_metadata?.role;
+
+        if (userRole === 'admin') {
             socket.join('admin:notifications');
             logger.info('Admin joined admin notifications room', {
-                userId: decoded.userId,
+                userId: user.id,
                 socketId: socket.id,
             });
         }

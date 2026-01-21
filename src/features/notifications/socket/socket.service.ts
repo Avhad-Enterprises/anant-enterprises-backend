@@ -16,9 +16,17 @@ class SocketService {
      * Call this once when the HTTP server starts
      */
     public initialize(httpServer: HTTPServer): void {
+        // Support multiple origins for development
+        const allowedOrigins: string[] = [
+            process.env.FRONTEND_URL,
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:3001', // Alternative port
+        ].filter((origin): origin is string => typeof origin === 'string'); // Remove undefined values
+
         this.io = new SocketIOServer(httpServer, {
             cors: {
-                origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+                origin: allowedOrigins,
                 credentials: true,
             },
             path: '/socket.io',
@@ -26,7 +34,9 @@ class SocketService {
         });
 
         logger.info('Socket.IO server initialized', {
-            frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+            allowedOrigins,
+            path: '/socket.io',
+            transports: ['websocket', 'polling'],
         });
 
         this.setupEventHandlers();
@@ -95,14 +105,29 @@ class SocketService {
         }
 
         const room = `user:${userId}`;
-        this.io.to(room).emit(event, data);
 
-        logger.debug('Emitted to user room', {
+        // Check if anyone is in the room before emitting
+        const socketsInRoom = this.io.sockets.adapter.rooms.get(room)?.size || 0;
+
+        logger.info(`[Socket Service] Preparing to emit to room: ${room}`, {
             userId,
             event,
-            room,
-            dataKeys: Object.keys(data),
+            connectedSocketsInRoom: socketsInRoom,
+            totalConnectedSockets: this.io.engine.clientsCount,
         });
+
+        if (socketsInRoom === 0) {
+            logger.warn(`[Socket Service] ⚠️ NO CLIENTS in room ${room} - Notification will NOT be delivered via WebSocket`, {
+                userId,
+                tip: 'User might be disconnected or socket auth failed'
+            });
+        } else {
+            this.io.to(room).emit(event, data);
+            logger.info(`[Socket Service] ✅ Successfully emitted event to ${socketsInRoom} client(s)`, {
+                room,
+                event
+            });
+        }
     }
 
     /**

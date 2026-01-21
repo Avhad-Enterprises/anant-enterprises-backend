@@ -80,7 +80,13 @@ class DeliveryService {
                     }
                     break;
                 case 'push':
-                    return this.sendPush(notificationId, userId, content);
+                    // Push notifications are delivered via in-app real-time WebSocket
+                    // The notification is already stored in DB and sent via Socket.IO
+                    logger.info('Push notification handled as in-app (via WebSocket)', {
+                        notificationId,
+                        userId,
+                    });
+                    return Promise.resolve();
                 case 'in_app':
                     // In-app notifications are already stored in DB
                     return Promise.resolve();
@@ -181,30 +187,6 @@ class DeliveryService {
             channel: 'sms',
             status: 'pending',
             recipient: phone,
-            provider: 'placeholder',
-            sent_at: new Date(),
-        });
-    }
-
-    /**
-     * Send push notification (placeholder for push service integration)
-     */
-    private async sendPush(
-        notificationId: string,
-        userId: string,
-        content: { title: string; message: string }
-    ): Promise<void> {
-        // TODO: Integrate with push notification service (Firebase, OneSignal, etc.)
-        logger.info('Push notification placeholder', {
-            notificationId,
-            userId,
-            title: content.title,
-        });
-
-        await this.logDelivery({
-            notification_id: notificationId,
-            channel: 'push',
-            status: 'pending',
             provider: 'placeholder',
             sent_at: new Date(),
         });
