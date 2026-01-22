@@ -4,7 +4,7 @@
  * Database queries for entity-media relationships
  */
 
-import { eq, and, asc, desc } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import { db } from '../../../database';
 import { entityMedia, type EntityMedia, type NewEntityMedia, type EntityType } from './entity-media.schema';
 import { uploads } from '../../upload';

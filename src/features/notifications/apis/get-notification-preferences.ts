@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { preferenceService } from '../services/preference.service';
-import { HttpException } from '../../../utils';
 import { logger } from '../../../utils';
 
 /**
@@ -11,14 +10,15 @@ export const getNotificationPreferences = async (
     req: Request,
     res: Response,
     next: NextFunction
-) => {
+): Promise<void> => {
     try {
         const userId = req.userId;
         if (!userId) {
-            return res.status(401).json({
+            res.status(401).json({
                 success: false,
                 message: 'Unauthorized',
             });
+            return;
         }
 
         const preferences = await preferenceService.getAllUserPreferences(userId);

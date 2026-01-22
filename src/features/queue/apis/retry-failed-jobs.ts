@@ -19,7 +19,7 @@ const paramsSchema = z.object({
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const { name } = req.params;
-    const userId = req.user?.id || '';
+    const userId = req.userId;
 
     // Retry all failed jobs
     await queueService.retryFailedJobs(name);
@@ -29,7 +29,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
         action: AuditAction.UPDATE,
         resourceType: AuditResourceType.SYSTEM,
         userId,
-        userEmail: req.user?.email,
         metadata: {
             operation: 'retry_failed_jobs',
             queueName: name,
