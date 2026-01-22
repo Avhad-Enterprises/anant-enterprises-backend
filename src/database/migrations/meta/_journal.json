@@ -71,6 +71,13 @@
       "when": 1768921004491,
       "tag": "0010_freezing_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1769080439899,
+      "tag": "0011_supreme_george_stacy",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import {
     varchar,
     text,
     decimal,
+    integer,
     boolean,
     timestamp,
     jsonb,
@@ -96,6 +97,9 @@ export const products = pgTable(
         thumbnail_url: text('thumbnail_url'),
         additional_images: jsonb('additional_images').default([]), // Array of URLs
         additional_thumbnails: jsonb('additional_thumbnails').default([]), // Array of URLs
+
+        // Variants Flag
+        has_variants: boolean('has_variants').default(false).notNull(),
 
         // SEO
         meta_title: varchar('meta_title', { length: 255 }),
@@ -188,3 +192,84 @@ export const products = pgTable(
 // Types
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
+
+// ============================================
+// PRODUCT VARIANTS TABLE
+// ============================================
+
+/**
+ * Product Variants table
+ * Stores variant options for products (e.g., Size: Large, Color: Red)
+ * Each variant has independent pricing and inventory.
+ */
+export const productVariants = pgTable(
+    'product_variants',
+    {
+        // Identity
+        id: uuid('id').primaryKey().defaultRandom(),
+        product_id: uuid('product_id')
+            .references(() => products.id, { onDelete: 'cascade' })
+            .notNull(),
+
+        // Variant Attributes
+        option_name: varchar('option_name', { length: 100 }).notNull(),
+        option_value: varchar('option_value', { length: 100 }).notNull(),
+
+        // Identification
+        sku: varchar('sku', { length: 100 }).unique().notNull(),
+        barcode: varchar('barcode', { length: 50 }),
+
+        // Independent Pricing (not adjustment-based)
+        cost_price: decimal('cost_price', { precision: 10, scale: 2 })
+            .default('0.00')
+            .notNull(),
+        selling_price: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
+        compare_at_price: decimal('compare_at_price', { precision: 10, scale: 2 }),
+
+        // Inventory (per variant)
+        inventory_quantity: integer('inventory_quantity').default(0).notNull(),
+
+        // Media
+        image_url: text('image_url'),
+        thumbnail_url: text('thumbnail_url'),
+
+        // Status
+        is_default: boolean('is_default').default(false).notNull(),
+        is_active: boolean('is_active').default(true).notNull(),
+
+        // Audit Fields
+        created_at: timestamp('created_at').defaultNow().notNull(),
+        updated_at: timestamp('updated_at').defaultNow().notNull(),
+        created_by: uuid('created_by'),
+        updated_by: uuid('updated_by'),
+
+        // Soft Delete
+        is_deleted: boolean('is_deleted').default(false).notNull(),
+        deleted_at: timestamp('deleted_at'),
+        deleted_by: uuid('deleted_by'),
+    },
+    (table) => ({
+        // Indexes
+        productIdIdx: index('product_variants_product_id_idx').on(table.product_id),
+        skuIdx: index('product_variants_sku_idx').on(table.sku),
+        isDeletedIdx: index('product_variants_is_deleted_idx').on(table.is_deleted),
+
+        // Check Constraints
+        costPriceCheck: check(
+            'product_variants_cost_price_check',
+            sql`cost_price >= 0`
+        ),
+        sellingPriceCheck: check(
+            'product_variants_selling_price_check',
+            sql`selling_price >= 0`
+        ),
+        compareAtPriceCheck: check(
+            'product_variants_compare_at_price_check',
+            sql`compare_at_price IS NULL OR compare_at_price >= selling_price`
+        ),
+    })
+);
+
+// Variant Types
+export type ProductVariant = typeof productVariants.$inferSelect;
+export type NewProductVariant = typeof productVariants.$inferInsert;
