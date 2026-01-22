@@ -19,7 +19,7 @@ import {
   emailSchema,
   uuidSchema,
 } from '../../../utils';
-import { sendInvitationEmail } from '../../../utils';
+import { emailService } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { logger } from '../../../utils';
 
