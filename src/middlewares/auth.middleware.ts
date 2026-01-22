@@ -5,6 +5,8 @@ import { verifySupabaseToken } from '../features/auth/services/supabase-auth.ser
 import { db } from '../database';
 import { users } from '../features/user/shared/user.schema';
 import { eq } from 'drizzle-orm';
+import * as crypto from 'crypto';
+import { redisClient } from '../utils/database/redis';
 
 /**
  * Authentication middleware - requires valid Supabase JWT token
@@ -77,6 +79,30 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       url: req.originalUrl,
       method: req.method,
     });
+
+    // --- Session Tracking (Redis) ---
+    try {
+      if (redisClient.isReady) {
+        // Create a unique session ID based on the JWT signature (or whole token)
+        // Using hash to keep keys short and secure
+        const sessionHash = crypto.createHash('sha256').update(token).digest('hex');
+        const sessionKey = `session:${req.userId}:${sessionHash}`;
+
+        const sessionData = {
+          ip: clientIP,
+          userAgent: userAgent,
+          lastActive: new Date().toISOString(),
+          // We can add more metadata if needed
+        };
+
+        // Store session in Redis with 7 days expiry (refreshing TTL on activity)
+        await redisClient.set(sessionKey, JSON.stringify(sessionData), { EX: 60 * 60 * 24 * 7 });
+      }
+    } catch (sessionError) {
+      // Non-blocking error logging for session tracking
+      logger.error('Failed to track session in Redis:', sessionError);
+    }
+    // --------------------------------
 
     next();
   } catch (error) {
