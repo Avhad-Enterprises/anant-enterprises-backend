@@ -42,10 +42,12 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(), // Changed to UUID for consistency
     auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
+    customer_id: varchar('customer_id', { length: 15 }).unique(), // Human-readable ID: CUST-XXXXXX
     user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
 
     // Basic info
-    name: varchar('name', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(), // First name
+    last_name: varchar('last_name', { length: 255 }).notNull(), // Last name (required)
     display_name: varchar('display_name', { length: 100 }),
     email: varchar('email', { length: 255 }).unique().notNull(),
     password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords

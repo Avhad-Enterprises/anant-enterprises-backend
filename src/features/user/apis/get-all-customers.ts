@@ -16,6 +16,8 @@ import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles } from '../shared/business-profiles.schema';
 import { sanitizeUsers } from '../shared/sanitizeUser';
+import { userAddresses } from '../shared/addresses.schema';
+import { inArray } from 'drizzle-orm';
 
 // Default pagination values
 const DEFAULT_PAGE = 1;
@@ -99,6 +101,24 @@ async function getAllCustomers(
         .offset(offset)
         .orderBy(desc(users.created_at));
 
+    // 2.1 Fetch Addresses for these users
+    const userIds = allUsers.map(u => u.user.id);
+    let addressesMap: Record<string, any[]> = {};
+
+    if (userIds.length > 0) {
+        const addressesList = await db
+            .select()
+            .from(userAddresses)
+            .where(inArray(userAddresses.user_id, userIds));
+
+        addressesList.forEach(addr => {
+            if (!addressesMap[addr.user_id]) {
+                addressesMap[addr.user_id] = [];
+            }
+            addressesMap[addr.user_id].push(addr);
+        });
+    }
+
     // 3. Format Response
     const formattedUsers = allUsers.map(({ user, customerProfile, businessProfile }) => {
         const sanitized = sanitizeUsers([user])[0];
@@ -106,6 +126,8 @@ async function getAllCustomers(
             ...sanitized,
             details: customerProfile || businessProfile || null,
             profileType: customerProfile ? 'individual' : businessProfile ? 'business' : 'none',
+            addresses: addressesMap[user.id] || [],
+            gender: user.gender // Explicitly ensuring gender is at top level (already in sanitized but being explicit helps debug)
         };
     });
 

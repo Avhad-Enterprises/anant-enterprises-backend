@@ -19,69 +19,75 @@ import { logger } from '../logging/logger';
 // ============================================
 
 export interface InvitationEmailData {
-    to: string;
-    firstName: string;
-    lastName: string;
-    inviteLink: string;
-    expiresIn?: string;
+  to: string;
+  firstName: string;
+  lastName: string;
+  inviteLink: string;
+  expiresIn?: string;
 }
 
 export interface OrderConfirmationEmailData {
-    to: string;
-    userName: string;
-    orderNumber: string;
-    items: Array<{
-        name: string;
-        quantity: number;
-        price: string;
-    }>;
-    subtotal: string;
-    tax: string;
-    shipping: string;
-    total: string;
-    currency: string;
+  to: string;
+  userName: string;
+  orderNumber: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: string;
+  }>;
+  subtotal: string;
+  tax: string;
+  shipping: string;
+  total: string;
+  currency: string;
 }
 
 export interface PaymentConfirmationEmailData {
-    to: string;
-    orderNumber: string;
-    amount: string;
-    currency: string;
-    paymentMethod: string;
-    paidAt: Date;
+  to: string;
+  orderNumber: string;
+  amount: string;
+  currency: string;
+  paymentMethod: string;
+  paidAt: Date;
 }
 
 export interface PaymentFailedEmailData {
-    to: string;
-    amount: string;
-    currency: string;
-    paymentMethod: string;
-    errorMessage: string;
+  to: string;
+  amount: string;
+  currency: string;
+  paymentMethod: string;
+  errorMessage: string;
 }
 
 export interface PaymentRefundedEmailData {
-    to: string;
-    amount: string;
-    currency: string;
-    reason?: string;
-    refundedAt: Date;
+  to: string;
+  amount: string;
+  currency: string;
+  reason?: string;
+  refundedAt: Date;
 }
 
 export interface OrderShippedEmailData {
-    to: string;
-    orderNumber: string;
-    trackingNumber?: string;
-    carrier?: string;
-    estimatedDelivery?: Date;
+  to: string;
+  orderNumber: string;
+  trackingNumber?: string;
+  carrier?: string;
+  estimatedDelivery?: Date;
 }
 
 export interface StockAlertEmailData {
-    to: string;
-    productName: string;
-    productId: string;
-    currentStock?: number;
-    threshold?: number;
-    alertType: 'low_stock' | 'out_of_stock';
+  to: string;
+  productName: string;
+  productId: string;
+  currentStock?: number;
+  threshold?: number;
+  alertType: 'low_stock' | 'out_of_stock';
+}
+
+export interface OtpEmailData {
+  to: string;
+  otp: string;
+  expiresIn?: string;
 }
 
 // ============================================
@@ -89,15 +95,15 @@ export interface StockAlertEmailData {
 // ============================================
 
 class EmailService {
-    private transporter = createTransporter();
+  private transporter = createTransporter();
 
-    /**
-     * Send admin invitation email
-     */
-    async sendInvitationEmail(data: InvitationEmailData): Promise<void> {
-        const { to, firstName, lastName, inviteLink, expiresIn = '24 hours' } = data;
+  /**
+   * Send admin invitation email
+   */
+  async sendInvitationEmail(data: InvitationEmailData): Promise<void> {
+    const { to, firstName, lastName, inviteLink, expiresIn = '24 hours' } = data;
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8; margin-bottom: 10px;">${APP_NAME}</h1>
@@ -151,32 +157,32 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: `You're Invited to Join ${APP_NAME}`,
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: `You're Invited to Join ${APP_NAME}`,
+      html,
+    });
+  }
 
-    /**
-     * Send order confirmation email
-     */
-    async sendOrderConfirmationEmail(data: OrderConfirmationEmailData): Promise<void> {
-        const { to, userName, orderNumber, items, subtotal, tax, shipping, total, currency } = data;
+  /**
+   * Send order confirmation email
+   */
+  async sendOrderConfirmationEmail(data: OrderConfirmationEmailData): Promise<void> {
+    const { to, userName, orderNumber, items, subtotal, tax, shipping, total, currency } = data;
 
-        const itemsHtml = items
-            .map(
-                item => `
+    const itemsHtml = items
+      .map(
+        item => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
         <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">${currency} ${item.price}</td>
       </tr>
     `
-            )
-            .join('');
+      )
+      .join('');
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -228,20 +234,20 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: `Order Confirmed - #${orderNumber}`,
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: `Order Confirmed - #${orderNumber}`,
+      html,
+    });
+  }
 
-    /**
-     * Send payment confirmation email
-     */
-    async sendPaymentConfirmationEmail(data: PaymentConfirmationEmailData): Promise<void> {
-        const { to, orderNumber, amount, currency, paymentMethod, paidAt } = data;
+  /**
+   * Send payment confirmation email
+   */
+  async sendPaymentConfirmationEmail(data: PaymentConfirmationEmailData): Promise<void> {
+    const { to, orderNumber, amount, currency, paymentMethod, paidAt } = data;
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -272,20 +278,20 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: `Payment Received - Order #${orderNumber}`,
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: `Payment Received - Order #${orderNumber}`,
+      html,
+    });
+  }
 
-    /**
-     * Send payment failed email
-     */
-    async sendPaymentFailedEmail(data: PaymentFailedEmailData): Promise<void> {
-        const { to, amount, currency, paymentMethod, errorMessage } = data;
+  /**
+   * Send payment failed email
+   */
+  async sendPaymentFailedEmail(data: PaymentFailedEmailData): Promise<void> {
+    const { to, amount, currency, paymentMethod, errorMessage } = data;
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -323,20 +329,20 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: 'Payment Failed - Action Required',
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: 'Payment Failed - Action Required',
+      html,
+    });
+  }
 
-    /**
-     * Send payment refunded email
-     */
-    async sendPaymentRefundedEmail(data: PaymentRefundedEmailData): Promise<void> {
-        const { to, amount, currency, reason, refundedAt } = data;
+  /**
+   * Send payment refunded email
+   */
+  async sendPaymentRefundedEmail(data: PaymentRefundedEmailData): Promise<void> {
+    const { to, amount, currency, reason, refundedAt } = data;
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -366,33 +372,33 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: 'Refund Processed',
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: 'Refund Processed',
+      html,
+    });
+  }
 
-    /**
-     * Send order shipped email
-     */
-    async sendOrderShippedEmail(data: OrderShippedEmailData): Promise<void> {
-        const { to, orderNumber, trackingNumber, carrier, estimatedDelivery } = data;
+  /**
+   * Send order shipped email
+   */
+  async sendOrderShippedEmail(data: OrderShippedEmailData): Promise<void> {
+    const { to, orderNumber, trackingNumber, carrier, estimatedDelivery } = data;
 
-        const trackingHtml = trackingNumber
-            ? `
+    const trackingHtml = trackingNumber
+      ? `
       <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p style="margin: 5px 0; color: #555;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
         ${carrier ? `<p style="margin: 5px 0; color: #555;"><strong>Carrier:</strong> ${carrier}</p>` : ''}
         ${estimatedDelivery
-                ? `<p style="margin: 5px 0; color: #555;"><strong>Estimated Delivery:</strong> ${estimatedDelivery.toLocaleDateString()}</p>`
-                : ''
-            }
+        ? `<p style="margin: 5px 0; color: #555;"><strong>Estimated Delivery:</strong> ${estimatedDelivery.toLocaleDateString()}</p>`
+        : ''
+      }
       </div>
     `
-            : '';
+      : '';
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -422,25 +428,25 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: `Your Order Has Shipped - #${orderNumber}`,
-            html,
-        });
-    }
+    await this.sendEmail({
+      to,
+      subject: `Your Order Has Shipped - #${orderNumber}`,
+      html,
+    });
+  }
 
-    /**
-     * Send stock alert email (for admins)
-     */
-    async sendStockAlertEmail(data: StockAlertEmailData): Promise<void> {
-        const { to, productName, productId, currentStock, threshold, alertType } = data;
+  /**
+   * Send stock alert email (for admins)
+   */
+  async sendStockAlertEmail(data: StockAlertEmailData): Promise<void> {
+    const { to, productName, productId, currentStock, threshold, alertType } = data;
 
-        const isOutOfStock = alertType === 'out_of_stock';
-        const color = isOutOfStock ? '#dc3545' : '#ffc107';
-        const emoji = isOutOfStock ? '🚨' : '⚠️';
-        const title = isOutOfStock ? 'OUT OF STOCK ALERT' : 'LOW STOCK ALERT';
+    const isOutOfStock = alertType === 'out_of_stock';
+    const color = isOutOfStock ? '#dc3545' : '#ffc107';
+    const emoji = isOutOfStock ? '🚨' : '⚠️';
+    const title = isOutOfStock ? 'OUT OF STOCK ALERT' : 'LOW STOCK ALERT';
 
-        const html = `
+    const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #1a73e8;">${APP_NAME}</h1>
@@ -467,51 +473,100 @@ class EmailService {
       </div>
     `;
 
-        await this.sendEmail({
-            to,
-            subject: `${emoji} ${title}: ${productName}`,
-            html,
-        });
+    await this.sendEmail({
+      to,
+      subject: `${emoji} ${title}: ${productName}`,
+      html,
+    });
+  }
+
+  /**
+   * Send OTP verification email
+   */
+  async sendOtpEmail(data: OtpEmailData): Promise<void> {
+    const { to, otp, expiresIn = '5 minutes' } = data;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #1a73e8; margin-bottom: 10px;">${APP_NAME}</h1>
+        </div>
+
+        <h2 style="color: #333; text-align: center;">Email Verification</h2>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; text-align: center;">
+          Use the following code to verify your email address:
+        </p>
+
+        <div style="background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%); padding: 30px; border-radius: 12px; margin: 30px 0; text-align: center;">
+          <p style="font-size: 40px; font-weight: bold; color: white; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">
+            ${otp}
+          </p>
+        </div>
+
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #ffc107;">
+          <p style="margin: 0; color: #555; font-size: 14px;">
+            <strong>⏰ This code will expire in ${expiresIn}.</strong>
+          </p>
+          <p style="margin: 10px 0 0 0; color: #777; font-size: 13px;">
+            If you didn't request this code, you can safely ignore this email.
+          </p>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+
+        <p style="color: #999; font-size: 12px; text-align: center;">
+          This is an automated message from ${APP_NAME}.
+          <br>Please do not reply to this email.
+        </p>
+      </div>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `${otp} is your ${APP_NAME} verification code`,
+      html,
+    });
+  }
+
+  /**
+   * Generic send email method
+   */
+  private async sendEmail(options: {
+    to: string | string[];
+    subject: string;
+    html: string;
+    cc?: string | string[];
+    bcc?: string | string[];
+  }): Promise<void> {
+    const { to, subject, html, cc, bcc } = options;
+
+    const mailOptions = {
+      from: `"${APP_NAME}" <${EMAIL_SENDER}>`,
+      to: Array.isArray(to) ? to.join(', ') : to,
+      cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
+      bcc: bcc ? (Array.isArray(bcc) ? bcc.join(', ') : bcc) : undefined,
+      subject,
+      html,
+    };
+
+    try {
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info(`Email sent successfully`, {
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        messageId: info.messageId,
+      });
+    } catch (error) {
+      logger.error('Failed to send email', {
+        to: Array.isArray(to) ? to : [to],
+        subject,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't throw - we log errors but don't break the flow
+      // Queue will retry if needed
     }
-
-    /**
-     * Generic send email method
-     */
-    private async sendEmail(options: {
-        to: string | string[];
-        subject: string;
-        html: string;
-        cc?: string | string[];
-        bcc?: string | string[];
-    }): Promise<void> {
-        const { to, subject, html, cc, bcc } = options;
-
-        const mailOptions = {
-            from: `"${APP_NAME}" <${EMAIL_SENDER}>`,
-            to: Array.isArray(to) ? to.join(', ') : to,
-            cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
-            bcc: bcc ? (Array.isArray(bcc) ? bcc.join(', ') : bcc) : undefined,
-            subject,
-            html,
-        };
-
-        try {
-            const info = await this.transporter.sendMail(mailOptions);
-            logger.info(`Email sent successfully`, {
-                to: Array.isArray(to) ? to : [to],
-                subject,
-                messageId: info.messageId,
-            });
-        } catch (error) {
-            logger.error('Failed to send email', {
-                to: Array.isArray(to) ? to : [to],
-                subject,
-                error: error instanceof Error ? error.message : String(error),
-            });
-            // Don't throw - we log errors but don't break the flow
-            // Queue will retry if needed
-        }
-    }
+  }
 }
 
 // Export singleton instance

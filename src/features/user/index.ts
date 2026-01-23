@@ -42,11 +42,19 @@ class UserRoute implements Route {
     const { default: removeFromWishlistRouter } = await import('./apis/remove-from-wishlist');
     const { default: moveWishlistToCartRouter } = await import('./apis/move-wishlist-to-cart');
 
+    // OTP verification routes
+    const { default: sendEmailOtpRouter } = await import('./apis/send-email-otp');
+    const { default: verifyEmailOtpRouter } = await import('./apis/verify-email-otp');
+
     this.router.use(this.path, getAllUsersRouter);
     this.router.use(this.path, getCurrentUserRouter);
     this.router.use(this.path, getAllCustomersRouter); // Moved up
     this.router.use(this.path, getCustomerByIdRouter); // Moved up
     this.router.use(this.path, createCustomerRouter); // NEW: Create customer
+
+    // OTP verification endpoints
+    this.router.use(this.path, sendEmailOtpRouter);
+    this.router.use(this.path, verifyEmailOtpRouter);
 
     // Sub-resources first
     this.router.use(this.path, getUserOrdersRouter);

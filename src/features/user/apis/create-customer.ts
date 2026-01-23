@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
@@ -18,7 +18,8 @@ import { syncTags } from '../../tags/services/tag-sync.service';
 // Validation Schema
 const createCustomerSchema = z.object({
     // Required User Fields
-    name: shortTextSchema,
+    name: shortTextSchema, // First name
+    last_name: shortTextSchema, // Last name (required)
     email: emailSchema,
     phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).default('individual'),
@@ -61,12 +62,54 @@ const handler = async (req: RequestWithUser, res: Response) => {
             throw new HttpException(409, 'A customer with this email already exists');
         }
 
+        // Check if email was verified via OTP
+        const { emailOtps } = await import('../shared/email-otp.schema');
+        const [verifiedOtp] = await db
+            .select()
+            .from(emailOtps)
+            .where(
+                and(
+                    eq(emailOtps.email, data.email.toLowerCase()),
+                    eq(emailOtps.purpose, 'email_verification'),
+                )
+            )
+            .limit(1);
+
+        const isEmailVerified = verifiedOtp?.verified_at !== null;
+        const emailVerifiedAt = verifiedOtp?.verified_at || null;
+
+        // Generate unique customer_id (format: CUST-XXXXXX)
+        const generateCustomerId = (): string => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = 'CUST-';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        };
+
+        // Ensure unique customer_id
+        let customerId = generateCustomerId();
+        let attempts = 0;
+        while (attempts < 10) {
+            const [existing] = await db
+                .select()
+                .from(users)
+                .where(eq(users.customer_id, customerId))
+                .limit(1);
+            if (!existing) break;
+            customerId = generateCustomerId();
+            attempts++;
+        }
+
         const result = await db.transaction(async (tx) => {
-            // 1. Create User
+            // 1. Create User with email_verified status and customer_id
             const [newUser] = await tx.insert(users)
                 .values({
                     name: data.name,
+                    last_name: data.last_name,
                     email: data.email,
+                    customer_id: customerId,
                     display_name: data.display_name,
                     phone_number: data.phone_number,
                     user_type: data.user_type,
@@ -76,6 +119,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     preferred_language: data.preferred_language || 'en',
                     languages: data.languages || [],
                     profile_image_url: data.profile_image_url,
+                    email_verified: isEmailVerified,
+                    email_verified_at: emailVerifiedAt,
                 })
                 .returning();
 
