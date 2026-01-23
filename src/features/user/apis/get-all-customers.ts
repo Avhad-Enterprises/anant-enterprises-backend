@@ -19,7 +19,6 @@ import { sanitizeUsers } from '../shared/sanitizeUser';
 import { userAddresses } from '../shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
 
-
 // Default pagination values
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;

@@ -4,7 +4,7 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, and, or, count } from 'drizzle-orm';
+import { eq, and, or, count, sql } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
@@ -19,7 +19,20 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const [totalResult] = await db
       .select({ count: count() })
       .from(users)
-      .where(eq(users.is_deleted, false));
+      .where(
+        and(
+          eq(users.is_deleted, false),
+          or(
+            eq(users.user_type, 'individual'),
+            eq(users.user_type, 'business')
+          ),
+          sql`${users.id} NOT IN (
+            SELECT ur.user_id FROM user_roles ur
+            INNER JOIN roles r ON ur.role_id = r.id
+            WHERE r.name IN ('admin', 'superadmin')
+          )`
+        )
+      );
 
     const total = totalResult?.count ?? 0;
 
@@ -43,7 +56,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
               eq(users.user_type, 'business'),
               eq(businessCustomerProfiles.account_status, 'active')
             )
-          )
+          ),
+          sql`${users.id} NOT IN (
+            SELECT ur.user_id FROM user_roles ur
+            INNER JOIN roles r ON ur.role_id = r.id
+            WHERE r.name IN ('admin', 'superadmin')
+          )`
         )
       );
 

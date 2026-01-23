@@ -58,6 +58,7 @@ export class SupabaseAuthHelper {
       .values({
         auth_id: authData.user.id,
         name,
+        last_name: 'User', // Required field
         email,
         phone_number: phone_number || '',
         password: '', // Managed by Supabase
