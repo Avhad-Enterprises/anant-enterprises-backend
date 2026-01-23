@@ -172,6 +172,7 @@ export class AuthTestHelper {
       .values({
         email: userData.email,
         name: userData.name || 'Test User',
+        last_name: 'User', // Required field
         password: hashedPassword,
       })
       .returning();

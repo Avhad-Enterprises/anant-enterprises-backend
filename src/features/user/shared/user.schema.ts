@@ -42,10 +42,12 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(), // Changed to UUID for consistency
     auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
+    customer_id: varchar('customer_id', { length: 15 }).unique(), // Human-readable ID: CUST-XXXXXX
     user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
 
     // Basic info
-    name: varchar('name', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(), // First name
+    last_name: varchar('last_name', { length: 255 }).notNull(), // Last name (required)
     display_name: varchar('display_name', { length: 100 }),
     email: varchar('email', { length: 255 }).unique().notNull(),
     password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
@@ -57,6 +59,11 @@ export const users = pgTable(
     phone_country_code: varchar('phone_country_code', { length: 5 }), // +91, +1, etc.
     phone_verified: boolean('phone_verified').default(false).notNull(),
     phone_verified_at: timestamp('phone_verified_at'),
+
+    // Secondary contact info (limit of 2 emails/phones total)
+    secondary_email: varchar('secondary_email', { length: 255 }),
+    secondary_email_verified: boolean('secondary_email_verified').default(false).notNull(),
+    secondary_phone_number: varchar('secondary_phone_number', { length: 20 }),
 
     // Profile
     profile_image_url: varchar('profile_image_url', { length: 500 }),

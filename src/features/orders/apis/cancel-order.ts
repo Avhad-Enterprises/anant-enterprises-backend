@@ -34,7 +34,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .select()
         .from(orders)
         .where(and(
-            eq(orders.id, orderId),
+            eq(orders.id, orderId as any),
             eq(orders.is_deleted, false)
         ))
         .limit(1);
@@ -63,12 +63,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
             updated_at: new Date(),
             updated_by: userId,
         })
-        .where(eq(orders.id, orderId));
+        .where(eq(orders.id, orderId as any));
 
     // Release inventory reservation if order not yet shipped
     if (order.order_status !== 'shipped' && order.order_status !== 'delivered') {
         try {
-            await releaseReservation(orderId, userId);
+            await releaseReservation(String(orderId), String(userId));
             logger.info(`Inventory reservation released for order ${order.order_number}`);
         } catch (error: any) {
             logger.error('Failed to release inventory reservation:', error);

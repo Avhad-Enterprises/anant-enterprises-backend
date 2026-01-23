@@ -1,6 +1,6 @@
 {
-  "id": "2f67ba93-76cc-41c5-99b9-2697b3b346fa",
-  "prevId": "0ee4c04b-4427-46d7-983b-c43fa0cd7279",
+  "id": "2f4fbcf0-e769-4b7d-b90d-df98e4dbd1a5",
+  "prevId": "2f67ba93-76cc-41c5-99b9-2697b3b346fa",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -13963,6 +13963,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "user_type": {
           "name": "user_type",
           "type": "user_type",
@@ -13973,6 +13979,12 @@
         },
         "name": {
           "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_name": {
+          "name": "last_name",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
@@ -14030,6 +14042,18 @@
         "phone_verified_at": {
           "name": "phone_verified_at",
           "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "secondary_email": {
+          "name": "secondary_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "secondary_phone_number": {
+          "name": "secondary_phone_number",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": false
         },
@@ -14240,6 +14264,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "auth_id"
+          ]
+        },
+        "users_customer_id_unique": {
+          "name": "users_customer_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "customer_id"
           ]
         },
         "users_email_unique": {

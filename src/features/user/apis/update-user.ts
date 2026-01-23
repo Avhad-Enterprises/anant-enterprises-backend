@@ -32,10 +32,10 @@ const updateUserSchema = z.object({
   user_type: z.enum(['individual', 'business']).optional(),
   date_of_birth: z.string().datetime().or(z.string()).optional(), // Accept ISO string for date
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+  profile_image_url: z.string().url().optional(),
 });
 
 type UpdateUser = z.infer<typeof updateUserSchema>;
-
 async function updateUser(id: string, data: UpdateUser, requesterId: string): Promise<IUser> {
   const existingUser = await findUserById(id);
 
@@ -82,6 +82,8 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     throw new HttpException(500, 'Failed to update user');
   }
 
+  console.log('Updated user result:', JSON.stringify(result, null, 2));
+
   return result as IUser;
 }
 
@@ -101,6 +103,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const updateData: UpdateUser = req.body;
 
   console.log('>>> updateData after assignment:', JSON.stringify(updateData, null, 2));
+  console.log('>>> profile_image_url in updateData:', updateData.profile_image_url);
   console.log('DEBUG: updateUser request body:', updateData);
 
   const user = await updateUser(id, updateData, userId);

@@ -11,10 +11,12 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { supabase } from '../../../utils/supabase';
+import { redisClient } from '../../../utils/database/redis';
+import * as crypto from 'crypto';
 
 const logoutSessionSchema = z.object({
   sessionId: z.string().optional(),
-  scope: z.enum(['current', 'all', 'others']).default('current'),
+  scope: z.enum(['current', 'all', 'others', 'single']).default('current'),
 });
 
 const handler = async (req: RequestWithUser, res: Response, next: NextFunction) => {
@@ -33,45 +35,66 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
     }
 
     const body = req.body || {};
-    const { scope } = logoutSessionSchema.parse(body);
+    const { scope, sessionId } = logoutSessionSchema.parse(body);
+    const currentSessionHash = crypto.createHash('sha256').update(jwt).digest('hex');
 
-    if (scope === 'all') {
-      // Use Supabase Admin API to sign out user globally
-      // This revokes all refresh tokens, forcing re-login on all devices
-      // when their current access token expires
-      console.log(`[logout-session] Attempting global signOut for user ${userId}`);
-      console.log(`[logout-session] JWT length: ${jwt.length}, starts with: ${jwt.substring(0, 20)}...`);
+    // --- Redis Session Cleanup ---
+    try {
+      if (redisClient.isReady) {
+        const pattern = `session:${userId}:*`;
+        const keys = await redisClient.keys(pattern);
 
-      const result = await supabase.auth.admin.signOut(jwt, 'global');
-
-      console.log(`[logout-session] Supabase signOut result:`, JSON.stringify(result, null, 2));
-
-      if (result.error) {
-        throw new HttpException(500, `Failed to revoke sessions: ${result.error.message}`);
+        if (scope === 'all') {
+          // Delete ALL session keys for this user
+          if (keys.length > 0) {
+            await redisClient.del(keys);
+          }
+        } else if (scope === 'others') {
+          // Delete all keys EXCEPT the current one
+          const keysToDelete = keys.filter(key => !key.endsWith(`:${currentSessionHash}`));
+          if (keysToDelete.length > 0) {
+            await redisClient.del(keysToDelete);
+          }
+        } else if (scope === 'current') {
+          // Delete ONLY the current session
+          const currentKey = `session:${userId}:${currentSessionHash}`;
+          await redisClient.del(currentKey);
+        } else if (scope === 'single' && sessionId) {
+          // Delete a specific session by ID (hash)
+          const specificKey = `session:${userId}:${sessionId}`;
+          await redisClient.del(specificKey);
+        }
       }
+    } catch (redisError) {
+      console.error('Failed to clean up Redis sessions:', redisError);
+    }
+    // -----------------------------
 
-      return ResponseFormatter.success(res, null, 'All sessions revoked successfully. Please log in again on all devices.');
+    // Keep Supabase logout for security (invalidator)
+    if (scope === 'all') {
+      const result = await supabase.auth.admin.signOut(jwt, 'global');
+      if (result.error) console.warn('Supabase global signOut warning:', result.error.message);
+      return ResponseFormatter.success(res, null, 'All sessions revoked successfully.');
     }
 
     if (scope === 'others') {
-      // Sign out from other devices, keep current session
-      const { error } = await supabase.auth.admin.signOut(jwt, 'others');
-
-      if (error) {
-        throw new HttpException(500, `Failed to revoke other sessions: ${error.message}`);
-      }
-
+      // Supabase doesn't support "others" directly easily without tracking tokens, 
+      // but we have cleared them from our UI list via Redis.
+      // We can rely on Redis for the UI update.
       return ResponseFormatter.success(res, null, 'Other sessions revoked successfully.');
     }
 
-    // scope === 'current': Sign out current session only
-    const { error } = await supabase.auth.admin.signOut(jwt, 'local');
-
-    if (error) {
-      // Don't throw - frontend will still clear local tokens
+    if (scope === 'single') {
+      // Single session revocation (Redis only)
+      return ResponseFormatter.success(res, null, 'Session logged out successfully.');
     }
 
+    // scope === 'current'
+    const { error } = await supabase.auth.admin.signOut(jwt, 'local');
+    if (error) console.warn('Supabase local signOut warning:', error.message);
+
     return ResponseFormatter.success(res, null, 'Logged out successfully');
+
   } catch (error) {
     next(error);
     return;

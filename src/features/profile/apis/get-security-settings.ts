@@ -13,6 +13,8 @@ import { supabase } from '../../../utils/supabase';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
+import { redisClient } from '../../../utils/database/redis';
+import * as crypto from 'crypto';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   if (!req.userId) {
@@ -62,23 +64,84 @@ const handler = async (req: RequestWithUser, res: Response) => {
     console.warn('Failed to fetch MFA factors:', error);
   }
 
-  // 2. Construct Active Sessions (Current Session only)
-  // Since we can't persist sessions, we show the current one derived from request
+  // 2. Construct Active Sessions (Redis-backed)
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const clientIP = req.ip || req.connection.remoteAddress || 'Unknown IP';
 
-  // Simple heuristic for device info
+  // Get current session hash to identify "Current"
+  const authHeader = req.headers['authorization'];
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const currentSessionHash = token ? crypto.createHash('sha256').update(token).digest('hex') : null;
+
+  const activeSessions: any[] = [];
+
+  try {
+    if (redisClient.isReady) {
+      // Scan for user sessions
+      const pattern = `session:${req.userId}:*`;
+      const keys = await redisClient.keys(pattern);
+
+      if (keys.length > 0) {
+        // Fetch all session data
+        const sessionsData = await Promise.all(keys.map(key => redisClient.get(key)));
+
+        sessionsData.forEach((data, index) => {
+          if (!data) return;
+          try {
+            const session = JSON.parse(data);
+            const key = keys[index];
+            const sessionHash = key.split(':').pop();
+
+            // Parse UA
+            const ua = session.userAgent || '';
+            const isMobile = /mobile/i.test(ua);
+            const deviceType = isMobile ? 'Mobile' : 'Desktop';
+            const browser = /chrome/i.test(ua) ? 'Chrome' : /firefox/i.test(ua) ? 'Firefox' : /safari/i.test(ua) ? 'Safari' : /edge/i.test(ua) ? 'Edge' : 'Browser';
+
+            // Format IP
+            const loc = session.ip === '::1' ? 'Localhost' : session.ip;
+
+            activeSessions.push({
+              id: sessionHash || `sess-${index}`,
+              device: `${browser} on ${deviceType}`,
+              location: loc,
+              lastActive: new Date(session.lastActive).toLocaleString(), // Better formatting needed? Using simple for now
+              isCurrent: sessionHash === currentSessionHash
+            });
+          } catch (e) {
+            console.error('Error parsing session data', e);
+          }
+        });
+      }
+    }
+  } catch (redisError) {
+    console.error('Error fetching sessions from Redis:', redisError);
+  }
+
+
+
+  // Helper to determine device info from UA for fallback/current login
   const isMobile = /mobile/i.test(userAgent);
   const deviceType = isMobile ? 'Mobile' : 'Desktop';
-  const browser = /chrome/i.test(userAgent) ? 'Chrome' : /firefox/i.test(userAgent) ? 'Firefox' : /safari/i.test(userAgent) ? 'Safari' : 'Browser';
+  const browser = /chrome/i.test(userAgent) ? 'Chrome' : /firefox/i.test(userAgent) ? 'Firefox' : /safari/i.test(userAgent) ? 'Safari' : /edge/i.test(userAgent) ? 'Edge' : 'Browser';
 
-  const currentSession = {
-    id: 'current-session',
-    device: `${browser} on ${deviceType}`,
-    location: clientIP === '::1' ? 'Localhost' : clientIP, // Simple IP display
-    lastActive: 'Now',
-    isCurrent: true,
-  };
+  // Fallback: If Redis is empty or failed, show current (mocked) to avoid empty list
+  if (activeSessions.length === 0) {
+    activeSessions.push({
+      id: 'current-session',
+      device: `${browser} on ${deviceType}`,
+      location: clientIP === '::1' ? 'Localhost' : clientIP,
+      lastActive: 'Now',
+      isCurrent: true,
+    });
+  } else {
+    // Sort: Current first, then by date desc
+    activeSessions.sort((a, b) => {
+      if (a.isCurrent) return -1;
+      if (b.isCurrent) return 1;
+      return new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime();
+    });
+  }
 
   // 3. Construct Login History (Mock/Proxy)
   // We'll show the current successful access as the latest history entry
@@ -91,7 +154,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   };
 
   const securitySettings: ISecuritySettings = {
-    activeSessions: [currentSession],
+    activeSessions: activeSessions,
     loginHistory: [recentLogin],
     passwordLastChanged: 'Not available', // Supabase doesn't expose this easily
     twoFactorEnabled,
