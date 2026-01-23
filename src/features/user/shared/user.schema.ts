@@ -60,6 +60,11 @@ export const users = pgTable(
     phone_verified: boolean('phone_verified').default(false).notNull(),
     phone_verified_at: timestamp('phone_verified_at'),
 
+    // Secondary contact info (limit of 2 emails/phones total)
+    secondary_email: varchar('secondary_email', { length: 255 }),
+    secondary_email_verified: boolean('secondary_email_verified').default(false).notNull(),
+    secondary_phone_number: varchar('secondary_phone_number', { length: 20 }),
+
     // Profile
     profile_image_url: varchar('profile_image_url', { length: 500 }),
     date_of_birth: date('date_of_birth'),

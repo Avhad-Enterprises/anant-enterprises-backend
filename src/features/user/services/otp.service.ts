@@ -127,17 +127,48 @@ class OtpService {
       .set({ verified_at: now })
       .where(eq(emailOtps.id, otp.id));
 
-    // Update users table: set email_verified = true and email_verified_at
+    // Update users table: check if this is primary or secondary email
     const { users } = await import('../shared/user.schema');
-    await db
-      .update(users)
-      .set({
-        email_verified: true,
-        email_verified_at: now
-      })
-      .where(eq(users.email, normalizedEmail));
+    const { or } = await import('drizzle-orm');
 
-    logger.info(`OTP verified successfully for ${email}, user email_verified updated`);
+    // First, find user by primary email
+    const [userByPrimaryEmail] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (userByPrimaryEmail) {
+      // This is the primary email - update email_verified
+      await db
+        .update(users)
+        .set({
+          email_verified: true,
+          email_verified_at: now
+        })
+        .where(eq(users.id, userByPrimaryEmail.id));
+      logger.info(`OTP verified for primary email ${email}, user email_verified updated`);
+    } else {
+      // Check if this is a secondary email
+      const [userBySecondaryEmail] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.secondary_email, normalizedEmail))
+        .limit(1);
+
+      if (userBySecondaryEmail) {
+        // This is the secondary email - update secondary_email_verified
+        await db
+          .update(users)
+          .set({
+            secondary_email_verified: true
+          })
+          .where(eq(users.id, userBySecondaryEmail.id));
+        logger.info(`OTP verified for secondary email ${email}, secondary_email_verified updated`);
+      } else {
+        logger.warn(`No user found with email ${email} as primary or secondary`);
+      }
+    }
 
     return { verified: true };
   }

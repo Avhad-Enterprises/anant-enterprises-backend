@@ -22,6 +22,8 @@ const createCustomerSchema = z.object({
     last_name: shortTextSchema, // Last name (required)
     email: emailSchema,
     phone_number: z.string().optional(),
+    secondary_email: z.string().email().optional(),
+    secondary_phone_number: z.string().optional(),
     user_type: z.enum(['individual', 'business']).default('individual'),
     tags: z.array(z.string()).optional(),
     profile_image_url: z.string().optional(),
@@ -78,6 +80,22 @@ const handler = async (req: RequestWithUser, res: Response) => {
         const isEmailVerified = verifiedOtp?.verified_at !== null;
         const emailVerifiedAt = verifiedOtp?.verified_at || null;
 
+        // Check if secondary email was verified via OTP
+        let isSecondaryEmailVerified = false;
+        if (data.secondary_email) {
+            const [secondaryVerifiedOtp] = await db
+                .select()
+                .from(emailOtps)
+                .where(
+                    and(
+                        eq(emailOtps.email, data.secondary_email.toLowerCase()),
+                        eq(emailOtps.purpose, 'email_verification'),
+                    )
+                )
+                .limit(1);
+            isSecondaryEmailVerified = secondaryVerifiedOtp?.verified_at !== null;
+        }
+
         // Generate unique customer_id (format: CUST-XXXXXX)
         const generateCustomerId = (): string => {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -121,6 +139,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     profile_image_url: data.profile_image_url,
                     email_verified: isEmailVerified,
                     email_verified_at: emailVerifiedAt,
+                    secondary_email: data.secondary_email,
+                    secondary_email_verified: isSecondaryEmailVerified,
+                    secondary_phone_number: data.secondary_phone_number,
                 })
                 .returning();
 

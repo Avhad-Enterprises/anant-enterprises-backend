@@ -19,6 +19,7 @@ import { sanitizeUsers } from '../shared/sanitizeUser';
 import { userAddresses } from '../shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
 
+
 // Default pagination values
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
@@ -56,6 +57,16 @@ async function getAllCustomers(
             sql`(${users.name} ILIKE ${searchTerm} OR ${users.email} ILIKE ${searchTerm} OR ${users.phone_number} ILIKE ${searchTerm} OR ${users.display_name} ILIKE ${searchTerm})`
         );
     }
+
+    // Exclude users with admin/superadmin roles
+    // Subquery to find user IDs that have admin-like roles
+    conditions.push(
+        sql`${users.id} NOT IN (
+            SELECT ur.user_id FROM user_roles ur
+            INNER JOIN roles r ON ur.role_id = r.id
+            WHERE r.name IN ('admin', 'superadmin')
+        )`
+    );
 
     // Status Filter
     if (status) {

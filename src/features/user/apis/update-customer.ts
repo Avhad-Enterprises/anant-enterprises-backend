@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, HttpException, logger } from '../../../utils';
@@ -19,8 +19,14 @@ import { updateTagUsage } from '../../tags/services/tag-sync.service';
 const updateCustomerSchema = z.object({
     // User Fields
     name: shortTextSchema.optional(),
+    last_name: shortTextSchema.optional(),
     email: emailSchema.optional(),
     phone_number: z.string().optional(),
+    secondary_email: z.string().email().optional().nullable(),
+    secondary_phone_number: z.string().optional().nullable(),
+    // Verification status fields for primary/secondary swap
+    email_verified: z.boolean().optional(),
+    secondary_email_verified: z.boolean().optional(),
     user_type: z.enum(['individual', 'business']).optional(),
     tags: z.array(z.string()).optional(),
     display_name: z.string().max(100).optional(),
@@ -78,6 +84,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             // 1. Update User Table (Basic Info)
             const userUpdates: any = {};
             if (data.name) userUpdates.name = data.name;
+            if (data.last_name) userUpdates.last_name = data.last_name;
             if (data.email) userUpdates.email = data.email;
             if (data.phone_number !== undefined) userUpdates.phone_number = data.phone_number;
             if (data.user_type) userUpdates.user_type = data.user_type;
@@ -88,6 +95,33 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (data.profile_image_url !== undefined) userUpdates.profile_image_url = data.profile_image_url;
             if (data.preferred_language !== undefined) userUpdates.preferred_language = data.preferred_language;
             if (data.languages !== undefined) userUpdates.languages = data.languages;
+            if (data.secondary_email !== undefined) userUpdates.secondary_email = data.secondary_email;
+            if (data.secondary_phone_number !== undefined) userUpdates.secondary_phone_number = data.secondary_phone_number;
+
+            // Handle verification status for primary/secondary swap
+            // If frontend explicitly provides verified status, use it (for swap scenarios)
+            if (data.email_verified !== undefined) {
+                userUpdates.email_verified = data.email_verified;
+            }
+            if (data.secondary_email_verified !== undefined) {
+                userUpdates.secondary_email_verified = data.secondary_email_verified;
+            } else if (data.secondary_email) {
+                // Fallback: Check if secondary email was verified via OTP
+                const { emailOtps } = await import('../shared/email-otp.schema');
+                const [secondaryVerifiedOtp] = await tx
+                    .select()
+                    .from(emailOtps)
+                    .where(
+                        and(
+                            eq(emailOtps.email, data.secondary_email.toLowerCase()),
+                            eq(emailOtps.purpose, 'email_verification'),
+                        )
+                    )
+                    .limit(1);
+                if (secondaryVerifiedOtp?.verified_at !== null) {
+                    userUpdates.secondary_email_verified = true;
+                }
+            }
 
             // Fetch current user type if not provided, to know which profile to update
             // However, for efficiency, if user_type IS provided, we use it.
