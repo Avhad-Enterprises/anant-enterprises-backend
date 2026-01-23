@@ -252,6 +252,16 @@ async function updateProduct(
             created_by: updatedBy,
             updated_by: updatedBy,
           });
+
+          // CRITICAL: Create inventory record for the new variant
+          const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
+          await createInventoryForProduct(
+            id,
+            `${existingProduct.product_title} - ${variant.option_value}`,
+            variant.sku,
+            variant.inventory_quantity || 0,
+            updatedBy
+          );
         }
       }
 
