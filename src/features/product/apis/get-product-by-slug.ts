@@ -10,7 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
+import { products, productVariants } from '../shared/product.schema';
 import { IProductDetailResponse } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -118,6 +118,34 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         .from(productFaqs)
         .where(eq(productFaqs.product_id, productData.id));
 
+    // Fetch variants for this product
+    const variantsData = await db
+        .select({
+            id: productVariants.id,
+            product_id: productVariants.product_id,
+            option_name: productVariants.option_name,
+            option_value: productVariants.option_value,
+            sku: productVariants.sku,
+            barcode: productVariants.barcode,
+            cost_price: productVariants.cost_price,
+            selling_price: productVariants.selling_price,
+            compare_at_price: productVariants.compare_at_price,
+            inventory_quantity: productVariants.inventory_quantity,
+            image_url: productVariants.image_url,
+            thumbnail_url: productVariants.thumbnail_url,
+            is_default: productVariants.is_default,
+            is_active: productVariants.is_active,
+            created_at: productVariants.created_at,
+            updated_at: productVariants.updated_at,
+            created_by: productVariants.created_by,
+            updated_by: productVariants.updated_by,
+            is_deleted: productVariants.is_deleted,
+            deleted_at: productVariants.deleted_at,
+            deleted_by: productVariants.deleted_by,
+        })
+        .from(productVariants)
+        .where(eq(productVariants.product_id, productData.id));
+
     // Calculate discount percentage
     let discount: number | null = null;
     if (productData.compare_at_price && productData.selling_price) {
@@ -158,6 +186,7 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         sku: productData.sku,
         inStock: Number(productData.total_stock || 0) > 0,
         total_stock: Number(productData.total_stock) || 0,
+        base_inventory: Number(productData.total_stock) || 0,
 
         // Media
         primary_image_url: productData.primary_image_url,
@@ -201,6 +230,10 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             question: faq.question,
             answer: faq.answer,
         })),
+
+        // Variants
+        has_variants: variantsData.length > 0,
+        variants: variantsData,
     };
 
     return response;

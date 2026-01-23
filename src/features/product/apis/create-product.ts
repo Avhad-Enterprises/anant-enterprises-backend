@@ -14,7 +14,7 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { eq } from 'drizzle-orm';
 import { products, productVariants } from '../shared/product.schema';
-import { findProductBySku, findProductBySlug, isSkuTaken } from '../shared/queries';
+import { findProductBySlug, isSkuTaken } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { IProduct } from '../shared/interface';
