@@ -19,6 +19,7 @@ import { IProductDetailResponse } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
+import { findVariantsByProductId } from '../shared/queries';
 import { rbacCacheService } from '../../rbac';
 import { optionalAuth } from '../../../middlewares/auth.middleware';
 
@@ -77,11 +78,23 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       // Tags
       tags: products.tags,
 
-      // Computed: Total stock from inventory
+      // Variants flag
+      has_variants: products.has_variants,
+
+      // Computed: Total stock from inventory (sum of all - base + variants)
       total_stock: sql<string>`(
         SELECT CAST(COALESCE(SUM(${inventory.available_quantity}), 0) AS TEXT)
         FROM ${inventory}
         WHERE ${inventory.product_id} = ${products.id}
+      )`,
+
+      // Computed: Base product inventory (only the record matching base product SKU)
+      base_inventory: sql<string>`(
+        SELECT CAST(COALESCE(${inventory.available_quantity}, 0) AS TEXT)
+        FROM ${inventory}
+        WHERE ${inventory.product_id} = ${products.id}
+          AND ${inventory.sku} = ${products.sku}
+        LIMIT 1
       )`,
 
       // Computed: Average rating from reviews
@@ -143,6 +156,11 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     }
   }
 
+  // Fetch variants if product has variants
+  const variantsData = productData.has_variants
+    ? await findVariantsByProductId(productData.id)
+    : [];
+
   // Combine images (primary + additional)
   const images: string[] = [];
   if (productData.primary_image_url) {
@@ -173,6 +191,7 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     sku: productData.sku,
     inStock: Number(productData.total_stock || 0) > 0,
     total_stock: Number(productData.total_stock) || 0,
+    base_inventory: Number((productData as any).base_inventory) || 0,
 
     // Media
     primary_image_url: productData.primary_image_url,
@@ -215,6 +234,32 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       id: faq.id,
       question: faq.question,
       answer: faq.answer,
+    })),
+
+    // Variants
+    has_variants: productData.has_variants,
+    variants: variantsData.map(v => ({
+      id: v.id,
+      product_id: v.product_id,
+      option_name: v.option_name,
+      option_value: v.option_value,
+      sku: v.sku,
+      barcode: v.barcode,
+      cost_price: v.cost_price,
+      selling_price: v.selling_price,
+      compare_at_price: v.compare_at_price,
+      inventory_quantity: v.inventory_quantity,
+      image_url: v.image_url,
+      thumbnail_url: v.thumbnail_url,
+      is_default: v.is_default,
+      is_active: v.is_active,
+      created_at: v.created_at,
+      updated_at: v.updated_at,
+      created_by: v.created_by,
+      updated_by: v.updated_by,
+      is_deleted: v.is_deleted,
+      deleted_at: v.deleted_at,
+      deleted_by: v.deleted_by,
     })),
   };
 

@@ -56,6 +56,9 @@ export interface IProduct {
   is_deleted: boolean;
   deleted_at?: Date | null;
   deleted_by?: string | null;
+
+  // Variants Flag
+  has_variants: boolean;
 }
 
 // ============================================
@@ -71,6 +74,54 @@ export interface IProductFaq {
 
   created_at: Date;
   updated_at: Date;
+}
+
+// ============================================
+// PRODUCT VARIANT
+// ============================================
+
+/**
+ * Product Variant interface
+ * Represents a variant of a product with independent pricing and inventory.
+ */
+export interface IProductVariant {
+  id: string;
+  product_id: string;
+
+  // Variant Attributes
+  option_name: string;
+  option_value: string;
+
+  // Identification
+  sku: string;
+  barcode?: string | null;
+
+  // Independent Pricing
+  cost_price: string;
+  selling_price: string;
+  compare_at_price?: string | null;
+
+  // Inventory
+  inventory_quantity: number;
+
+  // Media
+  image_url?: string | null;
+  thumbnail_url?: string | null;
+
+  // Status
+  is_default: boolean;
+  is_active: boolean;
+
+  // Timestamps
+  created_at: Date;
+  updated_at: Date;
+  created_by?: string | null;
+  updated_by?: string | null;
+
+  // Soft Delete
+  is_deleted: boolean;
+  deleted_at?: Date | null;
+  deleted_by?: string | null;
 }
 
 // ============================================
@@ -97,6 +148,7 @@ export interface IProductDetailResponse {
   sku: string;
   inStock: boolean;
   total_stock: number;
+  base_inventory: number;
 
   // Media
   primary_image_url: string | null;
@@ -132,6 +184,10 @@ export interface IProductDetailResponse {
 
   featured: boolean;
   faqs: Array<{ id: string; question: string; answer: string }>;
+
+  // Variants
+  has_variants: boolean;
+  variants: IProductVariant[];
 }
 
 // ============================================

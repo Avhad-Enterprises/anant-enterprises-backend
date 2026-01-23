@@ -39,6 +39,7 @@ const selectColumns = {
   is_deleted: products.is_deleted,
   deleted_at: products.deleted_at,
   deleted_by: products.deleted_by,
+  has_variants: products.has_variants,
 };
 
 /**
@@ -109,3 +110,103 @@ export const updateProductById = async (
 
   return updatedProduct as Product;
 };
+
+// ============================================
+// VARIANT QUERIES
+// ============================================
+
+import { asc, ne } from 'drizzle-orm';
+import { productVariants, type ProductVariant } from './product.schema';
+
+/**
+ * Find all variants for a product (excluding deleted)
+ */
+export const findVariantsByProductId = async (
+  productId: string
+): Promise<ProductVariant[]> => {
+  const variants = await db
+    .select()
+    .from(productVariants)
+    .where(
+      and(
+        eq(productVariants.product_id, productId),
+        eq(productVariants.is_deleted, false)
+      )
+    )
+    .orderBy(asc(productVariants.created_at));
+
+  return variants;
+};
+
+/**
+ * Find variant by SKU
+ */
+export const findVariantBySku = async (
+  sku: string
+): Promise<ProductVariant | undefined> => {
+  const [variant] = await db
+    .select()
+    .from(productVariants)
+    .where(eq(productVariants.sku, sku))
+    .limit(1);
+
+  return variant;
+};
+
+/**
+ * Check if SKU exists in products OR variants table (global uniqueness)
+ * Returns true if SKU is already taken
+ * @param sku - The SKU to check
+ * @param excludeProductId - Optional product ID to exclude (for update scenarios)
+ */
+export const isSkuTaken = async (
+  sku: string,
+  excludeProductId?: string
+): Promise<boolean> => {
+  // Check products table
+  const productConditions = excludeProductId
+    ? and(eq(products.sku, sku), ne(products.id, excludeProductId))
+    : eq(products.sku, sku);
+
+  const [productWithSku] = await db
+    .select({ id: products.id })
+    .from(products)
+    .where(productConditions)
+    .limit(1);
+
+  if (productWithSku) return true;
+
+  // Check variants table
+  const variantConditions = excludeProductId
+    ? and(
+      eq(productVariants.sku, sku),
+      ne(productVariants.product_id, excludeProductId)
+    )
+    : eq(productVariants.sku, sku);
+
+  const [variantWithSku] = await db
+    .select({ id: productVariants.id })
+    .from(productVariants)
+    .where(variantConditions)
+    .limit(1);
+
+  return !!variantWithSku;
+};
+
+/**
+ * Delete all variants for a product (soft delete)
+ */
+export const softDeleteVariantsByProductId = async (
+  productId: string,
+  deletedBy: string
+): Promise<void> => {
+  await db
+    .update(productVariants)
+    .set({
+      is_deleted: true,
+      deleted_at: new Date(),
+      deleted_by: deletedBy,
+    })
+    .where(eq(productVariants.product_id, productId));
+};
+
