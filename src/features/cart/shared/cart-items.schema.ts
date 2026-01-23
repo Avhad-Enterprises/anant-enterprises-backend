@@ -31,7 +31,7 @@ export const cartItems = pgTable(
   'cart_items',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     cart_id: uuid('cart_id')
       .references(() => carts.id, { onDelete: 'cascade' })
       .notNull(),

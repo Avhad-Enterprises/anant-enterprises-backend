@@ -35,7 +35,7 @@ export const reviews = pgTable(
   'reviews',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Links
     product_id: uuid('product_id')

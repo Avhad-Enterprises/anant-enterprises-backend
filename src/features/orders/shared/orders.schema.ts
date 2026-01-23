@@ -23,6 +23,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 import { userAddresses } from '../../user/shared/addresses.schema';
 import { carts } from '../../cart/shared/carts.schema';
@@ -81,7 +82,7 @@ export const orders = pgTable(
   'orders',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     order_number: varchar('order_number', { length: 40 }).unique().notNull(),
 
     // Relationships

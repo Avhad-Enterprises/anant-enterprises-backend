@@ -11,6 +11,7 @@
  */
 
 import { pgTable, integer, uuid, timestamp, decimal, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -25,7 +26,7 @@ import { users } from './user.schema';
 export const customerStatistics = pgTable(
   'customer_statistics',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()

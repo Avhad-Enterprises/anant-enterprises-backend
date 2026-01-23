@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb, pgEnum } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user';
 
 /**
@@ -53,7 +54,7 @@ export const notificationPriorityEnum = pgEnum('notification_priority', [
  * Stores all user notifications
  */
 export const notifications = pgTable('notifications', {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
 
     // Content

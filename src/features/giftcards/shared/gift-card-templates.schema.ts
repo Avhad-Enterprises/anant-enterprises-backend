@@ -16,6 +16,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 
 // ============================================
@@ -36,7 +37,7 @@ export const giftCardTemplates = pgTable(
   'gift_card_templates',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 255 }).notNull(), // "Holiday 2024", "Standard"
     description: text('description'),
 

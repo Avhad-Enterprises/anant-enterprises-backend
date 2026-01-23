@@ -16,6 +16,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
 import { inventoryLocations } from './inventory-locations.schema';
 import { users } from '../../user/shared/user.schema';
@@ -47,7 +48,7 @@ export const productionOrders = pgTable(
   'production_orders',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     order_number: varchar('order_number', { length: 50 }).unique().notNull(), // "PO-2024-001"
 
     // Product & Location

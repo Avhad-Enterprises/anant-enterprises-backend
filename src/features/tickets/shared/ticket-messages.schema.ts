@@ -6,6 +6,7 @@
  */
 
 import { pgTable, uuid, text, boolean, timestamp, jsonb, pgEnum, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { tickets } from './tickets.schema';
 import { users } from '../../user/shared/user.schema';
 
@@ -28,7 +29,7 @@ export const ticketMessages = pgTable(
   'ticket_messages',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     ticket_id: uuid('ticket_id')
       .references(() => tickets.id, { onDelete: 'cascade' })
       .notNull(),

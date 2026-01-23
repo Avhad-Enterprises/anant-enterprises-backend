@@ -192,13 +192,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     return ResponseFormatter.success(res, result, 'Tag import completed', statusCode);
 };
 
-// Router setup
 const router = Router();
-router.post(
-    '/',
-    requireAuth,
-    requirePermission('tags:create'),
-    handler
-);
+router.post('/', requireAuth, requirePermission('tags:create'), handler);
 
 export default router;

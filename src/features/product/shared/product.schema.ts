@@ -50,7 +50,7 @@ export const products = pgTable(
     'products',
     {
         // Identity
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
         slug: varchar('slug', { length: 255 }).unique().notNull(),
         product_title: varchar('product_title', { length: 255 }).notNull(),
         secondary_title: varchar('secondary_title', { length: 255 }),

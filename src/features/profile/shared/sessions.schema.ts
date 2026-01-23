@@ -6,12 +6,13 @@
  */
 
 import { pgTable, varchar, uuid, timestamp, index, inet } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 
 export const sessions = pgTable(
   'sessions',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

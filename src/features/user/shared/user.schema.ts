@@ -10,6 +10,7 @@ import {
   text,
   jsonb,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -40,7 +41,7 @@ export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_n
 export const users = pgTable(
   'users',
   {
-    id: uuid('id').primaryKey().defaultRandom(), // Changed to UUID for consistency
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`), // Changed to UUID for consistency
     auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
     user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
 

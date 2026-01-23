@@ -49,7 +49,7 @@ export const paymentTransactions = pgTable(
     'payment_transactions',
     {
         // Identity
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
         order_id: uuid('order_id')
             .references(() => orders.id, { onDelete: 'cascade' })
             .notNull(),

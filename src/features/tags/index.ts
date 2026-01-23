@@ -22,7 +22,7 @@ class TagRoute implements Route {
     const { default: updateTagRouter } = await import('./apis/update-tag');
     const { default: deleteTagRouter } = await import('./apis/delete-tag');
     const { default: importTagsRouter } = await import('./apis/import-tags');
-    const { exportTagsRouter } = await import('./apis/export-tags');
+    const { default: exportTagsRouter } = await import('./apis/export-tags');
 
     // Register routes in order
     this.router.use(`${this.path}/import`, importTagsRouter); // POST /tags/import
