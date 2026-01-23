@@ -16,7 +16,7 @@ import { RequestWithUser } from '../../../interfaces';
 // Validation schema
 const createTagSchema = z.object({
     name: z.string().min(1).max(255).trim(),
-    type: z.string().min(1).max(50).default('product'),
+    type: z.enum(['customer', 'product', 'blogs', 'order'] as const).default('product'),
     status: z.boolean().optional().default(true),
 });
 

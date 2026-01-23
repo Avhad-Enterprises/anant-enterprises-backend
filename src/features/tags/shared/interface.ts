@@ -5,13 +5,19 @@
  */
 
 // ============================================
+// TAG TYPES
+// ============================================
+
+export type TagType = 'customer' | 'product' | 'blogs' | 'order';
+
+// ============================================
 // TAG
 // ============================================
 
 export interface ITag {
   id: string; // UUID
   name: string;
-  type: string;
+  type: TagType;
 
   usage_count: number;
   status: boolean;

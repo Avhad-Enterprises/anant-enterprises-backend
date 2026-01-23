@@ -20,7 +20,7 @@ const paramsSchema = z.object({
 
 const updateTagSchema = z.object({
     name: z.string().min(1).max(255).trim().optional(),
-    type: z.string().min(1).max(50).optional(),
+    type: z.enum(['customer', 'product', 'blogs', 'order'] as const).optional(),
     status: z.boolean().optional(),
 });
 
