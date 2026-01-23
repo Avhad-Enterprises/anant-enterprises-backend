@@ -16,6 +16,7 @@ import {
     index,
     integer,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { discounts } from './discount.schema';
 import { discountCodes } from './discount-codes.schema';
 import { users } from '../../user/shared/user.schema';
@@ -28,7 +29,7 @@ import { orders } from '../../orders/shared/orders.schema';
 export const discountUsage = pgTable(
     'discount_usage',
     {
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
         // Discount reference
         discount_id: uuid('discount_id')
@@ -80,7 +81,7 @@ export const discountUsage = pgTable(
 export const discountDailyUsage = pgTable(
     'discount_daily_usage',
     {
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
         discount_id: uuid('discount_id')
             .references(() => discounts.id, { onDelete: 'cascade' })
             .notNull(),

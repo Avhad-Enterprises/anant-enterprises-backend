@@ -1,11 +1,12 @@
 import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /**
  * Notification Templates Table
  * Stores reusable notification templates with variable substitution
  */
 export const notificationTemplates = pgTable('notification_templates', {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Template identification
     code: varchar('code', { length: 100 }).notNull().unique(),

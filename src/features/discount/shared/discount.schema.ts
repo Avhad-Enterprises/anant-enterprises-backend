@@ -100,7 +100,7 @@ export const discounts = pgTable(
   'discounts',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     title: varchar('title', { length: 255 }).notNull(), // Internal Label
     description: varchar('description', { length: 500 }),
 

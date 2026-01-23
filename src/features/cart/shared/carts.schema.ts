@@ -16,6 +16,7 @@ import {
   jsonb,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 
 // ============================================
@@ -34,7 +35,7 @@ export const carts = pgTable(
   'carts',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // User Association (either user_id OR session_id)
     user_id: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),

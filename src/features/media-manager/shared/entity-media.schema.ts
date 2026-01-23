@@ -17,6 +17,7 @@ import {
     pgEnum,
     index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { uploads } from '../../upload';
 
 // ============================================
@@ -77,7 +78,7 @@ export const entityMedia = pgTable(
     'entity_media',
     {
         // Identity
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
         // Generic entity relationship (polymorphic)
         entity_type: entityTypeEnum('entity_type').notNull(),

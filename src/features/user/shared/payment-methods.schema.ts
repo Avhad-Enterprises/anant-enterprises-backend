@@ -22,6 +22,7 @@ import {
   index,
   pgEnum,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 import { userAddresses } from './addresses.schema';
 
@@ -44,7 +45,7 @@ export const cardFundingEnum = pgEnum('card_funding', ['credit', 'debit', 'prepa
 export const userPaymentMethods = pgTable(
   'user_payment_methods',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),

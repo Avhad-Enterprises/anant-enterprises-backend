@@ -9,6 +9,7 @@
  */
 
 import { pgTable, varchar, boolean, uuid, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from './user.schema';
 
 // ============================================
@@ -23,7 +24,7 @@ import { users } from './user.schema';
 export const adminProfiles = pgTable(
   'admin_profiles',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .unique()
