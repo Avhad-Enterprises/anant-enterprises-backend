@@ -1,4 +1,4 @@
-import { eq, desc, inArray, sql, and } from 'drizzle-orm';
+import { eq, desc, asc, inArray, sql, and } from 'drizzle-orm';
 import { db } from '../../../database';
 import { blogs, type NewBlog } from './blog.schema';
 import { blogSubsections, type NewBlogSubsection } from './blog-subsections.schema';
@@ -8,7 +8,7 @@ import { blogSubsections, type NewBlogSubsection } from './blog-subsections.sche
  */
 export const findBlogById = async (id: string) => {
     // Fetch blog
-    const result = await db.select().from(blogs).where(eq(blogs.id, id)).limit(1);
+    const result = await db.select().from(blogs).where(and(eq(blogs.id, id), eq(blogs.is_deleted, false))).limit(1);
     const blog = result[0];
 
     if (!blog) return null;
@@ -28,7 +28,7 @@ export const findBlogById = async (id: string) => {
  */
 export const findBlogBySlug = async (slug: string) => {
     // Fetch blog
-    const result = await db.select().from(blogs).where(eq(blogs.slug, slug)).limit(1);
+    const result = await db.select().from(blogs).where(and(eq(blogs.slug, slug), eq(blogs.is_deleted, false))).limit(1);
     const blog = result[0];
 
     if (!blog) return null;
@@ -139,7 +139,11 @@ export const updateBlog = async (
  */
 export const deleteBlog = async (id: string) => {
     const [deletedBlog] = await db
-        .delete(blogs)
+        .update(blogs)
+        .set({
+            is_deleted: true,
+            updated_at: new Date(),
+        })
         .where(eq(blogs.id, id))
         .returning();
     return deletedBlog;
@@ -150,7 +154,14 @@ export const deleteBlog = async (id: string) => {
  */
 export const bulkDeleteBlogs = async (ids: string[]) => {
     if (ids.length === 0) return [];
-    return await db.delete(blogs).where(inArray(blogs.id, ids)).returning();
+    return await db
+        .update(blogs)
+        .set({
+            is_deleted: true,
+            updated_at: new Date(),
+        })
+        .where(inArray(blogs.id, ids))
+        .returning();
 };
 
 /**
@@ -163,12 +174,14 @@ export const getAllBlogs = async (
         status?: string | null;
         category?: string | null;
         search?: string | null;
+        sortBy?: string | null;
+        sortOrder?: 'asc' | 'desc' | null;
     } = {}
 ) => {
     const offset = (page - 1) * limit;
 
     // Build conditions
-    const conditions = [];
+    const conditions = [eq(blogs.is_deleted, false)];
 
     if (filters.status) {
         conditions.push(eq(blogs.status, filters.status as any));
@@ -195,6 +208,32 @@ export const getAllBlogs = async (
 
     const total = Number(countResult?.total || 0);
 
+    // Sorting
+    let orderByClause = desc(blogs.created_at);
+    if (filters.sortBy) {
+        const order = filters.sortOrder === 'asc' ? asc : desc;
+        switch (filters.sortBy) {
+            case 'views':
+            case 'views_count':
+                orderByClause = order(blogs.views_count);
+                break;
+            case 'title':
+                orderByClause = order(blogs.title);
+                break;
+            case 'published_at':
+                orderByClause = order(blogs.published_at);
+                break;
+            case 'created_at':
+            case 'newest':
+                orderByClause = order(blogs.created_at);
+                break;
+            // Add legacy/other keys if needed
+            case 'status':
+                orderByClause = order(blogs.status);
+                break;
+        }
+    }
+
     // Fetch data
     const data = await db
         .select()
@@ -202,7 +241,7 @@ export const getAllBlogs = async (
         .where(whereClause)
         .limit(limit)
         .offset(offset)
-        .orderBy(desc(blogs.created_at));
+        .orderBy(orderByClause);
 
     return {
         data,

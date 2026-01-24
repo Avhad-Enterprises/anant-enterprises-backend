@@ -17,10 +17,12 @@ const querySchema = z.object({
     category: z.string().optional(),
     visibility: z.enum(['Public', 'Private', 'Draft']).optional(),
     status: z.string().optional(), // Direct status param support
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { page, limit, search, category, visibility, status } = querySchema.parse(req.query);
+    const { page, limit, search, category, visibility, status, sortBy, sortOrder } = querySchema.parse(req.query);
 
     // Normalize status filter (support both 'visibility' from frontend and direct 'status')
     let statusFilter = status;
@@ -32,6 +34,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
         search,
         category,
         status: statusFilter,
+        sortBy,
+        sortOrder,
     });
 
     ResponseFormatter.paginated(
