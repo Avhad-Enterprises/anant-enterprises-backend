@@ -59,7 +59,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     if (data.metaURL) blogUpdates.slug = data.metaURL;
     if (data.visibility) blogUpdates.status = data.visibility;
     if (data.category) blogUpdates.category = data.category;
-    if (data.tags) blogUpdates.tags = data.tags;
+    if (data.tags !== undefined) blogUpdates.tags = data.tags; // Allow empty array
     if (data.author) blogUpdates.author = data.author;
     if (data.metaTitle) blogUpdates.meta_title = data.metaTitle;
     if (data.metaDescription) blogUpdates.meta_description = data.metaDescription;
