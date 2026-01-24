@@ -83,6 +83,21 @@ async function main() {
       localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/tags-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/tags-template.csv`,
     },
+    {
+      name: 'Tiers Template',
+      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/tiers-template.csv'),
+      storagePath: `${TEMPLATE_FOLDER}/tiers-template.csv`,
+    },
+    {
+      name: 'Blogs Template',
+      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/blogs-template.csv'),
+      storagePath: `${TEMPLATE_FOLDER}/blogs-template.csv`,
+    },
+    {
+      name: 'Customers Template',
+      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/customers-template.csv'),
+      storagePath: `${TEMPLATE_FOLDER}/customers-template.csv`,
+    },
     // Add more templates here as needed
     // {
     //   name: 'Products Template',

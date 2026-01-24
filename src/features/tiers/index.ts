@@ -22,11 +22,15 @@ class TierRoute implements Route {
     const { default: getTierByIdRouter } = await import('./apis/get-tier-by-id');
     const { default: updateTierRouter } = await import('./apis/update-tier');
     const { default: deleteTierRouter } = await import('./apis/delete-tier');
+    const { default: importTiersRouter } = await import('./apis/import-tiers');
+    const { default: exportTiersRouter } = await import('./apis/export-tiers');
 
     // Register routes in order (specific routes before parametrized ones)
     this.router.use(this.path, createTierRouter);         // POST /tiers
     this.router.use(this.path, getTiersRouter);           // GET /tiers
     this.router.use(this.path, getTierHierarchyRouter);   // GET /tiers/hierarchy
+    this.router.use(this.path, importTiersRouter);        // POST /tiers/import
+    this.router.use(this.path, exportTiersRouter);        // POST /tiers/export
     this.router.use(this.path, getTierByIdRouter);        // GET /tiers/:id
     this.router.use(this.path, updateTierRouter);         // PUT /tiers/:id
     this.router.use(this.path, deleteTierRouter);         // DELETE /tiers/:id
