@@ -34,7 +34,9 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sort: z.enum(['newest', 'price-asc', 'price-desc', 'rating']).default('newest'),
+    sort: z.string().optional(), // Legacy
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
@@ -77,8 +79,6 @@ const handler = async (req: Request, res: Response) => {
       }
     }
 
-
-
     // Category filter (Recursive CTE for Hierarchical Matching)
     if (params.categories) {
       const categoryList = params.categories.split(',').map(c => c.trim().toLowerCase());
@@ -111,9 +111,6 @@ const handler = async (req: Request, res: Response) => {
     // Technology filter (uses tags field - JSONB array overlap)
     if (params.technologies) {
       const techList = params.technologies.split(',').map(t => t.trim().toLowerCase());
-
-      // Use efficient JSONB operator ?| (exists any) if available, otherwise fallback to array expansion
-      // Since availability of ?| depends on drivers, sticking to EXISTS with parameterized values is safer
 
       const techConditions = techList.map(
         tech =>
@@ -207,18 +204,37 @@ const handler = async (req: Request, res: Response) => {
       const minRating = Math.min(...minRatings);
       filteredProducts = productsData.filter(p => Number(p.rating) >= minRating);
     }
-
     // Apply sorting
     filteredProducts.sort((a, b) => {
-      switch (params.sort) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'price-asc':
-          return Number(a.selling_price) - Number(b.selling_price);
-        case 'price-desc': // fixed case from 'price-desc' to 'price-desc' (consistency)
-          return Number(b.selling_price) - Number(a.selling_price);
+      const sortKey = params.sortBy || 'created_at';
+      const order = params.sortOrder || 'desc';
+      const multiplier = order === 'asc' ? 1 : -1;
+
+      // Legacy support for 'sort' if sortBy not present
+      if (!params.sortBy && params.sort) {
+        if (params.sort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (params.sort === 'price-asc') return Number(a.selling_price) - Number(b.selling_price);
+        if (params.sort === 'price-desc') return Number(b.selling_price) - Number(a.selling_price);
+        if (params.sort === 'rating') return Number(b.rating) - Number(a.rating);
+      }
+
+      switch (sortKey) {
+        case 'title':
+        case 'product_title':
+          return multiplier * a.product_title.localeCompare(b.product_title);
+        case 'price':
+        case 'selling_price':
+          return multiplier * (Number(a.selling_price) - Number(b.selling_price));
+        case 'inventory_quantity':
+        case 'inventory':
+          return multiplier * (Number(a.inventory_quantity) - Number(b.inventory_quantity));
         case 'rating':
-          return Number(b.rating) - Number(a.rating);
+          return multiplier * (Number(a.rating) - Number(b.rating));
+        case 'created_at':
+        case 'newest':
+          return multiplier * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        case 'status':
+          return multiplier * a.status.localeCompare(b.status);
         default:
           return 0;
       }

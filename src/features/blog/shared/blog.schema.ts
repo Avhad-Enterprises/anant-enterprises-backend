@@ -14,6 +14,7 @@ import {
   pgEnum,
   jsonb,
   index,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -63,6 +64,9 @@ export const blogs = pgTable(
     created_by: uuid('created_by'), // Reference to Creator UUID
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
+
+    // 7. System status
+    is_deleted: boolean('is_deleted').default(false).notNull(),
   },
   table => ({
     // Indexes
