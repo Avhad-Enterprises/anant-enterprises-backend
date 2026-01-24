@@ -6,6 +6,7 @@
  */
 
 import { pgTable, uuid, varchar, text, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { catalogues } from './catalogue.schema';
 
 // ============================================
@@ -15,7 +16,7 @@ import { catalogues } from './catalogue.schema';
 export const catalogueRules = pgTable(
   'catalogue_rules',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Parent Link
     catalogue_id: uuid('catalogue_id')

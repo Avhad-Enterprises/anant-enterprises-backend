@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, integer, boolean, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // TAGS TABLE
@@ -14,7 +15,7 @@ export const tags = pgTable(
   'tags',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 255 }).unique().notNull(), // Tag Name (e.g., "Summer")
     type: varchar('type', { length: 50 }).default('product').notNull(), // Context (product, order, customer)
 

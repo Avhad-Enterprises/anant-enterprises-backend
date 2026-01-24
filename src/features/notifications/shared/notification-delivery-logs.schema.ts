@@ -1,4 +1,5 @@
 import { pgTable, uuid, varchar, text, timestamp, jsonb, pgEnum, integer } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { notifications } from './notifications.schema';
 
 /**
@@ -17,7 +18,7 @@ export const deliveryStatusEnum = pgEnum('delivery_status', [
  * Tracks delivery attempts for each notification channel
  */
 export const notificationDeliveryLogs = pgTable('notification_delivery_logs', {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     notification_id: uuid('notification_id').notNull().references(() => notifications.id, { onDelete: 'cascade' }),
 
     // Delivery details

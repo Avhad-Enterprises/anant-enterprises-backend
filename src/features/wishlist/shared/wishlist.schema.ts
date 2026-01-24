@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, boolean, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 
 // ============================================
@@ -15,7 +16,7 @@ export const wishlists = pgTable(
   'wishlists',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Owner
     user_id: uuid('user_id')

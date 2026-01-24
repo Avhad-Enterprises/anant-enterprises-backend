@@ -113,12 +113,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   // Create new user
+  const fullName =
+    bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
+  const nameParts = fullName.trim().split(' ');
+  const name = nameParts[0] || 'User';
+  const last_name = nameParts.slice(1).join(' ') || '';
+
   const [newUser] = await db
     .insert(users)
     .values({
       auth_id: authUser.id,
-      name:
-        bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+      name,
+      last_name,
       email: authUser.email!,
       phone_number: bodyData.phone_number || authUser.phone || '',
       email_verified: emailVerified,

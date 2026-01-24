@@ -18,6 +18,7 @@ import {
   jsonb,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 import { orders } from '../../orders/shared/orders.schema';
 
@@ -56,7 +57,7 @@ export const giftCards = pgTable(
   'gift_cards',
   {
     // Identity & Security
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     code: varchar('code', { length: 50 }).unique().notNull(), // e.g., "GIFT-ABCD-1234-EFGH"
     pin: varchar('pin', { length: 6 }), // Optional PIN for additional security
 

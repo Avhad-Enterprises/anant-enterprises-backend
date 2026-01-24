@@ -6,6 +6,7 @@
  */
 
 import { pgTable, uuid, boolean, integer, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { bundles } from './bundles.schema';
 import { products } from '../../product/shared/product.schema';
 
@@ -17,7 +18,7 @@ export const bundleItems = pgTable(
   'bundle_items',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Links
     bundle_id: uuid('bundle_id')

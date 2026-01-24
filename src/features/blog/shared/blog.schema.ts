@@ -16,6 +16,7 @@ import {
   index,
   boolean,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -31,7 +32,7 @@ export const blogs = pgTable(
   'blogs',
   {
     // 1. Identity & Content
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     title: varchar('title', { length: 255 }).notNull(),
     quote: varchar('quote', { length: 500 }),
     description: varchar('description', { length: 150 }), // Summary

@@ -16,6 +16,7 @@ import {
   jsonb,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -33,7 +34,7 @@ export const catalogues = pgTable(
   'catalogues',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
 

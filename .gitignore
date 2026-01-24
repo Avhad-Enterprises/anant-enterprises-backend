@@ -71,6 +71,9 @@ temp/
 *.sqlite3
 *.db
 
+# Database migrations meta files
+src/database/migrations/meta/
+
 # Secrets and keys
 *.pem
 *.key

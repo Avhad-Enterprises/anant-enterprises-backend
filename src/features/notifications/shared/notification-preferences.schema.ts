@@ -1,4 +1,5 @@
 import { pgTable, uuid, boolean, time, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user';
 import { notificationTypeEnum } from './notifications.schema';
 
@@ -17,7 +18,7 @@ export const notificationFrequencyEnum = pgEnum('notification_frequency', [
  * User-specific notification settings
  */
 export const notificationPreferences = pgTable('notification_preferences', {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     notification_type: notificationTypeEnum('notification_type').notNull(),
 

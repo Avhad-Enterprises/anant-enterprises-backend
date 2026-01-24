@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, text, timestamp, jsonb, pgEnum, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -47,7 +48,7 @@ export const collections = pgTable(
   'collections',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     title: varchar('title', { length: 255 }).notNull(),
     slug: varchar('slug', { length: 255 }).unique().notNull(),
     description: text('description'), // Rich text

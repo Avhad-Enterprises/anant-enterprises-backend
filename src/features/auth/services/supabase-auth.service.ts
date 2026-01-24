@@ -164,9 +164,15 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
       });
     } else {
       // Create new user record with auth_id
+      const fullName = userData.name || 'User';
+      const nameParts = fullName.trim().split(' ');
+      const name = nameParts[0] || 'User';
+      const last_name = nameParts.slice(1).join(' ') || '';
+
       await db.insert(users).values({
         auth_id: authId,
-        name: userData.name || 'User',
+        name,
+        last_name,
         email: userData.email,
         phone_number: userData.phone_number || '',
         password: '', // Placeholder - Supabase manages actual password

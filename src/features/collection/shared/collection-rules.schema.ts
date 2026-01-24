@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, text, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { collections } from './collection.schema';
 
 // ============================================
@@ -14,7 +15,7 @@ import { collections } from './collection.schema';
 export const collectionRules = pgTable(
   'collection_rules',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Parent Link
     collection_id: uuid('collection_id')

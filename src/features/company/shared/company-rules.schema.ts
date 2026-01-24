@@ -6,6 +6,7 @@
  */
 
 import { pgTable, uuid, varchar, text, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { companies } from './company.schema';
 
 // ============================================
@@ -15,7 +16,7 @@ import { companies } from './company.schema';
 export const companyRules = pgTable(
   'company_rules',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Parent Link
     company_id: uuid('company_id')
