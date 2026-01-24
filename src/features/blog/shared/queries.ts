@@ -1,4 +1,4 @@
-import { eq, desc, asc, inArray, sql, and } from 'drizzle-orm';
+import { eq, desc, asc, inArray, sql, and, gte, lte } from 'drizzle-orm';
 import { db } from '../../../database';
 import { blogs, type NewBlog } from './blog.schema';
 import { blogSubsections, type NewBlogSubsection } from './blog-subsections.schema';
@@ -173,6 +173,12 @@ export const getAllBlogs = async (
     filters: {
         status?: string | null;
         category?: string | null;
+        author?: string | null;
+        tags?: string | null;
+        startDate?: string | null;
+        endDate?: string | null;
+        minViews?: number | null;
+        maxViews?: number | null;
         search?: string | null;
         sortBy?: string | null;
         sortOrder?: 'asc' | 'desc' | null;
@@ -189,6 +195,36 @@ export const getAllBlogs = async (
 
     if (filters.category) {
         conditions.push(eq(blogs.category, filters.category));
+    }
+
+    if (filters.author) {
+        conditions.push(sql`${blogs.author} ILIKE ${`%${filters.author}%`}`);
+    }
+
+    if (filters.tags) {
+        // JSONB containment: tags @> '["Tag"]'
+        const tagArray = JSON.stringify([filters.tags]);
+        conditions.push(sql`${blogs.tags} @> ${tagArray}::jsonb`);
+    }
+
+    if (filters.startDate) {
+        conditions.push(gte(blogs.created_at, new Date(filters.startDate)));
+    }
+
+    if (filters.endDate) {
+        // Set end date to end of day? Or just exact timestamp match?
+        // Usually endDate implies end of that day.
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        conditions.push(lte(blogs.created_at, end));
+    }
+
+    if (filters.minViews !== undefined && filters.minViews !== null) {
+        conditions.push(gte(blogs.views_count, filters.minViews));
+    }
+
+    if (filters.maxViews !== undefined && filters.maxViews !== null) {
+        conditions.push(lte(blogs.views_count, filters.maxViews));
     }
 
     if (filters.search) {

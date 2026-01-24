@@ -8,10 +8,10 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { ITier } from '../shared/interface';
-import { eq, asc, and, or, like } from 'drizzle-orm';
+import { eq, asc, and, or, like, gt } from 'drizzle-orm';
 
 const handler = async (req: Request, res: Response) => {
-    const { level, status, parentId, search } = req.query;
+    const { level, status, parentId, search, usage } = req.query;
 
     // Build where conditions
     const conditions = [];
@@ -46,6 +46,15 @@ const handler = async (req: Request, res: Response) => {
                 like(tiers.code, searchTerm)
             )
         );
+    }
+
+    // Add usage filter
+    if (usage && typeof usage === 'string') {
+        if (usage === 'used') {
+            conditions.push(gt(tiers.usage_count, 0));
+        } else if (usage === 'unused') {
+            conditions.push(eq(tiers.usage_count, 0));
+        }
     }
 
     // Execute query with all conditions
