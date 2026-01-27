@@ -7,11 +7,12 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, inArray, gte, lte, and } from 'drizzle-orm';
-import { HttpException, logger } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
+import * as XLSX from 'xlsx';
 
 const exportRequestSchema = z.object({
     scope: z.enum(['all', 'selected']),
@@ -34,7 +35,7 @@ function convertToCSV(data: any[], columns: string[]): string {
 
     // Header row
     const header = columns.join(',');
-    
+
     // Data rows
     const rows = data.map(row => {
         return columns.map(col => {
@@ -58,19 +59,11 @@ function convertToCSV(data: any[], columns: string[]): string {
 /**
  * Convert array of objects to XLSX buffer
  */
-function convertToXLSX(data: any[], columns: string[]): Buffer {
-    // Simple XLSX generation - creates a basic spreadsheet
-    // For a more robust solution, use the 'xlsx' package
-    
-    // For now, we'll return CSV format for XLSX as well
-    // In production, you should install and use the 'xlsx' package
-    const csv = convertToCSV(data, columns);
-    return Buffer.from(csv, 'utf-8');
-}
+
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const validation = exportRequestSchema.safeParse(req.body);
-    
+
     if (!validation.success) {
         throw new HttpException(400, 'Invalid export options');
     }
@@ -116,7 +109,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .filter((id): id is string => id !== null);
 
     const parentMap = new Map<string, string>();
-    
+
     if (parentIds.length > 0) {
         const parents = await db
             .select({
@@ -125,14 +118,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
             })
             .from(tiers)
             .where(inArray(tiers.id, parentIds));
-        
+
         parents.forEach(p => parentMap.set(p.id, p.code));
     }
 
     // Transform data for export
     const exportData = tiersData.map(tier => {
         const row: any = {};
-        
+
         // Map database fields to export columns
         const columnMap: Record<string, any> = {
             id: tier.id,
@@ -169,20 +162,29 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Generate file based on format
     if (format === 'csv') {
         const csv = convertToCSV(exportData, selectedColumns);
-        
+
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename=tiers-export-${Date.now()}.csv`);
         return res.send(csv);
-        
-    } else {
-        // format === 'xlsx'
-        // For now, return CSV format with .xlsx extension
-        // In production, use the 'xlsx' package for proper XLSX generation
-        const buffer = convertToXLSX(exportData, selectedColumns);
-        
+
+    } else if (format === 'xlsx') {
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        // Set column widths
+        const columnWidths = selectedColumns.map(() => ({ wch: 15 }));
+        // Provide typed access to !cols
+        (worksheet as any)['!cols'] = columnWidths;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Tiers');
+
+        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename=tiers-export-${Date.now()}.xlsx`);
         return res.send(buffer);
+    } else {
+        // Technically unreachable due to Zod validation
+        return ResponseFormatter.error(res, 'INVALID_FORMAT', 'Invalid export format', 400);
     }
 };
 
