@@ -4,12 +4,13 @@
  * Shared business logic for inventory operations.
  */
 
-import { eq, and, desc, ilike, sql } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
-import { products } from '../../product/shared/product.schema';
+import { products, productVariants } from '../../product/shared/product.schema';
+import { variantInventoryAdjustments } from '../shared/variant-inventory-adjustments.schema';
 import { users } from '../../user/shared/user.schema';
 import type {
     InventoryListParams,
@@ -73,76 +74,157 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
 /**
  * Get paginated list of inventory items with product details
  */
+/**
+ * Get paginated list of inventory items with product details (Unified: Base + Variants)
+ */
 export async function getInventoryList(params: InventoryListParams) {
-    const { page = 1, limit = 20, search, condition, status, location: _location } = params;
+    const { page = 1, limit = 20, search, condition, status, location: locationName } = params;
     const offset = (page - 1) * limit;
 
-    // Build conditions
-    const conditions = [];
+    // Helper to build search clause
+    const searchClause = search ? `%${search}%` : null;
+    const locationClause = locationName ? `%${locationName}%` : null;
 
-    if (search) {
-        conditions.push(
-            sql`(${inventory.product_name} ILIKE ${`%${search}%`} OR ${inventory.sku} ILIKE ${`%${search}%`})`
-        );
-    }
+    // 1. Unified Query
+    const query = sql`
+        WITH unified_inventory AS (
+            -- Base Inventory
+            SELECT
+                i.id,
+                i.product_id,
+                i.product_name,
+                i.sku,
+                i.location_id,
+                i.available_quantity,
+                i.reserved_quantity,
+                i.incoming_quantity,
+                i.incoming_po_reference,
+                i.incoming_eta,
+                i.condition::text as condition,
+                i.status::text as status,
+                il.name as location_name,
+                i.updated_by,
+                i.created_at,
+                i.updated_at,
+                p.primary_image_url as thumbnail,
+                'Base' as type
+            FROM ${inventory} i
+            LEFT JOIN ${products} p ON i.product_id = p.id
+            LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
+            WHERE 1=1
+            ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
+            ${condition ? sql`AND i.condition = ${condition}` : sql``}
+            ${status ? sql`AND i.status = ${status}` : sql``}
+            ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
 
-    if (condition) {
-        conditions.push(eq(inventory.condition, condition as any));
-    }
+            UNION ALL
 
-    if (status) {
-        conditions.push(eq(inventory.status, status as any));
-    }
+            -- Product Variants (Virtual Inventory)
+            SELECT
+                pv.id,
+                pv.product_id,
+                CONCAT(p.product_title, ' - ', pv.option_name, ': ', pv.option_value) as product_name,
+                pv.sku,
+                (SELECT id FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) as location_id, -- Fallback to default location
+                pv.inventory_quantity as available_quantity,
+                0 as reserved_quantity,
+                0 as incoming_quantity,
+                NULL::text as incoming_po_reference,
+                NULL::timestamp as incoming_eta,
+                'sellable' as condition,
+                CASE 
+                    WHEN pv.inventory_quantity = 0 THEN 'out_of_stock'
+                    WHEN pv.inventory_quantity <= 10 THEN 'low_stock'
+                    ELSE 'in_stock'
+                END as status,
+                (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) as location_name,
+                pv.updated_by,
+                pv.created_at,
+                pv.updated_at,
+                COALESCE(pv.thumbnail_url, p.primary_image_url) as thumbnail,
+                'Variant' as type
+            FROM ${productVariants} pv
+            JOIN ${products} p ON pv.product_id = p.id
+            WHERE pv.is_deleted = false
+            ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
+            -- Condition filter ignored for variants as they default to sellable
+            ${status ? sql`AND (
+                CASE 
+                    WHEN pv.inventory_quantity = 0 THEN 'out_of_stock'
+                    WHEN pv.inventory_quantity <= 10 THEN 'low_stock'
+                    ELSE 'in_stock'
+                END
+            ) = ${status}` : sql``}
+            -- Location filter: Variants are conceptually in default location
+            ${locationName ? sql`AND (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) ILIKE ${locationClause}` : sql``}
+        )
+        SELECT * FROM unified_inventory
+        ORDER BY updated_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+    `;
 
-    if (_location) {
-        conditions.push(ilike(inventoryLocations.name, `%${_location}%`));
-    }
+    const result = await db.execute(query);
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    // 2. Count Query (Duplicate logic for accuracy)
+    const countQuery = sql`
+        SELECT COUNT(*) as total
+        FROM (
+            SELECT i.id
+            FROM ${inventory} i
+            LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
+            WHERE 1=1
+            ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
+            ${condition ? sql`AND i.condition = ${condition}` : sql``}
+            ${status ? sql`AND i.status = ${status}` : sql``}
+            ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
 
-    // Get total count
-    const [countResult] = await db
-        .select({ total: sql<number>`count(*)` })
-        .from(inventory)
-        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
-        .where(whereClause);
+            UNION ALL
 
-    const total = countResult?.total ?? 0;
+            SELECT pv.id
+            FROM ${productVariants} pv
+            JOIN ${products} p ON pv.product_id = p.id
+            WHERE pv.is_deleted = false
+            ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
+            ${status ? sql`AND (
+                CASE 
+                    WHEN pv.inventory_quantity = 0 THEN 'out_of_stock'
+                    WHEN pv.inventory_quantity <= 10 THEN 'low_stock'
+                    ELSE 'in_stock'
+                END
+            ) = ${status}` : sql``}
+            ${locationName ? sql`AND (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) ILIKE ${locationClause}` : sql``}
+        ) as combined
+    `;
 
-    // Get items with product join
-    const items = await db
-        .select({
-            id: inventory.id,
-            product_id: inventory.product_id,
-            product_name: inventory.product_name,
-            sku: inventory.sku,
-            location_id: inventory.location_id,
-            available_quantity: inventory.available_quantity,
-            reserved_quantity: inventory.reserved_quantity,
-            incoming_quantity: inventory.incoming_quantity,
-            incoming_po_reference: inventory.incoming_po_reference,
-            incoming_eta: inventory.incoming_eta,
-            condition: inventory.condition,
-            status: inventory.status,
-            location: inventoryLocations.name,
-            updated_by: inventory.updated_by,
-            created_at: inventory.created_at,
-            updated_at: inventory.updated_at,
-            // Join product for thumbnail (category/brand not in products schema)
-            thumbnail: products.primary_image_url,
-            category: sql<string | null>`NULL::text`,
-            brand: sql<string | null>`NULL::text`,
-        })
-        .from(inventory)
-        .leftJoin(products, eq(inventory.product_id, products.id))
-        .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
-        .where(whereClause)
-        .orderBy(desc(inventory.updated_at))
-        .limit(limit)
-        .offset(offset);
+    const countResult = await db.execute(countQuery);
+    const total = Number(countResult.rows[0]?.total || 0);
+
+    // Map result to match interface (handling any raw SQL quirks)
+    const items = result.rows.map(row => ({
+        id: row.id,
+        product_id: row.product_id,
+        product_name: row.product_name,
+        sku: row.sku,
+        location_id: row.location_id,
+        available_quantity: row.available_quantity,
+        reserved_quantity: row.reserved_quantity,
+        incoming_quantity: row.incoming_quantity,
+        incoming_po_reference: row.incoming_po_reference,
+        incoming_eta: row.incoming_eta ? new Date(row.incoming_eta as string) : undefined,
+        condition: row.condition,
+        status: row.status,
+        location: row.location_name,
+        updated_by: row.updated_by,
+        created_at: new Date(row.created_at as string),
+        updated_at: new Date(row.updated_at as string),
+        thumbnail: row.thumbnail,
+        type: row.type, // Pass the type (Base/Variant) to frontend
+        category: undefined,
+        brand: undefined
+    }));
 
     return {
-        items: items as InventoryWithProduct[],
+        items: items as unknown as InventoryWithProduct[],
         total,
         page,
         limit,
@@ -312,6 +394,98 @@ export async function getInventoryHistory(inventoryId: string, limit: number = 5
 }
 
 /**
+ * Get inventory adjustment history by Product ID with pagination
+ * Looks up inventory for the product and returns adjustment history
+ */
+/**
+ * Get unified inventory adjustment history (Base + Variants)
+ *
+ * Aggregates history from:
+ * 1. Base Product (inventory_adjustments)
+ * 2. Product Variants (variant_inventory_adjustments)
+ */
+export async function getInventoryHistoryByProductId(
+    productId: string,
+    page: number = 1,
+    limit: number = 20
+) {
+    const offset = (page - 1) * limit;
+
+    // 1. Execute Unified Query using SQL template
+    // We use SQL template tag for complex UNION ALL with different table structures/joins
+    const query = sql`
+        (
+            SELECT
+                ia.id,
+                ia.adjustment_type,
+                ia.quantity_change,
+                ia.reason,
+                ia.reference_number,
+                ia.quantity_before,
+                ia.quantity_after,
+                ia.adjusted_by,
+                ia.adjusted_at,
+                ia.notes,
+                'Base Product' as target_name,
+                NULL as variant_sku,
+                u.name as adjusted_by_name
+            FROM ${inventoryAdjustments} ia
+            JOIN ${inventory} i ON ia.inventory_id = i.id
+            LEFT JOIN ${users} u ON ia.adjusted_by = u.id
+            WHERE i.product_id = ${productId}
+        )
+        UNION ALL
+        (
+            SELECT
+                via.id,
+                via.adjustment_type,
+                via.quantity_change,
+                via.reason,
+                via.reference_number,
+                via.quantity_before,
+                via.quantity_after,
+                via.adjusted_by,
+                via.adjusted_at,
+                via.notes,
+                CONCAT('Variant: ', pv.option_name, ' - ', pv.option_value) as target_name,
+                pv.sku as variant_sku,
+                u.name as adjusted_by_name
+            FROM ${variantInventoryAdjustments} via
+            JOIN ${productVariants} pv ON via.variant_id = pv.id
+            LEFT JOIN ${users} u ON via.adjusted_by = u.id
+            WHERE pv.product_id = ${productId}
+        )
+        ORDER BY adjusted_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const result = await db.execute(query);
+
+    // 2. Get Total Counts (Separate queries are cleaner/safer than wrapping big union)
+    const [baseCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(inventoryAdjustments)
+        .innerJoin(inventory, eq(inventoryAdjustments.inventory_id, inventory.id))
+        .where(eq(inventory.product_id, productId));
+
+    const [variantCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(variantInventoryAdjustments)
+        .innerJoin(productVariants, eq(variantInventoryAdjustments.variant_id, productVariants.id))
+        .where(eq(productVariants.product_id, productId));
+
+    const total = Number(baseCount?.count ?? 0) + Number(variantCount?.count ?? 0);
+
+    return {
+        items: result.rows as unknown as InventoryHistoryItem[],
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+    };
+}
+
+/**
  * Helper: Determine status from quantity
  */
 function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'out_of_stock' {
@@ -322,6 +496,7 @@ function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'ou
 
 /**
  * Create inventory entry for a product
+ * Uses the default location and prevents duplicate inventory records.
  */
 export async function createInventoryForProduct(
     productId: string,
@@ -331,38 +506,62 @@ export async function createInventoryForProduct(
     createdBy?: string,
     locationId?: string
 ) {
+    // Step 1: Check if inventory already exists for this product (prevent duplicates)
+    const [existing] = await db
+        .select()
+        .from(inventory)
+        .where(eq(inventory.product_id, productId))
+        .limit(1);
+
+    if (existing) {
+        // Return existing inventory record instead of creating duplicate
+        console.info(`[Inventory] Product ${productId} already has inventory record ${existing.id}`);
+        return existing;
+    }
+
     // Resolve valid user UUID if provided
     const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
 
-    // Resolve Location (Phase 3 Requirement)
+    // Step 2: Resolve Location - Use default location first
     let targetLocationId = locationId;
 
     if (!targetLocationId) {
-        // Find the first active location
+        // Find the DEFAULT location (not just any active one)
         const [defaultLocation] = await db
             .select({ id: inventoryLocations.id })
             .from(inventoryLocations)
-            .where(eq(inventoryLocations.is_active, true))
+            .where(eq(inventoryLocations.is_default, true))
             .limit(1);
 
         if (defaultLocation) {
             targetLocationId = defaultLocation.id;
         } else {
-            // Auto-create a default location if none exists (Safety fallback)
-            // This prevents product creation failures on fresh databases
-            const [newLocation] = await db
-                .insert(inventoryLocations)
-                .values({
-                    location_code: 'WH-MAIN',
-                    name: 'Main Warehouse',
-                    type: 'warehouse',
-                    is_active: true,
-                    created_by: validUserId,
-                })
-                .returning();
+            // Fallback: Find first active location
+            const [activeLocation] = await db
+                .select({ id: inventoryLocations.id })
+                .from(inventoryLocations)
+                .where(eq(inventoryLocations.is_active, true))
+                .limit(1);
 
-            targetLocationId = newLocation.id;
-            console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
+            if (activeLocation) {
+                targetLocationId = activeLocation.id;
+            } else {
+                // Auto-create a default location if none exists (Safety fallback)
+                const [newLocation] = await db
+                    .insert(inventoryLocations)
+                    .values({
+                        location_code: 'WH-MAIN',
+                        name: 'Main Warehouse',
+                        type: 'warehouse',
+                        is_active: true,
+                        is_default: true, // Set as default
+                        created_by: validUserId,
+                    })
+                    .returning();
+
+                targetLocationId = newLocation.id;
+                console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
+            }
         }
     }
 
@@ -370,6 +569,7 @@ export async function createInventoryForProduct(
         throw new Error('No inventory location found. Please create a location first.');
     }
 
+    // Step 3: Create inventory record
     const [created] = await db
         .insert(inventory)
         .values({

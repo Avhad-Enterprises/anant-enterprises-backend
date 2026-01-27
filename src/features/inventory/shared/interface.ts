@@ -50,6 +50,7 @@ export interface InventoryWithProduct {
   updated_by_name?: string;
   created_at: Date;
   updated_at: Date;
+  type?: 'Base' | 'Variant';
 }
 
 export interface AdjustInventoryDto {
@@ -79,6 +80,8 @@ export interface InventoryHistoryItem {
   adjusted_by_name?: string;
   adjusted_at: Date;
   notes?: string;
+  target_name?: string; // "Base Product" or Variant Name
+  variant_sku?: string | null;
 }
 
 // ============================================

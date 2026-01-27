@@ -56,6 +56,7 @@ export const inventoryLocations = pgTable(
 
     // Status
     is_active: boolean('is_active').default(true).notNull(),
+    is_default: boolean('is_default').default(false).notNull(),
 
     // Audit Fields
     created_at: timestamp('created_at').defaultNow().notNull(),
@@ -66,6 +67,8 @@ export const inventoryLocations = pgTable(
     // Indexes
     locationCodeIdx: index('inventory_locations_code_idx').on(table.location_code),
     typeActiveIdx: index('inventory_locations_type_active_idx').on(table.type, table.is_active),
+    // Index for default location lookup
+    defaultIdx: index('inventory_locations_default_idx').on(table.is_default),
   })
 );
 
