@@ -476,8 +476,16 @@ export async function getInventoryHistoryByProductId(
 
     const total = Number(baseCount?.count ?? 0) + Number(variantCount?.count ?? 0);
 
+    const items = result.rows.map((row: any) => ({
+        ...row,
+        // Ensure timestamp is treated as UTC
+        adjusted_at: typeof row.adjusted_at === 'string' && !row.adjusted_at.endsWith('Z')
+            ? new Date(row.adjusted_at + 'Z')
+            : new Date(row.adjusted_at)
+    }));
+
     return {
-        items: result.rows as unknown as InventoryHistoryItem[],
+        items: items as InventoryHistoryItem[],
         total,
         page,
         limit,

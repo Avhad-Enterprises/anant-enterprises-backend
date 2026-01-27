@@ -34,7 +34,11 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sort: z.enum(['newest', 'price-asc', 'price-desc', 'rating']).default('newest'),
+    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'product_title', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
+    sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
+    
+    // Additional Filters
+    stockStatus: z.enum(['in_stock', 'out_of_stock', 'low_stock']).optional(),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
@@ -208,17 +212,46 @@ const handler = async (req: Request, res: Response) => {
       filteredProducts = productsData.filter(p => Number(p.rating) >= minRating);
     }
 
+    // Apply Stock Status Filter
+    if (params.stockStatus) {
+      filteredProducts = filteredProducts.filter(p => {
+        const qty = Number(p.inventory_quantity || 0);
+        switch (params.stockStatus) {
+            case 'in_stock': return qty > 0;
+            case 'out_of_stock': return qty === 0;
+            case 'low_stock': return qty > 0 && qty <= 5;
+            default: return true;
+        }
+      });
+    }
+
     // Apply sorting
     filteredProducts.sort((a, b) => {
-      switch (params.sort) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        case 'price-asc':
-          return Number(a.selling_price) - Number(b.selling_price);
-        case 'price-desc': // fixed case from 'price-desc' to 'price-desc' (consistency)
-          return Number(b.selling_price) - Number(a.selling_price);
+      const field = params.sortBy || 'created_at';
+      const order = params.sortOrder || 'desc';
+      const multiplier = order === 'asc' ? 1 : -1;
+
+      switch (field) {
+        case 'selling_price':
+          return (Number(a.selling_price) - Number(b.selling_price)) * multiplier;
+        case 'inventory_quantity':
+          // Convert inventory string to number for comparison
+          return (Number(a.inventory_quantity || 0) - Number(b.inventory_quantity || 0)) * multiplier;
         case 'rating':
-          return Number(b.rating) - Number(a.rating);
+          return (Number(a.rating || 0) - Number(b.rating || 0)) * multiplier;
+        case 'created_at':
+          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * multiplier;
+        case 'updated_at':
+          return (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()) * multiplier;
+        case 'product_title':
+        case 'status':
+        case 'featured':
+        case 'sku':
+          const valA = String(a[field] || '').toLowerCase();
+          const valB = String(b[field] || '').toLowerCase();
+          if (valA < valB) return -1 * multiplier;
+          if (valA > valB) return 1 * multiplier;
+          return 0;
         default:
           return 0;
       }
