@@ -88,3 +88,6 @@ coverage-report/
 
 # Ignore themes cache (if any)
 src/themes/*/assets/*.map
+
+# Migration meta
+src/database/migrations/meta

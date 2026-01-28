@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+
 import { RequestWithUser } from '../../../interfaces';
 import { uuidSchema } from '../../../utils';
 import { requireAuth } from '../../../middlewares';
@@ -13,9 +13,7 @@ import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { db } from '../../../database';
-import { products } from '../shared/product.schema';
-import { findProductById } from '../shared/queries';
+import { softDeleteProduct } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { decrementTierUsage } from '../../tiers/services/tier-sync.service';
 import { decrementTagUsage } from '../../tags/services/tag-sync.service';
@@ -28,36 +26,34 @@ async function deleteProduct(
   id: string,
   deletedBy: string
 ): Promise<{ sku: string; slug: string }> {
-  const existingProduct = await findProductById(id);
-  if (!existingProduct) {
-    throw new HttpException(404, 'Product not found');
-  }
+  // Use shared soft delete query
+  // Note: We don't need findProductById check separately if we trust the update returns null if not found,
+  // but preserving the 404 behavior is good practice if needed before action.
+  // However, for efficiency, we can try to update directly.
+  
+  const deletedProduct = await softDeleteProduct(id, deletedBy);
 
-  // Soft delete the product
-  await db
-    .update(products)
-    .set({
-      is_deleted: true,
-      deleted_by: deletedBy,
-      deleted_at: new Date(),
-    })
-    .where(eq(products.id, id));
+  if (!deletedProduct) {
+      // If null, it means product didn't exist or was already deleted (if query filters is_deleted)
+      // But softDeleteProduct query doesn't filter is_deleted in update, so standard update behavior.
+      throw new HttpException(404, 'Product not found');
+  }
 
   // Decrement tier usage counts
   await decrementTierUsage([
-    existingProduct.category_tier_1,
-    existingProduct.category_tier_2,
-    existingProduct.category_tier_3,
-    existingProduct.category_tier_4,
+    deletedProduct.category_tier_1,
+    deletedProduct.category_tier_2,
+    deletedProduct.category_tier_3,
+    deletedProduct.category_tier_4,
   ]);
 
   // Decrement tag usage counts
-  const tags = (existingProduct.tags as string[]) || [];
+  const tags = (deletedProduct.tags as string[]) || [];
   if (tags.length > 0) {
     await decrementTagUsage(tags);
   }
 
-  return { sku: existingProduct.sku, slug: existingProduct.slug };
+  return { sku: deletedProduct.sku, slug: deletedProduct.slug };
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {

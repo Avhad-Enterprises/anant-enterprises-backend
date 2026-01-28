@@ -210,3 +210,39 @@ export const softDeleteVariantsByProductId = async (
     .where(eq(productVariants.product_id, productId));
 };
 
+/**
+ * Soft delete product and return its SKU/Slug for cache invalidation
+ */
+export const softDeleteProduct = async (
+  id: string,
+  deletedBy: string
+): Promise<{ 
+  sku: string; 
+  slug: string;
+  category_tier_1: string | null;
+  category_tier_2: string | null;
+  category_tier_3: string | null;
+  category_tier_4: string | null;
+  tags: unknown; // Postgre array or JSON
+} | null> => {
+   const [deletedProduct] = await db
+    .update(products)
+    .set({
+      is_deleted: true,
+      deleted_by: deletedBy,
+      deleted_at: new Date(),
+    })
+    .where(eq(products.id, id))
+    .returning({
+        sku: products.sku,
+        slug: products.slug,
+        category_tier_1: products.category_tier_1,
+        category_tier_2: products.category_tier_2,
+        category_tier_3: products.category_tier_3,
+        category_tier_4: products.category_tier_4,
+        tags: products.tags
+    });
+   
+   return deletedProduct || null;
+};
+
