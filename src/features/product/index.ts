@@ -29,12 +29,18 @@ class ProductRoute implements Route {
     const { default: searchProductsRouter } = await import('./apis/search-products');
     const { default: bulkDeleteProductsRouter } = await import('./apis/bulk-delete-products');
     const { default: getProductStatsRouter } = await import('./apis/get-product-stats');
+    const { default: duplicateProductRouter } = await import('./apis/duplicate-product');
+    const { default: exportProductsRouter } = await import('./apis/export-products');
+    const { default: importProductsRouter } = await import('./apis/import-products');
 
     // Register core CRUD routes
     this.router.use(this.path, createProductRouter);        // POST /products
     this.router.use(this.path, getAllProductsRouter);       // GET /products
     this.router.use(this.path, bulkDeleteProductsRouter);   // POST /products/bulk-delete (MUST BE BEFORE :id)
+    this.router.use(this.path, duplicateProductRouter);     // POST /products/duplicate (MUST BE BEFORE :id)
     this.router.use(this.path, getProductStatsRouter);      // GET /products/stats (MUST BE BEFORE :id)
+    this.router.use(this.path, exportProductsRouter);       // POST /products/export (MUST BE BEFORE :id)
+    this.router.use(this.path, importProductsRouter);       // POST /products/import (MUST BE BEFORE :id)
     this.router.use(this.path, getProductFiltersRouter);    // GET /products/filters (MUST BE BEFORE :id)
     this.router.use(this.path, getFeaturedProductsRouter);  // GET /products/featured (MUST BE BEFORE :id)
     this.router.use(this.path, searchProductsRouter);       // GET /products/search (MUST BE BEFORE :id)

@@ -85,6 +85,27 @@ export async function getInventoryList(params: InventoryListParams) {
     const searchClause = search ? `%${search}%` : null;
     const locationClause = locationName ? `%${locationName}%` : null;
 
+
+    // 3. Dynamic Store/Order configuration
+    // Default sort: updated_at DESC
+    let orderByClause = sql`updated_at DESC`;
+
+    if (params.sortBy) {
+        const direction = params.sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
+        
+        switch (params.sortBy) {
+            case 'product_name':
+                orderByClause = sql`product_name ${direction}`;
+                break;
+            case 'available_quantity':
+                orderByClause = sql`available_quantity ${direction}`;
+                break;
+            case 'last_updated':
+                orderByClause = sql`updated_at ${direction}`;
+                break;
+        }
+    }
+
     // 1. Unified Query
     const query = sql`
         WITH unified_inventory AS (
@@ -159,7 +180,7 @@ export async function getInventoryList(params: InventoryListParams) {
             ${locationName ? sql`AND (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) ILIKE ${locationClause}` : sql``}
         )
         SELECT * FROM unified_inventory
-        ORDER BY updated_at DESC
+        ORDER BY ${orderByClause}
         LIMIT ${limit} OFFSET ${offset}
     `;
 
@@ -427,7 +448,7 @@ export async function getInventoryHistoryByProductId(
                 ia.adjusted_at,
                 ia.notes,
                 'Base Product' as target_name,
-                NULL as variant_sku,
+                i.sku as variant_sku,
                 u.name as adjusted_by_name
             FROM ${inventoryAdjustments} ia
             JOIN ${inventory} i ON ia.inventory_id = i.id
@@ -591,6 +612,20 @@ export async function createInventoryForProduct(
             updated_by: validUserId,
         })
         .returning();
+
+    // Log initial inventory creation
+    if (validUserId) {
+        await db.insert(inventoryAdjustments).values({
+            inventory_id: created.id,
+            adjustment_type: 'correction',
+            quantity_change: initialQuantity,
+            reason: 'Initial inventory creation',
+            quantity_before: 0,
+            quantity_after: initialQuantity,
+            adjusted_by: validUserId,
+            notes: 'System generated initial record',
+        });
+    }
 
     return created;
 }
