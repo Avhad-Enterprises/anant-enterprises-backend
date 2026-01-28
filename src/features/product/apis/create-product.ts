@@ -192,7 +192,19 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     updated_by: createdBy,
   };
 
-  const [newProduct] = await db.insert(products).values(productData).returning();
+  let newProduct;
+  try {
+    [newProduct] = await db.insert(products).values(productData).returning();
+  } catch (err: any) {
+    console.error('❌ Error inserting product:', {
+      message: err.message,
+      code: err.code,
+      detail: err.detail,
+      constraint: err.constraint,
+      params: productData
+    });
+    throw new HttpException(500, `Database error: ${err.message}`);
+  }
 
   if (!newProduct) {
     throw new HttpException(500, 'Failed to create product');
