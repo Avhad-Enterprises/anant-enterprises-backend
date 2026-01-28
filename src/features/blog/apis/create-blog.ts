@@ -9,13 +9,20 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { createBlog } from '../shared/queries';
+import { syncTags } from '../../tags';
 
 // Validation Schema
 const createBlogSchema = z.object({
     title: z.string().min(1, 'Title is required'),
     quote: z.string().optional(),
-    description: z.string().optional(),
-    content: z.string().optional(),
+    description: z.string().min(1, 'Description is required'),
+    content: z.string().min(1, 'Content is required').refine(val => {
+        // const cleaned = val.replace(/<[^>]*>/g, '').trim();
+        // Check if stripping tags leaves nothing, BUT also handle images/embeds?
+        // If content has ONLY tags like <p><br></p>, it's empty.
+        // If it has <img ...>, it might be valid? Use simple check for now matching frontend.
+        return val.trim() !== '' && val !== '<p><br></p>';
+    }, 'Content cannot be empty'),
 
     // Status mapping: Frontend sends 'Public'/'Draft', Backend expects lowercase
     visibility: z.enum(['Public', 'Private', 'Draft']).transform(val => val.toLowerCase() as 'public' | 'private' | 'draft'),
@@ -88,6 +95,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const newBlog = await createBlog(blogData, subsectionsData);
 
     console.log('[CreateBlog] Saved blog content:', newBlog.content);
+
+    // Sync tags
+    if (data.tags && data.tags.length > 0) {
+        try {
+            await syncTags(data.tags, 'blogs');
+        } catch (error) {
+            console.error('[CreateBlog] Failed to sync tags:', error);
+            // Don't fail the request if tag sync fails
+        }
+    }
 
     ResponseFormatter.success(res, newBlog, 'Blog created successfully');
 };

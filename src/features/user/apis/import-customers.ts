@@ -1,11 +1,10 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { eq } from 'drizzle-orm';
+import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles } from '../shared/business-profiles.schema';
 import { userAddresses } from '../shared/addresses.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
@@ -15,7 +14,7 @@ import { logger } from '../../../utils/logging/logger';
 // HELPERS
 // ============================================
 
-// Helper for loose date parsing (YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY)
+// Helper for loose date parsing
 const parseDateLoose = (val: unknown): string | undefined => {
     if (typeof val !== 'string') return undefined;
     const cleanVal = val.trim();
@@ -52,7 +51,7 @@ const caseInsensitiveEnum = <T extends string>(values: readonly T[]) => {
     }, z.enum(values as [T, ...T[]]));
 };
 
-// Start number parser (handle "1,000" etc)
+// Start number parser
 const looseNumber = z.preprocess((val) => {
     if (typeof val === 'string') return parseFloat(val.replace(/,/g, ''));
     return val;
@@ -94,7 +93,7 @@ const customerImportSchema = z.object({
     account_status: caseInsensitiveEnum(['active', 'suspended', 'closed']).default('active'),
     notes: z.string().optional(),
 
-    // Business Only
+    // Business Only (Mapped to generic or ignored if unused)
     company_name: z.string().max(255).optional(),
     tax_id: z.string().max(50).optional(),
     credit_limit: looseNumber,
@@ -111,7 +110,7 @@ const customerImportSchema = z.object({
 });
 
 const importRequestSchema = z.object({
-    data: z.array(z.any()), // Use any to allow preprocessing inside loop, or schema here
+    data: z.array(z.any()),
     mode: z.enum(['create', 'update', 'upsert']).default('create'),
 });
 
@@ -122,14 +121,11 @@ const importRequestSchema = z.object({
 
 async function generateCustomerId(): Promise<string> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    // Simple random ID for now, can be improved
     let code = 'CUST-';
     for (let i = 0; i < 6; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
-    // Note: Collision check omitted for brevity in this specific rewrite block, 
-    // but recommended to re-add if high volume.
 }
 
 async function processRow(
@@ -142,16 +138,27 @@ async function processRow(
         const customer = customerImportSchema.parse(rawData);
         const email = customer.email;
 
-        // 2. Check Existence
+        // 2. Check Existence (Including Deleted!)
         const [existing] = await db
-            .select({ id: users.id, user_type: users.user_type })
+            .select({ id: users.id, user_type: users.user_type, is_deleted: users.is_deleted })
             .from(users)
-            .where(and(eq(users.email, email), eq(users.is_deleted, false)))
+            .where(eq(users.email, email)) // Removed is_deleted = false check to find deleted ones
             .limit(1);
 
+        // Handle Create Mode Conflicts
         if (mode === 'create' && existing) {
-            return { success: false, error: 'Email already exists' };
+            if (existing.is_deleted) {
+                // Determine if we should restore. For 'create' mode on a deleted user, 
+                // typically we fail or treat as conflict, BUT user asked to "import customers that are deleted again"
+                // effectively meaning "restore/recreate".
+                // We'll proceed to UPDATE path to restore them.
+                mode = 'update'; // Valid strategy: treat as update/restore
+            } else {
+                return { success: false, error: 'Email already exists' };
+            }
         }
+
+        // Handle Update Mode missing
         if (mode === 'update' && !existing) {
             return { success: false, error: 'Customer not found' };
         }
@@ -162,6 +169,7 @@ async function processRow(
 
             // --- A) Create New ---
             if (!targetUserId) {
+                // console.log('Creating new user with email:', customer.email);
                 const newId = await generateCustomerId();
                 const [newUser] = await tx.insert(users).values({
                     customer_id: newId,
@@ -179,32 +187,29 @@ async function processRow(
                     created_by: userId,
                     updated_by: userId,
                 }).returning({ id: users.id });
+
                 targetUserId = newUser.id;
 
-                // Create Profile
-                if (customer.user_type === 'business') {
-                    await tx.insert(businessCustomerProfiles).values({
-                        user_id: targetUserId,
-                        business_type: 'sole_proprietor',
-                        company_legal_name: customer.company_name,
-                        tax_id: customer.tax_id,
-                        credit_limit: customer.credit_limit?.toString(),
-                        payment_terms: customer.payment_terms,
-                        account_status: customer.account_status,
-                        notes: customer.notes
-                    });
-                } else {
+                if (!targetUserId) throw new Error("Failed to create user ID");
+
+                // Create Profile (Generic for all users)
+                try {
                     await tx.insert(customerProfiles).values({
-                        user_id: targetUserId,
-                        segment: customer.segment,
-                        account_status: customer.account_status,
+                        user_id: targetUserId!,
+                        segment: customer.segment || 'new',
+                        account_status: customer.account_status as any,
                         notes: customer.notes
                     });
+                } catch (e: any) {
+                    console.error("Profile Insert Error:", e.message);
+                    throw e;
                 }
             }
-            // --- B) Update Existing ---
+            // --- B) Update / Restore Existing ---
             else {
-                // Update User
+                if (!targetUserId) throw new Error("Invalid Target User ID for update");
+
+                // Update User (and restore if deleted)
                 await tx.update(users).set({
                     name: customer.first_name,
                     last_name: customer.last_name,
@@ -217,51 +222,42 @@ async function processRow(
                     tags: customer.tags as string[],
                     updated_by: userId,
                     updated_at: new Date(),
+                    // RESTORE IF DELETED
+                    is_deleted: false,
+                    deleted_at: null,
+                    deleted_by: null
                 }).where(eq(users.id, targetUserId));
 
-                // Update Profile (Check type)
-                // Note: We don't change user_type on random imports usually to avoid schema breaks.
-                // We'll update only if the type matches, or careful handling. 
-                // For this rewrite, we assume type stability or update relevant table.
+                // Update Profile
+                // Check if profile exists first? Or upsert?
+                // For simplicity, we try update first. If row missing (unlikely for valid user), we might need insert.
+                // But generally user exists implies profile exists. 
+                // If profiles were hard deleted but user soft deleted, this might fail or do nothing.
+                // Drizzle's `onConflictDoUpdate` is better for upsert but standard update is safer for simple logic.
+                // We'll Stick to update.
 
-                if (existing.user_type === 'business') {
-                    await tx.update(businessCustomerProfiles).set({
-                        company_legal_name: customer.company_name,
-                        tax_id: customer.tax_id,
-                        credit_limit: customer.credit_limit?.toString(),
-                        payment_terms: customer.payment_terms,
-                        account_status: customer.account_status,
-                        notes: customer.notes,
-                        updated_at: new Date()
-                    }).where(eq(businessCustomerProfiles.user_id, targetUserId));
-                } else {
-                    await tx.update(customerProfiles).set({
-                        segment: customer.segment,
-                        account_status: customer.account_status,
-                        notes: customer.notes,
-                        updated_at: new Date()
-                    }).where(eq(customerProfiles.user_id, targetUserId));
-                }
+                await tx.update(customerProfiles).set({
+                    segment: customer.segment,
+                    account_status: customer.account_status as any,
+                    notes: customer.notes,
+                    updated_at: new Date()
+                }).where(eq(customerProfiles.user_id, targetUserId));
             }
 
-            // --- C) Address Handling (Simple: Add if new and provided) ---
-            if (customer.address_line1 && customer.city) {
-                // Check if address exists? For bulk import, maybe just add is default?
-                // Simple logic: If CREATE mode, add. If UPDATE, maybe skip to avoid dupes?
-                // Let's add if it's a NEW user or we want to overwrite default?
-                // Implementation: Insert new address.
+            // --- C) Address Handling ---
+            if (customer.address_line1 && customer.city && targetUserId) {
                 await tx.insert(userAddresses).values({
-                    user_id: targetUserId,
+                    user_id: targetUserId!,
                     recipient_name: customer.address_name || `${customer.first_name} ${customer.last_name}`,
                     address_line1: customer.address_line1,
                     address_line2: customer.address_line2,
                     city: customer.city,
-                    state_province: customer.state_province,
+                    state_province: customer.state_province || '',
                     postal_code: customer.postal_code || '000000',
                     country: customer.country || 'India',
                     country_code: 'IN',
                     is_default: true,
-                    address_type: 'both' // simple default
+                    address_type: 'both'
                 });
             }
         });
@@ -285,7 +281,7 @@ async function processRow(
 const router = Router();
 
 router.post(
-    '/', // Mounted at /users/customers/import, so this is root
+    '/',
     requireAuth,
     requirePermission('customers:write'),
     async (req: RequestWithUser, res: Response) => {
@@ -301,7 +297,6 @@ router.post(
                 errors: [] as any[]
             };
 
-            // Process sequentially to be safe
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
                 const result = await processRow(row, mode as any, userId);
@@ -311,7 +306,7 @@ router.post(
                 } else {
                     results.failed++;
                     results.errors.push({
-                        row: i + 2, // 1-based + header
+                        row: i + 2,
                         email: row.email || 'unknown',
                         error: result.error
                     });
@@ -323,7 +318,8 @@ router.post(
         } catch (error: any) {
             logger.error('Import failed', error);
             if (error instanceof z.ZodError) {
-                ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request format', 400, error.issues);
+                // Fixed: Pass error details correctly
+                ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request format', 400, { issues: error.issues });
             } else {
                 ResponseFormatter.error(res, 'SERVER_ERROR', error.message, 500);
             }

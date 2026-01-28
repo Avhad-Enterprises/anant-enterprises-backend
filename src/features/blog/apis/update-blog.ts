@@ -9,6 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, uuidSchema, HttpException } from '../../../utils';
 import { updateBlog, findBlogById } from '../shared/queries';
+import { updateTagUsage } from '../../tags';
 
 const paramsSchema = z.object({
     id: uuidSchema,
@@ -17,9 +18,11 @@ const paramsSchema = z.object({
 const updateBlogSchema = z.object({
     title: z.string().min(1).optional(),
     quote: z.string().optional(),
-    description: z.string().optional(),
-    content: z.string().optional(),
-    visibility: z.enum(['Public', 'Private', 'Draft']).transform(val => val.toLowerCase() as 'public' | 'private' | 'draft').optional(),
+    description: z.string().min(1, 'Description is required').optional(),
+    content: z.string().min(1, 'Content is required').refine(val => {
+        return val.trim() !== '' && val !== '<p><br></p>';
+    }, 'Content cannot be empty'),
+    visibility: z.enum(['Public', 'Private', 'Draft']).transform(val => val.toLowerCase() as 'public' | 'private' | 'draft'),
     category: z.string().optional(),
     tags: z.array(z.string()).optional(),
     author: z.string().optional(),
@@ -115,6 +118,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     const result = await updateBlog(id, blogUpdates, subsectionsUpdates);
+
+    // Sync tags if updated
+    if (data.tags !== undefined) {
+        try {
+            await updateTagUsage(Array.isArray(existingBlog.tags) ? existingBlog.tags : [], data.tags, 'blogs');
+        } catch (error) {
+            console.error('[UpdateBlog] Failed to sync tags:', error);
+        }
+    }
 
     ResponseFormatter.success(res, result, 'Blog updated successfully');
 };
