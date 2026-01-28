@@ -19,6 +19,8 @@ import type {
     UpdateInventoryDto,
     InventoryHistoryItem,
 } from '../shared/interface';
+import { notificationService } from '../../notifications/services/notification.service';
+import { logger } from '../../../utils';
 
 // ============================================
 // HELPER FUNCTIONS
@@ -306,7 +308,7 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
         throw new Error('Unable to resolve a valid user for audit logging. Please ensure at least one user exists in the database.');
     }
 
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
         // Get current inventory
         const [current] = await tx
             .select()
@@ -364,6 +366,31 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
 
         return { inventory: updated, adjustment };
     });
+
+    // Post-transaction notifications
+    try {
+        const { inventory: updated } = result;
+
+        // 1. Notify about adjustment (Audit)
+        // TODO: Broadcast using notificationService.broadcast() when ready
+
+        // 2. Check for Low Stock Alert
+        if (updated.status === 'low_stock' || updated.status === 'out_of_stock') {
+            /* 
+             // Example notification call
+             await notificationService.createFromTemplate(
+                validUserId, 
+                'low_stock_alert', 
+                { productName: updated.product_name, quantity: updated.available_quantity }
+             );
+            */
+            logger.warn(`LOW STOCK ALERT: ${updated.product_name} is ${updated.status}`);
+        }
+    } catch (error) {
+        logger.error('Failed to process inventory notifications', error);
+    }
+
+    return result;
 }
 
 /**

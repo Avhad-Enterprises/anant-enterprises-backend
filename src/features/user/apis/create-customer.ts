@@ -14,6 +14,7 @@ import { users } from '../shared/user.schema';
 import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
 import { syncTags } from '../../tags/services/tag-sync.service';
+import { notificationService } from '../../notifications/services/notification.service';
 
 // Validation Schema
 const createCustomerSchema = z.object({
@@ -174,9 +175,46 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         logger.info(`Customer created successfully: ${result.id}`);
 
-        // Sync customer tags to master tags table
         if (data.tags && data.tags.length > 0) {
             await syncTags(data.tags, 'customer');
+        }
+
+        // Send Welcome Notification
+        try {
+            await notificationService.createFromTemplate(
+                result.id,
+                'customer_welcome',
+                {
+                    name: result.name,
+                    email: result.email,
+                },
+                {
+                    priority: 'normal',
+                    actionUrl: '/profile',
+                    actionText: 'Go to Profile',
+                }
+            );
+        } catch (error) {
+            logger.error('Failed to send welcome notification:', error);
+        }
+
+        // Send Welcome Notification
+        try {
+            await notificationService.createFromTemplate(
+                result.id,
+                'customer_welcome',
+                {
+                    name: result.name,
+                    email: result.email,
+                },
+                {
+                    priority: 'normal',
+                    actionUrl: '/profile',
+                    actionText: 'Go to Profile',
+                }
+            );
+        } catch (error) {
+            logger.error('Failed to send welcome notification:', error);
         }
 
         ResponseFormatter.success(res, result, 'Customer created successfully', 201);

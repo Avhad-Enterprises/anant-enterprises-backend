@@ -10,7 +10,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { logger, ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
@@ -22,7 +22,8 @@ import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { reserveStockForOrder, validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
-import { eventPublisher } from '../../queue/services/event-publisher.service';
+
+import { notificationService } from '../../notifications/services/notification.service';
 
 
 
@@ -275,28 +276,32 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
     }
 
-    // Send ORDER_CREATED notification
+    // Send ORDER_CONFIRMED notification to customer
     try {
-        await eventPublisher.publishNotification({
-            userId: userId!,
-            templateCode: 'ORDER_CREATED',
-            variables: {
-                userName: 'Customer', // Can be enriched with actual user name
+        await notificationService.createFromTemplate(
+            userId!,
+            'order_confirmed',
+            {
+                orderId: order.id,
+                userName: 'Customer', // TODO: Enrich with actual user name
                 orderNumber: order.order_number,
                 total: Number(order.total_amount),
                 currency: 'INR',
                 itemCount: items.length,
-                orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+                orderUrl: `/profile/orders/${order.id}`,
             },
-            options: {
+            {
                 priority: 'high',
                 actionUrl: `/profile/orders/${order.id}`,
                 actionText: 'View Order',
-            },
-        });
+            }
+        );
+
+        // TODO: Send 'new_order_received' notification to Admins
+        // Requires fetching admin user IDs first
     } catch (error) {
         // Log but don't fail the order if notification fails
-        console.error('Failed to send order notification:', error);
+        logger.error('Failed to send order notification:', error);
     }
 
     // Return order summary

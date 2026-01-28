@@ -14,6 +14,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
+import { notificationService } from '../../notifications/services/notification.service';
 import { logger } from '../../../utils';
 
 const updateStatusSchema = z.object({
@@ -127,37 +128,57 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // Send notifications based on status changes
     try {
+        // Generic Status Update Notification
+        if (body.order_status && body.order_status !== order.order_status) {
+            await notificationService.createFromTemplate(
+                order.user_id!,
+                'order_status_update',
+                {
+                    orderId: order.id,
+                    status: body.order_status,
+                    customerName: 'Customer', // TODO: Fetch actual name if needed
+                    orderNumber: order.order_number,
+                    orderUrl: `/profile/orders/${order.id}`,
+                },
+                {
+                    actionUrl: `/profile/orders/${order.id}`,
+                    actionText: 'View Order'
+                }
+            );
+        }
+
+        // Specific Status Notifications (if we want distinct templates for shipped/delivered)
         if (body.order_status === 'shipped' && order.order_status !== 'shipped') {
-            await eventPublisher.publishNotification({
-                userId: order.user_id!,
-                templateCode: 'ORDER_SHIPPED',
-                variables: {
-                    userName: 'Customer',
+            await notificationService.createFromTemplate(
+                order.user_id!,
+                'order_shipped',
+                {
+                    orderId: order.id,
                     orderNumber: order.order_number,
                     trackingNumber: body.order_tracking || 'Not available',
-                    orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+                    customerName: 'Customer',
                 },
-                options: {
-                    priority: 'normal',
+                {
                     actionUrl: `/profile/orders/${order.id}`,
                     actionText: 'Track Order',
-                },
-            });
+                    priority: 'high'
+                }
+            );
         } else if (body.order_status === 'delivered' && order.order_status !== 'delivered') {
-            await eventPublisher.publishNotification({
-                userId: order.user_id!,
-                templateCode: 'ORDER_DELIVERED',
-                variables: {
-                    userName: 'Customer',
+            await notificationService.createFromTemplate(
+                order.user_id!,
+                'order_delivered',
+                {
+                    orderId: order.id,
                     orderNumber: order.order_number,
-                    orderUrl: `${process.env.FRONTEND_URL || ''}/profile/orders/${order.id}`,
+                    customerName: 'Customer',
                 },
-                options: {
-                    priority: 'normal',
+                {
                     actionUrl: `/profile/orders/${order.id}`,
                     actionText: 'View Order',
-                },
-            });
+                    priority: 'normal'
+                }
+            );
         }
     } catch (error) {
         logger.error('Failed to send order status notification:', error);
