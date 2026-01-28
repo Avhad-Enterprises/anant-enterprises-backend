@@ -25,12 +25,14 @@ const querySchema = z.object({
     .transform(val => parseInt(val))
     .refine(val => val > 0 && val <= 100, 'Limit must be between 1 and 100')
     .optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 type QueryParams = z.infer<typeof querySchema>;
 
 async function handleGetInvitations(
-  filters: { status?: InvitationStatus },
+  filters: { status?: InvitationStatus; startDate?: string; endDate?: string },
   pagination: { page?: number; limit?: number }
 ): Promise<{ invitations: IInvitation[]; total: number; page: number; limit: number }> {
   const result = await getInvitations(filters, pagination);
@@ -45,9 +47,9 @@ async function handleGetInvitations(
 }
 
 const handler = async (req: Request, res: Response): Promise<void> => {
-  const query: QueryParams = req.query;
+  const query = req.query as unknown as QueryParams;
   const result = await handleGetInvitations(
-    { status: query.status },
+    { status: query.status, startDate: query.startDate, endDate: query.endDate },
     { page: query.page, limit: query.limit }
   );
 

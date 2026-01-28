@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../../../database';
 import {
   invitations,
@@ -107,7 +107,7 @@ export const findInvitationByToken = async (token: string): Promise<Invitation |
  * Get all invitations with optional filtering and pagination
  */
 export const getInvitations = async (
-  filters: { status?: InvitationStatus } = {},
+  filters: { status?: InvitationStatus; startDate?: string; endDate?: string } = {},
   pagination: { page?: number; limit?: number } = {}
 ): Promise<{ invitations: Invitation[]; total: number }> => {
   const { status } = filters;
@@ -117,6 +117,20 @@ export const getInvitations = async (
 
   if (status) {
     whereClause = and(whereClause, eq(invitations.status, status))!;
+  }
+
+  if (filters.startDate) {
+    whereClause = and(whereClause, gte(invitations.created_at, new Date(filters.startDate)))!;
+  }
+
+  if (filters.endDate) {
+    // fast fix: set time to end of day? Or usually frontend sends 23:59:59?
+    // Let's assume frontend sends date string, we cast to Date.
+    // If exact date, we might want to ensure it covers the whole day.
+    // For now, simple comparison.
+    const end = new Date(filters.endDate);
+    end.setHours(23, 59, 59, 999);
+    whereClause = and(whereClause, lte(invitations.created_at, end))!;
   }
 
   const offset = (page - 1) * limit;
