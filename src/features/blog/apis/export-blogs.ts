@@ -5,9 +5,9 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import xlsx from 'xlsx';
+import * as xlsx from 'xlsx';
 import { and, between, inArray, eq } from 'drizzle-orm';
-import { HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { blogs } from '../shared/blog.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
@@ -36,10 +36,10 @@ const exportSchema = z.object({
  */
 function generateCSV(data: any[]): string {
   if (data.length === 0) return '';
-  
+
   const headers = Object.keys(data[0]);
   const csvRows = [headers.join(',')];
-  
+
   for (const row of data) {
     const values = headers.map(header => {
       const value = row[header];
@@ -60,7 +60,7 @@ function generateCSV(data: any[]): string {
     });
     csvRows.push(values.join(','));
   }
-  
+
   return csvRows.join('\n');
 }
 
@@ -71,11 +71,11 @@ function generateExcel(data: any[]): Buffer {
   const worksheet = xlsx.utils.json_to_sheet(data);
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, worksheet, 'Blogs');
-  
+
   // Set column widths
   const columnWidths = Object.keys(data[0] || {}).map(() => ({ wch: 20 }));
   worksheet['!cols'] = columnWidths;
-  
+
   return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
 }
 
@@ -92,35 +92,38 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   // Build query conditions
   const conditions = [];
-  
+
   // Scope filter
   if (options.scope === 'selected' && options.selectedIds?.length) {
     conditions.push(inArray(blogs.id, options.selectedIds));
   }
-  
+
   // Status filter
   if (options.filters?.status) {
     conditions.push(eq(blogs.status, options.filters.status));
   }
-  
+
   // Category filter
   if (options.filters?.category) {
     conditions.push(eq(blogs.category, options.filters.category));
   }
-  
+
   // Author filter
   if (options.filters?.author) {
     conditions.push(eq(blogs.author, options.filters.author));
   }
-  
+
   // Date range filter
   if (options.dateRange?.from && options.dateRange?.to) {
     const dateField = options.dateRange.field === 'published_at' ? blogs.published_at : blogs.created_at;
+    const toDate = new Date(options.dateRange.to);
+    toDate.setHours(23, 59, 59, 999);
+
     conditions.push(
       between(
         dateField,
         new Date(options.dateRange.from),
-        new Date(options.dateRange.to)
+        toDate
       )
     );
   }
@@ -130,7 +133,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     .select()
     .from(blogs)
     .orderBy(blogs.created_at);
-  
+
   if (conditions.length > 0) {
     query.where(and(...conditions));
   }
@@ -142,14 +145,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(400, 'Please select at least one column to export.');
   }
 
-  // Check if no data found
-  if (data.length === 0) {
-    throw new HttpException(
-      422,
-      'No blogs found matching your export criteria. Please adjust your filters or date range.',
-      { code: 'NO_DATA_FOUND' }
-    );
-  }
+
 
   // Filter selected columns and format data
   const filteredData = data.map(blog => {
@@ -188,15 +184,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
       contentType = 'text/csv';
       filename = `blogs-export-${Date.now()}.csv`;
       break;
-      
+
     case 'xlsx':
       fileBuffer = generateExcel(filteredData);
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       filename = `blogs-export-${Date.now()}.xlsx`;
       break;
-      
+
     default:
-      throw new HttpException(400, 'Invalid export format');
+      return ResponseFormatter.error(res, 'UNSUPPORTED_FORMAT', 'Invalid export format', 400);
   }
 
   // Set response headers

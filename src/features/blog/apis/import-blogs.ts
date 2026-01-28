@@ -92,14 +92,14 @@ async function importBlog(
     blogData: z.infer<typeof blogImportSchema>,
     mode: ImportMode,
     userId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
     try {
         // Generate or validate slug
         let slug = blogData.slug?.trim() || generateSlug(blogData.title);
-        
+
         // Normalize status to lowercase
         const status = blogData.status?.toLowerCase() as 'public' | 'private' | 'draft' || 'draft';
-        
+
         // Prepare tags array
         const tags = blogData.tags || [];
 
@@ -114,7 +114,7 @@ async function importBlog(
 
         if (mode === 'create') {
             if (blogExists) {
-                return { success: false, error: `Blog with slug '${slug}' already exists` };
+                return { success: false, skipped: true };
             }
 
             // Ensure slug is unique
@@ -267,6 +267,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
             if (importResult.success) {
                 result.success++;
+            } else if ((importResult as any).skipped) {
+                result.skipped++;
             } else {
                 result.failed++;
                 result.errors.push({

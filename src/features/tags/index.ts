@@ -23,8 +23,10 @@ class TagRoute implements Route {
     const { default: deleteTagRouter } = await import('./apis/delete-tag');
     const { default: importTagsRouter } = await import('./apis/import-tags');
     const { default: exportTagsRouter } = await import('./apis/export-tags');
+    const { default: bulkDeleteTagsRouter } = await import('./apis/bulk-delete-tags');
 
     // Register routes in order
+    this.router.use(this.path, bulkDeleteTagsRouter); // POST /tags/bulk-delete
     this.router.use(`${this.path}/import`, importTagsRouter); // POST /tags/import
     this.router.use(`${this.path}/export`, exportTagsRouter); // POST /tags/export
     this.router.use(this.path, createTagRouter);      // POST /tags

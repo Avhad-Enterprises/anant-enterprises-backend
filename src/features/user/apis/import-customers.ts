@@ -23,7 +23,7 @@ const customerImportSchema = z.object({
     first_name: z.string().min(1).max(255).trim(),
     last_name: z.string().min(1).max(255).trim(),
     email: z.string().email().max(255).toLowerCase().trim(),
-    
+
     // Optional core fields
     display_name: z.string().max(100).optional(),
     phone_number: z.string().max(20).optional(),
@@ -36,18 +36,18 @@ const customerImportSchema = z.object({
         z.array(z.string()),
         z.string().transform(val => val.split(',').map(t => t.trim()).filter(t => t.length > 0))
     ]).optional(),
-    
+
     // Profile fields
     segment: z.enum(['new', 'regular', 'vip', 'at_risk']).optional(),
     account_status: z.enum(['active', 'suspended', 'closed']).default('active'),
     notes: z.string().optional(),
-    
+
     // Business fields (for user_type: 'business')
     company_name: z.string().max(255).optional(),
     tax_id: z.string().max(50).optional(),
     credit_limit: z.coerce.number().min(0).optional(),
     payment_terms: z.enum(['immediate', 'net_15', 'net_30', 'net_60', 'net_90']).optional(),
-    
+
     // Address (optional, one address per import)
     address_name: z.string().max(255).optional(),
     address_line1: z.string().max(255).optional(),
@@ -144,7 +144,7 @@ async function importCustomer(
 
             if (mode === 'create' || (mode === 'upsert' && !exists)) {
                 // CREATE NEW CUSTOMER
-                
+
                 // Generate unique customer_id
                 const generatedCustomerId = await generateCustomerId();
 
@@ -153,7 +153,7 @@ async function importCustomer(
                     customer_id: generatedCustomerId,
                     name: customerData.first_name,
                     last_name: customerData.last_name,
-                    display_name: customerData.display_name || 
+                    display_name: customerData.display_name ||
                         `${customerData.first_name} ${customerData.last_name}`.trim(),
                     email: email,
                     user_type: customerData.user_type,
@@ -261,7 +261,7 @@ async function importCustomer(
                     user_id: customerId,
                     address_type: 'both' as const,
                     is_default: true,
-                    recipient_name: customerData.address_name || 
+                    recipient_name: customerData.address_name ||
                         `${customerData.first_name} ${customerData.last_name}`.trim(),
                     address_line1: customerData.address_line1,
                     address_line2: customerData.address_line2,

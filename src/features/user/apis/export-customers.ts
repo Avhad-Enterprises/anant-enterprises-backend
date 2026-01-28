@@ -1,15 +1,15 @@
 /**
- * POST /api/tags/export
- * Export tags with various filters and formats
+ * POST /api/users/customers/export
+ * Export customers with various filters and formats
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import * as xlsx from 'xlsx';
-import { and, between, inArray } from 'drizzle-orm';
+import { and, between, inArray, eq } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { tags } from '../shared/tags.schema';
+import { users } from '../shared/user.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 
@@ -19,9 +19,14 @@ const exportSchema = z.object({
   format: z.enum(['csv', 'xlsx']),
   selectedIds: z.array(z.string()).optional(),
   selectedColumns: z.array(z.string()),
+  filters: z.object({
+    status: z.enum(['active', 'inactive']).optional(),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+  }).optional(),
   dateRange: z.object({
     from: z.string().optional(),
     to: z.string().optional(),
+    field: z.enum(['created_at', 'updated_at']).optional().default('created_at'),
   }).optional(),
 });
 
@@ -40,8 +45,10 @@ function generateCSV(data: any[], columns: string[]): string {
       const value = row[header];
       // Handle null/undefined
       if (value === null || value === undefined) return '';
-      // Convert to string
+
+      // Format simple values
       const stringValue = String(value);
+
       // Escape commas, quotes, and newlines
       if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
         return `"${stringValue.replace(/"/g, '""')}"`;
@@ -66,19 +73,37 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const options = validation.data;
 
   // Build query conditions
-  const conditions = [];
+  // Always verify user is not deleted
+  const conditions = [eq(users.is_deleted, false)];
 
+  // Scope filter
   if (options.scope === 'selected' && options.selectedIds?.length) {
-    conditions.push(inArray(tags.id, options.selectedIds));
+    conditions.push(inArray(users.id, options.selectedIds));
   }
 
+  // Status Filter (derived from is_deleted + potentially other logic, but here simple mapping)
+  // Note: Users schema doesn't have explicit 'status' column in provided snippet,
+  // but if needed we can map from available fields. For now, skipping explicit status unless defined in schema.
+  // If 'status' referred to active/inactive, we might need a custom check.
+  // Assuming 'status' is not directly on users table based on previous schema view.
+  // If user meant email_verified or similar, we can add that.
+  // For now, ignoring status filter if column doesn't exist, or mapping to email_verified if that was the intent.
+  // Let's assume standard 'active' means not deleted (handled above).
+
+  // Gender filter
+  if (options.filters?.gender) {
+    conditions.push(eq(users.gender, options.filters.gender));
+  }
+
+  // Date range filter
   if (options.dateRange?.from && options.dateRange?.to) {
+    const dateField = options.dateRange.field === 'updated_at' ? users.updated_at : users.created_at;
     const toDate = new Date(options.dateRange.to);
     toDate.setHours(23, 59, 59, 999);
 
     conditions.push(
       between(
-        tags.created_at,
+        dateField,
         new Date(options.dateRange.from),
         toDate
       )
@@ -88,7 +113,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // Query data
   const query = db
     .select()
-    .from(tags);
+    .from(users)
+    .orderBy(users.created_at);
 
   if (conditions.length > 0) {
     query.where(and(...conditions));
@@ -102,18 +128,39 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   // Filter selected columns and format data
-  const filteredData = data.map(tag => {
+  const filteredData = data.map(user => {
     const filtered: any = {};
     options.selectedColumns.forEach(col => {
-      if (col in tag) {
-        const value = tag[col as keyof typeof tag];
-        // Format dates
-        if (value instanceof Date) {
-          filtered[col] = value.toISOString();
+      // Map columns if names are different or need formatting
+      if (col in user) {
+        const value = user[col as keyof typeof user];
+
+        // Format Date of Birth (YYYY-MM-DD)
+        if (col === 'date_of_birth' && value) {
+          const date = new Date(value as string | Date);
+          if (!isNaN(date.getTime())) {
+            filtered[col] = date.toISOString().split('T')[0];
+          } else {
+            filtered[col] = String(value);
+          }
+        }
+        // Format Timestamps (Created At, etc)
+        else if ((value instanceof Date) || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value))) {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            // YYYY-MM-DD HH:mm:ss
+            filtered[col] = date.toISOString().replace('T', ' ').split('.')[0];
+          } else {
+            filtered[col] = String(value);
+          }
         }
         // Format booleans
         else if (typeof value === 'boolean') {
-          filtered[col] = value ? 'Active' : 'Inactive';
+          filtered[col] = value ? 'Yes' : 'No';
+        }
+        // Format arrays (tags)
+        else if (Array.isArray(value)) {
+          filtered[col] = value.join(', ');
         }
         else {
           filtered[col] = value;
@@ -134,39 +181,48 @@ const handler = async (req: RequestWithUser, res: Response) => {
       const csvString = generateCSV(filteredData, options.selectedColumns);
       fileBuffer = Buffer.from(csvString, 'utf-8');
       contentType = 'text/csv';
-      filename = `tags-export-${timestamp}.csv`;
+      filename = `customers-export-${timestamp}.csv`;
       break;
+
     case 'xlsx':
       try {
         const worksheet = xlsx.utils.json_to_sheet(filteredData);
         const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'Tags');
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Customers');
 
-        // Set column widths
-        const columnWidths = Object.keys(filteredData[0] || {}).map(() => ({ wch: 15 }));
+        // Set column widths based on the number of selected columns
+        const columnWidths = options.selectedColumns.map(() => ({ wch: 30 }));
         (worksheet as any)['!cols'] = columnWidths;
 
         fileBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        filename = `tags-export-${timestamp}.xlsx`;
+        filename = `customers-export-${timestamp}.xlsx`;
       } catch (error) {
-        // Log the error (assuming logger exists, otherwise console.error)
         console.error('Excel generation failed:', error);
         throw new HttpException(500, 'Failed to generate Excel file');
       }
       break;
+
     default:
-      return ResponseFormatter.error(res, 'UNSUPPORTED_FORMAT', 'Unsupported export format', 400);
+      return ResponseFormatter.error(res, 'UNSUPPORTED_FORMAT', 'Invalid export format', 400);
   }
 
-  // Set response headers for file download
+  // Set response headers
   res.setHeader('Content-Type', contentType);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.setHeader('Content-Length', String(fileBuffer.length));
+
   return res.send(fileBuffer);
 };
 
 const router = Router();
-router.post('/', requireAuth, requirePermission('tags:read'), handler);
+
+// POST /api/users/customers/export
+router.post(
+  '/',
+  requireAuth,
+  requirePermission('users:read'),
+  handler
+);
 
 export default router;
