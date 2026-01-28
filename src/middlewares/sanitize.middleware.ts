@@ -6,7 +6,7 @@ import { logger } from '../utils';
  * Fields that should allow rich HTML content while still being sanitized for XSS
  * These fields use a permissive sanitization that allows formatting tags
  */
-const RICH_HTML_FIELDS = ['content', 'description', 'fullDescription', 'body'];
+const RICH_HTML_FIELDS = ['content', 'description', 'fullDescription', 'full_description', 'body'];
 
 /**
  * Safe HTML tags allowed in rich content fields (for blog posts, descriptions, etc.)

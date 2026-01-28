@@ -34,9 +34,11 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sort: z.string().optional(), // Legacy
-    sortBy: z.string().optional(),
-    sortOrder: z.enum(['asc', 'desc']).optional(),
+    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'product_title', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
+    sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
+    
+    // Additional Filters
+    stockStatus: z.enum(['in_stock', 'out_of_stock', 'low_stock']).optional(),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
@@ -145,15 +147,23 @@ const handler = async (req: Request, res: Response) => {
         id: products.id,
         product_title: products.product_title,
         selling_price: products.selling_price,
+        cost_price: products.cost_price,
         compare_at_price: products.compare_at_price,
         primary_image_url: products.primary_image_url,
         category_tier_1: products.category_tier_1,
+        category_tier_2: products.category_tier_2,
         tags: products.tags,
         created_at: products.created_at,
         updated_at: products.updated_at,
         status: products.status,
         featured: products.featured,
         sku: products.sku,
+        barcode: products.barcode,
+        hsn_code: products.hsn_code,
+        weight: products.weight,
+        length: products.length,
+        breadth: products.breadth,
+        height: products.height,
         slug: products.slug,
         description: products.short_description,
 
@@ -184,15 +194,23 @@ const handler = async (req: Request, res: Response) => {
         products.id,
         products.product_title,
         products.selling_price,
+        products.cost_price,
         products.compare_at_price,
         products.primary_image_url,
         products.category_tier_1,
+        products.category_tier_2,
         products.tags,
         products.created_at,
         products.updated_at,
         products.status,
         products.featured,
         products.sku,
+        products.barcode,
+        products.hsn_code,
+        products.weight,
+        products.length,
+        products.breadth,
+        products.height,
         products.slug,
         products.short_description
       );
@@ -204,37 +222,47 @@ const handler = async (req: Request, res: Response) => {
       const minRating = Math.min(...minRatings);
       filteredProducts = productsData.filter(p => Number(p.rating) >= minRating);
     }
+
+    // Apply Stock Status Filter
+    if (params.stockStatus) {
+      filteredProducts = filteredProducts.filter(p => {
+        const qty = Number(p.inventory_quantity || 0);
+        switch (params.stockStatus) {
+            case 'in_stock': return qty > 0;
+            case 'out_of_stock': return qty === 0;
+            case 'low_stock': return qty > 0 && qty <= 5;
+            default: return true;
+        }
+      });
+    }
+
     // Apply sorting
     filteredProducts.sort((a, b) => {
-      const sortKey = params.sortBy || 'created_at';
+      const field = params.sortBy || 'created_at';
       const order = params.sortOrder || 'desc';
       const multiplier = order === 'asc' ? 1 : -1;
 
-      // Legacy support for 'sort' if sortBy not present
-      if (!params.sortBy && params.sort) {
-        if (params.sort === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        if (params.sort === 'price-asc') return Number(a.selling_price) - Number(b.selling_price);
-        if (params.sort === 'price-desc') return Number(b.selling_price) - Number(a.selling_price);
-        if (params.sort === 'rating') return Number(b.rating) - Number(a.rating);
-      }
-
-      switch (sortKey) {
-        case 'title':
-        case 'product_title':
-          return multiplier * a.product_title.localeCompare(b.product_title);
-        case 'price':
+      switch (field) {
         case 'selling_price':
-          return multiplier * (Number(a.selling_price) - Number(b.selling_price));
+          return (Number(a.selling_price) - Number(b.selling_price)) * multiplier;
         case 'inventory_quantity':
-        case 'inventory':
-          return multiplier * (Number(a.inventory_quantity) - Number(b.inventory_quantity));
+          // Convert inventory string to number for comparison
+          return (Number(a.inventory_quantity || 0) - Number(b.inventory_quantity || 0)) * multiplier;
         case 'rating':
-          return multiplier * (Number(a.rating) - Number(b.rating));
+          return (Number(a.rating || 0) - Number(b.rating || 0)) * multiplier;
         case 'created_at':
-        case 'newest':
-          return multiplier * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * multiplier;
+        case 'updated_at':
+          return (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()) * multiplier;
+        case 'product_title':
         case 'status':
-          return multiplier * a.status.localeCompare(b.status);
+        case 'featured':
+        case 'sku':
+          const valA = String(a[field] || '').toLowerCase();
+          const valB = String(b[field] || '').toLowerCase();
+          if (valA < valB) return -1 * multiplier;
+          if (valA > valB) return 1 * multiplier;
+          return 0;
         default:
           return 0;
       }

@@ -21,6 +21,8 @@ import {
   getInventoryHistory as getInventoryHistoryService,
 } from './services/inventory.service';
 import backfillInventoryRouter from './apis/backfill-inventory';
+import getInventoryHistoryByProductRouter from './apis/get-inventory-history-by-product';
+import adjustVariantInventoryRouter from './apis/adjust-variant-inventory';
 
 // Phase 3: Multi-location APIs (TEMPORARILY DISABLED - circular dependency issue)
 // import getProductLocations from './apis/get-product-locations';
@@ -83,6 +85,12 @@ class InventoryRoute {
 
     // POST /api/inventory/backfill - Admin: Create inventory for products without one
     this.router.use(this.path, backfillInventoryRouter);
+
+    // GET /api/inventory/products/:productId/history - History by product ID (NEW)
+    this.router.use(this.path, getInventoryHistoryByProductRouter);
+
+    // POST /api/inventory/variants/:variantId/adjust - Variant Adjustment
+    this.router.use(this.path, adjustVariantInventoryRouter);
 
     // GET /api/inventory/:id/history
     this.router.get(`${this.path}/:id/history`, this.getInventoryHistory);
