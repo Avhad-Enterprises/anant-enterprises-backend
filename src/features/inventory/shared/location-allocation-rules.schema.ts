@@ -12,7 +12,7 @@ import { users } from '../../user/shared/user.schema';
 export const locationAllocationRules = pgTable(
     'location_allocation_rules',
     {
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
         // Rule metadata
         rule_name: varchar('rule_name', { length: 100 }).notNull(),

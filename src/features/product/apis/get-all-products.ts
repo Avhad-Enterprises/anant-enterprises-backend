@@ -81,8 +81,6 @@ const handler = async (req: Request, res: Response) => {
       }
     }
 
-
-
     // Category filter (Recursive CTE for Hierarchical Matching)
     if (params.categories) {
       const categoryList = params.categories.split(',').map(c => c.trim().toLowerCase());
@@ -115,9 +113,6 @@ const handler = async (req: Request, res: Response) => {
     // Technology filter (uses tags field - JSONB array overlap)
     if (params.technologies) {
       const techList = params.technologies.split(',').map(t => t.trim().toLowerCase());
-
-      // Use efficient JSONB operator ?| (exists any) if available, otherwise fallback to array expansion
-      // Since availability of ?| depends on drivers, sticking to EXISTS with parameterized values is safer
 
       const techConditions = techList.map(
         tech =>

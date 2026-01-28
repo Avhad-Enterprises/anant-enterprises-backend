@@ -14,6 +14,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 
 // ============================================
@@ -35,7 +36,7 @@ export const inventoryLocations = pgTable(
   'inventory_locations',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     location_code: varchar('location_code', { length: 50 }).unique().notNull(), // "WH-MUM-01"
     name: varchar('name', { length: 255 }).unique().notNull(), // "Mumbai Main Warehouse"
 

@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, text, timestamp, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { products } from './product.schema';
 
 // ============================================
@@ -14,7 +15,7 @@ import { products } from './product.schema';
 export const productFaqs = pgTable(
   'product_faqs',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Parent Link
     product_id: uuid('product_id')

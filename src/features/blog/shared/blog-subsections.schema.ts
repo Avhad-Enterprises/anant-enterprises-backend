@@ -5,6 +5,7 @@
  */
 
 import { pgTable, uuid, varchar, text, integer, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { blogs } from './blog.schema';
 
 // ============================================
@@ -14,7 +15,7 @@ import { blogs } from './blog.schema';
 export const blogSubsections = pgTable(
   'blog_subsections',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Parent Link
     blog_id: uuid('blog_id')

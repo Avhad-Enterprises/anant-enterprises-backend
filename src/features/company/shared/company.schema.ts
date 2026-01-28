@@ -14,6 +14,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -34,7 +35,7 @@ export const companies = pgTable(
   'companies',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 255 }).notNull(),
 
     // Contact

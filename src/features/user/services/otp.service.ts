@@ -129,7 +129,6 @@ class OtpService {
 
     // Update users table: check if this is primary or secondary email
     const { users } = await import('../shared/user.schema');
-    const { or } = await import('drizzle-orm');
 
     // First, find user by primary email
     const [userByPrimaryEmail] = await db

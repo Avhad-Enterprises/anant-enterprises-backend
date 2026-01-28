@@ -65,7 +65,8 @@ async function seed() {
 
     // Create users in a way that handles self-referential created_by
     const testUserData = {
-      name: 'Test User',
+      name: 'Test',
+      last_name: 'User',
       email: 'user@gmail.com',
       password: hashedPassword,
       phone_number: '+1234567890',
@@ -73,7 +74,8 @@ async function seed() {
     };
 
     const adminUserData = {
-      name: 'Admin User',
+      name: 'Admin',
+      last_name: 'User',
       email: 'admin@example.com',
       password: hashedPassword,
       phone_number: '+1234567891',
@@ -81,7 +83,8 @@ async function seed() {
     };
 
     const superadminUserData = {
-      name: 'Super Admin',
+      name: 'Super',
+      last_name: 'Admin',
       email: 'superadmin@gmail.com',
       password: hashedPassword,
       phone_number: '+1234567892',

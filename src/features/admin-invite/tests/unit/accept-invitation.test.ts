@@ -49,7 +49,8 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
   const hashedPassword = await bcrypt.hash(acceptData.password, 12);
 
   const newUser = await userQueries.createUser({
-    name: `${invitation.first_name} ${invitation.last_name}`,
+    name: invitation.first_name,
+    last_name: invitation.last_name,
     email: invitation.email,
     password: hashedPassword,
     created_by: invitation.invited_by,

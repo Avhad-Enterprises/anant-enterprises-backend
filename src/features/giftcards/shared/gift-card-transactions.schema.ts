@@ -15,6 +15,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { giftCards } from './gift-cards.schema';
 import { users } from '../../user/shared/user.schema';
 import { orders } from '../../orders/shared/orders.schema';
@@ -40,7 +41,7 @@ export const giftCardTransactions = pgTable(
   'gift_card_transactions',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Links
     gift_card_id: uuid('gift_card_id')

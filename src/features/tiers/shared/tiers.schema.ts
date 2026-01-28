@@ -17,6 +17,7 @@ import {
   foreignKey,
   boolean,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -32,7 +33,7 @@ export const tiers = pgTable(
   'tiers',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 255 }).notNull(),
     code: varchar('code', { length: 255 }).unique().notNull(), // URL-friendly slug
     description: text('description'),

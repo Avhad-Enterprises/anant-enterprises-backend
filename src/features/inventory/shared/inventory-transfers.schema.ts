@@ -15,7 +15,7 @@ import { users } from '../../user/shared/user.schema';
 export const inventoryTransfers = pgTable(
     'inventory_transfers',
     {
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
         // Transfer metadata
         transfer_number: varchar('transfer_number', { length: 50 }).unique().notNull(),

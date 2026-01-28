@@ -66,7 +66,7 @@ async function getUserWithUploads(userId: string) {
  * Example transaction: Create user and their first upload
  */
 async function createUserWithUpload(
-  userData: { name: string; email: string; password: string },
+  userData: { name: string; last_name: string; email: string; password: string },
   uploadData: { filename: string; file_path: string; file_size: number }
 ) {
   return await db.transaction(async tx => {

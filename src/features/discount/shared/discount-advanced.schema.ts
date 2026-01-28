@@ -11,6 +11,7 @@
  */
 
 import { pgTable, uuid, varchar, primaryKey, index } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { discounts } from './discount.schema';
 import { users } from '../../user/shared/user.schema';
 import { products } from '../../product/shared/product.schema';
@@ -80,7 +81,7 @@ export const discountRegions = pgTable(
 export const discountExclusions = pgTable(
     'discount_exclusions',
     {
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
         discount_id: uuid('discount_id')
             .references(() => discounts.id, { onDelete: 'cascade' })
             .notNull(),

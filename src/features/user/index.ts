@@ -52,6 +52,15 @@ class UserRoute implements Route {
     this.router.use(this.path, getCustomerByIdRouter); // Moved up
     this.router.use(this.path, createCustomerRouter); // NEW: Create customer
 
+    // Import/Export routes (must be before dynamic ID routes)
+    const { default: importCustomersRouter } = await import('./apis/import-customers');
+    const { default: exportCustomersRouter } = await import('./apis/export-customers');
+
+    // Mount to /users/customers/import and /users/customers/export
+    // Assuming the router files handle the '/' path relative to mount point
+    this.router.use(`${this.path}/customers/import`, importCustomersRouter);
+    this.router.use(`${this.path}/customers/export`, exportCustomersRouter);
+
     // Bulk delete router (must be before dynamic ID routes)
     const { default: bulkDeleteCustomersRouter } = await import('./apis/bulk-delete-customers');
     this.router.use(this.path, bulkDeleteCustomersRouter);

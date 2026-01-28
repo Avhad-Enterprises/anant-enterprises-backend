@@ -46,7 +46,7 @@ export const inventory = pgTable(
   'inventory',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     product_id: uuid('product_id')
       .references(() => products.id, { onDelete: 'cascade' })
       .notNull(),

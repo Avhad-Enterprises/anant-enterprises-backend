@@ -19,6 +19,7 @@ import {
     integer,
     index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // PAYMENT WEBHOOK LOGS TABLE
@@ -28,7 +29,7 @@ export const paymentWebhookLogs = pgTable(
     'payment_webhook_logs',
     {
         // Identity
-        id: uuid('id').primaryKey().defaultRandom(),
+        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
         // Event Identification (from Razorpay)
         event_id: varchar('event_id', { length: 100 }).unique(), // Razorpay's unique event ID

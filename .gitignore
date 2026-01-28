@@ -71,6 +71,9 @@ temp/
 *.sqlite3
 *.db
 
+# Database migrations meta files
+src/database/migrations/meta/
+
 # Secrets and keys
 *.pem
 *.key
@@ -89,5 +92,5 @@ coverage-report/
 # Ignore themes cache (if any)
 src/themes/*/assets/*.map
 
-# Migration meta
-src/database/migrations/meta
+# Database Migrations Meta
+src/database/migrations/meta/

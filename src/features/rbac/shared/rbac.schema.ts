@@ -18,6 +18,7 @@ import {
   index,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { users } from '../../user';
 
 // ============================================
@@ -32,7 +33,7 @@ import { users } from '../../user';
 export const roles = pgTable(
   'roles',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 50 }).unique().notNull(),
     description: text('description'),
     is_system_role: boolean('is_system_role').default(false).notNull(),
@@ -66,7 +67,7 @@ export type NewRole = typeof roles.$inferInsert;
 export const permissions = pgTable(
   'permissions',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     name: varchar('name', { length: 100 }).unique().notNull(), // e.g., "users:read"
     resource: varchar('resource', { length: 50 }).notNull(), // e.g., "users"
     action: varchar('action', { length: 50 }).notNull(), // e.g., "read"

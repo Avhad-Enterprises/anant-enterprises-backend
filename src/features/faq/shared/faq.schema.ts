@@ -15,6 +15,7 @@ import {
   timestamp,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
 
@@ -36,7 +37,7 @@ export const faqs = pgTable(
   'faqs',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
 
     // Content
     question: text('question').notNull(),

@@ -14,7 +14,9 @@ import {
   pgEnum,
   jsonb,
   index,
+  boolean,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================
 // ENUMS
@@ -30,7 +32,7 @@ export const blogs = pgTable(
   'blogs',
   {
     // 1. Identity & Content
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     title: varchar('title', { length: 255 }).notNull(),
     quote: varchar('quote', { length: 500 }),
     description: varchar('description', { length: 150 }), // Summary
@@ -62,6 +64,9 @@ export const blogs = pgTable(
     created_by: uuid('created_by'), // Reference to Creator UUID
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
+
+    // 7. System status
+    is_deleted: boolean('is_deleted').default(false).notNull(),
   },
   table => ({
     // Indexes

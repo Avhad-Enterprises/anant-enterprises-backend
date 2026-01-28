@@ -15,6 +15,7 @@ import {
   pgEnum,
   index,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { inventory } from './inventory.schema';
 import { users } from '../../user/shared/user.schema';
 
@@ -39,7 +40,7 @@ export const inventoryAdjustments = pgTable(
   'inventory_adjustments',
   {
     // Identity
-    id: uuid('id').primaryKey().defaultRandom(),
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
     inventory_id: uuid('inventory_id')
       .references(() => inventory.id, { onDelete: 'cascade' })
       .notNull(),
