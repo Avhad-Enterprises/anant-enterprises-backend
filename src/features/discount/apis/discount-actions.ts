@@ -14,7 +14,7 @@ router.post(
     requirePermission('discounts:update'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const discount = await discountService.toggleStatus(id);
 
             if (!discount) {
@@ -40,7 +40,7 @@ router.post(
     requirePermission('discounts:create'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const createdBy = req.userId;
 
             const discount = await discountService.duplicateDiscount(id, createdBy);
@@ -68,7 +68,7 @@ router.get(
     requirePermission('discounts:read'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const stats = await discountService.getDiscountStats(id);
 
             if (!stats) {
@@ -94,7 +94,7 @@ router.post(
     requirePermission('discounts:update'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const { count, prefix, length, usage_limit, max_uses_per_customer } = req.body;
 
             if (!count || count <= 0) {

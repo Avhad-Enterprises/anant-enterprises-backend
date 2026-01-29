@@ -12,7 +12,7 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { eventPublisher } from '../../queue/services/event-publisher.service';
+// import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
 import { notificationService } from '../../notifications/services/notification.service';
 import { logger } from '../../../utils';
@@ -41,7 +41,7 @@ const validTransitions: Record<string, string[]> = {
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
-    const orderId = req.params.id;
+    const orderId = req.params.id as string;
 
     if (!userId) {
         throw new HttpException(401, 'Authentication required');

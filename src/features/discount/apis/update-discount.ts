@@ -13,7 +13,7 @@ router.put(
     requirePermission('discounts:update'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const input: UpdateDiscountInput = {
                 ...req.body,
                 // Ensure dates are parsed correctly if provided

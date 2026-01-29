@@ -14,7 +14,7 @@ import { RequestWithUser } from '../../../interfaces';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { products, productVariants } from '../shared/product.schema';
+import { products } from '../shared/product.schema';
 import { IProductDetailResponse } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -81,29 +81,6 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       // Variants flag
       has_variants: products.has_variants,
 
-      // Computed: Total stock from inventory table + variant inventory
-      total_stock: sql<string>`(
-        SELECT CAST(COALESCE(
-            (SELECT GREATEST(SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}), 0) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
-            0
-        ) + COALESCE(
-            (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
-             WHERE ${productVariants.product_id} = ${products.id} 
-             AND ${productVariants.is_active} = true 
-             AND ${productVariants.is_deleted} = false),
-            0
-        ) AS TEXT)
-      )`,
-
-      // Computed: Base product inventory (only the record matching base product SKU)
-      base_inventory: sql<string>`(
-        SELECT CAST(GREATEST(COALESCE(${inventory.available_quantity}, 0) - COALESCE(${inventory.reserved_quantity}, 0), 0) AS TEXT)
-        FROM ${inventory}
-        WHERE ${inventory.product_id} = ${products.id}
-          AND ${inventory.sku} = ${products.sku}
-        LIMIT 1
-      )`,
-
       // Computed: Average rating from reviews
       avg_rating: sql<number>`(
         SELECT COALESCE(AVG(${reviews.rating}), 0)
@@ -153,6 +130,16 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     .from(productFaqs)
     .where(eq(productFaqs.product_id, productData.id));
 
+  // Fetch inventory for this product (Explicit fetch to ensure accuracy)
+  const inventoryData = await db
+    .select({
+      sku: inventory.sku,
+      available_quantity: inventory.available_quantity,
+      reserved_quantity: inventory.reserved_quantity
+    })
+    .from(inventory)
+    .where(eq(inventory.product_id, productData.id));
+
   // Calculate discount percentage
   let discount: number | null = null;
   if (productData.compare_at_price && productData.selling_price) {
@@ -177,6 +164,22 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     images.push(...productData.additional_images);
   }
 
+  // Calculate total stock explicitly in JS
+  const inventoryStock = inventoryData.reduce((sum, item) => {
+    const available = Number(item.available_quantity) || 0;
+    const reserved = Number(item.reserved_quantity) || 0;
+    return sum + Math.max(0, available - reserved);
+  }, 0);
+
+  const variantStock = variantsData.reduce((sum, v) => sum + (Number((v as any).inventory_quantity) || 0), 0);
+  const totalCalculatedStock = inventoryStock + variantStock;
+
+  // Calculate base inventory (specifically for the base product SKU)
+  const baseInventoryItem = inventoryData.find(item => item.sku === productData.sku);
+  const baseCalculatedInventory = baseInventoryItem 
+    ? Math.max(0, (Number(baseInventoryItem.available_quantity) || 0) - (Number(baseInventoryItem.reserved_quantity) || 0))
+    : 0;
+
   // Build response
   const response: IProductDetailResponse = {
     // Core fields
@@ -196,15 +199,9 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
 
     // Inventory - Default to in stock if no inventory tracking
     sku: productData.sku,
-    // If total_stock is null/empty string, assume no inventory tracking = in stock
-    // If total_stock exists and is 0, mark as out of stock
-    inStock: productData.total_stock === null || productData.total_stock === ''
-      ? true
-      : Number(productData.total_stock || 0) > 0,
-    total_stock: productData.total_stock === null || productData.total_stock === ''
-      ? undefined
-      : Number(productData.total_stock) || 0,
-    base_inventory: Number((productData as any).base_inventory) || 0,
+    inStock: totalCalculatedStock > 0,
+    total_stock: totalCalculatedStock,
+    base_inventory: baseCalculatedInventory,
 
     // Media
     primary_image_url: productData.primary_image_url,

@@ -27,19 +27,19 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const productResults = await db
         .select({
             id: products.id,
-            name: products.name,
+            name: products.product_title,
             sku: products.sku,
-            description: products.description,
-            image: products.image_url,
-            price: products.price,
+            description: products.short_description,
+            image: products.primary_image_url,
+            price: products.selling_price,
             cost_price: products.cost_price,
             weight: products.weight,
-            is_active: products.is_active,
+            is_active: sql<boolean>`${products.status} = 'active'`,
         })
         .from(products)
         .where(
             or(
-                ilike(products.name, searchPattern),
+                ilike(products.product_title, searchPattern),
                 ilike(products.sku, searchPattern)
             )
         )

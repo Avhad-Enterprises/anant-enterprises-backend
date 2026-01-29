@@ -20,7 +20,7 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId, id: addressId } = req.params;
+  const { userId, id: addressId } = req.params as { userId: string; id: string };
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db

@@ -12,7 +12,7 @@ import { RequestWithUser } from '../../../interfaces';
 
 const handler = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
-        const transferId = req.params.id;
+        const transferId = req.params.id as string;
         const userId = req.userId!;
 
         await executeTransfer(transferId, userId);

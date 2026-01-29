@@ -118,7 +118,7 @@ const handleGetUploadById = async (req: RequestWithUser, res: Response) => {
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
-  const uploadId = parseInt(req.params.id);
+  const uploadId = parseInt(req.params.id as string);
   if (!uploadId || isNaN(uploadId)) {
     throw new HttpException(400, 'Invalid upload ID');
   }
@@ -145,7 +145,7 @@ const handleGetUploadsByStatus = async (req: RequestWithUser, res: Response) => 
   if (!userId) {
     throw new HttpException(401, 'User authentication required');
   }
-  const { status } = req.params;
+  const { status } = req.params as unknown as { status: string };
 
   const statusResult = uploadStatusSchema.safeParse(status);
   if (!statusResult.success) {

@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, desc, count, gte, lte, or, ilike } from 'drizzle-orm';
+import { eq, and, desc, count, gte, lte } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../../cart/shared/carts.schema';
@@ -70,7 +70,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             user_id: carts.user_id,
             customer_name: users.name,
             customer_email: users.email,
-            customer_phone: users.phone,
+            customer_phone: users.phone_number,
             cart_value: carts.grand_total,
             abandoned_at: carts.abandoned_at,
             last_activity_at: carts.last_activity_at,

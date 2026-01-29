@@ -21,7 +21,7 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId, productId } = req.params;
+  const { userId, productId } = req.params as { userId: string; productId: string };
 
   // Get user's wishlist
   const [userWishlist] = await db

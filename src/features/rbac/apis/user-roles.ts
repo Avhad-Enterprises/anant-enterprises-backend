@@ -99,7 +99,7 @@ async function handleRemoveRole(userId: string, roleId: string): Promise<void> {
 // ============================================
 
 const getRolesHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = req.params.userId;
+  const userId = req.params.userId as string;
   if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
@@ -108,7 +108,7 @@ const getRolesHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const getPermissionsHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = req.params.userId;
+  const userId = req.params.userId as string;
   if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
@@ -117,7 +117,7 @@ const getPermissionsHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const postHandler = async (req: RequestWithUser, res: Response) => {
-  const tar = req.params.userId;
+  const tar = req.params.userId as string;
   if (!tar) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
@@ -132,11 +132,11 @@ const postHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const deleteHandler = async (req: RequestWithUser, res: Response) => {
-  const userId = req.params.userId;
+  const userId = req.params.userId as string;
   if (!userId) {
     throw new HttpException(400, 'Invalid userId parameter');
   }
-  const roleId = req.params.roleId;
+  const roleId = req.params.roleId as string;
   if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }

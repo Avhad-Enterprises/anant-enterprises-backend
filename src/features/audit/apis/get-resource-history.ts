@@ -32,7 +32,7 @@ const querySchema = z.object({
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const type = req.params.type as AuditResourceType;
-  const id = req.params.id; // Now a string (UUID)
+  const id = req.params.id as string; // Now a string (UUID)
   const { limit = 100 } = req.query as unknown as z.infer<typeof querySchema>;
 
   // Get audit trail for resource

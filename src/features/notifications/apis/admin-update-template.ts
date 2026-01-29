@@ -28,7 +28,7 @@ export const updateTemplate = async (
     next: NextFunction
 ) => {
     try {
-        const { code } = req.params;
+        const { code } = req.params as unknown as { code: string };
 
         const { error, value } = updateTemplateSchema.validate(req.body);
         if (error) {

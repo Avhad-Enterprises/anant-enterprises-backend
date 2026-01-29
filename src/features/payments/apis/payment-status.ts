@@ -24,7 +24,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(401, 'Authentication required');
     }
 
-    const { orderId } = req.params;
+    const { orderId } = req.params as { orderId: string };
 
     if (!orderId) {
         throw new HttpException(400, 'Order ID is required');

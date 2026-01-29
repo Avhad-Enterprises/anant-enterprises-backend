@@ -18,7 +18,7 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { name } = req.params;
+    const { name } = req.params as { name: string };
     const userId = req.userId;
 
     // Clear the queue

@@ -22,7 +22,7 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId, productId } = req.params;
+  const { userId, productId } = req.params as { userId: string; productId: string };
 
   // Verify product exists
   const [product] = await db

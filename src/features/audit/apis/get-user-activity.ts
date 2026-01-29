@@ -31,7 +31,7 @@ const querySchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const userId = req.params.userId;
+  const userId = req.params.userId as string;
   const { limit = 100 } = req.query as unknown as z.infer<typeof querySchema>;
   const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
   const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;

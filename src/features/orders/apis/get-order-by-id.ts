@@ -17,7 +17,7 @@ import { logger } from '../../../utils';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.userId;
-  const orderId = req.params.id;
+  const orderId = req.params.id as string;
 
   logger.info(`[GetOrderById] Request received - OrderID: ${orderId}, UserID: ${userId}`);
 

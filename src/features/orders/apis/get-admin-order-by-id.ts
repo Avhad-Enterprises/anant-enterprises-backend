@@ -15,7 +15,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const orderNumberOrId = req.params.id;
+    const orderNumberOrId = req.params.id as string;
 
     logger.info(`GET /api/admin/orders/${orderNumberOrId}`);
 

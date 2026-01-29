@@ -15,7 +15,7 @@ import { requireAuth } from '../../../middlewares';
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
-    const productId = req.params.productId;
+    const productId = req.params.productId as string;
 
     if (!userId) {
         throw new HttpException(401, 'Authentication required');

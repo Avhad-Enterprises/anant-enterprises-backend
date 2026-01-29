@@ -48,7 +48,7 @@ const formatDate = (date: Date | null): string => {
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId } = req.params;
+  const { userId } = req.params as unknown as { userId: string };
   const { page, limit } = req.query as unknown as z.infer<typeof querySchema>;
 
   const offset = (page - 1) * limit;

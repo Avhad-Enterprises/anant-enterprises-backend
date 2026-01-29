@@ -20,7 +20,7 @@ const handler = async (req: Request, res: Response) => {
     const userReq = req as RequestWithUser;
     const userId = userReq.userId || null;
     const sessionId = req.headers['x-session-id'] as string || null;
-    const itemId = req.params.id;
+    const itemId = req.params.id as string;
 
     if (!userId && !sessionId) {
         throw new HttpException(401, 'Authentication or session ID required');

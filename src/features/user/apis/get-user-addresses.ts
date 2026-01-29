@@ -49,7 +49,7 @@ const mapAddressType = (type: string): 'Home' | 'Office' | 'Other' => {
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  let { userId } = req.params;
+  let { userId } = req.params as { userId: string };
 
   // Handle 'me' alias
   if (userId === 'me') {

@@ -17,7 +17,7 @@ const paramsSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { name } = req.params;
+    const { name } = req.params as { name: string };
 
     // Get queue health
     const health = await queueService.getQueueHealthByName(name);

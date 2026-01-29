@@ -20,7 +20,7 @@ import type {
     UpdateInventoryDto,
     InventoryHistoryItem,
 } from '../shared/interface';
-import { notificationService } from '../../notifications/services/notification.service';
+// // import { notificationService } from '../../notifications/services/notification.service';
 import { logger } from '../../../utils';
 
 // ============================================

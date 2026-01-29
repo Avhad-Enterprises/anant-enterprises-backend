@@ -83,7 +83,7 @@ async function handleBulkAssign(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const roleId = req.params.roleId;
+  const roleId = req.params.roleId as string;
   if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }

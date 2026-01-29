@@ -90,7 +90,7 @@ async function handleRemovePermission(roleId: string, permissionId: string): Pro
 // ============================================
 
 const getHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = req.params.roleId;
+  const roleId = req.params.roleId as string;
   if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
@@ -99,7 +99,7 @@ const getHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const postHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = req.params.roleId;
+  const roleId = req.params.roleId as string;
   if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
@@ -114,11 +114,11 @@ const postHandler = async (req: RequestWithUser, res: Response) => {
 };
 
 const deleteHandler = async (req: RequestWithUser, res: Response) => {
-  const roleId = req.params.roleId;
+  const roleId = req.params.roleId as string;
   if (!roleId) {
     throw new HttpException(400, 'Invalid roleId parameter');
   }
-  const permissionId = req.params.permissionId;
+  const permissionId = req.params.permissionId as string;
   if (!permissionId) {
     throw new HttpException(400, 'Invalid permissionId parameter');
   }
