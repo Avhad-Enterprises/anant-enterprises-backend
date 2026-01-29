@@ -7,7 +7,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, and, desc, asc, like, count, gt } from 'drizzle-orm';
+import { eq, and, desc, asc, like, count, gt, inArray, or } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tags } from '../shared/tags.schema';
@@ -32,17 +32,28 @@ const handler = async (req: Request, res: Response) => {
     // Build filter conditions
     const conditions = [eq(tags.is_deleted, false)];
 
-    // Filter by type
+    // Filter by type (multi-select)
     if (type && typeof type === 'string') {
-        conditions.push(eq(tags.type, type));
+        const types = type.split(',').filter(Boolean);
+        if (types.length > 0) {
+            conditions.push(inArray(tags.type, types));
+        }
     }
 
-    // Filter by status
-    if (status !== undefined && status !== '') {
-        if (status === 'true' || status === 'active') {
-            conditions.push(eq(tags.status, true));
-        } else if (status === 'false' || status === 'inactive') {
-            conditions.push(eq(tags.status, false));
+    // Filter by status (multi-select)
+    if (status && typeof status === 'string') {
+        const statusOptions = status.split(',').filter(Boolean);
+        const statusValues: boolean[] = [];
+
+        if (statusOptions.includes('active') || statusOptions.includes('true')) {
+            statusValues.push(true);
+        }
+        if (statusOptions.includes('inactive') || statusOptions.includes('false')) {
+            statusValues.push(false);
+        }
+
+        if (statusValues.length > 0) {
+            conditions.push(inArray(tags.status, statusValues));
         }
     }
 
@@ -51,13 +62,22 @@ const handler = async (req: Request, res: Response) => {
         conditions.push(like(tags.name, `%${search}%`));
     }
 
-    // Filter by usage
-    const usage = req.query.usage as string;
-    if (usage) {
-        if (usage === 'used') {
-            conditions.push(gt(tags.usage_count, 0));
-        } else if (usage === 'unused') {
-            conditions.push(eq(tags.usage_count, 0));
+    // Filter by usage (multi-select)
+    const usageStr = req.query.usage as string;
+    if (usageStr) {
+        const usageOptions = usageStr.split(',').filter(Boolean);
+        const usageConditions = [];
+
+        if (usageOptions.includes('used')) {
+            usageConditions.push(gt(tags.usage_count, 0));
+        }
+        if (usageOptions.includes('unused')) {
+            usageConditions.push(eq(tags.usage_count, 0));
+        }
+
+        const usageOr = or(...usageConditions);
+        if (usageOr) {
+            conditions.push(usageOr);
         }
     }
 

@@ -10,11 +10,10 @@ import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils';
 import { getInvitations } from '../shared/queries';
-import { InvitationStatus, invitationStatuses } from '../shared/admin-invite.schema';
 import { IInvitation } from '../shared/interface';
 
 const querySchema = z.object({
-  status: z.enum(invitationStatuses).optional(),
+  status: z.string().optional(),
   page: z
     .string()
     .transform(val => parseInt(val))
@@ -27,12 +26,15 @@ const querySchema = z.object({
     .optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
+  roleId: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 type QueryParams = z.infer<typeof querySchema>;
 
 async function handleGetInvitations(
-  filters: { status?: InvitationStatus; startDate?: string; endDate?: string },
+  filters: { status?: string; startDate?: string; endDate?: string; roleId?: string; sortBy?: string; sortOrder?: 'asc' | 'desc' },
   pagination: { page?: number; limit?: number }
 ): Promise<{ invitations: IInvitation[]; total: number; page: number; limit: number }> {
   const result = await getInvitations(filters, pagination);
@@ -49,7 +51,14 @@ async function handleGetInvitations(
 const handler = async (req: Request, res: Response): Promise<void> => {
   const query = req.query as unknown as QueryParams;
   const result = await handleGetInvitations(
-    { status: query.status, startDate: query.startDate, endDate: query.endDate },
+    {
+      status: query.status,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      roleId: query.roleId,
+      sortBy: query.sortBy,
+      sortOrder: query.sortOrder
+    },
     { page: query.page, limit: query.limit }
   );
 

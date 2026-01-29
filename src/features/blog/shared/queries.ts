@@ -190,7 +190,12 @@ export const getAllBlogs = async (
     const conditions = [eq(blogs.is_deleted, false)];
 
     if (filters.status) {
-        conditions.push(eq(blogs.status, filters.status as any));
+        const statuses = filters.status.split(',').map(s => s.trim());
+        if (statuses.length > 1) {
+            conditions.push(inArray(blogs.status, statuses as any[]));
+        } else {
+            conditions.push(eq(blogs.status, statuses[0] as any));
+        }
     }
 
     if (filters.category) {
@@ -202,9 +207,11 @@ export const getAllBlogs = async (
     }
 
     if (filters.tags) {
-        // JSONB containment: tags @> '["Tag"]'
-        const tagArray = JSON.stringify([filters.tags]);
-        conditions.push(sql`${blogs.tags} @> ${tagArray}::jsonb`);
+        // Multi-select tags: check if ANY of the selected tags exist in the blog's tags
+        // Using Postgres ?| operator (exists any)
+        const tagsList = filters.tags.split(',').map(t => t.trim());
+        // We need to cast the string array to text[] for the ?| operator
+        conditions.push(sql`${blogs.tags} ?| array[${sql.join(tagsList.map(t => t), sql`, `)}]`);
     }
 
     if (filters.startDate) {
@@ -265,7 +272,17 @@ export const getAllBlogs = async (
                 break;
             // Add legacy/other keys if needed
             case 'status':
+            case 'visibility':
                 orderByClause = order(blogs.status);
+                break;
+            case 'description':
+                orderByClause = order(blogs.description);
+                break;
+            case 'author':
+                orderByClause = order(blogs.author);
+                break;
+            case 'tags':
+                orderByClause = order(sql`${blogs.tags}::text`);
                 break;
         }
     }
