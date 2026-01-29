@@ -125,7 +125,7 @@ async function importTag(
 
 const handler = async (req: RequestWithUser, res: Response) => {
     // Log the incoming request for debugging
-    logger.info('Import tags request received', { 
+    logger.info('Import tags request received', {
         bodyKeys: Object.keys(req.body),
         dataLength: req.body?.data?.length,
         mode: req.body?.mode,
@@ -135,7 +135,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Validate request body
     const validation = importTagsSchema.safeParse(req.body);
     if (!validation.success) {
-        logger.error('Import validation failed', { 
+        logger.error('Import validation failed', {
             errors: validation.error.issues,
             body: req.body,
         });
@@ -188,7 +188,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // Return result
     const statusCode = result.failed === 0 ? 200 : 207; // 207 = Multi-Status (partial success)
-    
+
     return ResponseFormatter.success(res, result, 'Tag import completed', statusCode);
 };
 
