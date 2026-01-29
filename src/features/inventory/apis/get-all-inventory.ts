@@ -17,6 +17,11 @@ const querySchema = z.object({
     condition: z.enum(['sellable', 'damaged', 'quarantined', 'expired']).optional(),
     status: z.enum(['in_stock', 'low_stock', 'out_of_stock']).optional(),
     location: z.string().optional(),
+    category: z.string().optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
 });
 
 const handler = async (req: Request, res: Response) => {

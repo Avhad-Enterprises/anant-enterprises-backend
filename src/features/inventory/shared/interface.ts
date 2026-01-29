@@ -21,6 +21,11 @@ export interface InventoryListParams {
   condition?: string;
   status?: string;
   location?: string;
+  category?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface InventoryListResponse {

@@ -12,6 +12,7 @@ import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { products, productVariants } from '../../product/shared/product.schema';
 import { variantInventoryAdjustments } from '../shared/variant-inventory-adjustments.schema';
 import { users } from '../../user/shared/user.schema';
+import { tiers } from '../../tiers/shared/tiers.schema';
 import type {
     InventoryListParams,
     InventoryWithProduct,
@@ -80,12 +81,18 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
  * Get paginated list of inventory items with product details (Unified: Base + Variants)
  */
 export async function getInventoryList(params: InventoryListParams) {
-    const { page = 1, limit = 20, search, condition, status, location: locationName } = params;
+    const { page = 1, limit = 20, search, condition, status, location: locationName, category, startDate, endDate } = params;
     const offset = (page - 1) * limit;
 
     // Helper to build search clause
     const searchClause = search ? `%${search}%` : null;
     const locationClause = locationName ? `%${locationName}%` : null;
+
+    // Helper to build date range clause
+    const startDateDate = startDate ? new Date(startDate) : null;
+    const endDateDate = endDate ? new Date(endDate) : null;
+    
+    console.log('DEBUG: getInventoryList params:', JSON.stringify(params));
 
 
     // 3. Dynamic Store/Order configuration
@@ -104,6 +111,9 @@ export async function getInventoryList(params: InventoryListParams) {
                 break;
             case 'last_updated':
                 orderByClause = sql`updated_at ${direction}`;
+                break;
+            case 'reserved_quantity':
+                orderByClause = sql`reserved_quantity ${direction}`;
                 break;
         }
     }
@@ -126,6 +136,7 @@ export async function getInventoryList(params: InventoryListParams) {
                 i.condition::text as condition,
                 i.status::text as status,
                 il.name as location_name,
+                t.name as category_name,
                 i.updated_by,
                 i.created_at,
                 i.updated_at,
@@ -133,12 +144,15 @@ export async function getInventoryList(params: InventoryListParams) {
                 'Base' as type
             FROM ${inventory} i
             LEFT JOIN ${products} p ON i.product_id = p.id
+            LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
             WHERE 1=1
             ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
             ${condition ? sql`AND i.condition = ${condition}` : sql``}
             ${status ? sql`AND i.status = ${status}` : sql``}
             ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
+            ${startDateDate ? sql`AND i.updated_at >= ${startDateDate}` : sql``}
+            ${endDateDate ? sql`AND i.updated_at <= ${endDateDate}` : sql``}
 
             UNION ALL
 
@@ -161,6 +175,7 @@ export async function getInventoryList(params: InventoryListParams) {
                     ELSE 'in_stock'
                 END as status,
                 (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) as location_name,
+                t.name as category_name,
                 pv.updated_by,
                 pv.created_at,
                 pv.updated_at,
@@ -168,6 +183,7 @@ export async function getInventoryList(params: InventoryListParams) {
                 'Variant' as type
             FROM ${productVariants} pv
             JOIN ${products} p ON pv.product_id = p.id
+            LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             WHERE pv.is_deleted = false
             ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
             -- Condition filter ignored for variants as they default to sellable
@@ -180,6 +196,9 @@ export async function getInventoryList(params: InventoryListParams) {
             ) = ${status}` : sql``}
             -- Location filter: Variants are conceptually in default location
             ${locationName ? sql`AND (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) ILIKE ${locationClause}` : sql``}
+            ${category ? sql`AND t.id = ${category}` : sql``}
+            ${startDateDate ? sql`AND pv.updated_at >= ${startDateDate}` : sql``}
+            ${endDateDate ? sql`AND pv.updated_at <= ${endDateDate}` : sql``}
         )
         SELECT * FROM unified_inventory
         ORDER BY ${orderByClause}
@@ -194,18 +213,23 @@ export async function getInventoryList(params: InventoryListParams) {
         FROM (
             SELECT i.id
             FROM ${inventory} i
+            LEFT JOIN ${products} p ON i.product_id = p.id
+            LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
             WHERE 1=1
             ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
             ${condition ? sql`AND i.condition = ${condition}` : sql``}
             ${status ? sql`AND i.status = ${status}` : sql``}
             ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
+            ${startDateDate ? sql`AND i.updated_at >= ${startDateDate}` : sql``}
+            ${endDateDate ? sql`AND i.updated_at <= ${endDateDate}` : sql``}
 
             UNION ALL
 
             SELECT pv.id
             FROM ${productVariants} pv
             JOIN ${products} p ON pv.product_id = p.id
+            LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             WHERE pv.is_deleted = false
             ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
             ${status ? sql`AND (
@@ -216,6 +240,9 @@ export async function getInventoryList(params: InventoryListParams) {
                 END
             ) = ${status}` : sql``}
             ${locationName ? sql`AND (SELECT name FROM ${inventoryLocations} WHERE is_default = true LIMIT 1) ILIKE ${locationClause}` : sql``}
+            ${category ? sql`AND t.id = ${category}` : sql``}
+            ${startDateDate ? sql`AND pv.updated_at >= ${startDateDate}` : sql``}
+            ${endDateDate ? sql`AND pv.updated_at <= ${endDateDate}` : sql``}
         ) as combined
     `;
 
@@ -242,7 +269,7 @@ export async function getInventoryList(params: InventoryListParams) {
         updated_at: new Date(row.updated_at as string),
         thumbnail: row.thumbnail,
         type: row.type, // Pass the type (Base/Variant) to frontend
-        category: undefined,
+        category: row.category_name,
         brand: undefined
     }));
 

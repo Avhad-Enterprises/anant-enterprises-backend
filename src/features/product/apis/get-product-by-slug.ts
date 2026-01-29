@@ -235,7 +235,7 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         has_variants: variantsData.length > 0,
         variants: variantsData,
     };
-
+ console.log(response)
     return response;
 }
 
