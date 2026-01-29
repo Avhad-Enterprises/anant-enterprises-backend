@@ -123,7 +123,7 @@ async function bootstrap() {
     }
 
     // Start HTTP server listening
-    server = httpServer.listen(config.PORT, () => {
+    server = httpServer.listen(config.PORT, '0.0.0.0', () => {
       logger.info(`🌐 Server running on port ${config.PORT}`);
       logger.info(`📍 Environment: ${isProduction ? 'production' : 'development'}`);
     });
