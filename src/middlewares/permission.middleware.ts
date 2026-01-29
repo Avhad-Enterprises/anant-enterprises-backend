@@ -139,8 +139,8 @@ export const requireOwnerOrPermission = (ownerIdParam: string, permission: strin
         return next(new HttpException(400, 'Invalid resource ID'));
       }
 
-      // Owner always has access
-      if (req.userId === resourceOwnerId) {
+      // Owner always has access (handle 'me' alias)
+      if (resourceOwnerId === 'me' || req.userId === resourceOwnerId) {
         return next();
       }
 

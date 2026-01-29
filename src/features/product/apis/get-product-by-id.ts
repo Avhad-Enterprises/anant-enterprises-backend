@@ -14,7 +14,7 @@ import { RequestWithUser } from '../../../interfaces';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
+import { products, productVariants } from '../shared/product.schema';
 import { IProductDetailResponse } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -81,16 +81,23 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       // Variants flag
       has_variants: products.has_variants,
 
-      // Computed: Total stock from inventory (sum of all - base + variants)
+      // Computed: Total stock from inventory table + variant inventory
       total_stock: sql<string>`(
-        SELECT CAST(COALESCE(SUM(${inventory.available_quantity}), 0) AS TEXT)
-        FROM ${inventory}
-        WHERE ${inventory.product_id} = ${products.id}
+        SELECT CAST(COALESCE(
+            (SELECT GREATEST(SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}), 0) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
+            0
+        ) + COALESCE(
+            (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
+             WHERE ${productVariants.product_id} = ${products.id} 
+             AND ${productVariants.is_active} = true 
+             AND ${productVariants.is_deleted} = false),
+            0
+        ) AS TEXT)
       )`,
 
       // Computed: Base product inventory (only the record matching base product SKU)
       base_inventory: sql<string>`(
-        SELECT CAST(COALESCE(${inventory.available_quantity}, 0) AS TEXT)
+        SELECT CAST(GREATEST(COALESCE(${inventory.available_quantity}, 0) - COALESCE(${inventory.reserved_quantity}, 0), 0) AS TEXT)
         FROM ${inventory}
         WHERE ${inventory.product_id} = ${products.id}
           AND ${inventory.sku} = ${products.sku}
@@ -187,10 +194,16 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     compare_at_price: productData.compare_at_price,
     discount,
 
-    // Inventory
+    // Inventory - Default to in stock if no inventory tracking
     sku: productData.sku,
-    inStock: Number(productData.total_stock || 0) > 0,
-    total_stock: Number(productData.total_stock) || 0,
+    // If total_stock is null/empty string, assume no inventory tracking = in stock
+    // If total_stock exists and is 0, mark as out of stock
+    inStock: productData.total_stock === null || productData.total_stock === ''
+      ? true
+      : Number(productData.total_stock || 0) > 0,
+    total_stock: productData.total_stock === null || productData.total_stock === ''
+      ? undefined
+      : Number(productData.total_stock) || 0,
     base_inventory: Number((productData as any).base_inventory) || 0,
 
     // Media

@@ -10,12 +10,12 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, uuidSchema } from '../../../utils';
+import { HttpException, ResponseFormatter, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { userAddresses } from '../shared/addresses.schema';
 
 const paramsSchema = z.object({
-  userId: uuidSchema,
+  userId: z.union([uuidSchema, z.literal('me')]),
 });
 
 interface AddressResponse {
@@ -49,7 +49,15 @@ const mapAddressType = (type: string): 'Home' | 'Office' | 'Other' => {
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId } = req.params;
+  let { userId } = req.params;
+
+  // Handle 'me' alias
+  if (userId === 'me') {
+    if (!req.userId) {
+      throw new HttpException(401, 'Authentication required');
+    }
+    userId = req.userId;
+  }
 
   // Fetch all non-deleted addresses for the user
   const addresses = await db

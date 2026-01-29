@@ -300,12 +300,20 @@ export async function updateInventory(id: string, data: UpdateInventoryDto, upda
 /**
  * Adjust inventory quantity with audit trail
  */
-export async function adjustInventory(id: string, data: AdjustInventoryDto, adjustedBy: string) {
+/**
+ * Adjust inventory quantity with audit trail
+ */
+export async function adjustInventory(
+    id: string,
+    data: AdjustInventoryDto,
+    adjustedBy: string,
+    allowNegative: boolean = false
+) {
     // Resolve valid user UUID (handles 'system' or invalid strings)
     const validUserId = await resolveValidUserId(adjustedBy);
 
     if (!validUserId) {
-        throw new Error('Unable to resolve a valid user for audit logging. Please ensure at least one user exists in the database.');
+        throw new Error('Unable to resolve a valid user for audit logging.');
     }
 
     const result = await db.transaction(async (tx) => {
@@ -322,8 +330,12 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
         const quantityBefore = current.available_quantity;
         const quantityAfter = quantityBefore + data.quantity_change;
 
-        if (quantityAfter < 0) {
-            throw new Error('Resulting quantity cannot be negative');
+        if (quantityAfter < 0 && !allowNegative) {
+            throw new Error(`Resulting quantity cannot be negative (current: ${quantityBefore}, change: ${data.quantity_change})`);
+        }
+
+        if (quantityAfter < 0 && allowNegative) {
+            logger.warn(`[Inventory] Item ${current.product_name} adjusted to negative quantity: ${quantityAfter}`);
         }
 
         // Determine adjustment type
@@ -371,19 +383,8 @@ export async function adjustInventory(id: string, data: AdjustInventoryDto, adju
     try {
         const { inventory: updated } = result;
 
-        // 1. Notify about adjustment (Audit)
-        // TODO: Broadcast using notificationService.broadcast() when ready
-
-        // 2. Check for Low Stock Alert
+        // Check for Low Stock Alert
         if (updated.status === 'low_stock' || updated.status === 'out_of_stock') {
-            /* 
-             // Example notification call
-             await notificationService.createFromTemplate(
-                validUserId, 
-                'low_stock_alert', 
-                { productName: updated.product_name, quantity: updated.available_quantity }
-             );
-            */
             logger.warn(`LOW STOCK ALERT: ${updated.product_name} is ${updated.status}`);
         }
     } catch (error) {
@@ -684,7 +685,8 @@ export async function validateStockAvailability(
 export async function reserveStockForOrder(
     items: Array<{ product_id: string; quantity: number }>,
     orderId: string,
-    userId: string
+    userId: string,
+    allowOverselling: boolean = false
 ): Promise<void> {
     const validUserId = await resolveValidUserId(userId);
 
@@ -695,7 +697,11 @@ export async function reserveStockForOrder(
 
         if (failures.length > 0) {
             const messages = failures.map((f) => f.message).join('; ');
-            throw new Error(`Insufficient stock: ${messages}`);
+            if (!allowOverselling) {
+                throw new Error(`Insufficient stock: ${messages}`);
+            }
+            // If overselling allowed, just log it
+            console.warn(`[Inventory] Overselling allowed for order ${orderId}. Issues: ${messages}`);
         }
 
         // Step 2: Reserve stock for each item
@@ -736,7 +742,8 @@ export async function reserveStockForOrder(
  */
 export async function fulfillOrderInventory(
     orderId: string,
-    userId: string
+    userId: string,
+    allowNegative: boolean = false
 ): Promise<void> {
     const validUserId = await resolveValidUserId(userId);
 
@@ -790,10 +797,14 @@ export async function fulfillOrderInventory(
             const quantityBefore = current.available_quantity;
             const quantityAfter = quantityBefore - item.quantity;
 
-            if (quantityAfter < 0) {
+            if (quantityAfter < 0 && !allowNegative) {
                 throw new Error(
                     `Insufficient stock for ${item.product_name}: available=${quantityBefore}, needed=${item.quantity}`
                 );
+            }
+
+            if (quantityAfter < 0 && allowNegative) {
+                logger.warn(`[Inventory] Order ${orderId} fulfillment resulted in negative stock for ${item.product_name}: ${quantityAfter}`);
             }
 
             // Update inventory: reduce both available and reserved

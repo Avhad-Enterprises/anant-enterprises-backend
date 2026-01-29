@@ -66,6 +66,17 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(new HttpException(401, 'User not found'));
     }
 
+    // Check if user is soft-deleted
+    if (publicUser[0].is_deleted) {
+      logger.warn('Authentication failed: User account is deleted', {
+        ip: clientIP,
+        userAgent,
+        url: req.originalUrl,
+        method: req.method,
+      });
+      return next(new HttpException(401, 'User account has been deleted'));
+    }
+
     // Attach user information to request (use integer ID for RBAC)
     req.userId = publicUser[0].id;
     req.userAgent = userAgent;
@@ -156,6 +167,10 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
     if (!publicUser[0]) {
       return next(new HttpException(401, 'User not found'));
+    }
+
+    if (publicUser[0].is_deleted) {
+      return next(new HttpException(401, 'User account has been deleted'));
     }
 
     // Attach user information
