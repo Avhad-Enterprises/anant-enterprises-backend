@@ -18,7 +18,7 @@ const userVotes = new Map<string, Set<string>>(); // userId -> Set<reviewId>
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
-    const reviewId = req.params.id;
+    const reviewId = req.params.id as string;
 
     if (!userId) {
         throw new HttpException(401, 'Authentication required');

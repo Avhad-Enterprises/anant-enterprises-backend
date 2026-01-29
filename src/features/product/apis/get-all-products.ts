@@ -10,7 +10,7 @@ import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
+import { products, productVariants } from '../shared/product.schema';
 import { ICollectionProduct } from '../shared/interface';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
@@ -199,11 +199,18 @@ const handler = async (req: Request, res: Response) => {
         slug: products.slug,
         description: products.short_description,
 
-        // Computed: Inventory Quantity (Available - Reserved)
+        // Computed: Inventory Quantity (Base stock + Variant stock)
         inventory_quantity: sql<number>`(
-          SELECT GREATEST(COALESCE(SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}), 0), 0)
-          FROM ${inventory}
-          WHERE ${inventory.product_id} = ${products.id}
+          COALESCE(
+            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
+            0
+          ) + COALESCE(
+            (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
+             WHERE ${productVariants.product_id} = ${products.id} 
+             AND ${productVariants.is_active} = true 
+             AND ${productVariants.is_deleted} = false),
+            0
+          )
         )`.mapWith(Number),
 
         // Computed: Average rating
@@ -257,7 +264,7 @@ const handler = async (req: Request, res: Response) => {
 
     // Apply Stock Status Filter
     if (params.stockStatus) {
-      const stockStatuses = Array.isArray(params.stockStatus) ? params.stockStatus : [params.stockStatus];
+      // const stockStatuses = Array.isArray(params.stockStatus) ? params.stockStatus : [params.stockStatus];
       
       filteredProducts = filteredProducts.filter(p => {
         const qty = Number(p.inventory_quantity || 0);

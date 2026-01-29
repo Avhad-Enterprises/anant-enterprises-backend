@@ -28,7 +28,7 @@ const handler = async (req: Request, res: Response) => {
     const userReq = req as RequestWithUser;
     const userId = userReq.userId || null;
     const sessionId = req.headers['x-session-id'] as string || null;
-    const itemId = req.params.id;
+    const itemId = req.params.id as string;
 
     if (!userId && !sessionId) {
         throw new HttpException(401, 'Authentication or session ID required');
@@ -47,7 +47,7 @@ const handler = async (req: Request, res: Response) => {
         })
         .from(cartItems)
         .where(and(
-            eq(cartItems.id, itemId),
+            eq(cartItems.id, itemId as string),
             eq(cartItems.is_deleted, false)
         ))
         .limit(1);

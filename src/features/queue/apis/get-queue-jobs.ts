@@ -23,7 +23,7 @@ const querySchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { name } = req.params;
+    const { name } = req.params as unknown as { name: string };
     const { status, start, end } = req.query as unknown as { status: 'waiting' | 'active' | 'completed' | 'failed'; start: number; end: number };
 
     // Get jobs from queue

@@ -74,7 +74,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     })
     .where(inArray(tiers.id, targetIds));
 
-  ResponseFormatter.success(res, null, `${targets.length} tiers deleted successfully`);
+  return ResponseFormatter.success(res, null, `${targets.length} tiers deleted successfully`);
 };
 
 const router = Router();

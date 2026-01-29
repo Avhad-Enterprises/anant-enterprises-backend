@@ -18,7 +18,7 @@ export const markNotificationAsRead = async (
             throw new HttpException(401, 'Unauthorized');
         }
 
-        const { id } = req.params;
+        const { id } = req.params as unknown as { id: string };
 
         const notification = await notificationService.markAsRead(id, userId);
 

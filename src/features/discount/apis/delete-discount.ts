@@ -13,7 +13,7 @@ router.delete(
     requirePermission('discounts:delete'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const deletedBy = req.userId;
 
             const result = await discountService.deleteDiscount(id, deletedBy);

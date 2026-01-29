@@ -11,7 +11,7 @@ import { getProductStockByLocation } from '../services/location-allocation.servi
 
 const handler = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const productId = req.params.productId;
+        const productId = req.params.productId as string;
 
         const stockByLocation = await getProductStockByLocation(productId);
 

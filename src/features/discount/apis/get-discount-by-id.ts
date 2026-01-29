@@ -13,7 +13,7 @@ router.get(
     requirePermission('discounts:read'),
     async (req: RequestWithUser, res: Response, next: NextFunction) => {
         try {
-            const { id } = req.params;
+            const { id } = req.params as unknown as { id: string };
             const discount = await discountService.getDiscountById(id);
 
             if (!discount) {

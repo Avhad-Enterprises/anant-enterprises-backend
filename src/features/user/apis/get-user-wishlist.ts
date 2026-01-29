@@ -34,7 +34,7 @@ interface WishlistItemResponse {
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { userId } = req.params;
+  const { userId } = req.params as { userId: string };
 
   // Get user's wishlist (may not exist)
   const [userWishlist] = await db
