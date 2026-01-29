@@ -20,8 +20,8 @@ import { inventory } from '../../inventory/shared/inventory.schema';
 const querySchema = paginationSchema
   .extend({
     // Admin filters
-    status: z.enum(['draft', 'active', 'archived']).optional(),
-    category_tier_1: z.string().optional(),
+    status: z.union([z.string(), z.array(z.string())]).optional(),
+    category_tier_1: z.union([z.string(), z.array(z.string())]).optional(),
 
     // Public collection filters
     categories: z.string().optional(), // Comma-separated slugs
@@ -34,11 +34,11 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'product_title', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
+    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'cost_price', 'compare_at_price', 'product_title', 'category_tier_1', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
     sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
 
     // Additional Filters
-    stockStatus: z.enum(['in_stock', 'out_of_stock', 'low_stock']).optional(),
+    stockStatus: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
@@ -57,10 +57,23 @@ const handler = async (req: Request, res: Response) => {
     if (isAdmin) {
       // Admin can filter by status
       if (params.status) {
-        conditions.push(eq(products.status, params.status));
+        const statuses = Array.isArray(params.status) ? params.status : [params.status];
+        if (statuses.length > 0) {
+          // Fix: cast 's' to any to avoid strict enum type mismatch with string array
+          const statusConditions = statuses.map(s => eq(products.status, s as any));
+          if (statusConditions.length > 0) {
+             const combined = or(...statusConditions);
+             if (combined) conditions.push(combined);
+          }
+        }
       }
       if (params.category_tier_1) {
-        conditions.push(eq(products.category_tier_1, params.category_tier_1));
+        const cats = Array.isArray(params.category_tier_1) ? params.category_tier_1 : [params.category_tier_1];
+        if (cats.length > 0) {
+           const catConditions = cats.map(c => eq(products.category_tier_1, c));
+           const combined = or(...catConditions);
+           if (combined) conditions.push(combined);
+        }
       }
     } else {
       // Public: only active products
@@ -68,14 +81,33 @@ const handler = async (req: Request, res: Response) => {
     }
 
     // Search Logic (Full Text + SKU + Tags)
+    // Search Logic (Fuzzy Match + SKU + Tags)
     if (params.search && params.search.trim().length > 0) {
       const searchQuery = params.search.trim();
 
-      const fullTextCondition = sql`${products.search_vector} @@ plainto_tsquery('english', ${searchQuery})`;
+      // Fuzzy matching for Title (using pg_trgm similarity)
+      // Threshold > 0.1 allows for loose matching (e.g. typos), adjustments can be made.
+      const titleFuzzyCondition = sql`similarity(${products.product_title}, ${searchQuery}) > 0.1`;
+      
+      // Standard substring match for identifiers should retain precision
       const skuCondition = sql`${products.sku} ILIKE ${`%${searchQuery}%`}`;
+      const barcodeCondition = sql`${products.barcode} ILIKE ${`%${searchQuery}%`}`;
+      
+      // Tags search
       const tagsCondition = sql`${products.tags}::text ILIKE ${`%${searchQuery}%`}`;
+      
+      // Keep Full Text Search for exact word matches as it utilizes the search_vector index efficiently
+      const fullTextCondition = sql`${products.search_vector} @@ plainto_tsquery('english', ${searchQuery})`;
 
-      const searchConditions = or(fullTextCondition, skuCondition, tagsCondition);
+      // Combine: Fuzzy Title OR SKU OR Barcode OR Tags OR FullText
+      const searchConditions = or(
+          titleFuzzyCondition, 
+          skuCondition, 
+          barcodeCondition,
+          tagsCondition,
+          fullTextCondition
+      );
+
       if (searchConditions) {
         conditions.push(searchConditions);
       }
@@ -225,6 +257,8 @@ const handler = async (req: Request, res: Response) => {
 
     // Apply Stock Status Filter
     if (params.stockStatus) {
+      const stockStatuses = Array.isArray(params.stockStatus) ? params.stockStatus : [params.stockStatus];
+      
       filteredProducts = filteredProducts.filter(p => {
         const qty = Number(p.inventory_quantity || 0);
         switch (params.stockStatus) {
@@ -245,6 +279,10 @@ const handler = async (req: Request, res: Response) => {
       switch (field) {
         case 'selling_price':
           return (Number(a.selling_price) - Number(b.selling_price)) * multiplier;
+        case 'cost_price':
+          return (Number(a.cost_price || 0) - Number(b.cost_price || 0)) * multiplier;
+        case 'compare_at_price':
+           return (Number(a.compare_at_price || 0) - Number(b.compare_at_price || 0)) * multiplier;
         case 'inventory_quantity':
           // Convert inventory string to number for comparison
           return (Number(a.inventory_quantity || 0) - Number(b.inventory_quantity || 0)) * multiplier;
@@ -255,6 +293,7 @@ const handler = async (req: Request, res: Response) => {
         case 'updated_at':
           return (new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()) * multiplier;
         case 'product_title':
+        case 'category_tier_1':
         case 'status':
         case 'featured':
         case 'sku':
