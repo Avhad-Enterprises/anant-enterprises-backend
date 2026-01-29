@@ -41,6 +41,23 @@ class OrdersRoute implements Route {
     const { default: getOrderMetricsRouter } = await import('./apis/get-order-metrics');
     const { default: getAdminOrderByIdRouter } = await import('./apis/get-admin-order-by-id');
 
+    // Abandoned cart endpoints
+    const { default: getAbandonedCartsRouter } = await import('./apis/get-abandoned-carts');
+    const { default: getAbandonedCartMetricsRouter } =
+      await import('./apis/get-abandoned-cart-metrics');
+    const { default: getAbandonedCartDetailsRouter } =
+      await import('./apis/get-abandoned-cart-details');
+    const { default: sendAbandonedCartEmailsRouter } =
+      await import('./apis/send-abandoned-cart-emails');
+    const { default: getEmailTemplatesRouter } = await import('./apis/get-email-templates');
+
+    // Phase 3: Enhanced order management endpoints
+    const { default: duplicateOrderRouter } = await import('./apis/duplicate-order');
+    const { default: deleteOrdersRouter } = await import('./apis/delete-orders');
+    const { default: searchProductsRouter } = await import('./apis/search-products');
+    const { default: getOrderTagsRouter } = await import('./apis/get-order-tags');
+    const { default: createOrderTagRouter } = await import('./apis/create-order-tag');
+
     // Register routes - they define their own paths
     // IMPORTANT: Order matters! More specific routes MUST come before wildcards
 
@@ -51,6 +68,21 @@ class OrdersRoute implements Route {
     this.router.use(this.path, updateFulfillmentStatusRouter); // PUT /orders/admin/orders/:id/fulfillment
     this.router.use(this.path, updatePaymentStatusRouter); // PUT /orders/admin/orders/:id/payment
     this.router.use(this.path, updateTrackingRouter); // PUT /orders/admin/orders/:id/tracking
+
+    // Abandoned cart routes (specific paths before wildcards)
+    this.router.use(this.path, getAbandonedCartMetricsRouter); // GET /admin/abandoned-carts/metrics
+    this.router.use(this.path, getEmailTemplatesRouter); // GET /admin/abandoned-carts/email-templates
+    this.router.use(this.path, sendAbandonedCartEmailsRouter); // POST /admin/abandoned-carts/send-email
+    this.router.use(this.path, getAbandonedCartDetailsRouter); // GET /admin/abandoned-carts/:cartId
+    this.router.use(this.path, getAbandonedCartsRouter); // GET /admin/abandoned-carts
+
+    // Phase 3: Enhanced order management routes (specific paths first)
+    this.router.use(this.path, searchProductsRouter); // GET /admin/orders/products/search
+    this.router.use(this.path, getOrderTagsRouter); // GET /admin/orders/tags
+    this.router.use(this.path, createOrderTagRouter); // POST /admin/orders/tags
+    this.router.use(this.path, duplicateOrderRouter); // POST /admin/orders/:orderId/duplicate
+    this.router.use(this.path, deleteOrdersRouter); // DELETE /admin/orders
+
     this.router.use(this.path, getAdminOrdersRouter); // GET /admin/orders
     this.router.use(this.path, getAdminOrderByIdRouter); // GET /admin/orders/:id
     this.router.use(this.path, updateOrderStatusRouter); // PUT /admin/orders/:id/status

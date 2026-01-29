@@ -36,7 +36,7 @@ const querySchema = paginationSchema
     // Sorting
     sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'product_title', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
     sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
-    
+
     // Additional Filters
     stockStatus: z.enum(['in_stock', 'out_of_stock', 'low_stock']).optional(),
   })
@@ -167,9 +167,9 @@ const handler = async (req: Request, res: Response) => {
         slug: products.slug,
         description: products.short_description,
 
-        // Computed: Inventory Quantity (Subquery to avoid Cartesian product details with Reviews)
+        // Computed: Inventory Quantity (Available - Reserved)
         inventory_quantity: sql<number>`(
-          SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
+          SELECT GREATEST(COALESCE(SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}), 0), 0)
           FROM ${inventory}
           WHERE ${inventory.product_id} = ${products.id}
         )`.mapWith(Number),
@@ -228,10 +228,10 @@ const handler = async (req: Request, res: Response) => {
       filteredProducts = filteredProducts.filter(p => {
         const qty = Number(p.inventory_quantity || 0);
         switch (params.stockStatus) {
-            case 'in_stock': return qty > 0;
-            case 'out_of_stock': return qty === 0;
-            case 'low_stock': return qty > 0 && qty <= 5;
-            default: return true;
+          case 'in_stock': return qty > 0;
+          case 'out_of_stock': return qty === 0;
+          case 'low_stock': return qty > 0 && qty <= 5;
+          default: return true;
         }
       });
     }
@@ -297,6 +297,7 @@ const handler = async (req: Request, res: Response) => {
       const createdDate = new Date(product.created_at);
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const inventoryQty = Number(product.inventory_quantity || 0);
 
       return {
         id: product.id,
@@ -312,6 +313,8 @@ const handler = async (req: Request, res: Response) => {
         category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
         technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
         description: product.description,
+        inStock: inventoryQty > 0,
+        total_stock: inventoryQty,
       };
     });
 

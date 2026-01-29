@@ -24,6 +24,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
+import { carts } from '../../cart/shared/carts.schema';
 import { paymentTransactions } from '../shared/payment-transactions.schema';
 import { RazorpayService } from '../services/razorpay.service';
 import { RequestWithUser } from '../../../interfaces';
@@ -215,6 +216,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     inArray(orders.payment_status, ['pending', 'failed', 'authorized'])
                 )
             );
+
+        // Mark cart as converted (since we skipped this in create-order for online payments)
+        if (order.cart_id) {
+            await tx.update(carts)
+                .set({
+                    cart_status: 'converted',
+                    updated_at: now,
+                })
+                .where(eq(carts.id, order.cart_id));
+        }
     });
 
     // Record discount usage if applicable (Fire and Forget - but log failures)

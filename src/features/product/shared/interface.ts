@@ -147,7 +147,7 @@ export interface IProductDetailResponse {
   // Inventory
   sku: string;
   inStock: boolean;
-  total_stock: number;
+  total_stock: number | undefined;  // undefined when no inventory tracking
   base_inventory: number;
 
   // Media
@@ -207,6 +207,8 @@ export interface ICollectionProduct {
   category: string;
   technologies: string[];
   description: string | null;
+  inStock: boolean;
+  total_stock: number | undefined;  // undefined when no inventory tracking
 }
 
 // Note: Removed storefront-specific interfaces (IComparisonProduct, IProductBundle,

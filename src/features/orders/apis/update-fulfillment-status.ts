@@ -11,6 +11,7 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
 
 const paramsSchema = z.object({
     id: z.string().uuid(),
@@ -81,7 +82,19 @@ const handler = async (req: RequestWithUser, res: Response) => {
         new_status: updatedOrder.fulfillment_status,
     });
 
-    // TODO: Trigger inventory adjustment if status changed to fulfilled
+    // Trigger inventory adjustment if status changed to fulfilled
+    if (data.fulfillment_status === 'fulfilled' && existingOrder.fulfillment_status !== 'fulfilled') {
+        try {
+            // Allow negative stock (Admin Override)
+            await fulfillOrderInventory(id, req.userId!, true);
+            logger.info(`Stock deducted for fulfilled order ${id}`);
+        } catch (error) {
+            logger.error(`Failed to deduct inventory for order ${id}:`, error);
+            // We log but don't fail the request, as the order status update is primary
+            // Ideally should perhaps alert admin
+        }
+    }
+
     // TODO: Send notification/email to customer
 
     return ResponseFormatter.success(

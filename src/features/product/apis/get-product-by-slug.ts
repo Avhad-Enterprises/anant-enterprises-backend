@@ -63,12 +63,22 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             // Tags
             tags: products.tags,
 
-            // Computed: Total stock from inventory
+            // Variants flag
+            has_variants: products.has_variants,
+
+            // Computed: Total stock from inventory table + variant inventory
             total_stock: sql<string>`(
-        SELECT CAST(COALESCE(SUM(${inventory.available_quantity}), 0) AS TEXT)
-        FROM ${inventory}
-        WHERE ${inventory.product_id} = ${products.id}
-      )`,
+                SELECT CAST(COALESCE(
+                    (SELECT SUM(${inventory.available_quantity}) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
+                    0
+                ) + COALESCE(
+                    (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
+                     WHERE ${productVariants.product_id} = ${products.id} 
+                     AND ${productVariants.is_active} = true 
+                     AND ${productVariants.is_deleted} = false),
+                    0
+                ) AS TEXT)
+            )`,
 
             // Computed: Average rating from reviews
             avg_rating: sql<number>`(
@@ -107,6 +117,14 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             throw new HttpException(403, 'You do not have permission to view draft/archived products');
         }
     }
+
+    // Fetch inventory for this product (Explicit fetch to ensure accuracy)
+    const inventoryData = await db
+        .select({
+            available_quantity: inventory.available_quantity
+        })
+        .from(inventory)
+        .where(eq(inventory.product_id, productData.id));
 
     // Fetch FAQs for this product
     const faqsData = await db
@@ -165,6 +183,11 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         images.push(...productData.additional_images);
     }
 
+    // Calculate total stock explicitly
+    const inventoryStock = inventoryData.reduce((sum, item) => sum + (Number(item.available_quantity) || 0), 0);
+    const variantStock = variantsData.reduce((sum, v) => sum + (Number(v.inventory_quantity) || 0), 0);
+    const totalCalculatedStock = inventoryStock + variantStock;
+
     // Build response
     const response: IProductDetailResponse = {
         // Core fields
@@ -184,9 +207,10 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
 
         // Inventory
         sku: productData.sku,
-        inStock: Number(productData.total_stock || 0) > 0,
-        total_stock: Number(productData.total_stock) || 0,
-        base_inventory: Number(productData.total_stock) || 0,
+        // Use explicitly calculated stock
+        inStock: totalCalculatedStock > 0,
+        total_stock: totalCalculatedStock,
+        base_inventory: totalCalculatedStock,
 
         // Media
         primary_image_url: productData.primary_image_url,

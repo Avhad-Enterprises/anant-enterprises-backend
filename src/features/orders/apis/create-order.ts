@@ -28,11 +28,48 @@ import { notificationService } from '../../notifications/services/notification.s
 
 
 // Request body schema
+// Request body schema
+const orderItemSchema = z.object({
+    product_id: z.string().uuid(),
+    quantity: z.number().min(1),
+    cost_price: z.union([z.string(), z.number()]),
+    line_total: z.union([z.string(), z.number()]),
+    product_name: z.string().optional(),
+    sku: z.string().optional(),
+    product_image: z.string().optional(),
+});
+
 const createOrderSchema = z.object({
-    shipping_address_id: z.string().uuid(),
-    billing_address_id: z.string().uuid().optional(),
+    // Common fields
+    shipping_address_id: z.string().optional().or(z.literal('')), // Admin sends empty string if not selected
+    billing_address_id: z.string().optional().or(z.literal('')),
     payment_method: z.string().max(60).default('cod'),
     customer_note: z.string().max(500).optional(),
+
+    // Admin / Direct Order fields
+    items: z.array(orderItemSchema).optional(),
+    user_id: z.string().optional().or(z.literal('')), // Target customer ID
+    channel: z.enum(['web', 'app', 'pos', 'marketplace', 'other']).optional(),
+    is_draft: z.boolean().optional(),
+    currency: z.string().optional(),
+
+    // Pricing (Admin provided)
+    subtotal: z.string().optional(),
+    discount_total: z.string().optional(),
+    tax_type: z.enum(['cgst_sgst', 'igst', 'none']).optional(),
+    cgst_amount: z.string().optional(),
+    sgst_amount: z.string().optional(),
+    igst_amount: z.string().optional(),
+    shipping_total: z.string().optional(),
+    cod_charges: z.string().optional(),
+    giftcard_total: z.string().optional(),
+    total_amount: z.string().optional(),
+    advance_paid_amount: z.string().optional(), // For partial payment
+
+    // Metadata
+    admin_comment: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    amz_order_id: z.string().optional(),
 });
 
 /**
@@ -51,6 +88,125 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     const body = createOrderSchema.parse(req.body);
+
+    // ==========================================
+    // MODE 1: DIRECT ORDER (Admin/Direct Creation)
+    // ==========================================
+    if (body.items && body.items.length > 0) {
+        // This is a direct order creation (e.g. from Admin Panel)
+        // We trust the pricing and items sent in the body
+
+        const targetUserId = body.user_id || null; // Customer ID (nullable)
+        const creatorId = req.userId; // Admin/Staff ID
+
+        // validate inputs
+        if (!targetUserId && !body.user_id) {
+            // It's allowed to have no user_id (Guest/Walk-in), but usually we want one. 
+            // Proceeding with null user_id.
+        }
+
+        // 1. Validate Stock
+        const stockItems = body.items.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+        }));
+
+        if (stockItems.length > 0) {
+            const validations = await validateStockAvailability(stockItems);
+            const failures = validations.filter(v => !v.available);
+
+            if (failures.length > 0) {
+                const errorMessages = failures.map(f => f.message).join('; ');
+                // For Admin/Direct orders, we WARN but Allow proceeding (Overselling)
+                logger.warn(`[create-order] Admin creating order with insufficient stock: ${errorMessages}`);
+                // throw new HttpException(400, `Insufficient stock: ${errorMessages}`); 
+            }
+        }
+
+        const orderNumber = generateOrderNumber();
+
+        // 2. Create Order & Items
+        const order = await db.transaction(async (tx) => {
+            // Reserve stock (Allow Overselling = true for Admin)
+            await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', true);
+
+            // Insert Order
+            const [newOrder] = await tx.insert(orders).values({
+                order_number: orderNumber,
+                user_id: targetUserId, // nullable
+                shipping_address_id: body.shipping_address_id || null, // nullable
+                billing_address_id: body.billing_address_id || body.shipping_address_id || null,
+                channel: body.channel || 'web',
+                order_status: body.is_draft ? 'pending' : 'pending', // Drafts are pending payment usually? Or 'draft'? Schema has is_draft flag.
+                is_draft: body.is_draft || false,
+                payment_method: body.payment_method,
+                payment_status: 'pending', // Default
+                currency: body.currency || 'INR',
+
+                // Pricing
+                subtotal: body.subtotal || '0',
+                discount_amount: body.discount_total || '0',
+                // tax_type: body.tax_type, // Not in main order columns? Logic says tax_amount, cgst, sgst, igst
+                cgst: body.cgst_amount || '0',
+                sgst: body.sgst_amount || '0',
+                igst: body.igst_amount || '0',
+                shipping_amount: body.shipping_total || '0',
+                partial_cod_charges: body.cod_charges || '0', // Map cod_charges to partial_cod_charges or delivery_price??
+                // checking schema... partial_cod_charges is correct? or delivery_price?
+                // Mapper sends: cod_charges -> body.cod_charges
+                // Schema has: partial_cod_charges AND cod_due_amount. Use partial_cod_charges for the charge itself.
+
+                giftcard_amount: body.giftcard_total || '0',
+                total_amount: body.total_amount || '0',
+                advance_paid_amount: body.advance_paid_amount || '0',
+
+                total_quantity: body.items!.reduce((sum, item) => sum + item.quantity, 0),
+
+                customer_note: body.customer_note,
+                admin_comment: body.admin_comment,
+                amz_order_id: body.amz_order_id,
+                tags: body.tags,
+
+                created_by: creatorId,
+                updated_by: creatorId,
+            }).returning();
+
+            if (!newOrder) {
+                throw new HttpException(500, 'Failed to create order');
+            }
+
+            // Insert Items
+            const orderItemsData = body.items!.map(item => ({
+                order_id: newOrder.id,
+                product_id: item.product_id,
+                sku: item.sku || 'UNKNOWN',
+                product_name: item.product_name || 'Unknown Product',
+                product_image: item.product_image,
+                cost_price: item.cost_price.toString(),
+                quantity: item.quantity,
+                line_total: item.line_total.toString(),
+            }));
+
+            await tx.insert(orderItems).values(orderItemsData);
+
+            return newOrder;
+        });
+
+        // Notifications would go here if needed
+
+        return ResponseFormatter.success(res, {
+            order_id: order.id,
+            order_number: order.order_number,
+            order_status: order.order_status,
+            payment_status: order.payment_status,
+            total_amount: order.total_amount,
+            created_at: order.created_at,
+        }, 'Order created successfully', 201);
+    }
+
+    // ==========================================
+    // MODE 2: CART ORDER (Storefront/User Checkout)
+    // ==========================================
 
     // Get session ID from header (for guest cart fallback)
     const sessionId = req.headers['x-session-id'] as string || null;
@@ -200,8 +356,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
             order_number: orderNumber,
             user_id: userId,
             cart_id: cart.id,
-            shipping_address_id: body.shipping_address_id,
-            billing_address_id: body.billing_address_id || body.shipping_address_id,
+            shipping_address_id: body.shipping_address_id || null,
+            billing_address_id: body.billing_address_id || body.shipping_address_id || null,
             channel: 'web',
             order_status: 'pending',
             is_draft: false,
@@ -240,13 +396,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         await tx.insert(orderItems).values(orderItemsData);
 
-        // Mark cart as converted
-        await tx.update(carts)
-            .set({
-                cart_status: 'converted',
-                updated_at: new Date(),
-            })
-            .where(eq(carts.id, cart.id));
+        // Mark cart as converted ONLY if it's COD or direct confirmation
+        // For Razorpay/Online, we keep it active until payment is verified
+        if (body.payment_method !== 'razorpay') {
+            await tx.update(carts)
+                .set({
+                    cart_status: 'converted',
+                    updated_at: new Date(),
+                })
+                .where(eq(carts.id, cart.id));
+        }
 
         return newOrder;
     });

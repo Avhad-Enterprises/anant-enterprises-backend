@@ -16,6 +16,7 @@ import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
 import { products } from '../../product/shared/product.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
+import { inventory } from '../../inventory/shared/inventory.schema';
 
 const paramsSchema = z.object({
   slug: shortTextSchema,
@@ -35,6 +36,12 @@ interface CollectionProductItem {
   rating: number;
   reviews: number;
   inStock: boolean;
+  total_stock: number;
+  isNew: boolean;
+  category: string;
+  technologies: string[];
+  description: string | null;
+  tags: string[] | null;
 }
 
 const handler = async (req: Request, res: Response) => {
@@ -83,12 +90,23 @@ const handler = async (req: Request, res: Response) => {
       compare_at_price: products.compare_at_price,
       primary_image_url: products.primary_image_url,
       position: collectionProducts.position,
+      short_description: products.short_description,
+      category_tier_1: products.category_tier_1,
+      tags: products.tags,
+      created_at: products.created_at,
 
       // Computed: Average rating
       rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
 
       // Computed: Review count
       review_count: sql<number>`COUNT(${reviews.id})`,
+
+      // Computed: Inventory Quantity (matches product service approach)
+      inventory_quantity: sql<number>`(
+        SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
+        FROM ${inventory}
+        WHERE ${inventory.product_id} = ${products.id}
+      )`.mapWith(Number),
     })
     .from(collectionProducts)
     .innerJoin(products, eq(products.id, collectionProducts.product_id))
@@ -113,23 +131,40 @@ const handler = async (req: Request, res: Response) => {
       products.selling_price,
       products.compare_at_price,
       products.primary_image_url,
-      collectionProducts.position
+      collectionProducts.position,
+      products.short_description,
+      products.category_tier_1,
+      products.tags,
+      products.created_at
     )
     .orderBy(collectionProducts.position)
     .limit(limit)
     .offset(offset);
 
-  // Format products
-  const formattedProducts: CollectionProductItem[] = productsData.map(product => ({
-    id: product.id,
-    name: product.product_title,
-    price: Number(product.selling_price),
-    originalPrice: product.compare_at_price ? Number(product.compare_at_price) : null,
-    image: product.primary_image_url,
-    rating: Number(product.rating) || 0,
-    reviews: Number(product.review_count) || 0,
-    inStock: true, // TODO: Join with inventory if needed
-  }));
+  // Format products (matches ICollectionProduct interface)
+  const formattedProducts: CollectionProductItem[] = productsData.map(product => {
+    const createdDate = new Date(product.created_at);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const inventoryQty = Number(product.inventory_quantity || 0);
+
+    return {
+      id: product.id,
+      name: product.product_title,
+      price: Number(product.selling_price),
+      originalPrice: product.compare_at_price ? Number(product.compare_at_price) : null,
+      image: product.primary_image_url,
+      rating: Number(product.rating) || 0,
+      reviews: Number(product.review_count) || 0,
+      total_stock: inventoryQty,
+      inStock: inventoryQty > 0,
+      isNew: createdDate > thirtyDaysAgo,
+      category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
+      technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
+      description: product.short_description,
+      tags: (product.tags as string[]) || null,
+    };
+  });
 
   return ResponseFormatter.success(
     res,
