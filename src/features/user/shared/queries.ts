@@ -1,7 +1,27 @@
-import { eq } from 'drizzle-orm';
-import { db } from '../../../database';
+import { eq, sql } from 'drizzle-orm';
+import { PgTransaction } from 'drizzle-orm/pg-core';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { db, schema } from '../../../database';
 import { users, type User, type NewUser } from './user.schema';
 import { userCacheService } from '../services/user-cache.service';
+
+type Database = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema, any>;
+
+/**
+ * Get distinct tags used in customers
+ */
+export const getDistinctUserTags = async (tx: Database = db): Promise<string[]> => {
+  const query = sql`
+        SELECT DISTINCT unnest(${users.tags}) as tag
+        FROM ${users}
+        WHERE ${users.is_deleted} = false
+        AND ${users.tags} IS NOT NULL
+        ORDER BY tag ASC
+    `;
+
+  const result = await tx.execute(query);
+  return result.rows.map((row: any) => row.tag).filter(Boolean);
+};
 
 /**
  * Find user by ID (excluding deleted users) - CACHED
@@ -23,8 +43,8 @@ export const findUserByEmail = async (email: string): Promise<User | undefined> 
  * Create a new user
  * Shared query used across services
  */
-export const createUser = async (userData: NewUser): Promise<User> => {
-  const [newUser] = await db.insert(users).values(userData).returning();
+export const createUser = async (userData: NewUser, tx: Database = db): Promise<User> => {
+  const [newUser] = await tx.insert(users).values(userData).returning();
 
   return newUser;
 };
@@ -35,9 +55,10 @@ export const createUser = async (userData: NewUser): Promise<User> => {
  */
 export const updateUserById = async (
   id: string,
-  data: Partial<Omit<User, 'id'>>
+  data: Partial<Omit<User, 'id'>>,
+  tx: Database = db
 ): Promise<User | undefined> => {
-  const [updatedUser] = await db
+  const [updatedUser] = await tx
     .update(users)
     .set({ ...data, updated_at: new Date() })
     .where(eq(users.id, id))

@@ -65,6 +65,10 @@ class UserRoute implements Route {
     const { default: bulkDeleteCustomersRouter } = await import('./apis/bulk-delete-customers');
     this.router.use(this.path, bulkDeleteCustomersRouter);
 
+    // Tags route
+    const { default: getUserTagsRouter } = await import('./apis/get-user-tags');
+    this.router.use(this.path, getUserTagsRouter);
+
     // OTP verification endpoints
     this.router.use(this.path, sendEmailOtpRouter);
     this.router.use(this.path, verifyEmailOtpRouter);

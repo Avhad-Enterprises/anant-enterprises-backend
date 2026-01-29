@@ -100,6 +100,8 @@ const handler = async (req: Request, res: Response) => {
                 category: product.category_tier_1?.toLowerCase().replace(/\s+/g, '-') || '',
                 technologies: ((product.tags as string[]) || []).map((tag: string) => tag.toLowerCase()),
                 description: product.short_description,
+                inStock: product.inventory_quantity > 0,
+                total_stock: product.inventory_quantity,
             };
         });
 
@@ -109,6 +111,7 @@ const handler = async (req: Request, res: Response) => {
             'Featured products retrieved successfully'
         );
     } catch (error) {
+        console.error('[GET /api/products/featured] Error:', error);
         return res.status(500).json({
             success: false,
             message: 'Failed to retrieve featured products',

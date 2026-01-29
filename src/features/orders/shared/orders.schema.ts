@@ -150,6 +150,9 @@ export const orders = pgTable(
     shipping_amount: decimal('shipping_amount', { precision: 12, scale: 2 })
       .default('0.00')
       .notNull(),
+    delivery_price: decimal('delivery_price', { precision: 12, scale: 2 })
+      .default('0.00')
+      .notNull(),
 
     // COD (India-specific)
     partial_cod_charges: decimal('partial_cod_charges', { precision: 12, scale: 2 })
@@ -181,6 +184,9 @@ export const orders = pgTable(
     fulfillment_date: timestamp('fulfillment_date'),
     delivery_date: timestamp('delivery_date'),
     return_date: timestamp('return_date'),
+    return_amount: decimal('return_amount', { precision: 12, scale: 2 })
+      .default('0.00')
+      .notNull(),
     order_tracking: varchar('order_tracking', { length: 200 }),
 
     // Business

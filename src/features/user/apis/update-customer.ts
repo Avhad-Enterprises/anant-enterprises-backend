@@ -138,7 +138,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
             if (currentUser) {
                 targetUserType = data.user_type || (currentUser.user_type as 'individual' | 'business') || 'individual';
-                oldTags = (currentUser.tags as string[]) || []; // This updates the outer scope variable
+                oldTags = (currentUser.tags as string[]) || [];
+                logger.info('UPDATE DEBUG: Current User details', { currentUserType: currentUser.user_type, targetUserType });
             }
 
             if (Object.keys(userUpdates).length > 0) {
@@ -151,31 +152,28 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (targetUserType === 'business') {
                 // UPDATE BUSINESS PROFILE
                 const businessUpdates: any = {};
+                // ... (abbrev) ...
                 if (data.company_legal_name) businessUpdates.company_legal_name = data.company_legal_name;
                 if (data.tax_id) businessUpdates.tax_id = data.tax_id;
-                if (data.notes) businessUpdates.notes = data.notes; // Map generic notes to business notes
+                if (data.notes) businessUpdates.notes = data.notes;
                 if (data.payment_terms) businessUpdates.payment_terms = data.payment_terms;
 
-                // Map generic status to business status if needed, or use specific field
                 if (data.business_account_status) {
                     businessUpdates.account_status = data.business_account_status;
                 } else if (data.account_status) {
-                    // Map individual status to business status if reasonable, or ignore
-                    // Simple mapping: 'active' -> 'active', 'suspended'->'suspended', 'closed'->'closed'
                     businessUpdates.account_status = data.account_status;
                 }
+                logger.info('UPDATE DEBUG: Business Updates', businessUpdates);
 
                 if (data.credit_limit !== undefined) businessUpdates.credit_limit = String(data.credit_limit);
-
-                logger.info('Business Profile updates:', businessUpdates);
 
                 if (Object.keys(businessUpdates).length > 0) {
                     await tx.insert(businessCustomerProfiles)
                         .values({
                             user_id: id,
-                            business_type: 'sole_proprietor', // Default if missing
-                            company_legal_name: businessUpdates.company_legal_name || 'N/A', // Required field
-                            business_email: userUpdates.email || data.email || 'pending@update.com', // fallback
+                            business_type: 'sole_proprietor',
+                            company_legal_name: businessUpdates.company_legal_name || 'N/A',
+                            business_email: userUpdates.email || data.email || 'pending@update.com',
                             ...businessUpdates
                         })
                         .onConflictDoUpdate({
@@ -190,6 +188,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 if (data.segment !== undefined) profileUpdates.segment = data.segment;
                 if (data.notes !== undefined) profileUpdates.notes = data.notes;
                 if (data.account_status !== undefined) profileUpdates.account_status = data.account_status;
+
+                logger.info('UPDATE DEBUG: Individual Profile Updates Prep', { account_status: data.account_status, profileUpdates });
+
                 if (data.store_credit_balance !== undefined) profileUpdates.store_credit_balance = String(data.store_credit_balance);
 
                 // Marketing
@@ -211,7 +212,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 if (data.subscription_start_date !== undefined) profileUpdates.subscription_start_date = data.subscription_start_date ? new Date(data.subscription_start_date) : null;
                 if (data.auto_renew !== undefined) profileUpdates.auto_renew = data.auto_renew;
 
-                logger.info('Individual Profile updates:', profileUpdates);
+                logger.info('UPDATE DEBUG: Final Profile Updates Object', profileUpdates);
 
                 if (Object.keys(profileUpdates).length > 0) {
                     await tx.insert(customerProfiles)
@@ -223,6 +224,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                             target: customerProfiles.user_id,
                             set: { ...profileUpdates, updated_at: new Date() }
                         });
+                    logger.info('UPDATE DEBUG: DB Operation Executed');
                 }
             }
         });
