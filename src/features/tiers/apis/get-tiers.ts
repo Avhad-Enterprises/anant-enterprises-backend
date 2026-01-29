@@ -8,7 +8,7 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { ITier } from '../shared/interface';
-import { eq, asc, and, or, like, gt } from 'drizzle-orm';
+import { eq, asc, and, or, like, gt, inArray } from 'drizzle-orm';
 
 const handler = async (req: Request, res: Response) => {
     const { level, status, parentId, search, usage } = req.query;
@@ -19,16 +19,19 @@ const handler = async (req: Request, res: Response) => {
     // Always exclude deleted tiers
     conditions.push(eq(tiers.is_deleted, false));
 
-    // Add status filter if specified (don't default to active)
-    if (status && status !== '') {
-        conditions.push(eq(tiers.status, status as 'active' | 'inactive'));
+    // Add status filter if specified (support multi-select)
+    if (status && typeof status === 'string') {
+        const statuses = status.split(',').filter(s => s === 'active' || s === 'inactive');
+        if (statuses.length > 0) {
+            conditions.push(inArray(tiers.status, statuses as ('active' | 'inactive')[]));
+        }
     }
 
-    // Add level filter if specified
-    if (level) {
-        const levelNum = parseInt(level as string, 10);
-        if (!isNaN(levelNum)) {
-            conditions.push(eq(tiers.level, levelNum));
+    // Add level filter if specified (support multi-select)
+    if (level && typeof level === 'string') {
+        const levels = level.split(',').map(l => parseInt(l, 10)).filter(n => !isNaN(n));
+        if (levels.length > 0) {
+            conditions.push(inArray(tiers.level, levels));
         }
     }
 
@@ -48,12 +51,20 @@ const handler = async (req: Request, res: Response) => {
         );
     }
 
-    // Add usage filter
+    // Add usage filter (support multi-select)
     if (usage && typeof usage === 'string') {
-        if (usage === 'used') {
-            conditions.push(gt(tiers.usage_count, 0));
-        } else if (usage === 'unused') {
-            conditions.push(eq(tiers.usage_count, 0));
+        const usageOptions = usage.split(',').filter(Boolean);
+        const usageConditions = [];
+
+        if (usageOptions.includes('used')) {
+            usageConditions.push(gt(tiers.usage_count, 0));
+        }
+        if (usageOptions.includes('unused')) {
+            usageConditions.push(eq(tiers.usage_count, 0));
+        }
+
+        if (usageConditions.length > 0) {
+            conditions.push(or(...usageConditions));
         }
     }
 

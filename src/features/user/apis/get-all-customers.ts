@@ -6,7 +6,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, sql } from 'drizzle-orm';
+import { eq, count, desc, and, sql, arrayOverlaps } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -29,6 +29,8 @@ const paginationSchema = z.object({
     limit: z.coerce.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
     type: z.enum(['individual', 'business', 'all']).default('all'),
     status: z.string().optional(),
+    gender: z.string().optional(),
+    tags: z.string().optional(),
     search: z.string().optional(),
 });
 
@@ -37,6 +39,8 @@ async function getAllCustomers(
     limit: number,
     type: string,
     status?: string,
+    gender?: string,
+    tags?: string,
     search?: string
 ) {
     const offset = (page - 1) * limit;
@@ -69,18 +73,47 @@ async function getAllCustomers(
 
     // Status Filter
     if (status) {
-        if (status === 'active') {
-            conditions.push(
+        const statuses = status.split(',').map(s => s.trim().toLowerCase());
+        const statusConditions = [];
+
+        if (statuses.includes('active')) {
+            statusConditions.push(
                 sql`(${customerProfiles.account_status} = 'active' OR ${businessCustomerProfiles.account_status} = 'active')`
             );
-        } else if (status === 'inactive' || status === 'closed') {
-            conditions.push(
+        }
+        if (statuses.includes('inactive') || statuses.includes('closed')) {
+            statusConditions.push(
                 sql`(${customerProfiles.account_status} = 'closed' OR ${businessCustomerProfiles.account_status} = 'closed')`
             );
-        } else if (status === 'blocked' || status === 'suspended') {
-            conditions.push(
+        }
+        if (statuses.includes('blocked') || statuses.includes('suspended')) {
+            statusConditions.push(
                 sql`(${customerProfiles.account_status} = 'suspended' OR ${businessCustomerProfiles.account_status} = 'suspended')`
             );
+        }
+
+        if (statusConditions.length > 0) {
+            conditions.push(sql`(${sql.join(statusConditions, sql` OR `)})`);
+        }
+    }
+
+    // Gender Filter
+    if (gender) {
+        const genders = gender.split(',').map(g => {
+            const val = g.trim().toLowerCase();
+            return val === 'prefer not to say' ? 'prefer_not_to_say' : val;
+        }) as any[];
+
+        if (genders.length > 0) {
+            conditions.push(inArray(users.gender, genders));
+        }
+    }
+
+    // Tags Filter
+    if (tags) {
+        const tagList = tags.split(',').map(t => t.trim());
+        if (tagList.length > 0) {
+            conditions.push(arrayOverlaps(users.tags, tagList));
         }
     }
 
@@ -150,9 +183,9 @@ async function getAllCustomers(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { page, limit, type, status, search } = paginationSchema.parse(req.query);
+    const { page, limit, type, status, gender, tags, search } = paginationSchema.parse(req.query);
 
-    const result = await getAllCustomers(page, limit, type, status, search);
+    const result = await getAllCustomers(page, limit, type, status, gender, tags, search);
 
     ResponseFormatter.paginated(
         res,
