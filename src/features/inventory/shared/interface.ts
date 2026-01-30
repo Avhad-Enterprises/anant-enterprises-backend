@@ -22,6 +22,7 @@ export interface InventoryListParams {
   status?: string;
   location?: string;
   category?: string;
+  quickFilter?: string; // Add quickFilter parameter
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   startDate?: string;

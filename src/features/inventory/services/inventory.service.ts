@@ -81,7 +81,7 @@ async function resolveValidUserId(userId: string | null | undefined): Promise<st
  * Get paginated list of inventory items with product details (Unified: Base + Variants)
  */
 export async function getInventoryList(params: InventoryListParams) {
-    const { page = 1, limit = 20, search, condition, status, location: locationName, category, startDate, endDate } = params;
+    const { page = 1, limit = 20, search, condition, status, location: locationName, category, quickFilter, startDate, endDate } = params;
     const offset = (page - 1) * limit;
 
     // Helper to build search clause
@@ -93,8 +93,10 @@ export async function getInventoryList(params: InventoryListParams) {
     const endDateDate = endDate ? new Date(endDate) : null;
     
     console.log('DEBUG: getInventoryList params:', JSON.stringify(params));
+    console.log('DEBUG: Parsed Date Range:', { startDateDate, endDateDate });
 
 
+    // 3. Dynamic Store/Order configuration
     // 3. Dynamic Store/Order configuration
     // Default sort: updated_at DESC
     let orderByClause = sql`updated_at DESC`;
@@ -104,15 +106,24 @@ export async function getInventoryList(params: InventoryListParams) {
         
         switch (params.sortBy) {
             case 'product_name':
+            case 'productName':
+            case 'productname':
                 orderByClause = sql`product_name ${direction}`;
                 break;
             case 'available_quantity':
+            case 'available':
+            case 'availablequantity':
                 orderByClause = sql`available_quantity ${direction}`;
                 break;
             case 'last_updated':
+            case 'lastUpdated':
+            case 'lastupdated':
+            case 'updated_at':
                 orderByClause = sql`updated_at ${direction}`;
                 break;
             case 'reserved_quantity':
+            case 'committed':
+            case 'reservedquantity':
                 orderByClause = sql`reserved_quantity ${direction}`;
                 break;
         }
@@ -125,8 +136,8 @@ export async function getInventoryList(params: InventoryListParams) {
             SELECT
                 i.id,
                 i.product_id,
-                i.product_name,
-                i.sku,
+                p.product_title as product_name, -- Fetch from Product table (Fresh)
+                p.sku,                           -- Fetch from Product table (Fresh)
                 i.location_id,
                 i.available_quantity,
                 i.reserved_quantity,
@@ -147,12 +158,18 @@ export async function getInventoryList(params: InventoryListParams) {
             LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
             WHERE 1=1
-            ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
+            ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR p.sku ILIKE ${searchClause})` : sql``}
             ${condition ? sql`AND i.condition = ${condition}` : sql``}
             ${status ? sql`AND i.status = ${status}` : sql``}
             ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
+            ${category ? sql`AND t.id = ${category}` : sql``}
             ${startDateDate ? sql`AND i.updated_at >= ${startDateDate}` : sql``}
             ${endDateDate ? sql`AND i.updated_at <= ${endDateDate}` : sql``}
+            -- Quick Filters for Base Inventory
+            ${quickFilter === 'low-stock' ? sql`AND i.available_quantity <= 10 AND i.available_quantity > 0` : sql``}
+            ${quickFilter === 'zero-available' ? sql`AND i.available_quantity = 0` : sql``}
+            ${quickFilter === 'blocked' ? sql`AND i.reserved_quantity > 0` : sql``}
+            ${quickFilter === 'recently-updated' ? sql`AND i.updated_at >= (NOW() - INTERVAL '24 HOURS')` : sql``}
 
             UNION ALL
 
@@ -199,6 +216,11 @@ export async function getInventoryList(params: InventoryListParams) {
             ${category ? sql`AND t.id = ${category}` : sql``}
             ${startDateDate ? sql`AND pv.updated_at >= ${startDateDate}` : sql``}
             ${endDateDate ? sql`AND pv.updated_at <= ${endDateDate}` : sql``}
+            -- Quick Filters for Variants
+            ${quickFilter === 'low-stock' ? sql`AND pv.inventory_quantity <= 10 AND pv.inventory_quantity > 0` : sql``}
+            ${quickFilter === 'zero-available' ? sql`AND pv.inventory_quantity = 0` : sql``}
+            ${quickFilter === 'blocked' ? sql`AND false` : sql``} -- Variants don't have reserved quantity in this simple model
+            ${quickFilter === 'recently-updated' ? sql`AND pv.updated_at >= (NOW() - INTERVAL '24 HOURS')` : sql``}
         )
         SELECT * FROM unified_inventory
         ORDER BY ${orderByClause}
@@ -217,12 +239,18 @@ export async function getInventoryList(params: InventoryListParams) {
             LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
             LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
             WHERE 1=1
-            ${search ? sql`AND (i.product_name ILIKE ${searchClause} OR i.sku ILIKE ${searchClause})` : sql``}
+            ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR p.sku ILIKE ${searchClause})` : sql``}
             ${condition ? sql`AND i.condition = ${condition}` : sql``}
             ${status ? sql`AND i.status = ${status}` : sql``}
             ${locationName ? sql`AND il.name ILIKE ${locationClause}` : sql``}
+            ${category ? sql`AND t.id = ${category}` : sql``}
             ${startDateDate ? sql`AND i.updated_at >= ${startDateDate}` : sql``}
             ${endDateDate ? sql`AND i.updated_at <= ${endDateDate}` : sql``}
+            -- Quick Filters for Base Inventory Count
+            ${quickFilter === 'low-stock' ? sql`AND i.available_quantity <= 10 AND i.available_quantity > 0` : sql``}
+            ${quickFilter === 'zero-available' ? sql`AND i.available_quantity = 0` : sql``}
+            ${quickFilter === 'blocked' ? sql`AND i.reserved_quantity > 0` : sql``}
+            ${quickFilter === 'recently-updated' ? sql`AND i.updated_at >= (NOW() - INTERVAL '24 HOURS')` : sql``}
 
             UNION ALL
 
@@ -243,6 +271,11 @@ export async function getInventoryList(params: InventoryListParams) {
             ${category ? sql`AND t.id = ${category}` : sql``}
             ${startDateDate ? sql`AND pv.updated_at >= ${startDateDate}` : sql``}
             ${endDateDate ? sql`AND pv.updated_at <= ${endDateDate}` : sql``}
+            -- Quick Filters for Variants Count
+            ${quickFilter === 'low-stock' ? sql`AND pv.inventory_quantity <= 10 AND pv.inventory_quantity > 0` : sql``}
+            ${quickFilter === 'zero-available' ? sql`AND pv.inventory_quantity = 0` : sql``}
+            ${quickFilter === 'blocked' ? sql`AND false` : sql``}
+            ${quickFilter === 'recently-updated' ? sql`AND pv.updated_at >= (NOW() - INTERVAL '24 HOURS')` : sql``}
         ) as combined
     `;
 
@@ -289,8 +322,8 @@ export async function getInventoryById(id: string) {
         .select({
             id: inventory.id,
             product_id: inventory.product_id,
-            product_name: inventory.product_name,
-            sku: inventory.sku,
+            product_name: products.product_title, // Use fresh name from products
+            sku: products.sku,                    // Use fresh SKU from products
             location_id: inventory.location_id,
             available_quantity: inventory.available_quantity,
             reserved_quantity: inventory.reserved_quantity,
