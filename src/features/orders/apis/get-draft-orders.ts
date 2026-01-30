@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, desc, count } from 'drizzle-orm';
+import { eq, and, desc, count, gte, lte } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
@@ -16,6 +16,8 @@ import { requireAuth, requirePermission } from '../../../middlewares';
 
 const querySchema = paginationSchema.extend({
     search: z.string().optional(), // Search by order number or customer email/name
+    from_date: z.string().optional(),
+    to_date: z.string().optional(),
     sort_by: z.enum(['created_at', 'total_amount']).default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),
 });
@@ -31,6 +33,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
         eq(orders.is_draft, true),
         eq(orders.is_deleted, false),
     ];
+    
+    if (params.from_date) {
+        conditions.push(gte(orders.created_at, new Date(params.from_date)));
+    }
+
+    if (params.to_date) {
+        conditions.push(lte(orders.created_at, new Date(params.to_date)));
+    }
 
     // Get total count
     const [countResult] = await db
