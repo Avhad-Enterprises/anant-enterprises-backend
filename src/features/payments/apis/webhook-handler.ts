@@ -256,6 +256,36 @@ async function handlePaymentCaptured(payment: IRazorpayPaymentEntity) {
         return;
     }
 
+    // SECURITY: Verify payment amount matches expected order amount
+    // This is critical to prevent amount manipulation attacks
+    const expectedAmountPaise = Math.round(Number(transaction.amount) * 100);
+    if (amount !== expectedAmountPaise) {
+        logger.error('SECURITY ALERT: Payment amount mismatch detected!', {
+            razorpayOrderId,
+            paymentId,
+            expectedAmountPaise,
+            actualAmountPaise: amount,
+            transactionId: transaction.id,
+            orderId: transaction.order_id,
+        });
+        
+        // Mark transaction as failed due to amount mismatch
+        await db
+            .update(paymentTransactions)
+            .set({
+                status: 'failed',
+                error_code: 'AMOUNT_MISMATCH',
+                error_description: `Expected ${expectedAmountPaise} paise but received ${amount} paise`,
+                webhook_verified: true,
+                webhook_received_at: new Date(),
+                updated_at: new Date(),
+            })
+            .where(eq(paymentTransactions.id, transaction.id));
+        
+        // Do NOT update order to paid - this is a security issue
+        return;
+    }
+
     // Use transaction for atomic updates
     await db.transaction(async (tx) => {
         // Update transaction to 'captured' (final status)
