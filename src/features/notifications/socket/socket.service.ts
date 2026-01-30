@@ -2,6 +2,9 @@ import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { logger } from '../../../utils';
 
+// Type for socket middleware
+type SocketMiddleware = (socket: Socket, next: (err?: Error) => void) => void;
+
 /**
  * WebSocket Service for Real-Time Notifications
  * 
@@ -14,14 +17,19 @@ class SocketService {
     /**
      * Initialize Socket.IO server
      * Call this once when the HTTP server starts
+     * @param httpServer - The HTTP server to attach Socket.IO to
+     * @param authMiddleware - Optional authentication middleware to use
      */
-    public initialize(httpServer: HTTPServer): void {
+    public initialize(httpServer: HTTPServer, authMiddleware?: SocketMiddleware): void {
         // Support multiple origins for development
         const allowedOrigins: string[] = [
             process.env.FRONTEND_URL,
+            process.env.ADMIN_URL,
             'http://localhost:3000',
             'http://127.0.0.1:3000',
             'http://localhost:3001', // Alternative port
+            'http://localhost:5173', // Vite default (admin panel)
+            'http://127.0.0.1:5173',
         ].filter((origin): origin is string => typeof origin === 'string'); // Remove undefined values
 
         this.io = new SocketIOServer(httpServer, {
@@ -30,14 +38,24 @@ class SocketService {
                 credentials: true,
             },
             path: '/socket.io',
-            transports: ['websocket', 'polling'], // WebSocket preferred, polling as fallback
+            // Start with polling, then upgrade to websocket (more reliable)
+            transports: ['polling', 'websocket'],
+            allowUpgrades: true,
+            pingTimeout: 60000,
+            pingInterval: 25000,
         });
 
         logger.info('Socket.IO server initialized', {
             allowedOrigins,
             path: '/socket.io',
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
         });
+
+        // Apply authentication middleware BEFORE setting up connection handlers
+        if (authMiddleware) {
+            this.io.use(authMiddleware);
+            logger.info('Socket.IO authentication middleware applied');
+        }
 
         this.setupEventHandlers();
     }
@@ -65,6 +83,20 @@ class SocketService {
                         userId: roomUserId,
                         socketId: socket.id,
                     });
+                }
+            });
+
+            // Handle notification:subscribe from client (alternative to join)
+            socket.on('notification:subscribe', (data: { userId: string }) => {
+                // Only allow users to subscribe to their own notifications
+                if (userId && data.userId === userId) {
+                    socket.join(`user:${data.userId}`);
+                    logger.info('User subscribed to notifications', {
+                        userId: data.userId,
+                        socketId: socket.id,
+                    });
+                    // Send acknowledgment
+                    socket.emit('notification:subscribed', { success: true });
                 }
             });
 

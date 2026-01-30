@@ -7,6 +7,7 @@
 import { eq, and, isNull, inArray, gt, or } from 'drizzle-orm';
 import { db } from '../../../database';
 import { roles, permissions, rolePermissions, userRoles } from './rbac.schema';
+import { logger } from '../../../utils';
 
 // ============================================
 // ROLE QUERIES
@@ -342,4 +343,59 @@ export async function countRolePermissions(roleId: string): Promise<number> {
     .from(rolePermissions)
     .where(eq(rolePermissions.role_id, roleId));
   return result.length;
+}
+
+/**
+ * Get all user IDs that have a specific role by role name
+ * Useful for sending notifications to all admins/superadmins
+ *
+ * @param roleName - Name of the role (e.g., 'admin', 'superadmin')
+ * @returns Array of user IDs with the specified role
+ */
+export async function getUserIdsByRoleName(roleName: string): Promise<string[]> {
+  const now = new Date();
+
+  // First find the role by name
+  const role = await findRoleByName(roleName);
+  if (!role) {
+    return [];
+  }
+
+  // Get all active user IDs with this role
+  const result = await db
+    .select({ user_id: userRoles.user_id })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.role_id, roles.id))
+    .where(
+      and(
+        eq(userRoles.role_id, role.id),
+        eq(roles.is_deleted, false),
+        eq(roles.is_active, true),
+        or(isNull(userRoles.expires_at), gt(userRoles.expires_at, now))
+      )
+    );
+
+  return result.map(r => r.user_id);
+}
+
+/**
+ * Get all admin user IDs (admin + superadmin roles)
+ * Convenience function for sending admin notifications
+ *
+ * @returns Array of unique user IDs with admin or superadmin role
+ */
+export async function getAllAdminUserIds(): Promise<string[]> {
+  logger.info('[getAllAdminUserIds] Fetching admin user IDs...');
+  
+  const adminIds = await getUserIdsByRoleName('admin');
+  logger.info('[getAllAdminUserIds] Admin IDs found:', { count: adminIds.length, ids: adminIds });
+  
+  const superadminIds = await getUserIdsByRoleName('superadmin');
+  logger.info('[getAllAdminUserIds] Superadmin IDs found:', { count: superadminIds.length, ids: superadminIds });
+
+  // Return unique user IDs
+  const allIds = [...new Set([...adminIds, ...superadminIds])];
+  logger.info('[getAllAdminUserIds] Total unique admin IDs:', { count: allIds.length, ids: allIds });
+  
+  return allIds;
 }

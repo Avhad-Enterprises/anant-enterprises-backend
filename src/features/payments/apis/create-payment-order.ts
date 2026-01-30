@@ -21,6 +21,8 @@ import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../../orders/shared/orders.schema';
 import { users } from '../../user/shared/user.schema';
+import { carts } from '../../cart/shared/carts.schema';
+import { cartItems } from '../../cart/shared/cart-items.schema';
 import { paymentTransactions } from '../shared/payment-transactions.schema';
 import { RazorpayService } from '../services/razorpay.service';
 import { PaymentLockService } from '../services/payment-lock.service';
@@ -82,6 +84,54 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // Check if order is cancelled
         if (order.order_status === 'cancelled') {
             throw new HttpException(400, 'Cannot process payment for cancelled order', 'ORDER_CANCELLED');
+        }
+
+        // SECURITY: Validate order amount against current cart state
+        // This prevents price manipulation if user modified cart after order creation
+        if (order.cart_id) {
+            // Fetch current cart state
+            const [currentCart] = await db
+                .select()
+                .from(carts)
+                .where(eq(carts.id, order.cart_id))
+                .limit(1);
+
+            if (currentCart && currentCart.cart_status === 'active') {
+                // Cart is still active (not yet converted) - validate totals
+                const currentCartItems = await db
+                    .select()
+                    .from(cartItems)
+                    .where(and(
+                        eq(cartItems.cart_id, order.cart_id),
+                        eq(cartItems.is_deleted, false)
+                    ));
+
+                // Calculate current cart total
+                const currentSubtotal = currentCartItems.reduce(
+                    (sum, item) => sum + (Number(item.final_price) * item.quantity),
+                    0
+                );
+                const currentDiscountTotal = Number(currentCart.discount_total) || 0;
+                const currentGrandTotal = Math.max(currentSubtotal - currentDiscountTotal, 0);
+
+                // Compare with order total (allow small floating point tolerance)
+                const orderTotal = Number(order.total_amount);
+                const tolerance = 0.01; // 1 paisa tolerance
+
+                if (Math.abs(currentGrandTotal - orderTotal) > tolerance) {
+                    logger.warn('Cart modified after order creation - price mismatch detected', {
+                        orderId: order.id,
+                        orderTotal,
+                        currentCartTotal: currentGrandTotal,
+                        difference: Math.abs(currentGrandTotal - orderTotal),
+                    });
+
+                    throw new HttpException(400, 
+                        'Cart has been modified. Please create a new order.', 
+                        'CART_MODIFIED'
+                    );
+                }
+            }
         }
 
         // Check for existing pending Razorpay order (reuse if not expired)

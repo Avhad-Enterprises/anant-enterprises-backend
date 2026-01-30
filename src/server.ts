@@ -107,16 +107,10 @@ async function bootstrap() {
     const expressApp = app.getServer();
     httpServer = http.createServer(expressApp);
 
-    // Initialize Socket.IO for real-time notifications
+    // Initialize Socket.IO for real-time notifications with authentication middleware
     try {
-      socketService.initialize(httpServer);
-
-      // Add authentication middleware
-      const io = socketService.getIO();
-      if (io) {
-        io.use(socketAuthMiddleware);
-        logger.info('✅ Socket.IO initialized with authentication');
-      }
+      socketService.initialize(httpServer, socketAuthMiddleware);
+      logger.info('✅ Socket.IO initialized with authentication');
     } catch (error) {
       logger.error('Failed to initialize Socket.IO', { error });
       // Non-blocking: server continues without WebSocket support

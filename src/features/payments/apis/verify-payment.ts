@@ -173,6 +173,36 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(400, 'Payment verification failed', 'INVALID_SIGNATURE');
     }
 
+    // SECURITY: Verify payment amount from Razorpay matches our expected amount
+    // Fetch the actual payment from Razorpay to verify amount
+    try {
+        const razorpayPayment = await RazorpayService.getPayment(body.razorpay_payment_id);
+        const paidAmountPaise = Number(razorpayPayment.amount);
+        const expectedAmountPaise = Math.round(Number(order.total_amount) * 100);
+
+        if (paidAmountPaise !== expectedAmountPaise) {
+            logger.error('SECURITY ALERT: Payment amount mismatch in verification!', {
+                orderId: order.id,
+                orderNumber: order.order_number,
+                razorpayPaymentId: body.razorpay_payment_id,
+                expectedAmountPaise,
+                paidAmountPaise,
+                difference: paidAmountPaise - expectedAmountPaise,
+            });
+
+            throw new HttpException(400, 'Payment amount mismatch', 'AMOUNT_MISMATCH');
+        }
+    } catch (error: any) {
+        if (error.status === 400) throw error; // Re-throw amount mismatch error
+        
+        // Log but don't fail verification on Razorpay API errors
+        // The signature is valid, so payment is legitimate
+        logger.warn('Could not verify payment amount from Razorpay API', {
+            razorpayPaymentId: body.razorpay_payment_id,
+            error: error.message,
+        });
+    }
+
     // Signature is valid - update in a transaction
     // TRADITIONAL FLOW: Mark as CAPTURED/PAID immediately upon valid signature.
     // Webhook will serve as a redundant confirmation.

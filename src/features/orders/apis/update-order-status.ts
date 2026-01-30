@@ -17,6 +17,9 @@ import { fulfillOrderInventory } from '../../inventory/services/inventory.servic
 import { notificationService } from '../../notifications/services/notification.service';
 import { logger } from '../../../utils';
 
+// Get base URL from environment for email links
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
 const updateStatusSchema = z.object({
     order_status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']).optional(),
     payment_status: z.enum(['pending', 'authorized', 'partially_paid', 'paid', 'refunded', 'failed', 'partially_refunded']).optional(),
@@ -138,7 +141,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     status: body.order_status,
                     customerName: 'Customer', // TODO: Fetch actual name if needed
                     orderNumber: order.order_number,
-                    orderUrl: `/profile/orders/${order.id}`,
+                    orderUrl: `${FRONTEND_URL}/profile/orders/${order.id}`,
                 },
                 {
                     actionUrl: `/profile/orders/${order.id}`,
