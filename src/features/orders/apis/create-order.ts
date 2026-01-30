@@ -23,9 +23,14 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { reserveStockForOrder, validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
 
-import { notificationService } from '../../notifications/services/notification.service';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
+import { getAllAdminUserIds } from '../../rbac/shared/queries';
+import { TEMPLATE_CODES } from '../../notifications/shared/constants';
+import { users } from '../../user/shared/user.schema';
 
-
+// Get base URLs from environment
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const ADMIN_URL = (process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 // Request body schema
 // Request body schema
@@ -192,9 +197,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
             return newOrder;
         });
 
-        // Notifications would go here if needed
-
-        return ResponseFormatter.success(res, {
+        // Send response first, then queue notifications
+        const response = ResponseFormatter.success(res, {
             order_id: order.id,
             order_number: order.order_number,
             order_status: order.order_status,
@@ -202,6 +206,95 @@ const handler = async (req: RequestWithUser, res: Response) => {
             total_amount: order.total_amount,
             created_at: order.created_at,
         }, 'Order created successfully', 201);
+
+        // Queue notifications AFTER response is sent (non-blocking)
+        setImmediate(async () => {
+            // 1. Notify customer if order is for a specific user
+            if (targetUserId) {
+                try {
+                    // Fetch customer details for notification
+                    const [customer] = await db
+                        .select({ name: users.name, email: users.email })
+                        .from(users)
+                        .where(eq(users.id, targetUserId))
+                        .limit(1);
+
+                    await eventPublisher.publishNotification({
+                        userId: targetUserId,
+                        templateCode: TEMPLATE_CODES.ORDER_CREATED,
+                        variables: {
+                            userName: customer?.name || 'Customer',
+                            orderNumber: order.order_number,
+                            total: Number(order.total_amount).toFixed(2),
+                            currency: order.currency || 'INR',
+                            orderUrl: `${FRONTEND_URL}/profile/orders/${order.id}`,
+                        },
+                        options: {
+                            priority: 'high',
+                            actionUrl: `/profile/orders/${order.id}`,
+                            actionText: 'View Order',
+                        },
+                    });
+                } catch (error) {
+                    logger.error('Failed to queue customer notification for direct order:', error);
+                }
+            }
+
+            // 2. Notify all admins about new order
+            try {
+                logger.info('[Direct Order] Fetching admin user IDs for notification...');
+                const adminUserIds = await getAllAdminUserIds();
+                logger.info('[Direct Order] Admin user IDs:', { count: adminUserIds.length, ids: adminUserIds });
+                
+                if (adminUserIds.length > 0) {
+                    // Fetch customer details for admin notification
+                    let customerName = 'Guest';
+                    let customerEmail = 'N/A';
+                    if (targetUserId) {
+                        const [customer] = await db
+                            .select({ name: users.name, email: users.email })
+                            .from(users)
+                            .where(eq(users.id, targetUserId))
+                            .limit(1);
+                        customerName = customer?.name || 'Guest';
+                        customerEmail = customer?.email || 'N/A';
+                    }
+
+                    logger.info('[Direct Order] Publishing batch notification to admins...', {
+                        adminCount: adminUserIds.length,
+                        templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
+                        orderNumber: order.order_number,
+                    });
+
+                    await eventPublisher.publishBatchNotification({
+                        userIds: adminUserIds,
+                        templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
+                        variables: {
+                            orderNumber: order.order_number,
+                            customerName,
+                            customerEmail,
+                            total: Number(order.total_amount).toFixed(2),
+                            currency: order.currency || 'INR',
+                            itemCount: body.items!.length,
+                            orderUrl: `${ADMIN_URL}/orders/${order.order_number}`,
+                        },
+                        options: {
+                            priority: 'high',
+                            actionUrl: `/orders/${order.order_number}`,
+                            actionText: 'View Order',
+                        },
+                    });
+                    
+                    logger.info('[Direct Order] Admin notification batch published successfully');
+                } else {
+                    logger.warn('[Direct Order] No admin users found - skipping admin notification');
+                }
+            } catch (error) {
+                logger.error('Failed to queue admin notification for direct order:', error);
+            }
+        });
+
+        return response;
     }
 
     // ==========================================
@@ -435,36 +528,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
     }
 
-    // Send ORDER_CONFIRMED notification to customer
-    try {
-        await notificationService.createFromTemplate(
-            userId!,
-            'order_confirmed',
-            {
-                orderId: order.id,
-                userName: 'Customer', // TODO: Enrich with actual user name
-                orderNumber: order.order_number,
-                total: Number(order.total_amount),
-                currency: 'INR',
-                itemCount: items.length,
-                orderUrl: `/profile/orders/${order.id}`,
-            },
-            {
-                priority: 'high',
-                actionUrl: `/profile/orders/${order.id}`,
-                actionText: 'View Order',
-            }
-        );
-
-        // TODO: Send 'new_order_received' notification to Admins
-        // Requires fetching admin user IDs first
-    } catch (error) {
-        // Log but don't fail the order if notification fails
-        logger.error('Failed to send order notification:', error);
-    }
-
-    // Return order summary
-    return ResponseFormatter.success(res, {
+    // Send response first, then queue notifications
+    const response = ResponseFormatter.success(res, {
         order_id: order.id,
         order_number: order.order_number,
         order_status: order.order_status,
@@ -475,6 +540,88 @@ const handler = async (req: RequestWithUser, res: Response) => {
         items_count: items.length,
         created_at: order.created_at,
     }, 'Order created successfully', 201);
+
+    // Queue notifications AFTER response is sent (non-blocking)
+    setImmediate(async () => {
+        // Send ORDER_CONFIRMED notification to customer via queue
+        try {
+            // Fetch customer details for personalized notification
+            const [customer] = await db
+                .select({ name: users.name, email: users.email })
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+            await eventPublisher.publishNotification({
+                userId: userId!,
+                templateCode: TEMPLATE_CODES.ORDER_CREATED,
+                variables: {
+                    userName: customer?.name || 'Customer',
+                    orderNumber: order.order_number,
+                    total: Number(order.total_amount).toFixed(2),
+                    currency: order.currency || 'INR',
+                    orderUrl: `${FRONTEND_URL}/profile/orders/${order.id}`,
+                },
+                options: {
+                    priority: 'high',
+                    actionUrl: `/profile/orders/${order.id}`,
+                    actionText: 'View Order',
+                },
+            });
+        } catch (error) {
+            // Log but don't fail the order if notification fails
+            logger.error('Failed to queue customer order notification:', error);
+        }
+
+        // Send NEW_ORDER_RECEIVED notification to all admins via queue
+        try {
+            logger.info('[Cart Order] Fetching admin user IDs for notification...');
+            const adminUserIds = await getAllAdminUserIds();
+            logger.info('[Cart Order] Admin user IDs:', { count: adminUserIds.length, ids: adminUserIds });
+            
+            if (adminUserIds.length > 0) {
+                // Fetch customer details for admin notification
+                const [customer] = await db
+                    .select({ name: users.name, email: users.email })
+                    .from(users)
+                    .where(eq(users.id, userId))
+                    .limit(1);
+
+                logger.info('[Cart Order] Publishing batch notification to admins...', {
+                    adminCount: adminUserIds.length,
+                    templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
+                    orderNumber: order.order_number,
+                });
+
+                await eventPublisher.publishBatchNotification({
+                    userIds: adminUserIds,
+                    templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
+                    variables: {
+                        orderNumber: order.order_number,
+                        customerName: customer?.name || 'Customer',
+                        customerEmail: customer?.email || 'N/A',
+                        total: Number(order.total_amount).toFixed(2),
+                        currency: order.currency || 'INR',
+                        itemCount: items.length,
+                        orderUrl: `${ADMIN_URL}/orders/${order.order_number}`,
+                    },
+                    options: {
+                        priority: 'high',
+                        actionUrl: `/orders/${order.order_number}`,
+                        actionText: 'View Order',
+                    },
+                });
+                
+                logger.info('[Cart Order] Admin notification batch published successfully');
+            } else {
+                logger.warn('[Cart Order] No admin users found - skipping admin notification');
+            }
+        } catch (error) {
+            logger.error('Failed to queue admin order notification:', error);
+        }
+    });
+
+    return response;
 };
 
 const router = Router();

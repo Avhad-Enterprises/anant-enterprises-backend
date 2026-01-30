@@ -1,6 +1,7 @@
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { notifications } from '../shared/notifications.schema';
+import { users } from '../../user/shared/user.schema';
 import { logger } from '../../../utils';
 import { templateService } from './template.service';
 import { preferenceService } from './preference.service';
@@ -9,6 +10,25 @@ import type { CreateNotificationInput, GetNotificationsOptions } from '../shared
 import { socketService } from '../socket/socket.service';
 
 class NotificationService {
+    /**
+     * Get the auth_id for a user from their database id
+     * This is needed because WebSocket rooms are keyed by auth_id (Supabase Auth ID)
+     * but notifications are created using the database user ID
+     */
+    private async getAuthIdFromUserId(userId: string): Promise<string | null> {
+        try {
+            const result = await db
+                .select({ auth_id: users.auth_id })
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+            return result[0]?.auth_id ?? null;
+        } catch (error) {
+            logger.error('Failed to get auth_id from userId', { userId, error });
+            return null;
+        }
+    }
     /**
      * Create a notification from a template
      * Handles preference checking, rendering, and delivery
@@ -99,23 +119,37 @@ class NotificationService {
             // 🔥 NEW: Broadcast to user via WebSocket (real-time)
             try {
                 if (socketService.isInitialized()) {
-                    socketService.emitToUser(userId, 'notification:new', {
-                        id: notification.id,
-                        type: notification.type,
-                        title: notification.title,
-                        message: notification.message,
-                        priority: notification.priority,
-                        actionUrl: notification.action_url,
-                        actionText: notification.action_text,
-                        createdAt: notification.created_at,
-                        isRead: false,
-                    });
+                    // WebSocket rooms are keyed by auth_id (Supabase Auth ID)
+                    // We need to look up the auth_id from the database user id
+                    const authId = await this.getAuthIdFromUserId(userId);
+                    
+                    if (authId) {
+                        socketService.emitToUser(authId, 'notification:new', {
+                            notification: {
+                                id: notification.id,
+                                type: notification.type,
+                                title: notification.title,
+                                message: notification.message,
+                                priority: notification.priority,
+                                action_url: notification.action_url,
+                                action_text: notification.action_text,
+                                created_at: notification.created_at,
+                                is_read: false,
+                            },
+                        });
 
-                    logger.info('Notification broadcasted via WebSocket', {
-                        userId,
-                        notificationId: notification.id,
-                        templateCode,
-                    });
+                        logger.info('Notification broadcasted via WebSocket', {
+                            userId,
+                            authId,
+                            notificationId: notification.id,
+                            templateCode,
+                        });
+                    } else {
+                        logger.warn('Could not find auth_id for user, WebSocket notification skipped', {
+                            userId,
+                            notificationId: notification.id,
+                        });
+                    }
                 }
             } catch (error) {
                 // Non-blocking: if WebSocket fails, notification still saved
@@ -132,6 +166,7 @@ class NotificationService {
                 userId,
                 templateCode,
                 error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
             });
             throw error;
         }
@@ -141,6 +176,13 @@ class NotificationService {
      * Create a notification manually (without template)
      */
     async create(input: CreateNotificationInput) {
+        logger.info('Creating notification with input', {
+            userId: input.userId,
+            type: input.type,
+            actionUrl: input.actionUrl,
+            actionText: input.actionText,
+        });
+        
         const [notification] = await db
             .insert(notifications)
             .values({
@@ -160,6 +202,7 @@ class NotificationService {
             id: notification.id,
             userId: input.userId,
             type: input.type,
+            action_url: notification.action_url,
         });
 
         return notification;
@@ -380,9 +423,21 @@ class NotificationService {
 
     /**
      * Helper: Convert template code to notification type
+     * Maps template codes to valid notification_type enum values
      */
     private templateCodeToNotificationType(templateCode: string): string {
-        return templateCode.toLowerCase();
+        // Map template codes to valid notification types
+        const templateToTypeMap: Record<string, string> = {
+            'ORDER_CREATED': 'order_created',
+            'NEW_ORDER_RECEIVED': 'order_created', // Admin version uses same type
+            'ORDER_SHIPPED': 'order_shipped',
+            'ORDER_DELIVERED': 'order_delivered',
+            'PAYMENT_CAPTURED': 'payment_captured',
+            'LOW_STOCK_ALERT': 'inventory_low_stock',
+            'USER_WELCOME': 'user_welcome',
+        };
+
+        return templateToTypeMap[templateCode] || templateCode.toLowerCase();
     }
 }
 
