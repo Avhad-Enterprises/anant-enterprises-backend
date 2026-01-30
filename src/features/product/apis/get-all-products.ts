@@ -39,6 +39,7 @@ const querySchema = paginationSchema
 
     // Additional Filters
     stockStatus: z.union([z.string(), z.array(z.string())]).optional(),
+    quickFilter: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .refine(data => data.limit <= 50, { message: 'Limit cannot exceed 50 for product queries' });
 
@@ -165,6 +166,16 @@ const handler = async (req: Request, res: Response) => {
     // Price range filter
     conditions.push(gte(products.selling_price, params.minPrice.toString()));
     conditions.push(lte(products.selling_price, params.maxPrice.toString()));
+
+    // Apply Quick Filters (Pre-DB Filtering where possible)
+    if (params.quickFilter) {
+      const quickFilters = Array.isArray(params.quickFilter) ? params.quickFilter : [params.quickFilter];
+      
+      if (quickFilters.includes('recently-updated')) {
+        // Filter products updated in the last 7 days
+        conditions.push(sql`${products.updated_at} >= NOW() - INTERVAL '7 days'`);
+      }
+    }
 
     const whereClause = and(...conditions);
 

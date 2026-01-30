@@ -41,6 +41,9 @@ const querySchema = z.object({
   condition: z.enum(['sellable', 'damaged', 'quarantined', 'expired']).optional(),
   status: z.enum(['in_stock', 'low_stock', 'out_of_stock']).optional(),
   location: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  quickFilter: z.string().optional(),
 });
 
 const paramsSchema = z.object({
