@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, desc, count, gte, lte } from 'drizzle-orm';
+import { eq, and, or, desc, asc, count, gte, lte, inArray } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
@@ -16,11 +16,15 @@ import { requireAuth, requirePermission } from '../../../middlewares';
 
 const querySchema = paginationSchema.extend({
     status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']).optional(),
-    payment_status: z.enum(['pending', 'authorized', 'partially_paid', 'paid', 'refunded', 'failed', 'partially_refunded']).optional(),
-    fulfillment_status: z.enum(['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled']).optional(),
+    payment_status: z.string().optional(),
+    fulfillment_status: z.string().optional(),
+    amount_ranges: z.string().optional(), // Comma-separated: '0-1000', '1000-5000', '5000-10000', 'Over-10000'
+    item_ranges: z.string().optional(),   // Comma-separated: '1-2', '3-5', '6-10', 'Over-10'
     from_date: z.string().optional(),
     to_date: z.string().optional(),
     search: z.string().optional(), // Search by order number or customer email
+    sort_by: z.string().optional(),
+    sort_order: z.enum(['asc', 'desc']).optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -38,11 +42,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     if (params.payment_status) {
-        conditions.push(eq(orders.payment_status, params.payment_status));
+        const statuses = params.payment_status.split(',').filter(Boolean);
+        if (statuses.length > 0) {
+            conditions.push(inArray(orders.payment_status, statuses as any));
+        }
     }
 
     if (params.fulfillment_status) {
-        conditions.push(eq(orders.fulfillment_status, params.fulfillment_status));
+        const statuses = params.fulfillment_status.split(',').filter(Boolean);
+        if (statuses.length > 0) {
+            conditions.push(inArray(orders.fulfillment_status, statuses as any));
+        }
     }
 
     if (params.from_date) {
@@ -53,6 +63,38 @@ const handler = async (req: RequestWithUser, res: Response) => {
         conditions.push(lte(orders.created_at, new Date(params.to_date)));
     }
 
+    // Amount Range Filtering
+    if (params.amount_ranges) {
+        const ranges = params.amount_ranges.split(',').filter(Boolean);
+        const rangeConditions = ranges.map(range => {
+            if (range === '0-1000') return and(gte(orders.total_amount, '0'), lte(orders.total_amount, '1000'));
+            if (range === '1000-5000') return and(gte(orders.total_amount, '1000'), lte(orders.total_amount, '5000'));
+            if (range === '5000-10000') return and(gte(orders.total_amount, '5000'), lte(orders.total_amount, '10000'));
+            if (range === 'Over-10000') return gte(orders.total_amount, '10000');
+            return null;
+        }).filter(Boolean);
+
+        if (rangeConditions.length > 0) {
+            conditions.push(or(...(rangeConditions as any))!);
+        }
+    }
+
+    // Item Quantity Range Filtering
+    if (params.item_ranges) {
+        const ranges = params.item_ranges.split(',').filter(Boolean);
+        const rangeConditions = ranges.map(range => {
+            if (range === '1-2') return and(gte(orders.total_quantity, 1), lte(orders.total_quantity, 2));
+            if (range === '3-5') return and(gte(orders.total_quantity, 3), lte(orders.total_quantity, 5));
+            if (range === '6-10') return and(gte(orders.total_quantity, 6), lte(orders.total_quantity, 10));
+            if (range === 'Over-10') return gte(orders.total_quantity, 10);
+            return null;
+        }).filter(Boolean);
+
+        if (rangeConditions.length > 0) {
+            conditions.push(or(...(rangeConditions as any))!);
+        }
+    }
+
     // Get total count
     const [countResult] = await db
         .select({ total: count() })
@@ -60,6 +102,22 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .where(and(...conditions));
 
     const total = countResult?.total || 0;
+
+    // Determine sorting
+    const sortField = params.sort_by || 'created_at';
+    const sortOrder = params.sort_order === 'asc' ? asc : desc;
+
+    const getSortColumn = (field: string) => {
+        switch (field) {
+            case 'order_number': return orders.order_number;
+            case 'order_status': return orders.order_status;
+            case 'payment_status': return orders.payment_status;
+            case 'total_amount': return orders.total_amount;
+            case 'customer_name': return users.name;
+            case 'created_at':
+            default: return orders.created_at;
+        }
+    };
 
     // Get orders with user info
     const adminOrders = await db
@@ -81,7 +139,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .from(orders)
         .leftJoin(users, eq(orders.user_id, users.id))
         .where(and(...conditions))
-        .orderBy(desc(orders.created_at))
+        .orderBy(sortOrder(getSortColumn(sortField)))
         .limit(params.limit)
         .offset(offset);
 

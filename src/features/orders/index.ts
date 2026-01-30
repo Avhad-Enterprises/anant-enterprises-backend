@@ -31,6 +31,7 @@ class OrdersRoute implements Route {
     const { default: cancelOrderRouter } = await import('./apis/cancel-order');
     const { default: getAdminOrdersRouter } = await import('./apis/get-admin-orders');
     const { default: updateOrderStatusRouter } = await import('./apis/update-order-status');
+    const { default: updateOrderRouter } = await import('./apis/update-order');
     // New admin endpoints
     const { default: updateFulfillmentStatusRouter } =
       await import('./apis/update-fulfillment-status');
@@ -85,6 +86,7 @@ class OrdersRoute implements Route {
 
     this.router.use(this.path, getAdminOrdersRouter); // GET /admin/orders
     this.router.use(this.path, getAdminOrderByIdRouter); // GET /admin/orders/:id
+    this.router.use(this.path, updateOrderRouter); // PUT /admin/orders/:id
     this.router.use(this.path, updateOrderStatusRouter); // PUT /admin/orders/:id/status
 
     // User routes - MOUNTED AT /orders

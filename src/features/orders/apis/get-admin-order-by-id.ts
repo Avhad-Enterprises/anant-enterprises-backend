@@ -19,7 +19,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     logger.info(`GET /api/admin/orders/${orderNumberOrId}`);
 
-    // Get order with user info - query by order_number (user-friendly) instead of UUID
+    // Get order with user info - query by order_number OR id
+    // Fix: Check if input is UUID to determine query field
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderNumberOrId);
+
+    const whereClause = and(
+        isUuid
+            ? eq(orders.id, orderNumberOrId)
+            : eq(orders.order_number, orderNumberOrId),
+        eq(orders.is_deleted, false)
+    );
+
     const [orderWithUser] = await db
         .select({
             id: orders.id,
@@ -50,10 +60,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         })
         .from(orders)
         .leftJoin(users, eq(orders.user_id, users.id))
-        .where(and(
-            eq(orders.order_number, orderNumberOrId),
-            eq(orders.is_deleted, false)
-        ))
+        .where(whereClause)
         .limit(1);
 
     if (!orderWithUser) {
