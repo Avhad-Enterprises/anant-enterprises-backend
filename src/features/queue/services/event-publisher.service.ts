@@ -373,6 +373,8 @@ class EventPublisherService implements IEventPublisher {
         variables: Record<string, any>;
         options?: {
             priority?: 'low' | 'normal' | 'high' | 'urgent';
+            actionUrl?: string;
+            actionText?: string;
         };
     }): Promise<void> {
         try {

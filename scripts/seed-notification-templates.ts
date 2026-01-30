@@ -160,6 +160,37 @@ const templates = [
         variables: ['userName', 'shopUrl'],
         is_active: true,
     },
+    {
+        code: 'NEW_ORDER_RECEIVED',
+        name: 'New Order Received (Admin)',
+        description: 'Alert administrators when a new order is placed',
+        category: 'order',
+        subject: '🛒 New Order #{{orderNumber}} - {{currency}} {{total}}',
+        body_html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2196F3;">🛒 New Order Received!</h2>
+        <p>A new order has been placed by <strong>{{customerName}}</strong>.</p>
+        <div style="background: #f5f5f5; padding: 15px; border-radius: 4px; margin: 20px 0;">
+          <p><strong>Order Number:</strong> #{{orderNumber}}</p>
+          <p><strong>Customer:</strong> {{customerName}} ({{customerEmail}})</p>
+          <p><strong>Items:</strong> {{itemCount}} item(s)</p>
+          <p><strong>Total:</strong> {{currency}} {{total}}</p>
+        </div>
+        <div style="margin-top: 20px;">
+          <a href="{{orderUrl}}" style="background: #2196F3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">View Order Details</a>
+        </div>
+        <p style="margin-top: 30px; color: #666; font-size: 12px;">
+          This is an automated notification from your store.
+        </p>
+      </div>
+    `,
+        body_text: 'New Order #{{orderNumber}} from {{customerName}} ({{customerEmail}}). Total: {{currency}} {{total}}. Items: {{itemCount}}. View at: {{orderUrl}}',
+        sms_template: 'New Order #{{orderNumber}} from {{customerName}}. Total: {{currency}} {{total}}. View order in admin panel.',
+        in_app_title: 'New Order Received',
+        in_app_message: 'Order #{{orderNumber}} ({{currency}} {{total}}) from {{customerName}}',
+        variables: ['orderNumber', 'customerName', 'customerEmail', 'total', 'currency', 'itemCount', 'orderUrl'],
+        is_active: true,
+    },
 ];
 
 async function seedTemplates() {

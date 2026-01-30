@@ -96,6 +96,7 @@ class NotificationWorker extends BaseWorker {
         logger.info('Processing batch-notification job', {
             userCount: data.userIds.length,
             templateCode: data.templateCode,
+            options: data.options, // Debug: log options including actionUrl
         });
 
         // Process in chunks of 50

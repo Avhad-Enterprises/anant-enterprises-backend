@@ -20,6 +20,8 @@ export interface BatchNotificationJobData {
     variables: Record<string, any>;
     options?: {
         priority?: 'low' | 'normal' | 'high' | 'urgent';
+        actionUrl?: string;
+        actionText?: string;
     };
 }
 
@@ -88,6 +90,7 @@ class NotificationQueue {
         logger.info('Batch notification job queued', {
             userCount: data.userIds.length,
             templateCode: data.templateCode,
+            options: data.options, // Debug: log full options including actionUrl
         });
     }
 
