@@ -688,13 +688,6 @@ export class InvoiceService {
         fileUrl: uploadResult.url,
       });
 
-      // Explicit console log for development visibility as requested
-      console.log('---------------------------------------------------');
-      console.log(`✅ INVOICE GENERATED SUCCESSFULLY`);
-      console.log(`📄 Order ID: ${orderId}`);
-      console.log(`🔗 Link: ${uploadResult.url}`);
-      console.log('---------------------------------------------------');
-
       return this.getLatestInvoiceForOrder(orderId);
     } catch (error) {
       logger.error('Error generating invoice', { orderId, error });

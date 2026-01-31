@@ -186,11 +186,10 @@ export async function executeTransfer(
             });
         } else {
             // Create new inventory record at destination
+            // Product name and SKU are queried via JOIN, not stored
             const [newInventory] = await tx.insert(inventory).values({
                 product_id: transfer.product_id,
                 location_id: transfer.to_location_id,
-                product_name: sourceInventory.product_name,
-                sku: sourceInventory.sku,
                 available_quantity: transfer.quantity,
                 reserved_quantity: 0,
                 incoming_quantity: 0,

@@ -6,6 +6,7 @@
 
 import { pgTable, uuid, varchar, integer, boolean, timestamp, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // TAGS TABLE
@@ -25,9 +26,12 @@ export const tags = pgTable(
 
     // Audit Fields
     is_deleted: boolean('is_deleted').default(false).notNull(),
-    created_by: uuid('created_by'), // Optional user reference
+    created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
+    deleted_by: uuid('deleted_by').references(() => users.id, { onDelete: 'set null' }),
+    deleted_at: timestamp('deleted_at'),
   },
   table => ({
     // Indexes for fast lookup

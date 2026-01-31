@@ -133,6 +133,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // 2. Create Order & Items
         const order = await db.transaction(async (tx) => {
             // Reserve stock (Allow Overselling = true for Admin)
+            // NOTE: Direct/Admin orders MUST reserve here since they don't go through cart
             await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', true);
 
             // Insert Order
@@ -318,7 +319,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // FALLBACK: If no user cart found but session ID provided, check for unmerged guest cart
     // This handles the case where cart merge didn't complete during login
     if (!cart && sessionId) {
-        console.log('[create-order] No user cart found, checking for guest cart with session:', sessionId);
         const [guestCart] = await db
             .select()
             .from(carts)
@@ -331,7 +331,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         if (guestCart) {
             // Auto-assign guest cart to user for this order
-            console.log('[create-order] Found unmerged guest cart, assigning to user:', guestCart.id);
             await db.update(carts)
                 .set({
                     user_id: userId,
@@ -410,13 +409,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // PHASE 2: Extend cart item reservations to prevent timeout during checkout
     try {
         await extendCartReservation(cart.id, 60); // Extend to 1 hour
-        console.log('[create-order] Extended cart reservations for checkout:', cart.id);
     } catch (error: any) {
         console.warn('[create-order] Failed to extend cart reservations:', error);
         // Continue anyway - order creation will re-validate stock
     }
 
     // STEP 1: Validate stock availability
+    // NOTE: Stock is already reserved when items were added to cart via reserveCartStock()
+    // We only need to validate that reservations still exist, NOT reserve again
     const stockItems = items
         .filter(item => item.product_id)
         .map(item => ({
@@ -437,12 +437,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Create order
     const orderNumber = generateOrderNumber();
 
-    // STEP 2: Create order and reserve stock in transaction
+    // STEP 2: Create order WITHOUT re-reserving stock (already reserved in cart)
     const order = await db.transaction(async (tx) => {
-        // Reserve stock first
-        if (stockItems.length > 0) {
-            await reserveStockForOrder(stockItems, orderNumber, userId);
-        }
+        // REMOVED: await reserveStockForOrder() - Stock already reserved when added to cart
+        // The cart items already have reservation_id and reserved inventory
+        // When order is fulfilled/shipped, fulfillOrderInventory() will decrease both
+        // available_quantity and reserved_quantity appropriately
 
         // Create order
         const [newOrder] = await tx.insert(orders).values({

@@ -256,10 +256,9 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
 
     // Step 1: ALWAYS create inventory for the BASE product
+    // Product name and SKU are queried via JOIN from products table
     await createInventoryForProduct(
       newProduct.id,
-      newProduct.product_title,
-      newProduct.sku,
       data.inventory_quantity || 0,
       createdBy
     );
@@ -269,8 +268,6 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
       for (const variant of data.variants) {
         await createInventoryForProduct(
           newProduct.id,
-          `${newProduct.product_title} - ${variant.option_value}`,
-          variant.sku,
           variant.inventory_quantity || 0,
           createdBy
         );
@@ -287,22 +284,12 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
     // Sync tier usage counts
     try {
-      console.log('[create-product] About to sync tier usage...');
-      console.log('[create-product] Tier IDs:', {
-        tier1: data.category_tier_1,
-        tier2: data.category_tier_2,
-        tier3: data.category_tier_3,
-        tier4: data.category_tier_4,
-      });
-
       await incrementTierUsage([
         data.category_tier_1 ?? null,
         data.category_tier_2 ?? null,
         data.category_tier_3 ?? null,
         data.category_tier_4 ?? null,
       ]);
-
-      console.log('[create-product] Tier usage synced successfully');
     } catch (tierError) {
       console.error('[create-product] ERROR syncing tier usage:', tierError);
       // Don't fail product creation if tier sync fails

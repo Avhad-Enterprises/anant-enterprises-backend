@@ -104,7 +104,6 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     .limit(1);
 
   if (!productData) {
-    console.log(`[getProductDetailById] Product not found for input: ${idOrSlug}. isUuid: ${isUuid}`);
     throw new HttpException(404, 'Product not found');
   }
 
@@ -133,7 +132,6 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
   // Fetch inventory for this product (Explicit fetch to ensure accuracy)
   const inventoryData = await db
     .select({
-      sku: inventory.sku,
       available_quantity: inventory.available_quantity,
       reserved_quantity: inventory.reserved_quantity
     })
@@ -164,18 +162,15 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     images.push(...productData.additional_images);
   }
 
-  // Calculate total stock explicitly in JS
-  const inventoryStock = inventoryData.reduce((sum, item) => {
+  // Calculate total stock from unified inventory table (includes both product and variant inventory)
+  const totalCalculatedStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
     const reserved = Number(item.reserved_quantity) || 0;
     return sum + Math.max(0, available - reserved);
   }, 0);
 
-  const variantStock = variantsData.reduce((sum, v) => sum + (Number((v as any).inventory_quantity) || 0), 0);
-  const totalCalculatedStock = inventoryStock + variantStock;
-
-  // Calculate base inventory (specifically for the base product SKU)
-  const baseInventoryItem = inventoryData.find(item => item.sku === productData.sku);
+  // Calculate base inventory for product (first inventory record if exists)
+  const baseInventoryItem = inventoryData[0];
   const baseCalculatedInventory = baseInventoryItem 
     ? Math.max(0, (Number(baseInventoryItem.available_quantity) || 0) - (Number(baseInventoryItem.reserved_quantity) || 0))
     : 0;
@@ -258,7 +253,6 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       cost_price: v.cost_price,
       selling_price: v.selling_price,
       compare_at_price: v.compare_at_price,
-      inventory_quantity: v.inventory_quantity,
       image_url: v.image_url,
       thumbnail_url: v.thumbnail_url,
       is_default: v.is_default,

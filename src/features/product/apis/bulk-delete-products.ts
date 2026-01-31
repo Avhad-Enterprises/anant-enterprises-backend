@@ -23,8 +23,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const { ids } = req.body;
   const userId = req.userId;
   
-  console.log('[BulkDelete] Request received for IDs:', ids);
-
   let deletedCount = 0;
   const errors: string[] = [];
 
@@ -32,11 +30,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // but looping ensures all side effects (cache, tier usage) are handled safely via existing logic.
   for (const id of ids) {
     try {
-      console.log(`[BulkDelete] Processing ID: ${id}`);
       const deletedProduct = await softDeleteProduct(id, userId!);
 
       if (deletedProduct) {
-        console.log(`[BulkDelete] Soft deleted ${id}, returned:`, JSON.stringify(deletedProduct));
         deletedCount++;
 
         // Side effects
@@ -64,8 +60,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
       errors.push(id);
     }
   }
-
-  console.log('[BulkDelete] Completed with count:', deletedCount, 'Errors:', errors);
 
   if (deletedCount === 0 && errors.length > 0) {
       // If we failed to delete anything AND there were errors (e.g. all failed)

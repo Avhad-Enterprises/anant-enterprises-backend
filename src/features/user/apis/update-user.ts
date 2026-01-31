@@ -67,8 +67,6 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     updated_by: requesterId,
   };
 
-  console.log('Updating users table with data:', JSON.stringify(updateData, null, 2));
-
   const [result] = await db
     .update(users)
     .set({
@@ -82,8 +80,6 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     throw new HttpException(500, 'Failed to update user');
   }
 
-  console.log('Updated user result:', JSON.stringify(result, null, 2));
-
   return result as IUser;
 }
 
@@ -93,18 +89,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
-  console.log('>>> Handler received req.body:', JSON.stringify(req.body, null, 2));
-
   const paramsSchema = z.object({
     id: uuidSchema,
   });
 
   const { id } = paramsSchema.parse(req.params);
   const updateData: UpdateUser = req.body;
-
-  console.log('>>> updateData after assignment:', JSON.stringify(updateData, null, 2));
-  console.log('>>> profile_image_url in updateData:', updateData.profile_image_url);
-  console.log('DEBUG: updateUser request body:', updateData);
 
   const user = await updateUser(id, updateData, userId);
 

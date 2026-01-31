@@ -4,6 +4,7 @@ import { logger } from '../utils';
 import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
 import { db } from '../database';
 import { users } from '../features/user/shared/user.schema';
+import { customerProfiles } from '../features/user/shared/customer-profiles.schema';
 import { eq } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { redisClient } from '../utils/database/redis';
@@ -54,9 +55,18 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Get the public.users record via auth_id (UUID from Supabase)
-    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
+    // Join with customer_profiles to check account status
+    const result = await db
+      .select({
+        user: users,
+        profile: customerProfiles
+      })
+      .from(users)
+      .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+      .where(eq(users.auth_id, authUser.id))
+      .limit(1);
 
-    if (!publicUser[0]) {
+    if (!result[0] || !result[0].user) {
       logger.warn('Authentication failed: User sync not found', {
         ip: clientIP,
         userAgent,
@@ -66,8 +76,10 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(new HttpException(401, 'User not found'));
     }
 
+    const { user, profile } = result[0];
+
     // Check if user is soft-deleted
-    if (publicUser[0].is_deleted) {
+    if (user.is_deleted) {
       logger.warn('Authentication failed: User account is deleted', {
         ip: clientIP,
         userAgent,
@@ -77,14 +89,35 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(new HttpException(401, 'User account has been deleted'));
     }
 
+    // Check customer profile status
+    if (profile) {
+      if (profile.account_status === 'closed') {
+        logger.warn('Authentication failed: User account is closed/inactive', {
+          ip: clientIP,
+          userId: user.id,
+          status: profile.account_status
+        });
+        return next(new HttpException(403, 'Your account is inactive. Please contact support.'));
+      }
+
+      if (profile.account_status === 'suspended') {
+        logger.warn('Authentication failed: User account is suspended', {
+          ip: clientIP,
+          userId: user.id,
+          status: profile.account_status
+        });
+        return next(new HttpException(403, 'Your account has been suspended. Please contact support.'));
+      }
+    }
+
     // Attach user information to request (use integer ID for RBAC)
-    req.userId = publicUser[0].id;
+    req.userId = user.id;
     req.userAgent = userAgent;
     req.clientIP = clientIP;
 
     // Log successful authentication
     logger.info('Authentication successful', {
-      userId: publicUser[0].id,
+      userId: user.id,
       ip: clientIP,
       userAgent: userAgent.substring(0, 100), // Truncate for logging
       url: req.originalUrl,
@@ -163,18 +196,37 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Get the public.users record
-    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
+    const result = await db
+      .select({
+        user: users,
+        profile: customerProfiles
+      })
+      .from(users)
+      .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+      .where(eq(users.auth_id, authUser.id))
+      .limit(1);
 
-    if (!publicUser[0]) {
+    if (!result[0] || !result[0].user) {
       return next(new HttpException(401, 'User not found'));
     }
 
-    if (publicUser[0].is_deleted) {
+    const { user, profile } = result[0];
+
+    if (user.is_deleted) {
       return next(new HttpException(401, 'User account has been deleted'));
     }
 
+    // Check customer profile status
+    if (profile) {
+      if (profile.account_status === 'closed' || profile.account_status === 'suspended') {
+        // Optional auth: treat as anonymous if account is closed/suspended?
+        // Or fail? Usually, if you try to auth and are banned, you should probably be told you are banned.
+        return next(new HttpException(403, 'Your account is inactive/suspended.'));
+      }
+    }
+
     // Attach user information
-    req.userId = publicUser[0].id;
+    req.userId = user.id;
     req.userAgent = req.headers['user-agent'] || 'Unknown';
     req.clientIP = req.ip || req.connection?.remoteAddress || 'Unknown';
 
