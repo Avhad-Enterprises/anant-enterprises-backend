@@ -23,6 +23,7 @@ import {
 import backfillInventoryRouter from './apis/backfill-inventory';
 import getInventoryHistoryByProductRouter from './apis/get-inventory-history-by-product';
 import adjustVariantInventoryRouter from './apis/adjust-variant-inventory';
+import getAvailableStockRouter from './apis/get-available-stock';
 
 // Phase 3: Multi-location APIs (TEMPORARILY DISABLED - circular dependency issue)
 // import getProductLocations from './apis/get-product-locations';
@@ -91,6 +92,9 @@ class InventoryRoute {
 
     // GET /api/inventory/products/:productId/history - History by product ID (NEW)
     this.router.use(this.path, getInventoryHistoryByProductRouter);
+
+    // GET /api/inventory/product/:productId/available - Real-time available stock
+    this.router.use(this.path, getAvailableStockRouter);
 
     // POST /api/inventory/variants/:variantId/adjust - Variant Adjustment
     this.router.use(this.path, adjustVariantInventoryRouter);
