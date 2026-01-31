@@ -7,6 +7,7 @@
 import { pgTable, uuid, text, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
 import { wishlists } from './wishlist.schema';
 import { products } from '../../product/shared/product.schema';
+import { orders } from '../../orders/shared/orders.schema';
 
 // ============================================
 // WISHLIST ITEMS TABLE
@@ -29,7 +30,8 @@ export const wishlistItems = pgTable(
     // HIGH PRIORITY FIX #17: Purchase tracking
     added_to_cart_at: timestamp('added_to_cart_at'),
     purchased_at: timestamp('purchased_at'),
-    order_id: uuid('order_id'), // FK to orders (when purchased)
+    order_id: uuid('order_id')
+      .references(() => orders.id, { onDelete: 'set null' }), // PHASE 1: Added FK constraint
 
     added_at: timestamp('added_at').defaultNow().notNull(),
   },

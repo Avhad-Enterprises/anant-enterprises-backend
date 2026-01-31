@@ -14,6 +14,7 @@ import {
   pgEnum,
   index,
   check,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { products } from '../../product/shared/product.schema';
@@ -91,11 +92,16 @@ export const inventory = pgTable(
     // Phase 3: Multi-location indexes
     locationIdx: index('inventory_location_id_idx').on(table.location_id),
     productLocationIdx: index('inventory_product_location_idx').on(table.product_id, table.location_id),
+    // PHASE 1: Added for query optimization
+    idx_inventory_product_location: index('idx_inventory_product_location').on(table.product_id, table.location_id),
 
     // CHECK CONSTRAINTS
     availableQtyCheck: check('inventory_available_qty_check', sql`available_quantity >= 0`),
     reservedQtyCheck: check('inventory_reserved_qty_check', sql`reserved_quantity >= 0`),
     incomingQtyCheck: check('inventory_incoming_qty_check', sql`incoming_quantity >= 0`),
+    
+    // PHASE 1: Unique constraint to prevent duplicate inventory records
+    uq_inventory_product_location: unique('uq_inventory_product_location').on(table.product_id, table.location_id),
   })
 );
 
