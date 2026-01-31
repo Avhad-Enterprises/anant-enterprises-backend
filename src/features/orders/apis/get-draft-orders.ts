@@ -18,7 +18,22 @@ const querySchema = paginationSchema.extend({
     search: z.string().optional(), // Search by order number or customer email/name
     from_date: z.string().optional(),
     to_date: z.string().optional(),
-    sort_by: z.enum(['created_at', 'total_amount']).default('created_at'),
+    sort_by: z.enum([
+        'id',
+        'order_number',
+        'order_status',
+        'payment_status',
+        'total_amount',
+        'total_quantity',
+        'channel',
+        'created_at',
+        'updated_at',
+        'delivery_price',
+        'return_amount',
+        'discount_amount',
+        'customer_name',
+        'customer_email'
+    ]).default('created_at'),
     sort_order: z.enum(['asc', 'desc']).default('desc'),
 });
 
@@ -33,7 +48,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         eq(orders.is_draft, true),
         eq(orders.is_deleted, false),
     ];
-    
+
     if (params.from_date) {
         conditions.push(gte(orders.created_at, new Date(params.from_date)));
     }
@@ -49,6 +64,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .where(and(...conditions));
 
     const total = countResult?.total || 0;
+
+    // Resolve sort column
+    let sortCol: any = orders[params.sort_by as keyof typeof orders];
+    if (params.sort_by === 'customer_name') sortCol = users.name;
+    if (params.sort_by === 'customer_email') sortCol = users.email;
 
     // Get draft orders with customer info
     const draftOrders = await db
@@ -73,8 +93,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .where(and(...conditions))
         .orderBy(
             params.sort_order === 'desc'
-                ? desc(orders[params.sort_by])
-                : orders[params.sort_by]
+                ? desc(sortCol)
+                : sortCol
         )
         .limit(params.limit)
         .offset(offset);

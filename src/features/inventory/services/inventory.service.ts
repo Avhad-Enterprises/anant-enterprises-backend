@@ -91,7 +91,7 @@ export async function getInventoryList(params: InventoryListParams) {
     // Helper to build date range clause
     const startDateDate = startDate ? new Date(startDate) : null;
     const endDateDate = endDate ? new Date(endDate) : null;
-    
+
     console.log('DEBUG: getInventoryList params:', JSON.stringify(params));
     console.log('DEBUG: Parsed Date Range:', { startDateDate, endDateDate });
 
@@ -103,7 +103,7 @@ export async function getInventoryList(params: InventoryListParams) {
 
     if (params.sortBy) {
         const direction = params.sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
-        
+
         switch (params.sortBy) {
             case 'product_name':
             case 'productName':
@@ -1003,6 +1003,93 @@ export async function releaseReservation(
                 adjusted_by: validUserId,
                 notes: `Released ${item.quantity} units reservation`,
             });
+        }
+    });
+}
+
+/**
+ * Process order return (restock inventory)
+ * Called when order is returned or cancelled after shipping
+ */
+export async function processOrderReturn(
+    orderId: string,
+    userId: string,
+    restock: boolean = true
+): Promise<void> {
+    const validUserId = await resolveValidUserId(userId);
+
+    if (!validUserId) {
+        throw new Error('Valid user ID required for return processing');
+    }
+
+    return await db.transaction(async (tx) => {
+        // Dynamic import to avoid circular dependency
+        const { orderItems } = await import('../../orders/shared/order-items.schema');
+        const { orders } = await import('../../orders/shared/orders.schema');
+
+        // Get order items
+        const items = await tx
+            .select({
+                product_id: orderItems.product_id,
+                quantity: orderItems.quantity,
+                product_name: orderItems.product_name,
+            })
+            .from(orderItems)
+            .where(eq(orderItems.order_id, orderId));
+
+        if (items.length === 0) {
+            throw new Error('No order items found');
+        }
+
+        // Get order info
+        const [order] = await tx
+            .select({ order_number: orders.order_number })
+            .from(orders)
+            .where(eq(orders.id, orderId));
+
+        // Process each item
+        for (const item of items) {
+            if (!item.product_id) continue;
+
+            if (restock) {
+                // Get current inventory
+                const [current] = await tx
+                    .select()
+                    .from(inventory)
+                    .where(eq(inventory.product_id, item.product_id));
+
+                if (!current) {
+                    logger.warn(`[Inventory] Skipping return for ${item.product_name}: Inventory record not found`);
+                    continue;
+                }
+
+                const quantityAfter = current.available_quantity + item.quantity;
+
+                // Update inventory: increase available_quantity
+                const [updated] = await tx
+                    .update(inventory)
+                    .set({
+                        available_quantity: quantityAfter,
+                        status: getStatusFromQuantity(quantityAfter),
+                        updated_at: new Date(),
+                        updated_by: validUserId,
+                    })
+                    .where(eq(inventory.product_id, item.product_id))
+                    .returning();
+
+                // Create adjustment record
+                await tx.insert(inventoryAdjustments).values({
+                    inventory_id: updated.id,
+                    adjustment_type: 'increase',
+                    quantity_change: item.quantity,
+                    reason: `Order ${order?.order_number || orderId} returned`,
+                    reference_number: order?.order_number || orderId,
+                    quantity_before: current.available_quantity,
+                    quantity_after: quantityAfter,
+                    adjusted_by: validUserId,
+                    notes: `Restocked ${item.quantity} units from return`,
+                });
+            }
         }
     });
 }

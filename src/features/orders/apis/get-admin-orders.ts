@@ -25,6 +25,7 @@ const querySchema = paginationSchema.extend({
     search: z.string().optional(), // Search by order number or customer email
     sort_by: z.string().optional(),
     sort_order: z.enum(['asc', 'desc']).optional(),
+    user_id: z.string().optional(),
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -36,6 +37,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
         eq(orders.is_deleted, false),
         eq(orders.is_draft, false),
     ];
+
+    if (params.user_id) {
+        conditions.push(eq(orders.user_id, params.user_id));
+    }
 
     if (params.status) {
         conditions.push(eq(orders.order_status, params.status));

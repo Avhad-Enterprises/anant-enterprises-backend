@@ -141,10 +141,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-    rejectUnauthorized: false, // Supabase uses self-signed certificates
-    // If using self-signed certs, set DATABASE_SSL_CA env var
-    ca: process.env.DATABASE_SSL_CA || undefined,
-  }
+      rejectUnauthorized: false, // Supabase uses self-signed certificates
+      // If using self-signed certs, set DATABASE_SSL_CA env var
+      ca: process.env.DATABASE_SSL_CA || undefined,
+    }
   : undefined;
 
 export const pool = new Pool({
@@ -347,6 +347,8 @@ export const schema = {
   paymentStatusEnum,
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
+  ordersRelations,
+  orderItemsRelations,
   // Payments feature
   paymentTransactions,
   paymentTransactionStatusEnum,
@@ -374,6 +376,10 @@ export const schema = {
   notificationPriorityEnum,
   notificationFrequencyEnum,
   deliveryStatusEnum,
+  // Invoice feature
+  invoices,
+  invoiceVersions,
+  invoiceLineItems,
 };
 
 /**

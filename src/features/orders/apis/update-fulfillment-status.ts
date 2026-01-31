@@ -18,7 +18,7 @@ const paramsSchema = z.object({
 });
 
 const bodySchema = z.object({
-    fulfillment_status: z.enum(['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled']),
+    fulfillment_status: z.enum(['unfulfilled', 'fulfilled', 'returned', 'cancelled']),
     fulfillment_date: z.string().optional(), // ISO date string
     delivery_date: z.string().optional(),
     tracking_number: z.string().optional(),
