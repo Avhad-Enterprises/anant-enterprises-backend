@@ -126,20 +126,15 @@ import {
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
 } from '../features/orders';
+import { ordersRelations, orderItemsRelations } from '../features/orders/shared/orders.relations';
 import {
   paymentTransactions,
   paymentTransactionStatusEnum,
   paymentWebhookLogs,
 } from '../features/payments/shared';
-import {
-  sessions,
-} from '../features/profile/shared/sessions.schema';
+import { sessions } from '../features/profile/shared/sessions.schema';
 
-import {
-  entityMedia,
-  entityTypeEnum,
-  mediaTypeEnum,
-} from '../features/media-manager';
+import { entityMedia, entityTypeEnum, mediaTypeEnum } from '../features/media-manager';
 import {
   notifications,
   notificationTemplates,
@@ -150,6 +145,7 @@ import {
   notificationFrequencyEnum,
   deliveryStatusEnum,
 } from '../features/notifications/shared';
+import { invoices, invoiceVersions, invoiceLineItems } from '../features/invoice';
 
 /**
  * Database connection configuration
@@ -172,10 +168,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-    rejectUnauthorized: false, // Supabase uses self-signed certificates
-    // If using self-signed certs, set DATABASE_SSL_CA env var
-    ca: process.env.DATABASE_SSL_CA || undefined,
-  }
+      rejectUnauthorized: false, // Supabase uses self-signed certificates
+      // If using self-signed certs, set DATABASE_SSL_CA env var
+      ca: process.env.DATABASE_SSL_CA || undefined,
+    }
   : undefined;
 
 export const pool = new Pool({
@@ -371,6 +367,8 @@ export const schema = {
   paymentStatusEnum,
   orderDiscountTypeEnum,
   fulfillmentStatusEnum,
+  ordersRelations,
+  orderItemsRelations,
   // Payments feature
   paymentTransactions,
   paymentTransactionStatusEnum,
@@ -390,6 +388,10 @@ export const schema = {
   notificationPriorityEnum,
   notificationFrequencyEnum,
   deliveryStatusEnum,
+  // Invoice feature
+  invoices,
+  invoiceVersions,
+  invoiceLineItems,
 };
 
 /**
