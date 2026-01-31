@@ -12,7 +12,7 @@ import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 const exportRequestSchema = z.object({
     scope: z.enum(['all', 'selected']),
@@ -168,16 +168,23 @@ const handler = async (req: RequestWithUser, res: Response) => {
         return res.send(csv);
 
     } else if (format === 'xlsx') {
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
-        // Set column widths
-        const columnWidths = selectedColumns.map(() => ({ wch: 15 }));
-        // Provide typed access to !cols
-        (worksheet as any)['!cols'] = columnWidths;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Tiers');
 
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Tiers');
+        if (exportData.length > 0) {
+          // Add headers
+          const headers = Object.keys(exportData[0]);
+          worksheet.columns = headers.map(header => ({
+            header,
+            key: header,
+            width: 15,
+          }));
 
-        const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          // Add rows
+          worksheet.addRows(exportData);
+        }
+
+        const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename=tiers-export-${Date.now()}.xlsx`);
