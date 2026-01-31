@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import * as xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import { and, between, inArray, eq, sql } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -24,9 +24,9 @@ const exportSchema = z.object({
     from: z.string().optional(),
     to: z.string().optional(),
   }).optional(),
-  status: z.enum(['active', 'draft', 'archived', '']).optional(),
-  stockStatus: z.string().optional(),
-  categoryId: z.string().optional(),
+  status: z.union([z.enum(['active', 'draft', 'archived', '']), z.array(z.string())]).optional(),
+  stockStatus: z.union([z.string(), z.array(z.string())]).optional(),
+  categoryId: z.union([z.string(), z.array(z.string())]).optional(),
   search: z.string().optional(),
 });
 
@@ -73,6 +73,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // Validate request body
   const validation = exportSchema.safeParse(req.body);
   if (!validation.success) {
+    console.error('Export validation failed:', {
+      body: req.body,
+      errors: validation.error.issues
+    });
     throw new HttpException(400, 'Invalid request data', {
       details: validation.error.issues,
     });
@@ -104,7 +108,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   // 3. Status
   if (options.status) {
+    if (Array.isArray(options.status)) {
+      // If status is an array, use inArray
+      if (options.status.length > 0) {
+        conditions.push(inArray(products.status, options.status as any[]));
+      }
+    } else {
+      // If status is a single value, use eq
       conditions.push(eq(products.status, options.status as any));
+    }
   }
 
   // 4. Stock Status (Calculated/Approximated logic since we removed inventory_quantity)
@@ -115,12 +127,26 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   // 5. Category (Tier 1-4)
   if (options.categoryId) {
+    if (Array.isArray(options.categoryId)) {
+      // If multiple categories, check if any tier matches any category
+      if (options.categoryId.length > 0) {
+        const categoryConditions = options.categoryId.map(catId => 
+          sql`(${products.category_tier_1} = ${catId} OR 
+               ${products.category_tier_2} = ${catId} OR 
+               ${products.category_tier_3} = ${catId} OR 
+               ${products.category_tier_4} = ${catId})`
+        );
+        conditions.push(sql`(${sql.join(categoryConditions, sql` OR `)})`);
+      }
+    } else {
+      // Single category
       conditions.push(
-          sql`(${products.category_tier_1} = ${options.categoryId} OR 
-               ${products.category_tier_2} = ${options.categoryId} OR 
-               ${products.category_tier_3} = ${options.categoryId} OR 
-               ${products.category_tier_4} = ${options.categoryId})`
+        sql`(${products.category_tier_1} = ${options.categoryId} OR 
+             ${products.category_tier_2} = ${options.categoryId} OR 
+             ${products.category_tier_3} = ${options.categoryId} OR 
+             ${products.category_tier_4} = ${options.categoryId})`
       );
+    }
   }
 
   // 6. Search
@@ -215,15 +241,23 @@ const handler = async (req: RequestWithUser, res: Response) => {
             return newRow;
         });
 
-        const worksheet = xlsx.utils.json_to_sheet(excelData);
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'Products');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Products');
 
-        // Set column widths
-        const columnWidths = Object.keys(filteredData[0] || {}).map(() => ({ wch: 20 }));
-        (worksheet as any)['!cols'] = columnWidths;
+        if (excelData.length > 0) {
+          // Add headers
+          const headers = Object.keys(excelData[0]);
+          worksheet.columns = headers.map(header => ({
+            header,
+            key: header,
+            width: 20,
+          }));
 
-        fileBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          // Add rows
+          worksheet.addRows(excelData);
+        }
+
+        fileBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         filename = `products-export-${timestamp}.xlsx`;
       } catch (error) {

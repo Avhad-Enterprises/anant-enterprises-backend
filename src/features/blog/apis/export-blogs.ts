@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import * as xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import { and, between, inArray, eq } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -67,16 +67,24 @@ function generateCSV(data: any[]): string {
 /**
  * Generate Excel buffer from data
  */
-function generateExcel(data: any[]): Buffer {
-  const worksheet = xlsx.utils.json_to_sheet(data);
-  const workbook = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(workbook, worksheet, 'Blogs');
+async function generateExcel(data: any[]): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Blogs');
 
-  // Set column widths
-  const columnWidths = Object.keys(data[0] || {}).map(() => ({ wch: 20 }));
-  worksheet['!cols'] = columnWidths;
+  if (data.length > 0) {
+    // Add headers
+    const headers = Object.keys(data[0]);
+    worksheet.columns = headers.map(header => ({
+      header,
+      key: header,
+      width: 20,
+    }));
 
-  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+    // Add rows
+    worksheet.addRows(data);
+  }
+
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -186,7 +194,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
       break;
 
     case 'xlsx':
-      fileBuffer = generateExcel(filteredData);
+      fileBuffer = await generateExcel(filteredData);
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       filename = `blogs-export-${Date.now()}.xlsx`;
       break;

@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import * as xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import { and, between, inArray } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -138,15 +138,23 @@ const handler = async (req: RequestWithUser, res: Response) => {
       break;
     case 'xlsx':
       try {
-        const worksheet = xlsx.utils.json_to_sheet(filteredData);
-        const workbook = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(workbook, worksheet, 'Tags');
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Tags');
 
-        // Set column widths
-        const columnWidths = Object.keys(filteredData[0] || {}).map(() => ({ wch: 15 }));
-        (worksheet as any)['!cols'] = columnWidths;
+        if (filteredData.length > 0) {
+          // Add headers
+          const headers = Object.keys(filteredData[0]);
+          worksheet.columns = headers.map(header => ({
+            header,
+            key: header,
+            width: 15,
+          }));
 
-        fileBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+          // Add rows
+          worksheet.addRows(filteredData);
+        }
+
+        fileBuffer = Buffer.from(await workbook.xlsx.writeBuffer());
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         filename = `tags-export-${timestamp}.xlsx`;
       } catch (error) {
