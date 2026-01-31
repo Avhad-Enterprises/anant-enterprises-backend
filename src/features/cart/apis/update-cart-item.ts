@@ -44,6 +44,9 @@ const handler = async (req: Request, res: Response) => {
             product_id: cartItems.product_id,
             cost_price: cartItems.cost_price,
             final_price: cartItems.final_price,
+            quantity: cartItems.quantity,
+            reservation_id: cartItems.reservation_id,
+            reservation_expires_at: cartItems.reservation_expires_at,
         })
         .from(cartItems)
         .where(and(
@@ -85,8 +88,18 @@ const handler = async (req: Request, res: Response) => {
             .where(eq(inventory.product_id, cartItem.product_id));
 
         const availableStock = Number(stockData?.totalStock) || 0;
-        if (quantity > availableStock) {
-            throw new HttpException(400, `Only ${availableStock} units available`);
+
+        // Calculate what's available for THIS user (including their current hold)
+        let currentReservedQty = 0;
+        // Check if user has an active reservation
+        if (cartItem.reservation_id &&
+            cartItem.reservation_expires_at &&
+            new Date(cartItem.reservation_expires_at) > new Date()) {
+            currentReservedQty = cartItem.quantity;
+        }
+
+        if (quantity > (availableStock + currentReservedQty)) {
+            throw new HttpException(400, `Only ${availableStock + currentReservedQty} units available`);
         }
     }
 
@@ -114,7 +127,18 @@ const handler = async (req: Request, res: Response) => {
     const lineSubtotal = comparePrice * quantity;
     const lineTotal = currentPrice * quantity;
 
-    // Update cart item
+    // Phase 2: Release OLD reservation BEFORE updating quantity
+    // This ensures we release the amount currently held in DB (old quantity)
+    if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
+        try {
+            await releaseCartStock(itemId);
+        } catch (error: any) {
+            console.warn('[update-cart-item] Failed to release old reservation:', error.message);
+            // Continue - better to have inconsistent reservation than failing cart
+        }
+    }
+
+    // Update cart item with NEW quantity
     await db.update(cartItems)
         .set({
             quantity,
@@ -127,10 +151,9 @@ const handler = async (req: Request, res: Response) => {
         })
         .where(eq(cartItems.id, itemId));
 
-    // Phase 2: Update reservation with new quantity
+    // Phase 2: Reserve NEW quantity
     if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
         try {
-            await releaseCartStock(itemId);
             await reserveCartStock(
                 cartItem.product_id,
                 quantity,
@@ -138,7 +161,7 @@ const handler = async (req: Request, res: Response) => {
                 CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
             );
         } catch (error: any) {
-            console.warn('[update-cart-item] Failed to update reservation:', error.message);
+            console.warn('[update-cart-item] Failed to reserve new quantity:', error.message);
             // Continue - cart still works without reservation
         }
     }
