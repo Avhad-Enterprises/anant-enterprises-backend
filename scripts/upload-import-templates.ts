@@ -10,8 +10,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config({ path: '.env.dev' });
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
+dotenv.config({ path: envFile });
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SERVICE_ROLE_KEY;
@@ -98,12 +99,11 @@ async function main() {
       localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/customers-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/customers-template.csv`,
     },
-    // Add more templates here as needed
-    // {
-    //   name: 'Products Template',
-    //   localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/products-template.csv'),
-    //   storagePath: `${TEMPLATE_FOLDER}/products-template.csv`,
-    // },
+    {
+      name: 'Products Template',
+      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/products-template.csv'),
+      storagePath: `${TEMPLATE_FOLDER}/products-template.csv`,
+    },
   ];
 
   const results: { name: string; url: string }[] = [];
