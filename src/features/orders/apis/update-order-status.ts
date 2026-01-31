@@ -23,9 +23,9 @@ import { logger } from '../../../utils';
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 const updateStatusSchema = z.object({
-    order_status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded']).optional(),
-    payment_status: z.enum(['pending', 'authorized', 'partially_paid', 'paid', 'refunded', 'failed', 'partially_refunded']).optional(),
-    fulfillment_status: z.enum(['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled']).optional(),
+    order_status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'returned']).optional(),
+    payment_status: z.enum(['pending', 'paid', 'refunded', 'failed', 'partially_refunded']).optional(),
+    fulfillment_status: z.enum(['unfulfilled', 'fulfilled', 'returned', 'cancelled']).optional(),
     order_tracking: z.string().max(200).optional(),
     admin_comment: z.string().max(500).optional(),
 }).refine(
@@ -40,8 +40,9 @@ const validTransitions: Record<string, string[]> = {
     'processing': ['shipped', 'cancelled'],
     'shipped': ['delivered', 'returned'],
     'delivered': ['refunded'],
-    'cancelled': ['refunded'],
+    'cancelled': ['refunded'], // Allow refund after cancellation if payment was captured
     'refunded': [],
+    'returned': ['refunded']
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -73,13 +74,36 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(404, 'Order not found');
     }
 
-    // Validate order status transition
+    // 1. Validate Order Status Transition
     if (body.order_status && body.order_status !== order.order_status) {
+        // Allow admin to bypass transition rules if needed? For now, strict.
         const allowedTransitions = validTransitions[order.order_status] || [];
+
+        // Special Case: Allow 'cancelled' -> 'pending' (Re-open) or similar manual overrides? 
+        // For now, adhere to strict business rules.
+
         if (!allowedTransitions.includes(body.order_status)) {
-            throw new HttpException(400, `Cannot transition from "${order.order_status}" to "${body.order_status}". Allowed: ${allowedTransitions.join(', ') || 'none'}`);
+            throw new HttpException(400, `Cannot change status from "${order.order_status}" to "${body.order_status}". Allowed transitions: ${allowedTransitions.join(', ') || 'None (Terminal State)'}`);
+        }
+
+        // REQUIREMENT: Tracking Number for 'Shipped'
+        if (body.order_status === 'shipped') {
+            // Check if tracking is provided in this request OR already exists
+            const hasTracking = body.order_tracking || order.order_tracking;
+            if (!hasTracking) {
+                throw new HttpException(400, 'Tracking number is required when marking an order as Shipped.');
+            }
         }
     }
+
+    // 2. Validate Payment Status
+    if (body.payment_status && body.payment_status !== order.payment_status) {
+        // Prevent setting 'refunded' if it wasn't paid/partially_paid? 
+        if (body.payment_status === 'refunded' && !['paid', 'partially_paid'].includes(order.payment_status)) {
+            throw new HttpException(400, 'Cannot mark as Refunded if the order was never Paid.');
+        }
+    }
+
 
     // Build update object
     const updateData: Partial<typeof orders.$inferInsert> = {
@@ -93,16 +117,45 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // Auto-update fulfillment status based on order status
         if (body.order_status === 'delivered') {
             updateData.fulfillment_status = 'fulfilled';
-            updateData.fulfillment_date = new Date();
-            updateData.delivery_date = new Date();
+            updateData.fulfillment_date = new Date(); // Actual delivery date
+            if (!order.delivery_date) updateData.delivery_date = new Date();
+        } else if (body.order_status === 'shipped') {
+            // Simplified: If marked shipped, assume fulfillment started/completed.
+            if (order.fulfillment_status === 'unfulfilled') {
+                updateData.fulfillment_status = 'fulfilled'; // Changed from 'partial' to 'fulfilled' to match schema
+            }
         } else if (body.order_status === 'cancelled') {
             updateData.fulfillment_status = 'cancelled';
+
+            // INVENTORY: Release reservation if not yet shipped
+            if (order.fulfillment_status === 'unfulfilled') {
+                try {
+                    // Need to import dynamically or ensure import exists
+                    const { releaseReservation } = await import('../../inventory/services/inventory.service');
+                    await releaseReservation(orderId, userId!);
+                    logger.info(`Inventory reservation released for cancelled order ${order.order_number}`);
+                } catch (err) {
+                    logger.error('Failed to release inventory reservation:', err);
+                }
+            }
+            // If already shipped/fulfilled, cancellation implies return logic might be needed manually or via 'returned' status
+        } else if (body.order_status === 'returned') {
+            updateData.fulfillment_status = 'returned';
+
+            // INVENTORY: Process return (restock)
+            try {
+                const { processOrderReturn } = await import('../../inventory/services/inventory.service');
+                await processOrderReturn(orderId, userId!);
+                logger.info(`Inventory restocked for returned order ${order.order_number}`);
+            } catch (err) {
+                logger.error('Failed to restock inventory on return:', err);
+            }
         }
     }
 
     if (body.payment_status) {
         updateData.payment_status = body.payment_status;
-        if (body.payment_status === 'paid') {
+        if (body.payment_status === 'paid' && !order.paid_at) {
             updateData.paid_at = new Date();
         }
     }
@@ -133,6 +186,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
         else if (body.order_status === 'refunded') action = AuditAction.ORDER_REFUNDED;
         else if (body.payment_status === 'paid') action = AuditAction.ORDER_PAID;
 
+        // Determine specific change description
+        let prompt = "Admin Status Update";
+        if (body.order_status === 'cancelled' && body.admin_comment) prompt = `Cancelled: ${body.admin_comment}`;
+
         await auditService.log({
             userId,
             action,
@@ -146,7 +203,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             newValues: body,
             metadata: {
                 orderNumber: order.order_number,
-                updateReason: 'Admin Status Update'
+                updateReason: prompt
             }
         }, {
             ipAddress: req.ip,
@@ -157,7 +214,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // STEP: Fulfill inventory when order is shipped
-    if (body.order_status === 'shipped') {
+    // NOTE: This might need to be smarter. If it's already fulfilled, don't run again.
+    if (body.order_status === 'shipped' && order.order_status !== 'shipped') {
         try {
             await fulfillOrderInventory(orderId, userId);
             logger.info(`Inventory fulfilled for order ${order.order_number}`);
@@ -179,7 +237,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     {
                         orderId: order.id,
                         orderNumber: order.order_number,
-                        trackingNumber: body.order_tracking || 'Not available',
+                        trackingNumber: body.order_tracking || order.order_tracking || 'Not available',
                         customerName: 'Customer',
                     },
                     {
@@ -233,6 +291,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             payment_status: orders.payment_status,
             fulfillment_status: orders.fulfillment_status,
             order_tracking: orders.order_tracking,
+            admin_comment: orders.admin_comment,
         })
         .from(orders)
         .where(eq(orders.id, orderId));

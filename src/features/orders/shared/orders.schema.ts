@@ -45,8 +45,6 @@ export const orderChannelEnum = pgEnum('order_channel', [
 
 export const paymentStatusEnum = pgEnum('payment_status', [
   'pending',
-  'authorized',
-  'partially_paid',
   'paid',
   'refunded',
   'failed',
@@ -64,11 +62,11 @@ export const orderStatusEnum = pgEnum('order_status', [
   'delivered', // Completed successfully
   'cancelled', // Cancelled by customer/admin
   'refunded', // Money returned
+  'returned', // Item returned by customer
 ]);
 
 export const fulfillmentStatusEnum = pgEnum('fulfillment_status', [
   'unfulfilled',
-  'partial',
   'fulfilled',
   'returned',
   'cancelled',
