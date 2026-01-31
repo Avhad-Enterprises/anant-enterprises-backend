@@ -223,6 +223,9 @@ export const orders = pgTable(
     createdAtIdx: index('orders_created_at_idx').on(table.created_at),
     draftPaymentIdx: index('orders_draft_payment_idx').on(table.is_draft, table.payment_status),
     razorpayOrderIdIdx: index('orders_razorpay_order_id_idx').on(table.razorpay_order_id),
+    // PHASE 1: Critical query optimization indexes
+    idx_orders_user_status: index('idx_orders_user_status').on(table.user_id, table.order_status).where(sql`is_deleted = false`),
+    idx_orders_status_dates: index('idx_orders_status_dates').on(table.order_status, table.created_at),
   })
 );
 

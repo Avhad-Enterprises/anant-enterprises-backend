@@ -56,6 +56,8 @@ export const auditLogs = pgTable(
     resourceIdx: index('audit_logs_resource_idx').on(table.resource_type, table.resource_id),
     actionIdx: index('audit_logs_action_idx').on(table.action),
     createdAtIdx: index('audit_logs_created_at_idx').on(table.created_at.desc()),
+    // PHASE 1: Critical query optimization index
+    idx_audit_logs_user_timestamp: index('idx_audit_logs_user_timestamp').on(table.user_id, table.timestamp.desc()),
   })
 );
 

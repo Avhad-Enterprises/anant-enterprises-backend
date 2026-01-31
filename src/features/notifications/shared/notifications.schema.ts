@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 import { notificationTypeEnum, notificationPriorityEnum } from './notification-enums.schema';
@@ -40,7 +40,10 @@ export const notifications = pgTable('notifications', {
 
     // Metadata
     metadata: jsonb('metadata').$type<Record<string, any>>().default({}),
-});
+}, (table) => ({
+    // PHASE 1: Critical query optimization indexes
+    idx_notifications_user_read: index('idx_notifications_user_read').on(table.user_id, table.is_read).where(sql`deleted_at IS NULL`),
+}));
 
 // Export types
 export type Notification = typeof notifications.$inferSelect;

@@ -18,6 +18,7 @@ import {
     index,
     check,
     customType,
+    unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { tiers } from '../../tiers/shared/tiers.schema';
@@ -253,6 +254,9 @@ export const productVariants = pgTable(
         productIdIdx: index('product_variants_product_id_idx').on(table.product_id),
         skuIdx: index('product_variants_sku_idx').on(table.sku),
         isDeletedIdx: index('product_variants_is_deleted_idx').on(table.is_deleted),
+
+        // PHASE 1: Unique constraint to prevent duplicate variants
+        uq_variant_option: unique('uq_variant_option').on(table.product_id, table.option_name, table.option_value),
 
         // Check Constraints
         costPriceCheck: check(

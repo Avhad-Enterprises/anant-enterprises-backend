@@ -21,6 +21,7 @@ import {
 import { sql } from 'drizzle-orm';
 import { carts } from './carts.schema';
 import { products } from '../../product/shared/product.schema';
+import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
 // COMMENTED OUT - Bundles feature dropped (31 Jan 2026)
 // import { bundles } from '../../bundles/shared/bundles.schema';
 
@@ -65,7 +66,8 @@ export const cartItems = pgTable(
     customization_data: jsonb('customization_data').default({}),
 
     // Inventory Reservation (Phase 1 & 2)
-    reserved_from_location_id: uuid('reserved_from_location_id'), // FK to inventory_locations
+    reserved_from_location_id: uuid('reserved_from_location_id')
+      .references(() => inventoryLocations.id, { onDelete: 'set null' }), // PHASE 1: Added FK constraint
     reserved_at: timestamp('reserved_at'),
     reservation_id: uuid('reservation_id'), // Phase 2: Unique reservation identifier
     reservation_expires_at: timestamp('reservation_expires_at'), // Phase 2: Auto-timeout
@@ -84,6 +86,8 @@ export const cartItems = pgTable(
     cartIdIdx: index('cart_items_cart_id_idx').on(table.cart_id),
     productIdIdx: index('cart_items_product_id_idx').on(table.product_id),
     bundleIdIdx: index('cart_items_bundle_id_idx').on(table.bundle_id),
+    // PHASE 1: Added for query optimization on active cart items
+    cartIdActiveIdx: index('idx_cart_items_cart_id').on(table.cart_id).where(sql`is_deleted = false`),
 
     // PHASE 3 BATCH 5: CHECK CONSTRAINTS
     // Ensure quantity is positive
