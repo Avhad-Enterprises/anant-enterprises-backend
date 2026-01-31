@@ -1,3 +1,13 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * 
+ * This table has 0 rows and is not currently used in the application.
+ * Removed from database exports in drizzle.ts
+ * 
+ * Reason: Company/B2B feature not implemented yet
+ * To re-enable: Uncomment in src/database/drizzle.ts and run db:push
+ */
+
 /**
  * Company Schema (B2B/Tenant)
  *

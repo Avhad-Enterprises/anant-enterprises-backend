@@ -12,7 +12,7 @@ import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { createPermission, findPermissionByName } from '../shared/queries';
-import { Permission } from '../shared/rbac.schema';
+import { Permission } from '../shared/permissions.schema';
 import { mediumTextSchema } from '../../../utils';
 
 const schema = z.object({

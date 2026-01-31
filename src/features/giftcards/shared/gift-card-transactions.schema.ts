@@ -1,3 +1,8 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * See gift-cards.schema.ts for details
+ */
+
 /**
  * Gift Card Transactions Schema
  *

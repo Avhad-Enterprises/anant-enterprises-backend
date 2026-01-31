@@ -52,7 +52,10 @@ export default RBACRoute;
 export { rbacCacheService, RBACCacheService } from './services/rbac-cache.service';
 
 // Shared resources - SAFE to export
-export * from './shared/rbac.schema';
+export * from './shared/roles.schema';
+export * from './shared/permissions.schema';
+export * from './shared/role-permissions.schema';
+export * from './shared/user-roles.schema';
 export * from './shared/interface';
 export * from './shared/queries';
 

@@ -1,3 +1,11 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * 
+ * This table has 0 rows. Removed from database exports in drizzle.ts
+ * Reason: Support ticket system not implemented yet
+ * To re-enable: Uncomment in src/database/drizzle.ts and run db:push
+ */
+
 /**
  * Tickets Schema
  *

@@ -19,9 +19,9 @@ import {
 } from '../shared/discount-items.schema';
 import {
     discountCustomers,
-    discountSegments,
+    // discountSegments, // REMOVED - Unused table (31 Jan 2026)
     discountRegions,
-    discountExclusions,
+    // discountExclusions, // REMOVED - Unused table (31 Jan 2026)
     discountBuyXProducts,
     discountBuyXCollections,
     discountGetYProducts,
@@ -216,9 +216,7 @@ class DiscountService {
             products,
             collections,
             customers,
-            segments,
             regions,
-            exclusions,
             buyXProducts,
             buyXCollections,
             getYProducts,
@@ -230,9 +228,7 @@ class DiscountService {
             db.select().from(discountProducts).where(eq(discountProducts.discount_id, id)),
             db.select().from(discountCollections).where(eq(discountCollections.discount_id, id)),
             db.select().from(discountCustomers).where(eq(discountCustomers.discount_id, id)),
-            db.select().from(discountSegments).where(eq(discountSegments.discount_id, id)),
             db.select().from(discountRegions).where(eq(discountRegions.discount_id, id)),
-            db.select().from(discountExclusions).where(eq(discountExclusions.discount_id, id)),
             db.select().from(discountBuyXProducts).where(eq(discountBuyXProducts.discount_id, id)),
             db.select().from(discountBuyXCollections).where(eq(discountBuyXCollections.discount_id, id)),
             db.select().from(discountGetYProducts).where(eq(discountGetYProducts.discount_id, id)),
@@ -247,9 +243,9 @@ class DiscountService {
             products,
             collections,
             customers,
-            segments,
+            // segments, // REMOVED (31 Jan 2026)
             regions,
-            exclusions: exclusions.map(e => ({ exclusion_type: e.exclusion_type, exclusion_value: e.exclusion_value })),
+            // exclusions: exclusions.map(e => ({ exclusion_type: e.exclusion_type, exclusion_value: e.exclusion_value })), // REMOVED (31 Jan 2026)
             buy_x_products: buyXProducts,
             buy_x_collections: buyXCollections,
             get_y_products: getYProducts,
@@ -342,11 +338,12 @@ class DiscountService {
                 );
             }
 
-            if (input.segment_ids?.length) {
-                await tx.insert(discountSegments).values(
-                    input.segment_ids.map((sid) => ({ discount_id: discountId, segment_id: sid }))
-                );
-            }
+            // 4. Create customer restrictions - REMOVED segment restrictions (31 Jan 2026)
+            // if (input.segment_ids?.length) {
+            //     await tx.insert(discountSegments).values(
+            //         input.segment_ids.map((sid) => ({ discount_id: discountId, segment_id: sid }))
+            //     );
+            // }
 
             // 5. Create geographic restrictions
             if (input.region_codes?.length) {
@@ -359,16 +356,16 @@ class DiscountService {
                 );
             }
 
-            // 6. Create exclusions
-            if (input.exclusions?.length) {
-                await tx.insert(discountExclusions).values(
-                    input.exclusions.map((e) => ({
-                        discount_id: discountId,
-                        exclusion_type: e.type,
-                        exclusion_value: e.value,
-                    }))
-                );
-            }
+            // 6. Create exclusions - REMOVED (31 Jan 2026)
+            // if (input.exclusions?.length) {
+            //     await tx.insert(discountExclusions).values(
+            //         input.exclusions.map((e) => ({
+            //             discount_id: discountId,
+            //             exclusion_type: e.type,
+            //             exclusion_value: e.value,
+            //         }))
+            //     );
+            // }
 
             // 7. Create Buy X products/collections
             if (input.buy_x_product_ids?.length) {
@@ -507,14 +504,15 @@ class DiscountService {
                 }
             }
 
-            if (input.segment_ids !== undefined) {
-                await tx.delete(discountSegments).where(eq(discountSegments.discount_id, id));
-                if (input.segment_ids.length) {
-                    await tx.insert(discountSegments).values(
-                        input.segment_ids.map((sid) => ({ discount_id: id, segment_id: sid }))
-                    );
-                }
-            }
+            // REMOVED - segment restrictions update (31 Jan 2026)
+            // if (input.segment_ids !== undefined) {
+            //     await tx.delete(discountSegments).where(eq(discountSegments.discount_id, id));
+            //     if (input.segment_ids.length) {
+            //         await tx.insert(discountSegments).values(
+            //             input.segment_ids.map((sid) => ({ discount_id: id, segment_id: sid }))
+            //         );
+            //     }
+            // }
 
             if (input.region_codes !== undefined) {
                 await tx.delete(discountRegions).where(eq(discountRegions.discount_id, id));
@@ -529,18 +527,19 @@ class DiscountService {
                 }
             }
 
-            if (input.exclusions !== undefined) {
-                await tx.delete(discountExclusions).where(eq(discountExclusions.discount_id, id));
-                if (input.exclusions.length) {
-                    await tx.insert(discountExclusions).values(
-                        input.exclusions.map((e) => ({
-                            discount_id: id,
-                            exclusion_type: e.type,
-                            exclusion_value: e.value,
-                        }))
-                    );
-                }
-            }
+            // REMOVED - exclusions update (31 Jan 2026)
+            // if (input.exclusions !== undefined) {
+            //     await tx.delete(discountExclusions).where(eq(discountExclusions.discount_id, id));
+            //     if (input.exclusions.length) {
+            //         await tx.insert(discountExclusions).values(
+            //             input.exclusions.map((e) => ({
+            //                 discount_id: id,
+            //                 exclusion_type: e.type,
+            //                 exclusion_value: e.value,
+            //             }))
+            //         );
+            //     }
+            // }
 
             // Buy X / Get Y products/collections
             if (input.buy_x_product_ids !== undefined) {

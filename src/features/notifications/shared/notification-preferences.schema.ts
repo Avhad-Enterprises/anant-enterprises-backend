@@ -1,17 +1,7 @@
-import { pgTable, uuid, boolean, time, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, boolean, time, timestamp } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from '../../user';
-import { notificationTypeEnum } from './notifications.schema';
-
-/**
- * Notification Frequency Enum
- */
-export const notificationFrequencyEnum = pgEnum('notification_frequency', [
-    'immediate',
-    'daily_digest',
-    'weekly_digest',
-    'never',
-]);
+import { users } from '../../user/shared/user.schema';
+import { notificationTypeEnum, notificationFrequencyEnum } from './notification-enums.schema';
 
 /**
  * Notification Preferences Table

@@ -65,9 +65,9 @@ export const products = pgTable(
         featured: boolean('featured').default(false).notNull(), // Featured product flag
 
         // Pricing
-        cost_price: decimal('cost_price', { precision: 10, scale: 2 }).default('0.00').notNull(),
-        selling_price: decimal('selling_price', { precision: 10, scale: 2 }).default('0.00').notNull(),
-        compare_at_price: decimal('compare_at_price', { precision: 10, scale: 2 }), // Nullable
+        cost_price: decimal('cost_price', { precision: 15, scale: 2 }).default('0.00').notNull(),
+        selling_price: decimal('selling_price', { precision: 15, scale: 2 }).default('0.00').notNull(),
+        compare_at_price: decimal('compare_at_price', { precision: 15, scale: 2 }), // Nullable
 
         // Inventory & Logistics
         sku: varchar('sku', { length: 100 }).unique().notNull(),
@@ -220,11 +220,11 @@ export const productVariants = pgTable(
         barcode: varchar('barcode', { length: 50 }),
 
         // Independent Pricing (not adjustment-based)
-        cost_price: decimal('cost_price', { precision: 10, scale: 2 })
+        cost_price: decimal('cost_price', { precision: 15, scale: 2 })
             .default('0.00')
             .notNull(),
-        selling_price: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
-        compare_at_price: decimal('compare_at_price', { precision: 10, scale: 2 }),
+        selling_price: decimal('selling_price', { precision: 15, scale: 2 }).notNull(),
+        compare_at_price: decimal('compare_at_price', { precision: 15, scale: 2 }),
 
         // Inventory (per variant)
         inventory_quantity: integer('inventory_quantity').default(0).notNull(),

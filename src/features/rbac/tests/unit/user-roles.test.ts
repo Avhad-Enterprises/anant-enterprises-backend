@@ -7,7 +7,10 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, permissions, rolePermissions, userRoles } from '../../shared/rbac.schema';
+import { roles } from '../../shared/roles.schema';
+import { permissions } from '../../shared/permissions.schema';
+import { rolePermissions } from '../../shared/role-permissions.schema';
+import { userRoles } from '../../shared/user-roles.schema';
 import { eq, and } from 'drizzle-orm';
 import { rbacCacheService } from '../../services/rbac-cache.service';
 

@@ -7,7 +7,7 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles } from '../../shared/rbac.schema';
+import { roles } from '../../shared/roles.schema';
 import { eq } from 'drizzle-orm';
 
 describe('GET /api/rbac/roles - Get All Roles', () => {

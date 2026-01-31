@@ -21,7 +21,7 @@ import {
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
 import { findUserById } from '../../user';
-import { Role } from '../shared/rbac.schema';
+import { Role } from '../shared/roles.schema';
 import { IUserPermissionsResponse } from '../shared/interface';
 import { uuidSchema, dateStringSchema } from '../../../utils/validation/common-schemas';
 

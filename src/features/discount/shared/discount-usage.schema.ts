@@ -75,27 +75,27 @@ export const discountUsage = pgTable(
 );
 
 // ============================================
-// DISCOUNT DAILY USAGE (For per-day limits)
+// DISCOUNT DAILY USAGE (For per-day limits) - REMOVED (31 Jan 2026)
 // ============================================
 
-export const discountDailyUsage = pgTable(
-    'discount_daily_usage',
-    {
-        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
-        discount_id: uuid('discount_id')
-            .references(() => discounts.id, { onDelete: 'cascade' })
-            .notNull(),
-        usage_date: timestamp('usage_date').notNull(), // Date only (time set to 00:00:00)
-        usage_count: integer('usage_count').default(0).notNull(),
-    },
-    table => ({
-        // Unique constraint for discount + date
-        discountDateIdx: index('discount_daily_usage_discount_date_idx').on(
-            table.discount_id,
-            table.usage_date
-        ),
-    })
-);
+// export const discountDailyUsage = pgTable(
+//     'discount_daily_usage',
+//     {
+//         id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
+//         discount_id: uuid('discount_id')
+//             .references(() => discounts.id, { onDelete: 'cascade' })
+//             .notNull(),
+//         usage_date: timestamp('usage_date').notNull(), // Date only (time set to 00:00:00)
+//         usage_count: integer('usage_count').default(0).notNull(),
+//     },
+//     table => ({
+//         // Unique constraint for discount + date
+//         discountDateIdx: index('discount_daily_usage_discount_date_idx').on(
+//             table.discount_id,
+//             table.usage_date
+//         ),
+//     })
+// );
 
 // ============================================
 // TYPES
@@ -103,5 +103,5 @@ export const discountDailyUsage = pgTable(
 
 export type DiscountUsage = typeof discountUsage.$inferSelect;
 export type NewDiscountUsage = typeof discountUsage.$inferInsert;
-export type DiscountDailyUsage = typeof discountDailyUsage.$inferSelect;
-export type NewDiscountDailyUsage = typeof discountDailyUsage.$inferInsert;
+// export type DiscountDailyUsage = typeof discountDailyUsage.$inferSelect; // REMOVED (31 Jan 2026)
+// export type NewDiscountDailyUsage = typeof discountDailyUsage.$inferInsert; // REMOVED (31 Jan 2026)

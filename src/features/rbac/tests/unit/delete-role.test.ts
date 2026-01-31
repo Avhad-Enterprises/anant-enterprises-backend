@@ -7,7 +7,8 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { roles, userRoles } from '../../shared/rbac.schema';
+import { roles } from '../../shared/roles.schema';
+import { userRoles } from '../../shared/user-roles.schema';
 import { eq } from 'drizzle-orm';
 
 describe('DELETE /api/rbac/roles/:roleId - Delete Role', () => {

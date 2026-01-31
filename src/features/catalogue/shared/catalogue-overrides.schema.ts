@@ -1,3 +1,8 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * See catalogue.schema.ts for details
+ */
+
 /**
  * Catalogue Product Overrides Schema
  *

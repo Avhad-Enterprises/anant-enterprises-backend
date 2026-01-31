@@ -1,3 +1,11 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * 
+ * This table has 0 rows. Removed from database exports in drizzle.ts
+ * Note: Parent 'bundles' table kept due to FK from cart_items
+ * To re-enable: Uncomment in src/database/drizzle.ts and run db:push
+ */
+
 /**
  * Bundle Items Schema
  *

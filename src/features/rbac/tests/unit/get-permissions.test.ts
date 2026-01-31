@@ -7,7 +7,7 @@ import request from 'supertest';
 import app from '@tests/utils';
 import { SupabaseAuthHelper } from '@tests/utils';
 import { db } from '../../../../database';
-import { permissions } from '../../shared/rbac.schema';
+import { permissions } from '../../shared/permissions.schema';
 import { eq } from 'drizzle-orm';
 
 describe('GET /api/rbac/permissions - Get All Permissions', () => {

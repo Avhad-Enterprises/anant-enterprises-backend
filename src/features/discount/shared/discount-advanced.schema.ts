@@ -11,7 +11,7 @@
  */
 
 import { pgTable, uuid, varchar, primaryKey, index } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+// import { sql } from 'drizzle-orm';
 import { discounts } from './discount.schema';
 import { users } from '../../user/shared/user.schema';
 import { products } from '../../product/shared/product.schema';
@@ -38,22 +38,22 @@ export const discountCustomers = pgTable(
 );
 
 // ============================================
-// DISCOUNT SEGMENTS (Customer Segment Targeting)
+// DISCOUNT SEGMENTS (Customer Segment Targeting) - REMOVED (31 Jan 2026)
 // ============================================
 
-export const discountSegments = pgTable(
-    'discount_segments',
-    {
-        discount_id: uuid('discount_id')
-            .references(() => discounts.id, { onDelete: 'cascade' })
-            .notNull(),
-        segment_id: varchar('segment_id', { length: 50 }).notNull(), // vip, new, returning, at_risk, wholesale
-    },
-    table => ({
-        pk: primaryKey({ columns: [table.discount_id, table.segment_id] }),
-        segmentIdIdx: index('discount_segments_segment_id_idx').on(table.segment_id),
-    })
-);
+// export const discountSegments = pgTable(
+//     'discount_segments',
+//     {
+//         discount_id: uuid('discount_id')
+//             .references(() => discounts.id, { onDelete: 'cascade' })
+//             .notNull(),
+//         segment_id: varchar('segment_id', { length: 50 }).notNull(), // vip, new, returning, at_risk, wholesale
+//     },
+//     table => ({
+//         pk: primaryKey({ columns: [table.discount_id, table.segment_id] }),
+//         segmentIdIdx: index('discount_segments_segment_id_idx').on(table.segment_id),
+//     })
+// );
 
 // ============================================
 // DISCOUNT REGIONS (Geographic Restrictions)
@@ -75,24 +75,24 @@ export const discountRegions = pgTable(
 );
 
 // ============================================
-// DISCOUNT EXCLUSIONS (Products, Collections, Payment Methods, Channels)
+// DISCOUNT EXCLUSIONS (Products, Collections, Payment Methods, Channels) - REMOVED (31 Jan 2026)
 // ============================================
 
-export const discountExclusions = pgTable(
-    'discount_exclusions',
-    {
-        id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
-        discount_id: uuid('discount_id')
-            .references(() => discounts.id, { onDelete: 'cascade' })
-            .notNull(),
-        exclusion_type: varchar('exclusion_type', { length: 30 }).notNull(), // product, collection, payment_method, sales_channel
-        exclusion_value: varchar('exclusion_value', { length: 100 }).notNull(), // UUID for product/collection, string for others
-    },
-    table => ({
-        discountIdx: index('discount_exclusions_discount_id_idx').on(table.discount_id),
-        typeIdx: index('discount_exclusions_type_idx').on(table.exclusion_type),
-    })
-);
+// export const discountExclusions = pgTable(
+//     'discount_exclusions',
+//     {
+//         id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`),
+//         discount_id: uuid('discount_id')
+//             .references(() => discounts.id, { onDelete: 'cascade' })
+//             .notNull(),
+//         exclusion_type: varchar('exclusion_type', { length: 30 }).notNull(), // product, collection, payment_method, sales_channel
+//         exclusion_value: varchar('exclusion_value', { length: 100 }).notNull(), // UUID for product/collection, string for others
+//     },
+//     table => ({
+//         discountIdx: index('discount_exclusions_discount_id_idx').on(table.discount_id),
+//         typeIdx: index('discount_exclusions_type_idx').on(table.exclusion_type),
+//     })
+// );
 
 // ============================================
 // BUY X PRODUCTS (Products that trigger Buy X Get Y)
@@ -215,9 +215,9 @@ export const discountShippingZones = pgTable(
 // ============================================
 
 export type DiscountCustomer = typeof discountCustomers.$inferSelect;
-export type DiscountSegment = typeof discountSegments.$inferSelect;
+// export type DiscountSegment = typeof discountSegments.$inferSelect; // REMOVED (31 Jan 2026)
 export type DiscountRegion = typeof discountRegions.$inferSelect;
-export type DiscountExclusion = typeof discountExclusions.$inferSelect;
+// export type DiscountExclusion = typeof discountExclusions.$inferSelect; // REMOVED (31 Jan 2026)
 export type DiscountBuyXProduct = typeof discountBuyXProducts.$inferSelect;
 export type DiscountBuyXCollection = typeof discountBuyXCollections.$inferSelect;
 export type DiscountGetYProduct = typeof discountGetYProducts.$inferSelect;

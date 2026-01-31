@@ -1,17 +1,7 @@
-import { pgTable, uuid, varchar, text, timestamp, jsonb, pgEnum, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb, integer } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { notifications } from './notifications.schema';
-
-/**
- * Delivery Status Enum
- */
-export const deliveryStatusEnum = pgEnum('delivery_status', [
-    'pending',
-    'sent',
-    'delivered',
-    'failed',
-    'bounced',
-]);
+import { deliveryStatusEnum } from './notification-enums.schema';
 
 /**
  * Notification Delivery Logs Table

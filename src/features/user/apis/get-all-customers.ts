@@ -6,7 +6,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, sql, arrayOverlaps } from 'drizzle-orm';
+import { eq, count, desc, and, or, sql, arrayOverlaps, SQL } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -14,7 +14,7 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles } from '../shared/business-profiles.schema';
+// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
 import { sanitizeUsers } from '../shared/sanitizeUser';
 import { userAddresses } from '../shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
@@ -71,29 +71,29 @@ async function getAllCustomers(
         )`
     );
 
-    // Status Filter
+    // Status Filter - only individual customer profiles supported now (business dropped Phase 2)
     if (status) {
         const statuses = status.split(',').map(s => s.trim().toLowerCase());
         const statusConditions = [];
 
         if (statuses.includes('active')) {
             statusConditions.push(
-                sql`(${customerProfiles.account_status} = 'active' OR ${businessCustomerProfiles.account_status} = 'active')`
+                eq(customerProfiles.account_status, 'active')
             );
         }
         if (statuses.includes('inactive') || statuses.includes('closed')) {
             statusConditions.push(
-                sql`(${customerProfiles.account_status} = 'closed' OR ${businessCustomerProfiles.account_status} = 'closed')`
+                eq(customerProfiles.account_status, 'closed')
             );
         }
         if (statuses.includes('blocked') || statuses.includes('suspended')) {
             statusConditions.push(
-                sql`(${customerProfiles.account_status} = 'suspended' OR ${businessCustomerProfiles.account_status} = 'suspended')`
+                eq(customerProfiles.account_status, 'suspended')
             );
         }
 
         if (statusConditions.length > 0) {
-            conditions.push(sql`(${sql.join(statusConditions, sql` OR `)})`);
+            conditions.push(or(...statusConditions) as SQL<unknown>);
         }
     }
 
@@ -123,7 +123,7 @@ async function getAllCustomers(
         .select({ total: count() })
         .from(users)
         .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
-        .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id))
+        // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
         .where(and(...conditions));
 
     const [countResult] = await query;
@@ -134,11 +134,11 @@ async function getAllCustomers(
         .select({
             user: users,
             customerProfile: customerProfiles,
-            businessProfile: businessCustomerProfiles,
+            // businessProfile: businessCustomerProfiles, // Table dropped in Phase 2
         })
         .from(users)
         .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
-        .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id))
+        // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
         .where(and(...conditions))
         .limit(limit)
         .offset(offset)
@@ -163,12 +163,12 @@ async function getAllCustomers(
     }
 
     // 3. Format Response
-    const formattedUsers = allUsers.map(({ user, customerProfile, businessProfile }) => {
+    const formattedUsers = allUsers.map(({ user, customerProfile }) => {
         const sanitized = sanitizeUsers([user])[0];
         return {
             ...sanitized,
-            details: customerProfile || businessProfile || null,
-            profileType: customerProfile ? 'individual' : businessProfile ? 'business' : 'none',
+            details: customerProfile || null,
+            profileType: customerProfile ? 'individual' : 'none',
             addresses: addressesMap[user.id] || [],
             gender: user.gender // Explicitly ensuring gender is at top level (already in sanitized but being explicit helps debug)
         };

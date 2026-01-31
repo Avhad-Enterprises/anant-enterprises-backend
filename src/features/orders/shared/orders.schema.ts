@@ -27,9 +27,10 @@ import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 import { userAddresses } from '../../user/shared/addresses.schema';
 import { carts } from '../../cart/shared/carts.schema';
-import { discounts } from '../../discount/shared/discount.schema';
-import { discountCodes } from '../../discount/shared/discount-codes.schema';
-import { taxRules } from '../../settings/shared/tax-rules.schema';
+// COMMENTED OUT - Tables dropped (31 Jan 2026)
+// import { discounts } from '../../discount/shared/discount.schema';
+// import { discountCodes } from '../../discount/shared/discount-codes.schema';
+// import { taxRules } from '../../settings/shared/tax-rules.schema';
 
 // ============================================
 // ENUMS
@@ -122,11 +123,14 @@ export const orders = pgTable(
     subtotal: decimal('subtotal', { precision: 12, scale: 2 }).default('0.00').notNull(),
 
     // Discounts (CRITICAL FIX #4)
-    discount_id: uuid('discount_id').references(() => discounts.id, { onDelete: 'set null' }),
-    discount_code_id: varchar('discount_code_id', { length: 50 }).references(
-      () => discountCodes.code,
-      { onDelete: 'set null' }
-    ),
+    // COMMENTED OUT - Foreign keys to dropped tables (31 Jan 2026)
+    // discount_id: uuid('discount_id').references(() => discounts.id, { onDelete: 'set null' }),
+    // discount_code_id: varchar('discount_code_id', { length: 50 }).references(
+    //   () => discountCodes.code,
+    //   { onDelete: 'set null' }
+    // ),
+    discount_id: uuid('discount_id'), // FK removed - discounts table dropped
+    discount_code_id: varchar('discount_code_id', { length: 50 }), // FK removed - discount_codes table dropped
     discount_type: orderDiscountTypeEnum('discount_type').default('none').notNull(),
     discount_value: decimal('discount_value', { precision: 12, scale: 2 })
       .default('0.00')
@@ -165,7 +169,9 @@ export const orders = pgTable(
 
     // Tax (GST - India) - HIGH PRIORITY FIX #23
     // Phase 3 Batch 3: Added FK constraint for referential integrity
-    tax_rule_id: uuid('tax_rule_id').references(() => taxRules.id, { onDelete: 'set null' }), // Preserve order if tax rule deleted
+    // COMMENTED OUT - Foreign key to dropped table (31 Jan 2026)
+    // tax_rule_id: uuid('tax_rule_id').references(() => taxRules.id, { onDelete: 'set null' }),
+    tax_rule_id: uuid('tax_rule_id'), // FK removed - tax_rules table dropped
     tax_amount: decimal('tax_amount', { precision: 12, scale: 2 }).default('0.00').notNull(),
     cgst: decimal('cgst', { precision: 12, scale: 2 }).default('0.00').notNull(),
     sgst: decimal('sgst', { precision: 12, scale: 2 }).default('0.00').notNull(),

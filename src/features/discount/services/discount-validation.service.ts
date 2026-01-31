@@ -26,7 +26,7 @@ import {
 import {
     discountCustomers,
     discountRegions,
-    discountExclusions,
+    // discountExclusions, // REMOVED - Unused table (31 Jan 2026)
 } from '../shared/discount-advanced.schema';
 import { discountUsage } from '../shared/discount-usage.schema';
 import { logger } from '../../../utils';
@@ -180,9 +180,9 @@ class DiscountValidationService {
             if (!geoCheck.valid) return geoCheck;
         }
 
-        // 12. Check exclusions (payment method, sales channel)
-        const exclusionCheck = await this.checkExclusions(discount, context);
-        if (!exclusionCheck.valid) return exclusionCheck;
+        // 12. Check exclusions (payment method, sales channel) - REMOVED (31 Jan 2026)
+        // const exclusionCheck = await this.checkExclusions(discount, context);
+        // if (!exclusionCheck.valid) return exclusionCheck;
 
         // 13. Check product eligibility and get applicable items
         const productCheck = await this.checkProductEligibility(discount, context);
@@ -432,41 +432,42 @@ class DiscountValidationService {
         return { valid: true };
     }
 
-    private async checkExclusions(
-        discount: Discount,
-        context: ValidationContext
-    ): Promise<ValidationResult> {
-        const exclusions = await db
-            .select()
-            .from(discountExclusions)
-            .where(eq(discountExclusions.discount_id, discount.id));
+    // REMOVED - checkExclusions method (31 Jan 2026) - discountExclusions table removed
+    // private async checkExclusions(
+    //     discount: Discount,
+    //     context: ValidationContext
+    // ): Promise<ValidationResult> {
+    //     const exclusions = await db
+    //         .select()
+    //         .from(discountExclusions)
+    //         .where(eq(discountExclusions.discount_id, discount.id));
 
-        // Check payment method exclusions
-        if (context.payment_method) {
-            const paymentExcluded = exclusions.find(
-                (e) =>
-                    e.exclusion_type === 'payment_method' &&
-                    e.exclusion_value.toLowerCase() === context.payment_method?.toLowerCase()
-            );
-            if (paymentExcluded) {
-                return this.error(DiscountErrorCode.PAYMENT_EXCLUDED);
-            }
-        }
+    //     // Check payment method exclusions
+    //     if (context.payment_method) {
+    //         const paymentExcluded = exclusions.find(
+    //             (e) =>
+    //                 e.exclusion_type === 'payment_method' &&
+    //                 e.exclusion_value.toLowerCase() === context.payment_method?.toLowerCase()
+    //         );
+    //         if (paymentExcluded) {
+    //             return this.error(DiscountErrorCode.PAYMENT_EXCLUDED);
+    //         }
+    //     }
 
-        // Check sales channel exclusions
-        if (context.sales_channel) {
-            const channelExcluded = exclusions.find(
-                (e) =>
-                    e.exclusion_type === 'sales_channel' &&
-                    e.exclusion_value.toLowerCase() === context.sales_channel?.toLowerCase()
-            );
-            if (channelExcluded) {
-                return this.error(DiscountErrorCode.CHANNEL_EXCLUDED);
-            }
-        }
+    //     // Check sales channel exclusions
+    //     if (context.sales_channel) {
+    //         const channelExcluded = exclusions.find(
+    //             (e) =>
+    //                 e.exclusion_type === 'sales_channel' &&
+    //                 e.exclusion_value.toLowerCase() === context.sales_channel?.toLowerCase()
+    //         );
+    //         if (channelExcluded) {
+    //             return this.error(DiscountErrorCode.CHANNEL_EXCLUDED);
+    //         }
+    //     }
 
-        return { valid: true };
-    }
+    //     return { valid: true };
+    // }
 
     private async checkProductEligibility(
         discount: Discount,
@@ -474,25 +475,28 @@ class DiscountValidationService {
     ): Promise<ValidationResult & { applicable_items?: CartItem[] }> {
         // If applies to entire order, all items are applicable
         if (discount.applies_to === 'entire_order') {
-            // Check product exclusions
-            const exclusions = await db
-                .select()
-                .from(discountExclusions)
-                .where(and(
-                    eq(discountExclusions.discount_id, discount.id),
-                    eq(discountExclusions.exclusion_type, 'product')
-                ));
+            // REMOVED - Product exclusions logic (31 Jan 2026) - discountExclusions table removed
+            // const exclusions = await db
+            //     .select()
+            //     .from(discountExclusions)
+            //     .where(and(
+            //         eq(discountExclusions.discount_id, discount.id),
+            //         eq(discountExclusions.exclusion_type, 'product')
+            //     ));
 
-            const excludedProductIds = new Set(exclusions.map((e) => e.exclusion_value));
-            const applicableItems = context.cart_items.filter(
-                (item) => !excludedProductIds.has(item.product_id)
-            );
+            // const excludedProductIds = new Set(exclusions.map((e) => e.exclusion_value));
+            // const applicableItems = context.cart_items.filter(
+            //     (item) => !excludedProductIds.has(item.product_id)
+            // );
 
-            if (applicableItems.length === 0) {
-                return this.error(DiscountErrorCode.NO_APPLICABLE_ITEMS);
-            }
+            // if (applicableItems.length === 0) {
+            //     return this.error(DiscountErrorCode.NO_APPLICABLE_ITEMS);
+            // }
 
-            return { valid: true, applicable_items: applicableItems };
+            // return { valid: true, applicable_items: applicableItems };
+
+            // Since exclusions are removed, all items are applicable for entire order discounts
+            return { valid: true, applicable_items: context.cart_items };
         }
 
         // If applies to specific products

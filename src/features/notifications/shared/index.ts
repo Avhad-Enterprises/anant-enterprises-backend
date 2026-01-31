@@ -1,4 +1,5 @@
 // Export all schemas
+export * from './notification-enums.schema';
 export * from './notifications.schema';
 export * from './notification-templates.schema';
 export * from './notification-preferences.schema';
