@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
-import { stream } from '../utils/logger';
+import { stream } from '../utils';
 import { isProduction } from '../utils/validateEnv';
 
 /**
@@ -16,10 +16,6 @@ morgan.token('request-id', (req: Request) => {
 
 morgan.token('user-id', (req: Request) => {
   return req.userId?.toString() || 'anonymous';
-});
-
-morgan.token('user-role', (req: Request) => {
-  return req.userRole || 'anonymous';
 });
 
 /**

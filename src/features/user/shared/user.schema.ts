@@ -1,0 +1,111 @@
+import {
+  pgTable,
+  timestamp,
+  boolean,
+  varchar,
+  uuid,
+  date,
+  index,
+  pgEnum,
+  text,
+  jsonb,
+} from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+
+// ============================================
+// ENUMS
+// ============================================
+
+export const userTypeEnum = pgEnum('user_type', ['individual', 'business']);
+export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_not_to_say']);
+
+// ============================================
+// USERS TABLE
+// ============================================
+
+/**
+ * Users table schema
+ * Stores user account information and preferences
+ *
+ * NOTE: Roles are managed via the dynamic RBAC system (user_roles table)
+ * NOTE: auth_id links to Supabase Auth (auth.users.id)
+ * NOTE: email_verified and email_verified_at track Supabase Auth email confirmation status
+ *
+ * Indexes:
+ * - email_is_deleted_idx: Composite index for email lookups
+ * - created_at_idx: For sorting/pagination
+ * - auth_id_idx: For Supabase Auth lookups
+ * - user_type_idx: For B2C/B2B filtering
+ * - email_verified_idx: For filtering verified users
+ */
+export const users = pgTable(
+  'users',
+  {
+    id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`), // Changed to UUID for consistency
+    auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
+    customer_id: varchar('customer_id', { length: 15 }).unique(), // Human-readable ID: CUST-XXXXXX
+    user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
+
+    // Basic info
+    name: varchar('name', { length: 255 }).notNull(), // First name
+    last_name: varchar('last_name', { length: 255 }).notNull(), // Last name (required)
+    display_name: varchar('display_name', { length: 100 }),
+    email: varchar('email', { length: 255 }).unique().notNull(),
+    password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
+    email_verified: boolean('email_verified').default(false).notNull(), // Email verification status from Supabase Auth
+    email_verified_at: timestamp('email_verified_at'), // When email was verified
+
+    // Phone
+    phone_number: varchar('phone_number', { length: 20 }),
+    phone_country_code: varchar('phone_country_code', { length: 5 }), // +91, +1, etc.
+    phone_verified: boolean('phone_verified').default(false).notNull(),
+    phone_verified_at: timestamp('phone_verified_at'),
+
+    // Secondary contact info (limit of 2 emails/phones total)
+    secondary_email: varchar('secondary_email', { length: 255 }),
+    secondary_email_verified: boolean('secondary_email_verified').default(false).notNull(),
+    secondary_phone_number: varchar('secondary_phone_number', { length: 20 }),
+
+    // Profile
+    profile_image_url: varchar('profile_image_url', { length: 500 }),
+    date_of_birth: date('date_of_birth'),
+    gender: genderEnum('gender'),
+
+    // Metadata & Classification
+    tags: text('tags').array(),
+    metadata: jsonb('metadata'), // Stores GDPR, privacy version, security stats (last_login, etc)
+
+    // Regional preferences
+    preferred_language: varchar('preferred_language', { length: 10 }).default('en').notNull(), // Primary language
+    languages: text('languages').array(), // All spoken languages
+    preferred_currency: varchar('preferred_currency', { length: 3 }).default('INR').notNull(), // ISO 4217
+    timezone: varchar('timezone', { length: 50 }).default('Asia/Kolkata').notNull(), // IANA timezone
+
+    // Audit fields - self-referential FKs will be added via migration
+    created_by: uuid('created_by'),
+    created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_by: uuid('updated_by'),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
+    is_deleted: boolean('is_deleted').default(false).notNull(),
+    deleted_by: uuid('deleted_by'),
+    deleted_at: timestamp('deleted_at'),
+  },
+  table => ({
+    // Composite index for email lookups (queries always filter by is_deleted)
+    emailIsDeletedIdx: index('users_email_is_deleted_idx').on(table.email, table.is_deleted),
+    // Index for sorting/pagination
+    createdAtIdx: index('users_created_at_idx').on(table.created_at),
+    // Index for Supabase Auth lookups
+    authIdIdx: index('users_auth_id_idx').on(table.auth_id),
+    // Index for B2C/B2B filtering
+    userTypeIdx: index('users_user_type_idx').on(table.user_type, table.is_deleted),
+    // Index for email verification filtering
+    emailVerifiedIdx: index('users_email_verified_idx').on(table.email_verified, table.is_deleted),
+  })
+);
+
+// Export types for TypeScript
+// Note: Use IUser from ./interface.ts as the canonical type for user objects
+// User type is kept for Drizzle internal usage only
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;

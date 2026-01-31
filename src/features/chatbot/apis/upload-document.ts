@@ -9,14 +9,13 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
-import { uploadSingleFileMiddleware } from '../../../middlewares/upload.middleware';
-import { uploadToS3 } from '../../../utils/s3Upload';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter, shortTextSchema, mediumTextSchema } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
+import { uploadSingleFileMiddleware } from '../../../middlewares';
+import { uploadToStorage } from '../../../utils/supabaseStorage';
 import {
   createDocument,
   updateDocumentStatus,
@@ -30,11 +29,12 @@ import {
 import { chunkText } from '../services/chunker.service';
 import { upsertDocumentVectors } from '../services/vector.service';
 import { chatbotConfig } from '../config/chatbot.config';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Validation schema for optional metadata
 const uploadMetadataSchema = z.object({
-  name: z.string().min(1).max(255).optional(),
-  description: z.string().max(1000).optional(),
+  name: shortTextSchema.optional(),
+  description: mediumTextSchema.optional(),
 });
 
 /**
@@ -45,7 +45,7 @@ async function processDocument(
   buffer: Buffer,
   mimeType: string,
   documentName: string,
-  userId: number
+  userId: string
 ): Promise<{ chunkCount: number }> {
   try {
     // Update status to processing
@@ -96,7 +96,7 @@ async function processDocument(
 /**
  * Upload document handler
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const file = req.file;
 
@@ -128,7 +128,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
 
   // Upload file to S3
   logger.info(`📤 Uploading document to S3: ${documentName}`);
-  const uploadResult = await uploadToS3(file.buffer, file.originalname, file.mimetype, userId);
+  const uploadResult = await uploadToStorage(file.buffer, file.originalname, file.mimetype, userId);
 
   // Create document record
   const document = await createDocument({
@@ -143,17 +143,23 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     updated_by: userId,
   });
 
+  // Invalidate document caches (new document added)
+  await chatbotCacheService.invalidateDocuments();
+
   // Process document asynchronously (training)
   // Note: We don't await this - processing happens in background
   processDocument(document.id, file.buffer, file.mimetype, documentName, userId)
-    .then(result => {
+    .then(async result => {
       logger.info(
         `✅ Document ${document.id} training completed: ${result.chunkCount} chunks embedded`
       );
+      // Invalidate cache again after processing completes (status changed)
+      await chatbotCacheService.invalidateDocuments();
     })
-    .catch(error => {
+    .catch(async error => {
       logger.error(`❌ Document ${document.id} training failed:`, error);
-      // Status already updated in processDocument
+      // Invalidate cache on failure too (status changed)
+      await chatbotCacheService.invalidateDocuments();
     });
 
   // Return immediately with pending status
@@ -170,7 +176,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     },
     'Document uploaded successfully. Training started in background.'
   );
-});
+};
 
 const router = Router();
 
@@ -178,7 +184,7 @@ const router = Router();
 router.post(
   '/documents',
   requireAuth,
-  requireRole('admin'),
+  requirePermission('chatbot:documents'),
   uploadSingleFileMiddleware,
   handler
 );

@@ -2,7 +2,7 @@
  * Unit tests for upload-stats business logic
  */
 
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { UploadStats } from '../../shared/interface';
 
 // Mock dependencies
@@ -11,7 +11,7 @@ jest.mock('../../../../database/drizzle', () => ({
     select: jest.fn().mockReturnThis(),
   },
 }));
-jest.mock('../../../../utils/logger', () => ({
+jest.mock('../../../../utils', () => ({
   logger: {
     error: jest.fn(),
     info: jest.fn(),
@@ -22,21 +22,30 @@ jest.mock('../../../../utils/logger', () => ({
 const mockDb = db as jest.Mocked<typeof db>;
 
 // Recreate the business logic for testing
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function getUserUploadStats(_userId: number): Promise<UploadStats> {
-  const [stats] = await (db.select({
-    total_uploads: {},
-    total_size: {},
-    pending_count: {},
-    processing_count: {},
-    completed_count: {},
-    failed_count: {},
-  }).from({} as any) as any).where();
+  const [stats] = await (
+    db
+      .select({
+        total_uploads: {},
+        total_size: {},
+        pending_count: {},
+        processing_count: {},
+        completed_count: {},
+        failed_count: {},
+      })
+      .from({} as any) as any
+  ).where();
 
-  const uploadsByType = await (db.select({
-    mime_type: {},
-    count: {},
-  }).from({} as any) as any).where().groupBy();
+  const uploadsByType = await (
+    db
+      .select({
+        mime_type: {},
+        count: {},
+      })
+      .from({} as any) as any
+  )
+    .where()
+    .groupBy();
 
   const uploadsByTypeMap = uploadsByType.reduce(
     (acc: Record<string, number>, item: { mime_type: string; count: number }) => {
@@ -80,7 +89,8 @@ describe('Upload Stats Business Logic', () => {
 
     // Setup mock chain for stats query
     const mockGroupBy = jest.fn().mockResolvedValue(mockUploadsByType);
-    const mockWhere = jest.fn()
+    const mockWhere = jest
+      .fn()
       .mockResolvedValueOnce([mockStats])
       .mockReturnValue({ groupBy: mockGroupBy });
     const mockFrom = jest.fn().mockReturnValue({ where: mockWhere });
@@ -118,7 +128,8 @@ describe('Upload Stats Business Logic', () => {
       };
 
       const mockGroupBy = jest.fn().mockResolvedValue(mockUploadsByType);
-      const mockWhere = jest.fn()
+      const mockWhere = jest
+        .fn()
         .mockResolvedValueOnce([stringStats])
         .mockReturnValue({ groupBy: mockGroupBy });
       const mockFrom = jest.fn().mockReturnValue({ where: mockWhere });
@@ -141,7 +152,8 @@ describe('Upload Stats Business Logic', () => {
       };
 
       const mockGroupBy = jest.fn().mockResolvedValue([]);
-      const mockWhere = jest.fn()
+      const mockWhere = jest
+        .fn()
         .mockResolvedValueOnce([emptyStats])
         .mockReturnValue({ groupBy: mockGroupBy });
       const mockFrom = jest.fn().mockReturnValue({ where: mockWhere });
@@ -171,7 +183,8 @@ describe('Upload Stats Business Logic', () => {
       const singleType = [{ mime_type: 'application/pdf', count: 5 }];
 
       const mockGroupBy = jest.fn().mockResolvedValue(singleType);
-      const mockWhere = jest.fn()
+      const mockWhere = jest
+        .fn()
         .mockResolvedValueOnce([mockStats])
         .mockReturnValue({ groupBy: mockGroupBy });
       const mockFrom = jest.fn().mockReturnValue({ where: mockWhere });

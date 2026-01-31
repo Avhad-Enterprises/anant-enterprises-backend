@@ -1,34 +1,37 @@
 /**
  * POST /api/admin/invitations
- * Create invitation with auto-generated secure password (Admin only)
- * User will receive email with invite link, credentials shown on verification
+ * Create invitation and send email with accept link (Admin only)
+ * User will receive email with accept invitation button ONLY
+ * NO temporary password is generated - user creates their own password on registration
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { sendInvitationEmail } from '../../../utils/sendInvitationEmail';
+import {
+  ResponseFormatter,
+  HttpException,
+  shortTextSchema,
+  emailSchema,
+  uuidSchema,
+} from '../../../utils';
+import { emailService } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
-import { logger } from '../../../utils/logger';
-import { encrypt, generateSecurePassword } from '../../../utils/encryption';
-import { hashPassword } from '../../../utils/password';
-import { userRoles } from '../../user/shared/schema';
+import { logger } from '../../../utils';
+
 import { createInvitation, findInvitationByEmail } from '../shared/queries';
-import { findUserByEmail } from '../../user/shared/queries';
+import { findUserByEmail } from '../../user';
 import { ICreateInvitation, IInvitation } from '../shared/interface';
 
 const schema = z.object({
-  first_name: z.string().min(1, 'First name is required').max(100, 'First name too long'),
-  last_name: z.string().min(1, 'Last name is required').max(100, 'Last name too long'),
-  email: z.string().email('Invalid email format'),
-  assigned_role: z.enum(userRoles),
+  first_name: shortTextSchema,
+  last_name: shortTextSchema,
+  email: emailSchema,
+  assigned_role_id: uuidSchema,
 });
 
 type CreateInvitationDto = z.infer<typeof schema>;
@@ -38,7 +41,7 @@ const INVITATION_EXPIRY_HOURS = 24;
 
 async function handleCreateInvitation(
   invitationData: ICreateInvitation & { first_name: string; last_name: string },
-  invitedBy: number
+  invitedBy: string
 ): Promise<IInvitation> {
   // Check if user already exists
   const existingUser = await findUserByEmail(invitationData.email);
@@ -54,61 +57,61 @@ async function handleCreateInvitation(
 
   // Generate secure random token (64 chars hex)
   const inviteToken = randomBytes(32).toString('hex');
-  
-  // Generate secure temporary password
-  const tempPassword = generateSecurePassword(16);
-  
-  // Encrypt temp password (for retrieval during verification)
-  const tempPasswordEncrypted = encrypt(tempPassword);
-  
-  // Hash password (for actual login verification)
-  const passwordHash = await hashPassword(tempPassword);
 
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + INVITATION_EXPIRY_HOURS);
 
+  // Create invitation record (NO user account created yet)
   const newInvitation = await createInvitation({
     first_name: invitationData.first_name,
     last_name: invitationData.last_name,
     email: invitationData.email,
-    assigned_role: invitationData.assigned_role,
+    assigned_role_id: invitationData.assigned_role_id,
     invite_token: inviteToken,
-    temp_password_encrypted: tempPasswordEncrypted,
-    password_hash: passwordHash,
+    temp_password_encrypted: null, // Not used in new flow
+    password_hash: '', // Not used
     invited_by: invitedBy,
     expires_at: expiresAt,
     status: 'pending',
   });
 
-  // Send invitation email with credentials
+  // Send invitation email with accept link ONLY (NO password)
   try {
     const frontendUrl = config.FRONTEND_URL.replace(/\/+$/, '');
     const inviteLink = `${frontendUrl}/accept-invitation?invite_token=${inviteToken}`;
-    
-    await sendInvitationEmail({
+
+    await emailService.sendInvitationEmail({
       to: invitationData.email,
       firstName: invitationData.first_name,
       lastName: invitationData.last_name,
-      assignedRole: invitationData.assigned_role,
       inviteLink,
       expiresIn: `${INVITATION_EXPIRY_HOURS} hours`,
-      tempPassword, // Include credentials in email
     });
   } catch (emailError) {
-    logger.error('Failed to send invitation email', { 
+    logger.error('Failed to send invitation email', {
       email: invitationData.email,
-      error: emailError 
+      error: emailError,
     });
+    // Don't throw - invitation is still created, admin can resend
   }
 
-  // Return response without sensitive fields
+  logger.info('Invitation created successfully', {
+    invitationId: newInvitation.id,
+    email: newInvitation.email,
+    invitedBy,
+  });
+
+  // Return response without sensitive fields (invite_token not included for security)
   return {
     id: newInvitation.id,
     first_name: newInvitation.first_name,
     last_name: newInvitation.last_name,
     email: newInvitation.email,
     status: newInvitation.status,
-    assigned_role: newInvitation.assigned_role,
+    assigned_role_id: newInvitation.assigned_role_id,
+    temp_password_encrypted: newInvitation.temp_password_encrypted,
+    password_hash: newInvitation.password_hash,
+    verify_attempts: newInvitation.verify_attempts,
     invited_by: newInvitation.invited_by,
     expires_at: newInvitation.expires_at,
     accepted_at: newInvitation.accepted_at,
@@ -120,16 +123,25 @@ async function handleCreateInvitation(
   };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response): Promise<void> => {
+const handler = async (req: RequestWithUser, res: Response): Promise<void> => {
   const invitationData: CreateInvitationDto = req.body;
-  const invitedBy = getUserId(req);
+  const invitedBy = req.userId;
+  if (!invitedBy) {
+    throw new HttpException(401, 'User authentication required');
+  }
 
   const invitation = await handleCreateInvitation(invitationData, invitedBy);
 
   ResponseFormatter.success(res, invitation, 'Invitation sent successfully');
-});
+};
 
 const router = Router();
-router.post('/', requireAuth, requireRole('admin'), validationMiddleware(schema), handler);
+router.post(
+  '/',
+  requireAuth,
+  requirePermission('admin:invitations'),
+  validationMiddleware(schema),
+  handler
+);
 
 export default router;

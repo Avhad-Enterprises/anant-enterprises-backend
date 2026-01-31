@@ -1,6 +1,6 @@
 import multer from 'multer';
 import { Request, Response, NextFunction } from 'express';
-import HttpException from '../utils/httpException';
+import { HttpException } from '../utils';
 import { config } from '../utils/validateEnv';
 
 /**
@@ -20,23 +20,45 @@ const ALLOWED_FILE_TYPES = config.ALLOWED_FILE_TYPES.split(',').map(type => type
  */
 const FILE_SIGNATURES: Record<string, number[][]> = {
   // Images
-  'image/jpeg': [[0xff, 0xd8, 0xff]],
+  // JPEG: Only check first 2 bytes (0xFF 0xD8) - third byte varies by format:
+  // - 0xE0 for JFIF, 0xE1 for EXIF, 0xE2 for Canon, 0xE8 for SPIFF, etc.
+  'image/jpeg': [[0xff, 0xd8]],
   'image/png': [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
-  'image/gif': [[0x47, 0x49, 0x46, 0x38, 0x37, 0x61], [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]],
+  'image/gif': [
+    [0x47, 0x49, 0x46, 0x38, 0x37, 0x61],
+    [0x47, 0x49, 0x46, 0x38, 0x39, 0x61],
+  ],
   'image/webp': [[0x52, 0x49, 0x46, 0x46]], // RIFF header (WebP starts with RIFF)
-  'image/svg+xml': [[0x3c, 0x3f, 0x78, 0x6d, 0x6c], [0x3c, 0x73, 0x76, 0x67]], // <?xml or <svg
-  
+  'image/svg+xml': [
+    [0x3c, 0x3f, 0x78, 0x6d, 0x6c],
+    [0x3c, 0x73, 0x76, 0x67],
+  ], // <?xml or <svg
+
+  // Modern formats (HEIC/HEIF/AVIF) - all use ISO Base Media File Format
+  // They start with ftyp box: [size(4 bytes)] [0x66,0x74,0x79,0x70 = "ftyp"] [brand(4 bytes)]
+  // We check bytes 4-11 for "ftyp" + brand identifier
+  'image/heic': [[0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]], // ftyp heic
+  'image/heif': [[0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x66]], // ftyp heif
+  'image/avif': [[0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66]], // ftyp avif
+
   // Documents
   'application/pdf': [[0x25, 0x50, 0x44, 0x46]], // %PDF
-  
+
   // Archives
-  'application/zip': [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06]],
-  
+  'application/zip': [
+    [0x50, 0x4b, 0x03, 0x04],
+    [0x50, 0x4b, 0x05, 0x06],
+  ],
+
   // Office documents (OOXML - same as ZIP)
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': [[0x50, 0x4b, 0x03, 0x04]],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [[0x50, 0x4b, 0x03, 0x04]],
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [[0x50, 0x4b, 0x03, 0x04]],
-  
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': [
+    [0x50, 0x4b, 0x03, 0x04],
+  ],
+
   // CSV/Text files don't have magic numbers - validated by MIME only
 };
 
@@ -46,20 +68,50 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
  */
 function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
   const signatures = FILE_SIGNATURES[mimeType];
-  
+
+  // Debug: Log first 10 bytes of file
+  const firstBytes = Array.from(buffer.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ');
+  console.log(`[Upload Debug] MIME: ${mimeType}, First 10 bytes: [${firstBytes}]`);
+
   // If no signature defined for this type, allow based on MIME check only
   // (e.g., CSV, plain text files)
   if (!signatures) {
+    console.log(`[Upload Debug] No signature check for ${mimeType}, allowing file`);
     return true;
   }
-  
+
+  console.log(`[Upload Debug] Checking against signatures:`, signatures);
+
   // Check if buffer starts with any of the valid signatures
-  return signatures.some(signature => {
+  let isValid = signatures.some(signature => {
     if (buffer.length < signature.length) {
+      console.log(`[Upload Debug] Buffer too short: ${buffer.length} < ${signature.length}`);
       return false;
     }
-    return signature.every((byte, index) => buffer[index] === byte);
+    const matches = signature.every((byte, index) => buffer[index] === byte);
+    console.log(`[Upload Debug] Signature [${signature.map(b => '0x' + b.toString(16)).join(', ')}] matches: ${matches}`);
+    return matches;
   });
+
+  // Special handling for HEIC/HEIF/AVIF which may be misidentified as JPEG
+  // These formats have "ftyp" signature at bytes 4-7
+  if (!isValid && mimeType === 'image/jpeg') {
+    console.log(`[Upload Debug] JPEG validation failed, checking if it's actually AVIF/HEIC...`);
+    // Check bytes 4-11 for ftyp + brand
+    const ftypRegion = buffer.slice(4, 12);
+    const isAVIF = ftypRegion.equals(Buffer.from([0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66]));
+    const isHEIC = ftypRegion.equals(Buffer.from([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]));
+    const isHEIF = ftypRegion.equals(Buffer.from([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x66]));
+
+    if (isAVIF || isHEIC || isHEIF) {
+      const format = isAVIF ? 'AVIF' : isHEIC ? 'HEIC' : 'HEIF';
+      console.log(`[Upload Debug] File is actually ${format}, accepting it`);
+      isValid = true;
+    }
+  }
+
+  console.log(`[Upload Debug] Final validation result: ${isValid}`);
+  return isValid;
 }
 
 // Configure storage
@@ -154,11 +206,7 @@ const ALLOWED_CSV_TYPES = [
 ];
 
 // File filter function to validate CSV files
-const csvFileFilter = (
-  req: Request,
-  file: Express.Multer.File,
-  cb: multer.FileFilterCallback
-) => {
+const csvFileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   // Check MIME type
   if (ALLOWED_CSV_TYPES.includes(file.mimetype)) {
     cb(null, true);
@@ -171,11 +219,7 @@ const csvFileFilter = (
     return;
   }
 
-  cb(
-    new Error(
-      `File type ${file.mimetype} is not allowed. Only CSV files are accepted.`
-    )
-  );
+  cb(new Error(`File type ${file.mimetype} is not allowed. Only CSV files are accepted.`));
 };
 
 // Configure multer for CSV uploads
@@ -235,10 +279,7 @@ export const uploadCsvMiddleware = (req: Request, res: Response, next: NextFunct
     // Validate CSV content structure
     if (!validateCsvContent(req.file.buffer)) {
       return next(
-        new HttpException(
-          400,
-          'Invalid CSV file. File does not appear to contain valid CSV data.'
-        )
+        new HttpException(400, 'Invalid CSV file. File does not appear to contain valid CSV data.')
       );
     }
 

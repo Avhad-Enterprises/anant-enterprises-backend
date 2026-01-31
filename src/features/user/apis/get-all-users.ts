@@ -4,16 +4,15 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, count, sql } from 'drizzle-orm';
+import { eq, count, desc } from 'drizzle-orm';
 import { z } from 'zod';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import { sanitizeUsers } from '../../../utils/sanitizeUser';
-import { db } from '../../../database/drizzle';
-import { users } from '../shared/schema';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { sanitizeUsers } from '../shared/sanitizeUser';
+import { db } from '../../../database';
+import { users } from '../shared/user.schema';
 import { IUser } from '../shared/interface';
 
 // Default pagination values
@@ -42,7 +41,7 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     .select({ total: count() })
     .from(users)
     .where(eq(users.is_deleted, false));
-  
+
   const total = countResult?.total ?? 0;
 
   // Get paginated users
@@ -52,7 +51,7 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
     .where(eq(users.is_deleted, false))
     .limit(limit)
     .offset(offset)
-    .orderBy(sql`${users.created_at} DESC`);
+    .orderBy(desc(users.created_at));
 
   return {
     users: allUsers as IUser[],
@@ -62,10 +61,10 @@ async function getAllUsers(page: number, limit: number): Promise<PaginatedUsers>
   };
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
+const handler = async (req: RequestWithUser, res: Response) => {
   // Parse and validate pagination params
   const { page, limit } = paginationSchema.parse(req.query);
-  
+
   const result = await getAllUsers(page, limit);
   const sanitizedUsers = sanitizeUsers(result.users);
 
@@ -75,9 +74,9 @@ const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
     { page: result.page, limit: result.limit, total: result.total },
     'Users retrieved successfully'
   );
-});
+};
 
 const router = Router();
-router.get('/', requireAuth, requireRole('admin'), handler);
+router.get('/', requireAuth, requirePermission('users:read'), handler);
 
 export default router;

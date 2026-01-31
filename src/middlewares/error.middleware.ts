@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import HttpException from '../utils/httpException';
-import { logger } from '../utils/logger';
+import { HttpException } from '../utils';
+import { logger } from '../utils';
 import { isDevelopment } from '../utils/validateEnv';
 
 const errorMiddleware = (
@@ -54,10 +54,7 @@ const errorMiddleware = (
       name: error.name,
       message: error.message,
       status: status,
-      stack:
-        isDevelopment
-          ? error.stack
-          : undefined,
+      stack: isDevelopment ? error.stack : undefined,
     },
   };
 

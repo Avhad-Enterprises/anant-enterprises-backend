@@ -1,16 +1,12 @@
 /**
- * Upload Routes
- * Combines all upload API endpoints
+ * Upload Feature Index
+ *
+ * Central exports
+ * NOTE: API routers use dynamic imports to avoid circular dependency with middlewares for all upload-related functionality
  */
 
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
-import createUploadRouter from './apis/create-upload';
-import getUploadsRouter from './apis/get-uploads';
-import updateUploadRouter from './apis/update-upload';
-import deleteUploadRouter from './apis/delete-upload';
-import uploadStatsRouter from './apis/upload-stats';
-import downloadFileRouter from './apis/download-file';
 
 class UploadRoute implements Route {
   public path = '/uploads';
@@ -20,7 +16,15 @@ class UploadRoute implements Route {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: uploadStatsRouter } = await import('./apis/upload-stats');
+    const { default: createUploadRouter } = await import('./apis/create-upload');
+    const { default: getUploadsRouter } = await import('./apis/get-uploads');
+    const { default: updateUploadRouter } = await import('./apis/update-upload');
+    const { default: deleteUploadRouter } = await import('./apis/delete-upload');
+    const { default: downloadFileRouter } = await import('./apis/download-file');
+
     // Mount all upload routes
     // Note: stats must be before /:id routes to match /stats correctly
     this.router.use(this.path, uploadStatsRouter);
@@ -32,4 +36,23 @@ class UploadRoute implements Route {
   }
 }
 
+// Main route export
 export default UploadRoute;
+
+// Individual API routes
+
+// Shared resources - SAFE to export
+export {
+  uploads,
+  uploadStatuses,
+  type UploadStatus,
+  type Upload as DrizzleUpload,
+  type NewUpload,
+} from './shared/upload.schema';
+export {
+  type Upload,
+  type UploadUpdateInput,
+  type UploadStats,
+  convertUpload,
+} from './shared/interface';
+export { findUploadById, findUploadByIdAdmin } from './shared/queries';

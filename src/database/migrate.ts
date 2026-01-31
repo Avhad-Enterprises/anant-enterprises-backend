@@ -5,16 +5,16 @@ const nodeEnv = loadEnv();
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
-import { logger } from '../utils/logger';
-import { getDatabaseUrl, getMaskedDatabaseUrl } from '../utils/dbUrl';
+import { logger } from '../utils';
+import { getDatabaseUrl, getMaskedDatabaseUrl } from '../utils';
 
 /**
  * Run database migrations
  * This applies all pending migrations to the database
- * 
+ *
  * Usage:
  *   npm run db:migrate:dev   - Migrate development database
- *   npm run db:migrate:test  - Migrate test database  
+ *   npm run db:migrate:test  - Migrate test database
  *   npm run db:migrate:prod  - Migrate production database
  */
 async function runMigrations() {

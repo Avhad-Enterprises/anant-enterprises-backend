@@ -3,7 +3,7 @@
  */
 
 import * as inviteQueries from '../../shared/queries';
-import { InvitationStatus, Invitation } from '../../shared/schema';
+import { InvitationStatus, Invitation } from '../../shared/admin-invite.schema';
 import { IInvitation } from '../../shared/interface';
 
 // Mock dependencies
@@ -36,11 +36,11 @@ describe('Get Invitations Business Logic', () => {
       email: 'john.doe@example.com',
       invite_token: 'token1',
       status: 'pending',
-      assigned_role: 'scientist',
+      assigned_role_id: '550e8400-e29b-41d4-a716-446655440001',
       temp_password_encrypted: 'encrypted_password_1',
       password_hash: 'hashedPassword1',
       verify_attempts: 0,
-      invited_by: 1,
+      invited_by: '1',
       expires_at: new Date('2024-01-02'),
       accepted_at: null,
       created_at: new Date('2024-01-01'),
@@ -56,11 +56,11 @@ describe('Get Invitations Business Logic', () => {
       email: 'jane.smith@example.com',
       invite_token: 'token2',
       status: 'accepted',
-      assigned_role: 'researcher',
+      assigned_role_id: '550e8400-e29b-41d4-a716-446655440002',
       temp_password_encrypted: 'encrypted_password_2',
       password_hash: 'hashedPassword2',
       verify_attempts: 0,
-      invited_by: 1,
+      invited_by: '1',
       expires_at: new Date('2024-01-02'),
       accepted_at: new Date('2024-01-01T12:00:00'),
       created_at: new Date('2024-01-01'),
@@ -208,7 +208,7 @@ describe('Get Invitations Business Logic', () => {
       expect(result.invitations[0]).toHaveProperty('last_name');
       expect(result.invitations[0]).toHaveProperty('email');
       expect(result.invitations[0]).toHaveProperty('status');
-      expect(result.invitations[0]).toHaveProperty('assigned_role');
+      expect(result.invitations[0]).toHaveProperty('assigned_role_id');
     });
 
     it('should combine filters and pagination', async () => {

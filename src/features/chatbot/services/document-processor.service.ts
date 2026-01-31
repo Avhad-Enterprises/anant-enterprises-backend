@@ -9,9 +9,9 @@
  */
 
 import mammoth from 'mammoth';
-import { logger } from '../../../utils/logger';
-import HttpException from '../../../utils/httpException';
-import { downloadAsBuffer } from '../../../utils/s3Upload';
+import { logger } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { downloadFromStorageAsBuffer } from '../../../utils/supabaseStorage';
 
 // pdfjs-dist is ESM-only in v5+, use dynamic import
 let pdfjsLib: typeof import('pdfjs-dist') | null = null;
@@ -33,8 +33,8 @@ export async function extractTextFromDocument(filePath: string, mimeType: string
   try {
     logger.info(`📄 Extracting text from document: ${filePath} (${mimeType})`);
 
-    // Download file from S3
-    const fileBuffer = await downloadAsBuffer(filePath);
+    // Download file from Supabase Storage
+    const fileBuffer = await downloadFromStorageAsBuffer(filePath);
 
     let text: string;
 
@@ -129,7 +129,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
       // Combine text items
       const pageText = textContent.items
-        .map((item: any) => item.str)
+        .map((item: unknown) => (item as { str: string }).str)
         .join(' ');
 
       textParts.push(pageText);
@@ -170,13 +170,15 @@ async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
  * Clean extracted text
  */
 function cleanText(text: string): string {
-  return text
-    // Normalize whitespace
-    .replace(/\s+/g, ' ')
-    // Remove excessive newlines
-    .replace(/\n{3,}/g, '\n\n')
-    // Trim
-    .trim();
+  return (
+    text
+      // Normalize whitespace
+      .replace(/\s+/g, ' ')
+      // Remove excessive newlines
+      .replace(/\n{3,}/g, '\n\n')
+      // Trim
+      .trim()
+  );
 }
 
 // Re-export utility functions for backwards compatibility

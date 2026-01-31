@@ -27,7 +27,9 @@ describe('Document Processor Service - Pure Functions', () => {
       });
 
       it('should accept DOCX files', () => {
-        expect(isValidFileType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe(true);
+        expect(
+          isValidFileType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        ).toBe(true);
       });
     });
 
@@ -49,7 +51,9 @@ describe('Document Processor Service - Pure Functions', () => {
       });
 
       it('should reject Excel files', () => {
-        expect(isValidFileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe(false);
+        expect(
+          isValidFileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ).toBe(false);
       });
 
       it('should reject old Word format (.doc)', () => {
@@ -135,7 +139,11 @@ describe('Document Processor Service - Pure Functions', () => {
       });
 
       it('should return .docx for DOCX MIME type', () => {
-        expect(getExtensionFromMimeType('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe('.docx');
+        expect(
+          getExtensionFromMimeType(
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          )
+        ).toBe('.docx');
       });
     });
 

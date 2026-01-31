@@ -9,11 +9,16 @@
 
 import { createGroq } from '@ai-sdk/groq';
 import { generateText } from 'ai';
-import { logger } from '../../../utils/logger';
-import HttpException from '../../../utils/httpException';
+import { logger } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { config } from '../../../utils/validateEnv';
 import { chatbotConfig } from '../config/chatbot.config';
-import { searchDocuments, buildContextFromResults, extractSourceReferences, hasDocuments } from './search.service';
+import {
+  searchDocuments,
+  buildContextFromResults,
+  extractSourceReferences,
+  hasDocuments,
+} from './search.service';
 import { MessageSource } from '../shared/interface';
 
 const { llm: llmConfig, chat: chatConfig } = chatbotConfig;
@@ -41,7 +46,8 @@ export async function generateChatResponse(
 
     if (!documentsExist) {
       return {
-        message: "I don't have any documents to reference yet. Please ask an administrator to upload some documents first, and then I'll be able to help answer your questions based on that content.",
+        message:
+          "I don't have any documents to reference yet. Please ask an administrator to upload some documents first, and then I'll be able to help answer your questions based on that content.",
         sources: [],
       };
     }

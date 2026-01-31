@@ -19,38 +19,22 @@ services:
     env_file: ../.env.dev
     environment:
       NODE_ENV: development
-      RUNNING_IN_DOCKER: "true"
+      RUNNING_IN_DOCKER: 'true'
+      # Override connection strings to use host.docker.internal for host machine access
+      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
+      SUPABASE_URL: http://host.docker.internal:54321
+      REDIS_HOST: redis
     ports:
-      - "8000:8000"
+      - '8001:8000'
     volumes:
       - ../src:/app/src:ro
       - ../logs:/app/logs
+    extra_hosts:
+      # Allow container to access services on host machine
+      - 'host.docker.internal:host-gateway'
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - anant-enterprises-dev
-    restart: unless-stopped
-
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: anant-postgres-dev
-    environment:
-      POSTGRES_DB: anant_dev
-      POSTGRES_USER: dev_user
-      POSTGRES_PASSWORD: dev_password
-    ports:
-      - "5434:5432"
-    volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U dev_user -d anant_dev" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
     networks:
       - anant-enterprises-dev
     restart: unless-stopped
@@ -60,22 +44,20 @@ services:
     image: redis:7-alpine
     container_name: anant-redis-dev
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_dev_data:/data
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 5s
-      timeout: 3s
-      retries: 3
     networks:
       - anant-enterprises-dev
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
-  postgres_dev_data:
   redis_dev_data:
-
 
 networks:
   anant-enterprises-dev:

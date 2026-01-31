@@ -8,12 +8,12 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
+import { requireAuth } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
 import { getSessionByIdForUser, deleteSession } from '../shared/queries';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Params schema
 const paramsSchema = z.object({
@@ -23,7 +23,7 @@ const paramsSchema = z.object({
 /**
  * Delete session handler
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { id } = paramsSchema.parse(req.params);
 
@@ -37,10 +37,13 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
   // Delete session (also deletes messages due to cascade in deleteSession)
   await deleteSession(id, userId);
 
+  // Invalidate user's session cache
+  await chatbotCacheService.invalidateUserSessions(userId);
+
   logger.info(`✅ Session ${id} deleted by user ${userId}`);
 
   ResponseFormatter.noContent(res);
-});
+};
 
 const router = Router();
 

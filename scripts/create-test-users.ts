@@ -1,23 +1,26 @@
 /**
  * Test Users Creation Script
  *
- * This script creates test users for the remaining roles:
- * - Scientist: scientist@example.test / scientist123
- * - Researcher: researcher@example.test / researcher123
- * - Policymaker: policymaker@example.test / policymaker123
+ * This script creates test users for different roles:
+ * - Regular User: user@gmail.com / 12345678 (role: user)
+ * - Admin User: admin2@gmail.com / 12345678 (role: admin)
+ * - Super Admin: superadmin@gmail.com / 12345678 (role: superadmin)
  *
  * Usage:
- * - npx tsx scripts/create-test-users.ts
+ * - npm run create-test-users
+ * - or: npx tsx scripts/create-test-users.ts
  *
  * The script will:
  * 1. Check if test users already exist
  * 2. Create missing test users with hashed passwords
  * 3. Display created user details
  *
- * Environment Requirements:
- * - DATABASE_URL environment variable must be set
+ * Prerequisites:
  * - Database must be running and accessible
- * - Admin user should exist (created_by reference)
+ * - DATABASE_URL environment variable must be set
+ * - RBAC roles must be seeded first (run: npm run db:seed)
+ * - Admin user should exist (run: npm run create-admin)
+ *   The script uses an existing admin user as the creator reference
  */
 
 import dotenv from 'dotenv';
@@ -25,15 +28,13 @@ import { Pool } from 'pg';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import bcrypt from 'bcrypt';
-
-// Load environment-specific .env file FIRST
 const nodeEnv = process.env.NODE_ENV || 'development';
 if (nodeEnv === 'development') {
   dotenv.config({ path: '.env.dev' });
 } else if (nodeEnv === 'production') {
   dotenv.config({ path: '.env.prod' });
 } else if (nodeEnv === 'test') {
-  dotenv.config({ path: '.env.test' });
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
 }
 dotenv.config();
 
@@ -52,33 +53,28 @@ function getDatabaseUrl(): string {
   return dbUrl;
 }
 
-// Import schema after env is configured
-import { users } from '../src/features/user/shared/schema';
+// Import schemas after env is configured
+import { users } from '../src/features/user';
+import { roles, userRoles } from '../src/features/rbac';
 
 const TEST_USERS = [
   {
-    name: 'Scientist User',
-    email: 'scientist@gmail.com',
+    name: 'Regular User',
+    email: 'user@gmail.com',
     password: '12345678',
-    role: 'scientist' as const,
+    role: 'user' as const,
   },
   {
-    name: 'Researcher User',
-    email: 'researcher@gmail.com',
+    name: 'Admin User',
+    email: 'admin2@gmail.com',
     password: '12345678',
-    role: 'researcher' as const,
+    role: 'admin' as const,
   },
   {
-    name: 'Policymaker User',
-    email: 'policymaker@gmail.com',
+    name: 'Super Admin User',
+    email: 'superadmin@gmail.com',
     password: '12345678',
-    role: 'policymaker' as const,
-  },
-  {
-    name: 'Field Technician User',
-    email: 'fieldtech@gmail.com',
-    password: '12345678',
-    role: 'field_technician' as const,
+    role: 'superadmin' as const,
   },
 ];
 
@@ -100,16 +96,23 @@ async function createTestUsers() {
     client.release();
     console.log('✅ Database connected');
 
-    // Get admin user ID for created_by reference
-    const [adminUser] = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(and(eq(users.role, 'admin'), eq(users.is_deleted, false)))
+    // Get admin user ID for created_by reference via RBAC
+    const [adminUserRole] = await db
+      .select({ user_id: userRoles.user_id })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.role_id, roles.id))
+      .where(and(eq(roles.name, 'admin'), eq(roles.is_deleted, false)))
       .limit(1);
 
-    if (!adminUser) {
-      throw new Error('Admin user not found. Please run create-admin.ts first.');
+    if (!adminUserRole) {
+      throw new Error(
+        'Admin user not found.\n' +
+          'Please run: npm run create-admin\n' +
+          'This will create an admin user that can be used as the creator reference.'
+      );
     }
+
+    const adminUser = { id: adminUserRole.user_id };
 
     console.log(`👤 Using admin user ID ${adminUser.id} as creator reference`);
 
@@ -135,28 +138,56 @@ async function createTestUsers() {
       console.log(`🔐 Hashing password for ${userData.role}...`);
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-      // Create test user
+      // Create test user (no role column)
       console.log(`📝 Creating ${userData.role} user...`);
 
-      const result = await pool.query(`
-        INSERT INTO users (name, email, password, role, created_by)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, name, email, role, created_at
-      `, [userData.name, userData.email, hashedPassword, userData.role, adminUser.id]);
+      const result = await pool.query(
+        `
+        INSERT INTO users (name, email, password, created_by)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, email, created_at
+      `,
+        [userData.name, userData.email, hashedPassword, adminUser.id]
+      );
 
       const newUser = result.rows[0];
+
+      // Get role ID from RBAC
+      const [roleRecord] = await db
+        .select()
+        .from(roles)
+        .where(eq(roles.name, userData.role))
+        .limit(1);
+
+      if (!roleRecord) {
+        throw new Error(
+          `Role '${userData.role}' not found in RBAC system.\n` +
+            'Please run the following commands first:\n' +
+            '  1. npm run db:migrate (to create tables)\n' +
+            '  2. npm run db:seed (to seed RBAC roles and permissions)'
+        );
+      }
+
+      // Assign role via RBAC
+      await db
+        .insert(userRoles)
+        .values({
+          user_id: newUser.id,
+          role_id: roleRecord.id,
+          assigned_by: adminUser.id,
+        })
+        .onConflictDoNothing();
 
       console.log(`✅ ${userData.role} user created successfully!`);
       console.log(`   ID: ${newUser.id}`);
       console.log(`   Name: ${newUser.name}`);
       console.log(`   Email: ${newUser.email}`);
-      console.log(`   Role: ${newUser.role}`);
+      console.log(`   Role: ${userData.role} (assigned via RBAC)`);
       console.log(`   Created at: ${newUser.created_at}`);
       console.log(`   Login credentials: ${userData.email} / ${userData.password}`);
     }
 
     console.log('\n🎉 All test users processed successfully!');
-
   } catch (error) {
     console.error('❌ Error creating test users:', error);
     throw error;
@@ -172,7 +203,7 @@ createTestUsers()
     console.log('✅ Script completed successfully');
     process.exit(0);
   })
-  .catch((error) => {
+  .catch(error => {
     console.error('❌ Script failed:', error.message);
     process.exit(1);
   });

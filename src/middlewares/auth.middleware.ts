@@ -1,11 +1,16 @@
 import { NextFunction, Response, Request } from 'express';
-import HttpException from '../utils/httpException';
-import { logger } from '../utils/logger';
-import { DataStoredInToken } from '../interfaces/request.interface';
-import { verifyToken } from '../utils/jwt';
+import { HttpException } from '../utils';
+import { logger } from '../utils';
+import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
+import { db } from '../database';
+import { users } from '../features/user/shared/user.schema';
+import { eq } from 'drizzle-orm';
+import * as crypto from 'crypto';
+import { redisClient } from '../utils/database/redis';
 
 /**
- * Authentication middleware - requires valid JWT token
+ * Authentication middleware - requires valid Supabase JWT token
+ * Verifies the token and attaches the user ID (integer) to the request
  */
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -35,48 +40,80 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(new HttpException(401, 'Authentication required. No token provided.'));
     }
 
-    const verificationResponse = verifyToken(token);
+    // Verify Supabase JWT token
+    const authUser = await verifySupabaseToken(token);
 
-    // Validate token payload structure
-    if (typeof verificationResponse === 'string') {
-      logger.warn('Authentication failed: Invalid token payload structure', {
+    if (!authUser) {
+      logger.warn('Authentication failed: Invalid Supabase token', {
         ip: clientIP,
         userAgent,
         url: req.originalUrl,
         method: req.method,
       });
-      return next(new HttpException(401, 'Invalid token payload'));
+      return next(new HttpException(401, 'Invalid or expired token'));
     }
 
-    const decoded = verificationResponse as DataStoredInToken;
+    // Get the public.users record via auth_id (UUID from Supabase)
+    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
 
-    // Validate required fields exist
-    if (!decoded.id || !decoded.role) {
-      logger.warn('Authentication failed: Missing required token fields', {
+    if (!publicUser[0]) {
+      logger.warn('Authentication failed: User sync not found', {
         ip: clientIP,
         userAgent,
         url: req.originalUrl,
         method: req.method,
-        decodedFields: Object.keys(decoded),
       });
-      return next(new HttpException(401, 'Invalid token payload'));
+      return next(new HttpException(401, 'User not found'));
     }
 
-    // Attach user information to request
-    req.userId = decoded.id;
-    req.userRole = decoded.role;
+    // Check if user is soft-deleted
+    if (publicUser[0].is_deleted) {
+      logger.warn('Authentication failed: User account is deleted', {
+        ip: clientIP,
+        userAgent,
+        url: req.originalUrl,
+        method: req.method,
+      });
+      return next(new HttpException(401, 'User account has been deleted'));
+    }
+
+    // Attach user information to request (use integer ID for RBAC)
+    req.userId = publicUser[0].id;
     req.userAgent = userAgent;
     req.clientIP = clientIP;
 
     // Log successful authentication
     logger.info('Authentication successful', {
-      userId: decoded.id,
-      userRole: decoded.role,
+      userId: publicUser[0].id,
       ip: clientIP,
       userAgent: userAgent.substring(0, 100), // Truncate for logging
       url: req.originalUrl,
       method: req.method,
     });
+
+    // --- Session Tracking (Redis) ---
+    try {
+      if (redisClient.isReady) {
+        // Create a unique session ID based on the JWT signature (or whole token)
+        // Using hash to keep keys short and secure
+        const sessionHash = crypto.createHash('sha256').update(token).digest('hex');
+        const sessionKey = `session:${req.userId}:${sessionHash}`;
+
+        const sessionData = {
+          ip: clientIP,
+          userAgent: userAgent,
+          lastActive: new Date().toISOString(),
+          // We can add more metadata if needed
+        };
+
+        // Store session in Redis with 7 days expiry (refreshing TTL on activity)
+        await redisClient.set(sessionKey, JSON.stringify(sessionData), { EX: 60 * 60 * 24 * 7 });
+      }
+    } catch (sessionError) {
+      // Non-blocking error logging for session tracking
+      logger.error('Failed to track session in Redis:', sessionError);
+    }
+    // --------------------------------
 
     next();
   } catch (error) {
@@ -94,21 +131,58 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       return next(error);
     }
 
-    // Handle specific JWT errors
-    if (error instanceof Error && error.name === 'TokenExpiredError') {
-      return next(new HttpException(401, 'Token expired'));
+    return next(new HttpException(500, 'Authentication error'));
+  }
+};
+
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers['authorization'];
+
+    // If no auth header, just continue as anonymous
+    // The endpoint will handle the case of missing user
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
     }
 
-    if (error instanceof Error && error.name === 'JsonWebTokenError') {
-      return next(new HttpException(401, 'Invalid token'));
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    if (!token || token === 'null') {
+      return next();
     }
 
-    if (error instanceof Error && error.name === 'NotBeforeError') {
-      return next(new HttpException(401, 'Token not active'));
+    // Verify Supabase JWT token
+    const authUser = await verifySupabaseToken(token);
+
+    if (!authUser) {
+      // If token provided but invalid, we could either:
+      // 1. Return 401 (strict)
+      // 2. Continue as guest (permissive)
+      // Choosing strict to help frontend detect expired sessions
+      return next(new HttpException(401, 'Invalid or expired token'));
     }
 
-    // Generic auth error for other cases
-    next(new HttpException(401, 'Authentication failed'));
+    // Get the public.users record
+    const publicUser = await db.select().from(users).where(eq(users.auth_id, authUser.id)).limit(1);
+
+    if (!publicUser[0]) {
+      return next(new HttpException(401, 'User not found'));
+    }
+
+    if (publicUser[0].is_deleted) {
+      return next(new HttpException(401, 'User account has been deleted'));
+    }
+
+    // Attach user information
+    req.userId = publicUser[0].id;
+    req.userAgent = req.headers['user-agent'] || 'Unknown';
+    req.clientIP = req.ip || req.connection?.remoteAddress || 'Unknown';
+
+    next();
+  } catch (error) {
+    // On error, we'll fail safe to 401 if a token was attempted but failed hard
+    logger.warn('Optional auth error:', { error });
+    return next(new HttpException(401, 'Authentication error'));
   }
 };
 

@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { z } from 'zod';
-import HttpException from '../utils/httpException';
-import { logger } from '../utils/logger';
+import { HttpException } from '../utils';
+import { logger } from '../utils';
 
 type ValidationTarget = 'body' | 'query' | 'params';
 
@@ -38,19 +38,29 @@ const validationMiddleware = (
 
       // Replace the request property with the validated and sanitized data
       // Use Object.defineProperty for query/params as they might be readonly
-      if (target === 'query' || target === 'params') {
+      // Attempt to assign the validated data back to the request object
+      try {
+        // Attempt to redefine the property if it exists
         Object.defineProperty(req, target, {
           value: result.data,
           writable: true,
           enumerable: true,
           configurable: true,
         });
-      } else {
-        req[target] = result.data;
+      } catch (error) {
+        // Critical error - cannot apply validated data
+        logger.error(`Failed to apply validated data to req.${target}`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          target,
+          path: req.path,
+          requestId: req.requestId,
+        });
+        return next(new HttpException(500, 'Validation application failed'));
       }
 
       next();
-    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       // Log unexpected validation errors
       logger.error('Validation middleware error:', {
         error: error instanceof Error ? error.message : 'Unknown error',

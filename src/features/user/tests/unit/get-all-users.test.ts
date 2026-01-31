@@ -3,7 +3,7 @@
  * Tests database query behavior through mocked Drizzle ORM
  */
 
-import { db } from '../../../../database/drizzle';
+import { db } from '../../../../database';
 import { IUser } from '../../shared/interface';
 
 // Mock dependencies - properly mock the full query chain
@@ -30,14 +30,14 @@ interface PaginatedUsers {
 async function getAllUsers(page: number = 1, limit: number = 20): Promise<PaginatedUsers> {
   const _offset = (page - 1) * limit;
   void _offset;
-  
+
   // First call: get total count
   const countResult = await (db.select as any)();
   const total = countResult?.[0]?.total ?? 0;
-  
+
   // Second call: get paginated users
   const allUsers = await (db.select as any)();
-  
+
   return {
     users: allUsers as IUser[],
     total,
@@ -49,34 +49,46 @@ async function getAllUsers(page: number = 1, limit: number = 20): Promise<Pagina
 describe('Get All Users Business Logic', () => {
   const mockUsers: IUser[] = [
     {
-      id: 1,
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      user_type: 'individual',
       name: 'Admin User',
       email: 'admin@example.com',
       password: 'hashedPassword1',
+      email_verified: true,
       phone_number: '1234567890',
-      role: 'admin',
-      created_by: 1,
+      phone_verified: false,
+      gender: 'male',
+      preferred_language: 'en',
+      preferred_currency: 'USD',
+      timezone: 'UTC',
+      created_by: '550e8400-e29b-41d4-a716-446655440001',
       created_at: new Date('2024-01-01'),
-      updated_by: null as any,
+      updated_by: null,
       updated_at: new Date('2024-01-01'),
       is_deleted: false,
-      deleted_by: null as any,
-      deleted_at: null as any,
+      deleted_by: null,
+      deleted_at: undefined,
     },
     {
-      id: 2,
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      user_type: 'business',
       name: 'Scientist User',
       email: 'scientist@example.com',
       password: 'hashedPassword2',
+      email_verified: false,
       phone_number: '0987654321',
-      role: 'scientist',
-      created_by: 1,
+      phone_verified: true,
+      gender: 'female',
+      preferred_language: 'en',
+      preferred_currency: 'EUR',
+      timezone: 'UTC',
+      created_by: '550e8400-e29b-41d4-a716-446655440001',
       created_at: new Date('2024-01-02'),
-      updated_by: null as any,
+      updated_by: null,
       updated_at: new Date('2024-01-02'),
       is_deleted: false,
-      deleted_by: null as any,
-      deleted_at: null as any,
+      deleted_by: null,
+      deleted_at: undefined,
     },
   ];
 
@@ -101,9 +113,7 @@ describe('Get All Users Business Logic', () => {
     });
 
     it('should return empty users array when no users exist', async () => {
-      (mockDb.select as jest.Mock)
-        .mockResolvedValueOnce([{ total: 0 }])
-        .mockResolvedValueOnce([]);
+      (mockDb.select as jest.Mock).mockResolvedValueOnce([{ total: 0 }]).mockResolvedValueOnce([]);
 
       const result = await getAllUsers();
 
@@ -121,34 +131,41 @@ describe('Get All Users Business Logic', () => {
       expect(result.users[0]).toHaveProperty('id');
       expect(result.users[0]).toHaveProperty('name');
       expect(result.users[0]).toHaveProperty('email');
-      expect(result.users[0]).toHaveProperty('role');
+      expect(result.users[0]).toHaveProperty('user_type');
       expect(result.users[0]).toHaveProperty('created_at');
       expect(result.users[0]).toHaveProperty('is_deleted');
     });
 
-    it('should return users with different roles', async () => {
-      const usersWithDifferentRoles: IUser[] = [
-        { ...mockUsers[0], role: 'admin' },
-        { ...mockUsers[1], role: 'scientist' },
-        { ...mockUsers[0], id: 3, role: 'researcher', email: 'researcher@example.com' },
-        { ...mockUsers[0], id: 4, role: 'policymaker', email: 'policymaker@example.com' },
+    it('should return users with different user types', async () => {
+      const usersWithDifferentTypes: IUser[] = [
+        { ...mockUsers[0], user_type: 'individual' },
+        { ...mockUsers[1], user_type: 'business' },
+        {
+          ...mockUsers[0],
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          user_type: 'individual',
+          email: 'researcher@example.com',
+        },
+        {
+          ...mockUsers[0],
+          id: '550e8400-e29b-41d4-a716-446655440004',
+          user_type: 'business',
+          email: 'policymaker@example.com',
+        },
       ];
       (mockDb.select as jest.Mock)
         .mockResolvedValueOnce([{ total: 4 }])
-        .mockResolvedValueOnce(usersWithDifferentRoles);
+        .mockResolvedValueOnce(usersWithDifferentTypes);
 
       const result = await getAllUsers();
 
       expect(result.users).toHaveLength(4);
-      expect(result.users.map((u: IUser) => u.role)).toContain('admin');
-      expect(result.users.map((u: IUser) => u.role)).toContain('scientist');
-      expect(result.users.map((u: IUser) => u.role)).toContain('researcher');
-      expect(result.users.map((u: IUser) => u.role)).toContain('policymaker');
+      expect(result.users.map((u: IUser) => u.user_type)).toContain('individual');
+      expect(result.users.map((u: IUser) => u.user_type)).toContain('business');
     });
 
     it('should handle database errors gracefully', async () => {
-      (mockDb.select as jest.Mock)
-        .mockRejectedValue(new Error('Database connection failed'));
+      (mockDb.select as jest.Mock).mockRejectedValue(new Error('Database connection failed'));
 
       await expect(getAllUsers()).rejects.toThrow('Database connection failed');
     });
@@ -166,9 +183,7 @@ describe('Get All Users Business Logic', () => {
     });
 
     it('should handle null count result', async () => {
-      (mockDb.select as jest.Mock)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      (mockDb.select as jest.Mock).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
       const result = await getAllUsers();
 

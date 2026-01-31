@@ -8,14 +8,14 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { requireRole } from '../../../middlewares/role.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
+import { requireAuth } from '../../../middlewares';
+import { requirePermission } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
 import { getDocumentById, deleteDocument } from '../shared/queries';
 import { deleteDocumentVectors } from '../services/vector.service';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
 
 // Params schema
 const paramsSchema = z.object({
@@ -25,7 +25,7 @@ const paramsSchema = z.object({
 /**
  * Delete document handler
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { id } = paramsSchema.parse(req.params);
 
@@ -51,14 +51,17 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
   // Soft delete the document
   await deleteDocument(id, userId);
 
+  // Invalidate document caches
+  await chatbotCacheService.invalidateDocuments();
+
   logger.info(`✅ Document ${id} deleted by user ${userId}`);
 
   ResponseFormatter.noContent(res);
-});
+};
 
 const router = Router();
 
 // DELETE /api/chatbot/documents/:id - Delete document (admin only)
-router.delete('/documents/:id', requireAuth, requireRole('admin'), handler);
+router.delete('/documents/:id', requireAuth, requirePermission('chatbot:documents'), handler);
 
 export default router;

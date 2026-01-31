@@ -3,32 +3,44 @@
  * Upload file to S3 and create record (Requires auth)
  */
 
-import { Router, Response, Request } from 'express';
+import { Router, Response, Request, NextFunction } from 'express';
 // Import to ensure global Express interface extension is loaded
 import '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
-import { uploadSingleFileMiddleware } from '../../../middlewares/upload.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler, getUserId } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { uploadToS3 } from '../../../utils/s3Upload';
-import { db } from '../../../database/drizzle';
-import { uploads } from '../shared/schema';
+import { requireAuth } from '../../../middlewares';
+import { uploadSingleFileMiddleware } from '../../../middlewares';
+import { ResponseFormatter } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { uploadToStorage } from '../../../utils/supabaseStorage';
+import { db } from '../../../database';
+import { uploads } from '../shared/upload.schema';
 import { Upload } from '../shared/interface';
 
-async function handleCreateUpload(file: Express.Multer.File, userId: number): Promise<Upload> {
-  const s3Result = await uploadToS3(file.buffer, file.originalname, file.mimetype, userId);
+async function handleCreateUpload(
+  file: Express.Multer.File,
+  userId: string,
+  folder?: string
+): Promise<Upload> {
+  const storageResult = await uploadToStorage(
+    file.buffer,
+    file.originalname,
+    file.mimetype,
+    userId,
+    folder ? { folder } : undefined
+  );
 
-  const [upload] = await db.insert(uploads).values({
-    filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
-    original_filename: file.originalname,
-    mime_type: file.mimetype,
-    file_size: file.size,
-    file_path: s3Result.key,
-    file_url: s3Result.url,
-    user_id: userId,
-    created_by: userId,
-  }).returning();
+  const [upload] = await db
+    .insert(uploads)
+    .values({
+      filename: file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_'),
+      original_filename: file.originalname,
+      mime_type: file.mimetype,
+      file_size: file.size,
+      file_path: storageResult.key,
+      file_url: storageResult.url,
+      user_id: userId,
+      created_by: userId,
+    })
+    .returning();
 
   if (!upload) {
     throw new HttpException(500, 'Failed to create upload record');
@@ -39,21 +51,34 @@ async function handleCreateUpload(file: Express.Multer.File, userId: number): Pr
     created_at: upload.created_at.toISOString(),
     updated_at: upload.updated_at.toISOString(),
     deleted_at: upload.deleted_at?.toISOString(),
+    // Include thumbnail URLs if available
+    thumbnail_path: storageResult.thumbnailKey,
+    thumbnail_url: storageResult.thumbnailUrl,
   } as Upload;
 }
 
-const handler = asyncHandler(async (req: Request, res: Response) => {
-  const userId = getUserId(req);
-  const file = req.file;
+const handler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      throw new HttpException(401, 'User authentication required');
+    }
+    const file = req.file;
 
-  if (!file) {
-    throw new HttpException(400, 'No file uploaded');
+    if (!file) {
+      throw new HttpException(400, 'No file uploaded');
+    }
+
+    // Extract optional folder from request body (sent with FormData)
+    const folder = req.body?.folder as string | undefined;
+
+    const upload = await handleCreateUpload(file, userId, folder);
+
+    ResponseFormatter.created(res, upload, 'File uploaded successfully');
+  } catch (error) {
+    next(error);
   }
-
-  const upload = await handleCreateUpload(file, userId);
-
-  ResponseFormatter.created(res, upload, 'File uploaded successfully');
-});
+};
 
 const router = Router();
 router.post('/', requireAuth, uploadSingleFileMiddleware, handler);

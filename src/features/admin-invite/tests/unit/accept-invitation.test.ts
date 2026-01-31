@@ -3,19 +3,22 @@
  */
 
 import bcrypt from 'bcrypt';
-import HttpException from '../../../../utils/httpException';
+import { HttpException } from '../../../../utils';
 import * as inviteQueries from '../../shared/queries';
-import * as userQueries from '../../../user/shared/queries';
+import * as userQueries from '../../../user';
+import * as rbacQueries from '../../../rbac';
 import { IInvitation } from '../../shared/interface';
 
 // Mock dependencies
 jest.mock('bcrypt');
 jest.mock('../../shared/queries');
 jest.mock('../../../user/shared/queries');
+jest.mock('../../../rbac/shared/queries');
 
 const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>;
 const mockInviteQueries = inviteQueries as jest.Mocked<typeof inviteQueries>;
 const mockUserQueries = userQueries as jest.Mocked<typeof userQueries>;
+const mockRbacQueries = rbacQueries as jest.Mocked<typeof rbacQueries>;
 
 interface AcceptInvitationDto {
   token: string;
@@ -45,13 +48,22 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto): Promise<
 
   const hashedPassword = await bcrypt.hash(acceptData.password, 12);
 
-  await userQueries.createUser({
-    name: `${invitation.first_name} ${invitation.last_name}`,
+  const newUser = await userQueries.createUser({
+    name: invitation.first_name,
+    last_name: invitation.last_name,
     email: invitation.email,
     password: hashedPassword,
-    role: invitation.assigned_role || 'scientist',
     created_by: invitation.invited_by,
   });
+
+  // Assign role via RBAC system if specified
+  if (invitation.assigned_role_id) {
+    await rbacQueries.assignRoleToUser(
+      newUser.id,
+      invitation.assigned_role_id,
+      invitation.invited_by
+    );
+  }
 
   const updatedInvitation = await inviteQueries.updateInvitation(invitation.id, {
     status: 'accepted',
@@ -69,9 +81,11 @@ describe('Accept Invitation Business Logic', () => {
     email: 'john.doe@example.com',
     invite_token: 'validtoken123',
     status: 'pending' as const,
-    assigned_role: 'scientist' as const,
-    password: 'hashedTempPassword',
-    invited_by: 1,
+    assigned_role_id: '550e8400-e29b-41d4-a716-446655440001', // ID of 'user' role
+    temp_password_encrypted: 'encryptedTempPassword',
+    password_hash: 'hashedTempPassword',
+    verify_attempts: 0,
+    invited_by: '1',
     expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     accepted_at: null,
     created_at: new Date('2024-01-01'),
@@ -88,13 +102,20 @@ describe('Accept Invitation Business Logic', () => {
   };
 
   const mockCreatedUser = {
-    id: 1,
+    id: '1',
+    auth_id: 'test-auth-id',
+    user_type: 'individual' as const,
     name: 'John Doe',
     email: 'john.doe@example.com',
     password: 'hashedPassword',
     phone_number: null,
-    role: 'scientist' as const,
-    created_by: 1,
+    phone_country_code: null,
+    phone_verified: false,
+    is_active: true,
+    is_verified: false,
+    last_login_at: null,
+    metadata: null,
+    created_by: '1',
     created_at: new Date(),
     updated_by: null,
     updated_at: new Date(),
@@ -106,7 +127,7 @@ describe('Accept Invitation Business Logic', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (mockBcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-    mockUserQueries.createUser.mockResolvedValue(mockCreatedUser);
+    mockUserQueries.createUser.mockResolvedValue(mockCreatedUser as any);
     mockInviteQueries.updateInvitation.mockResolvedValue(mockAcceptedInvitation);
   });
 
@@ -189,7 +210,7 @@ describe('Accept Invitation Business Logic', () => {
 
     it('should throw 409 if user already exists', async () => {
       mockInviteQueries.findInvitationByToken.mockResolvedValue(mockInvitation);
-      mockUserQueries.findUserByEmail.mockResolvedValue(mockCreatedUser);
+      mockUserQueries.findUserByEmail.mockResolvedValue(mockCreatedUser as any);
 
       await expect(
         handleAcceptInvitation({ token: 'validtoken123', password: 'password123' })
@@ -225,39 +246,42 @@ describe('Accept Invitation Business Logic', () => {
       );
     });
 
-    it('should use assigned role from invitation', async () => {
-      const adminInvitation = { ...mockInvitation, assigned_role: 'admin' as const };
+    it('should assign role via RBAC when assigned_role_id is provided', async () => {
+      const adminInvitation = {
+        ...mockInvitation,
+        assigned_role_id: '550e8400-e29b-41d4-a716-446655440002',
+      }; // admin role ID
       mockInviteQueries.findInvitationByToken.mockResolvedValue(adminInvitation);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'admin' })
+      expect(mockRbacQueries.assignRoleToUser).toHaveBeenCalledWith(
+        '1',
+        '550e8400-e29b-41d4-a716-446655440002',
+        '1'
       );
     });
 
-    it('should default to scientist role if not specified', async () => {
-      const noRoleInvitation = { ...mockInvitation, assigned_role: null };
+    it('should not assign role if assigned_role_id is null', async () => {
+      const noRoleInvitation = { ...mockInvitation, assigned_role_id: null };
       mockInviteQueries.findInvitationByToken.mockResolvedValue(noRoleInvitation);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
-      expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ role: 'scientist' })
-      );
+      expect(mockRbacQueries.assignRoleToUser).not.toHaveBeenCalled();
     });
 
     it('should set created_by to invited_by value', async () => {
-      const invitedBy5 = { ...mockInvitation, invited_by: 5 };
+      const invitedBy5 = { ...mockInvitation, invited_by: '5' };
       mockInviteQueries.findInvitationByToken.mockResolvedValue(invitedBy5);
       mockUserQueries.findUserByEmail.mockResolvedValue(undefined);
 
       await handleAcceptInvitation({ token: 'validtoken123', password: 'password123' });
 
       expect(mockUserQueries.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({ created_by: 5 })
+        expect.objectContaining({ created_by: '5' })
       );
     });
 

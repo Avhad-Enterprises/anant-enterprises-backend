@@ -1,14 +1,32 @@
-import rateLimit, { RateLimitExceededEventHandler } from 'express-rate-limit';
-// import RedisStore from 'rate-limit-redis';
+import rateLimit, { RateLimitExceededEventHandler, Store } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import { Request, RequestHandler } from 'express';
-import { logger } from '../utils/logger';
-// import { redisClient } from '../utils/redis';
-import { RequestWithId } from '../interfaces/request.interface';
-import { isDevelopment, isTest } from '../utils/validateEnv';
+import { logger } from '../utils/logging/logger';
+import { redisClient, isRedisReady } from '../utils/database/redis';
+import { RequestWithId } from '../interfaces';
+import { isDevelopment, isTest, isProduction } from '../utils/validateEnv';
 
-// Create Redis store for production, in-memory for development
-// Redis disabled - using in-memory store for all environments
-const createStore = () => undefined;
+/**
+ * Create rate limit store based on environment
+ * - Production: Redis store for distributed rate limiting across instances
+ * - Development/Test: In-memory store (default)
+ */
+const createStore = (): Store | undefined => {
+  // Only use Redis in production when connected
+  if (isProduction && isRedisReady()) {
+    logger.info('Using Redis store for rate limiting');
+    return new RedisStore({
+      sendCommand: (...args: string[]) => redisClient.sendCommand(args),
+      prefix: 'rl:', // Rate limit key prefix
+    });
+  }
+
+  // Development and test use in-memory store (default)
+  if (!isProduction) {
+    logger.debug('Using in-memory store for rate limiting (non-production)');
+  }
+  return undefined;
+};
 
 // Consistent error response matching error middleware structure
 const createRateLimitResponse = (message: string, retryAfter: string, requestId: string) => ({
@@ -25,27 +43,27 @@ const createRateLimitResponse = (message: string, retryAfter: string, requestId:
 // Generic rate limit handler
 const createRateLimitHandler =
   (message: string, retryAfter: string): RateLimitExceededEventHandler =>
-  (req, res) => {
-    const requestWithId = req as RequestWithId;
-    logger.warn(`Rate limit exceeded for IP: ${req.ip}`, {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      path: req.path,
-      requestId: requestWithId.requestId,
-      message,
-      retryAfter,
-    });
+    (req, res) => {
+      const requestWithId = req as RequestWithId;
+      logger.warn(`Rate limit exceeded for IP: ${req.ip}`, {
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        path: req.path,
+        requestId: requestWithId.requestId,
+        message,
+        retryAfter,
+      });
 
-    res
-      .status(429)
-      .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
-  };
+      res
+        .status(429)
+        .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
+    };
 // Skip logic for development localhost and test environment
 const skipDevOrTest = (req: Request) =>
   isTest ||
   (isDevelopment &&
     (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) ||
-  true; // TEMPORARILY DISABLE ALL RATE LIMITING
+  false; // Rate limiting ENABLED for production/staging
 
 // Auth endpoints - strict rate limiting (5 requests per 15 minutes) - PRODUCTION ONLY
 export const authRateLimit: RequestHandler = rateLimit({

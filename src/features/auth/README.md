@@ -1,8 +1,13 @@
-# Auth Feature - Frontend Integration Guide
+# Auth Feature - Supabase Authentication
 
 ## Overview
 
-The Auth feature handles user authentication including registration, login, logout, and token refresh. It uses JWT (JSON Web Tokens) for stateless authentication with support for access and refresh tokens.
+The Auth feature integrates with **Supabase Auth** for user authentication. Authentication (sign up, sign in, sign out) is handled by the **frontend** using the Supabase client library. The backend provides token verification, password reset, and user sync functionality.
+
+## Architecture
+
+- **Frontend Responsibility**: All user authentication flows using `@supabase/supabase-js`
+- **Backend Responsibility**: Token verification, password reset endpoints, user sync via middleware
 
 ## Base URL
 
@@ -12,52 +17,146 @@ The Auth feature handles user authentication including registration, login, logo
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Rate Limited |
-|----------|----------------|--------------|
-| `POST /register` | ❌ Public | ❌ No |
-| `POST /login` | ❌ Public | ❌ No |
-| `POST /logout` | ✅ Required (JWT) | ❌ No |
-| `POST /refresh-token` | ❌ Public | ✅ Yes |
+| Endpoint                       | Authentication | Description                  |
+| ------------------------------ | -------------- | ---------------------------- |
+| `POST /request-password-reset` | ❌ Public      | Request password reset email |
+| `POST /reset-password`         | ❌ Public      | Reset password with token    |
+| `POST /refresh-token`          | ❌ Public      | Refresh access token         |
 
 ---
 
-## Endpoints
+## Frontend Authentication Guide
 
-### 1. Register
+### Installation
 
-Creates a new user account. All public registrations are assigned the `scientist` role by default. For other roles, administrators must use the Admin Invite system.
-
-**Endpoint:** `POST /api/auth/register`
-
-**Authentication:** Not required (Public endpoint)
-
-#### Request Headers
-
-```http
-Content-Type: application/json
+```bash
+npm install @supabase/supabase-js
 ```
 
-#### Request Body
+### Setup
 
-```json
-{
-  "name": "John Doe",
-  "email": "john.doe@example.com",
-  "password": "SecurePass123!",
-  "phone_number": "+1234567890"
+```typescript
+// lib/supabase.ts
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+```
+
+### User Registration
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+async function handleRegister(email: string, password: string, name: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        name, // User metadata
+      },
+    },
+  });
+
+  if (error) {
+    console.error('Registration error:', error.message);
+    return;
+  }
+
+  // Store token for backend API calls
+  if (data.session) {
+    localStorage.setItem('access_token', data.session.access_token);
+  }
 }
 ```
 
+### User Login
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+async function handleLogin(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error('Login error:', error.message);
+    return;
+  }
+
+  // Store token for backend API calls
+  if (data.session) {
+    localStorage.setItem('access_token', data.session.access_token);
+  }
+}
+```
+
+### User Logout
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+async function handleLogout() {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error('Logout error:', error.message);
+    return;
+  }
+
+  // Clear tokens
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+}
+```
+
+### Making Authenticated API Calls
+
+```typescript
+import { supabase } from '@/lib/supabase';
+
+async function callBackendAPI(endpoint: string, method: string = 'GET', body?: any) {
+  // Get current session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  return response.json();
+}
+```
+
+---
+
+## Backend Endpoints
+
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ✅ | User's full name (min 1 char) |
-| `email` | string | ✅ | Valid email address |
-| `password` | string | ✅ | Password (min 8 characters) |
-| `phone_number` | string | ❌ | Phone number (optional) |
+| Field          | Type   | Required | Description                   |
+| -------------- | ------ | -------- | ----------------------------- |
+| `name`         | string | ✅       | User's full name (min 1 char) |
+| `email`        | string | ✅       | Valid email address           |
+| `password`     | string | ✅       | Password (min 8 characters)   |
+| `phone_number` | string | ❌       | Phone number (optional)       |
 
-> **Note:** The `role` field is not accepted in registration requests for security. All public registrations receive the `scientist` role.
+> **Note:** The `role` field is not accepted in registration requests for security. All public registrations receive the `user` role via RBAC.
 
 #### Success Response
 
@@ -84,10 +183,10 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body (e.g., short password) |
-| `409` | Conflict | Email already registered |
+| Status | Error            | Description                                 |
+| ------ | ---------------- | ------------------------------------------- |
+| `400`  | Validation Error | Invalid request body (e.g., short password) |
+| `409`  | Conflict         | Email already registered                    |
 
 ---
 
@@ -101,6 +200,16 @@ Authenticates a user and returns a JWT token.
 
 #### Request Headers
 
+### 1. Request Password Reset
+
+Request a password reset email from Supabase Auth.
+
+**Endpoint:** `POST /api/auth/request-password-reset`
+
+**Authentication:** Not required (Public endpoint)
+
+#### Request Headers
+
 ```http
 Content-Type: application/json
 ```
@@ -109,17 +218,9 @@ Content-Type: application/json
 
 ```json
 {
-  "email": "john.doe@example.com",
-  "password": "SecurePass123!"
+  "email": "john.doe@example.com"
 }
 ```
-
-#### Request Schema
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `email` | string | ✅ | Valid email address |
-| `password` | string | ✅ | User's password |
 
 #### Success Response
 
@@ -128,80 +229,27 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "message": "Login successful",
-  "data": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "phone_number": "+1234567890",
-    "role": "scientist",
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
-
-#### Error Responses
-
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body |
-| `401` | Unauthorized | Invalid credentials (wrong email or password) |
-
-> **Security Note:** The API returns a generic "Invalid credentials" error for both wrong email and wrong password to prevent user enumeration attacks.
-
----
-
-### 3. Logout
-
-Logs out the user. The JWT token will remain valid until it naturally expires.
-
-**Endpoint:** `POST /api/auth/logout`
-
-**Authentication:** Required (Bearer Token)
-
-#### Request Headers
-
-```http
-Authorization: Bearer <jwt_token>
-```
-
-#### Request Body
-
-None required.
-
-#### Success Response
-
-**Status Code:** `200 OK`
-
-```json
-{
-  "success": true,
-  "message": "Logout successful",
+  "message": "Password reset email sent",
   "data": null
 }
 ```
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-
-> **Frontend Note:** After logout, remove the token from local storage and redirect to the login page.
+| Status | Error            | Description                |
+| ------ | ---------------- | -------------------------- |
+| `400`  | Validation Error | Invalid email format       |
+| `500`  | Server Error     | Failed to send reset email |
 
 ---
 
-### 4. Refresh Token
+### 2. Reset Password
 
-Exchanges a valid refresh token for a new access token and refresh token pair. Use this to maintain user sessions without requiring re-authentication.
+Reset password using the token from the reset email.
 
-**Endpoint:** `POST /api/auth/refresh-token`
+**Endpoint:** `POST /api/auth/reset-password`
 
-**Authentication:** Not required (refresh token is validated instead)
-
-**Rate Limited:** Yes (prevents abuse)
+**Authentication:** Not required (token from email validates the request)
 
 #### Request Headers
 
@@ -213,15 +261,54 @@ Content-Type: application/json
 
 ```json
 {
-  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "access_token": "token_from_email",
+  "new_password": "NewSecurePass123!"
 }
 ```
 
-#### Request Schema
+#### Success Response
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `refreshToken` | string | ✅ | Valid refresh token |
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Password updated successfully",
+  "data": null
+}
+```
+
+#### Error Responses
+
+| Status | Error            | Description                    |
+| ------ | ---------------- | ------------------------------ |
+| `400`  | Validation Error | Invalid token or weak password |
+| `401`  | Unauthorized     | Invalid or expired token       |
+| `500`  | Server Error     | Failed to update password      |
+
+---
+
+### 3. Refresh Token
+
+Exchanges a valid refresh token for a new access token.
+
+**Endpoint:** `POST /api/auth/refresh-token`
+
+**Authentication:** Not required (refresh token is validated instead)
+
+#### Request Headers
+
+```http
+Content-Type: application/json
+```
+
+#### Request Body
+
+```json
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
 #### Success Response
 
@@ -232,29 +319,33 @@ Content-Type: application/json
   "success": true,
   "message": "Token refreshed successfully",
   "data": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john.doe@example.com",
-    "phone_number": "+1234567890",
-    "role": "scientist",
-    "created_at": "2024-01-15T10:30:00.000Z",
-    "updated_at": "2024-01-15T10:30:00.000Z",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 3600
   }
 }
 ```
 
-> **Frontend Note:** Store both the new `token` (access token) and `refreshToken` for future use. Discard the old tokens.
-
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Refresh token not provided |
-| `401` | Unauthorized | Invalid or expired refresh token |
-| `404` | Not Found | User no longer exists |
-| `429` | Too Many Requests | Rate limit exceeded |
+| Status | Error            | Description                      |
+| ------ | ---------------- | -------------------------------- |
+| `400`  | Validation Error | Refresh token not provided       |
+| `401`  | Unauthorized     | Invalid or expired refresh token |
+
+---
+
+## How Backend Syncs Users
+
+When a user signs up via the frontend, their first authenticated API request triggers the auth middleware, which:
+
+1. Verifies the Supabase JWT token
+2. Checks if user exists in `public.users` table
+3. If not, creates a new record with auth_id
+4. Assigns default 'user' role via RBAC
+5. Allows the request to proceed
+
+This approach eliminates the need for webhooks while ensuring all authenticated users are synced.
 
 ---
 
@@ -262,304 +353,141 @@ Content-Type: application/json
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     AUTHENTICATION FLOW                              │
+│                  SUPABASE AUTH FLOW                                  │
 └─────────────────────────────────────────────────────────────────────┘
 
-1. REGISTRATION / LOGIN
+1. REGISTRATION / LOGIN (Frontend)
    ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-   │  Frontend   │ ──POST──▶│   Backend   │ ──────▶│   User      │
-   │  Login/Reg  │  /login  │   Validates │ JWT    │   Receives  │
-   │   Form      │  /register│  Credentials│ Token  │   Token     │
-   └─────────────┘          └─────────────┘        └──────┬──────┘
+   │  Frontend   │ ──────▶ │  Supabase   │ ──────▶ │   Frontend  │
+   │  signUp()   │         │   Auth      │  JWT    │   Receives  │
+   │  signIn()   │         │   Service   │  Token  │   Token     │
+   └─────────────┘         └─────────────┘         └──────┬──────┘
+                                                           │
+2. STORE TOKEN                                             ▼
+                                                   ┌─────────────┐
+   Store in localStorage                           │  Frontend   │
+                                                   │   Stores    │
+                                                   │   Token     │
+                                                   └──────┬──────┘
                                                           │
-                                                          ▼
-2. STORE TOKEN                                    ┌─────────────┐
-                                                  │  Frontend   │
-   Store in localStorage or                       │   Stores    │
-   secure cookie                                  │   Token     │
-                                                  └──────┬──────┘
-                                                         │
-3. AUTHENTICATED REQUESTS                                ▼
+3. FIRST API REQUEST                                      ▼
+   ┌─────────────┐         ┌─────────────┐        ┌─────────────┐
+   │  Frontend   │ ───────▶│   Backend   │        │   Backend   │
+   │  API Call   │ Bearer  │   Verifies  │ ─────▶ │   Syncs     │
+   │  + Token    │ Token   │   Token     │        │   User      │
+   └─────────────┘         └──────┬──────┘        └──────┬──────┘
+                                  │                      │
+                                  ▼                      ▼
+                          ┌─────────────┐        ┌─────────────┐
+                          │  Supabase   │        │  public.    │
+                          │   Verifies  │        │  users      │
+                          │   JWT       │        │  Table      │
+                          └─────────────┘        └─────────────┘
+
+4. SUBSEQUENT REQUESTS
    ┌─────────────┐         ┌─────────────┐        ┌─────────────┐
    │  Frontend   │ ───────▶│   Backend   │        │   API       │
-   │  API Call   │ Bearer  │   Validates │ ─────▶ │   Response  │
-   │  + Token    │ Token   │   JWT Token │        │             │
+   │  API Call   │ Bearer  │   Verifies  │ ─────▶ │   Response  │
+   │  + Token    │ Token   │   Token     │        │             │
    └─────────────┘         └─────────────┘        └─────────────┘
 
-4. TOKEN REFRESH (Before Expiry)
+5. LOGOUT (Frontend)
    ┌─────────────┐         ┌─────────────┐        ┌─────────────┐
-   │  Frontend   │ ──POST──▶│   Backend   │ ─────▶│   New       │
-   │  Refresh    │ /refresh │   Validates │ New   │   Tokens    │
-   │  Token      │ -token   │   Refresh   │ Token │   Stored    │
-   └─────────────┘          │   Token     │ Pair  └─────────────┘
-                            └─────────────┘
-
-5. LOGOUT
-   ┌─────────────┐         ┌─────────────┐        ┌─────────────┐
-   │  Frontend   │ ──POST──▶│   Backend   │        │   Token     │
-   │  Logout     │ /logout  │  Confirms   │ ─────▶ │   Removed   │
-   │  + Token    │         │   Logout    │        │   Locally   │
-   └─────────────┘          └─────────────┘        └─────────────┘
+   │  Frontend   │ ───────▶│  Supabase   │        │   Token     │
+   │  signOut()  │         │   Auth      │ ─────▶ │   Removed   │
+   │             │         │   Service   │        │   Locally   │
+   └─────────────┘         └─────────────┘        └─────────────┘
 ```
 
 ---
 
-## Frontend Implementation Example
+## File Structure
 
-### React/TypeScript Authentication Service
-
-```typescript
-// auth.service.ts
-
-const API_BASE = '/api/auth';
-
-interface AuthUser {
-  id: number;
-  name: string;
-  email: string;
-  phone_number?: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
-  token: string;
-  refreshToken?: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-// Register new user
-export const register = async (
-  name: string,
-  email: string,
-  password: string,
-  phone_number?: string
-): Promise<AuthUser> => {
-  const response = await fetch(`${API_BASE}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password, phone_number }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message);
-  }
-
-  const { data } = await response.json() as ApiResponse<AuthUser>;
-  
-  // Store token
-  localStorage.setItem('authToken', data.token);
-  
-  return data;
-};
-
-// Login user
-export const login = async (email: string, password: string): Promise<AuthUser> => {
-  const response = await fetch(`${API_BASE}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message);
-  }
-
-  const { data } = await response.json() as ApiResponse<AuthUser>;
-  
-  // Store token
-  localStorage.setItem('authToken', data.token);
-  
-  return data;
-};
-
-// Logout user
-export const logout = async (): Promise<void> => {
-  const token = localStorage.getItem('authToken');
-  
-  if (token) {
-    await fetch(`${API_BASE}/logout`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-  }
-  
-  // Remove token regardless of API response
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('refreshToken');
-};
-
-// Refresh token
-export const refreshToken = async (): Promise<AuthUser> => {
-  const storedRefreshToken = localStorage.getItem('refreshToken');
-  
-  if (!storedRefreshToken) {
-    throw new Error('No refresh token available');
-  }
-
-  const response = await fetch(`${API_BASE}/refresh-token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: storedRefreshToken }),
-  });
-
-  if (!response.ok) {
-    // Refresh failed - clear tokens and redirect to login
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    throw new Error('Session expired. Please login again.');
-  }
-
-  const { data } = await response.json() as ApiResponse<AuthUser>;
-  
-  // Store new tokens
-  localStorage.setItem('authToken', data.token);
-  if (data.refreshToken) {
-    localStorage.setItem('refreshToken', data.refreshToken);
-  }
-  
-  return data;
-};
-
-// Get auth header for API requests
-export const getAuthHeader = (): Record<string, string> => {
-  const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
-
-// Check if user is authenticated
-export const isAuthenticated = (): boolean => {
-  return !!localStorage.getItem('authToken');
-};
 ```
-
-### Axios Interceptor for Token Refresh
-
-```typescript
-// axios.config.ts
-
-import axios from 'axios';
-import { refreshToken } from './auth.service';
-
-const api = axios.create({
-  baseURL: '/api',
-});
-
-// Request interceptor - add auth token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor - handle token refresh
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    // If 401 and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        await refreshToken();
-        
-        // Retry with new token
-        const token = localStorage.getItem('authToken');
-        originalRequest.headers.Authorization = `Bearer ${token}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        // Redirect to login
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-export default api;
+auth/
+├── index.ts                 # Main route exports
+├── README.md                # This documentation
+├── apis/
+│   ├── refresh-token.ts     # Token refresh endpoint
+│   ├── request-password-reset.ts  # Request password reset
+│   └── reset-password.ts    # Reset password with token
+├── services/
+│   └── supabase-auth.service.ts  # Supabase Auth utilities
+├── shared/
+│   ├── schema.ts            # Zod validation schemas
+│   ├── interface.ts         # TypeScript interfaces
+│   └── queries.ts           # Database queries
+└── tests/
+    ├── integration/
+    └── unit/
 ```
 
 ---
 
-## Token Information
+## Environment Variables
 
-### Access Token
-- **Validity:** 24 hours
-- **Contains:** User ID, email, name, role
-- **Usage:** Include in `Authorization` header as `Bearer <token>`
+Required environment variables for Supabase Auth:
 
-### Refresh Token
-- **Validity:** Longer-lived (implementation specific)
-- **Contains:** User ID only
-- **Usage:** Used to obtain new access token when current one expires
+```bash
+# Supabase Configuration
+SUPABASE_URL=http://127.0.0.1:54321
+SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
-### Token Storage Recommendations
-
-| Storage Method | Security | Use Case |
-|----------------|----------|----------|
-| `localStorage` | Medium | SPAs where XSS is mitigated |
-| `sessionStorage` | Medium | Single tab sessions |
-| `httpOnly Cookie` | High | Server-rendered apps |
-| Memory (variable) | High | Short-lived sessions |
-
----
-
-## User Roles
-
-| Role | Description |
-|------|-------------|
-| `admin` | Full system access, can invite users |
-| `scientist` | Default role for public registration |
-| `researcher` | Research data access |
-| `policymaker` | Policy-related data access |
-
-> **Note:** Only `admin` users can assign different roles via the Admin Invite system.
-
----
-
-## Error Response Format
-
-All error responses follow this format:
-
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "errors": [
-    {
-      "field": "email",
-      "message": "Invalid email format"
-    }
-  ]
-}
+# Frontend URL (for password reset redirects)
+FRONTEND_URL=http://localhost:3001
 ```
 
 ---
 
 ## Security Best Practices
 
-1. **Token Storage**: Prefer `httpOnly` cookies for production; use `localStorage` only with proper XSS protection
-2. **Token Refresh**: Implement proactive token refresh before expiry (e.g., when 5 minutes remain)
-3. **Logout Cleanup**: Always clear tokens on logout, even if API call fails
-4. **HTTPS Only**: Always use HTTPS in production
-5. **Error Handling**: Don't expose sensitive error details to users
+1. **Never expose service_role key** - Keep it server-side only
+2. **Use HTTPS in production** - Protects tokens in transit
+3. **Implement token refresh** - Reduces risk of token theft
+4. **Enable RLS policies** - Row Level Security in Supabase
+5. **Validate all inputs** - Use Zod schemas for validation
+6. **Rate limit endpoints** - Prevent brute force attacks
 
 ---
 
-## Related Endpoints
+## Troubleshooting
 
-- **Admin Invite**: `/api/admin/invitations` - For creating users with specific roles
-- **User Profile**: `/api/users/me` - Get/update current user profile
+### Token Verification Fails
+
+**Issue:** Backend returns 401 Unauthorized
+
+**Solutions:**
+
+- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` match frontend
+- Ensure token is sent as `Bearer <token>` in Authorization header
+- Check token hasn't expired (default: 1 hour)
+
+### User Not Synced
+
+**Issue:** User exists in Supabase Auth but not in public.users
+
+**Solutions:**
+
+- Make any authenticated API request to trigger sync
+- Check auth middleware is properly configured
+- Verify database migrations have run
+
+### CORS Errors
+
+**Issue:** Frontend can't reach backend API
+
+**Solutions:**
+
+- Add frontend origin to CORS allowlist
+- Check CORS middleware configuration
+- Ensure OPTIONS requests are handled
+
+---
+
+## Related Documentation
+
+- [Supabase Auth Documentation](https://supabase.com/docs/guides/auth)
+- [Supabase JS Client](https://supabase.com/docs/reference/javascript/auth-signup)
+- [RBAC Feature](../rbac/README.md)
+- [User Feature](../user/README.md)

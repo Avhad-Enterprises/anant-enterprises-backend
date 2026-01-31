@@ -4,7 +4,11 @@
  * TypeScript interfaces for the chatbot feature.
  */
 
-import { DocumentStatus, MessageRole, MessageSource as SchemaMessageSource } from './schema';
+import {
+  DocumentStatus,
+  MessageRole,
+  MessageSource as SchemaMessageSource,
+} from './chatbot.schema';
 
 // Re-export MessageSource from schema
 export type MessageSource = SchemaMessageSource;
@@ -25,7 +29,7 @@ export interface IDocument {
   chunk_count: number;
   is_embedded: boolean;
   error_message: string | null;
-  created_by: number | null;
+  created_by: string | null;
   created_at: Date;
   updated_at: Date;
   is_deleted: boolean;
@@ -38,7 +42,7 @@ export interface IDocumentCreate {
   file_path: string;
   file_size: number;
   mime_type: string;
-  created_by: number;
+  created_by: string;
 }
 
 export interface IDocumentUpdate {
@@ -48,7 +52,7 @@ export interface IDocumentUpdate {
   chunk_count?: number;
   is_embedded?: boolean;
   error_message?: string;
-  updated_by: number;
+  updated_by: string;
 }
 
 // ========================
@@ -57,7 +61,7 @@ export interface IDocumentUpdate {
 
 export interface ISession {
   id: number;
-  user_id: number;
+  user_id: string;
   title: string | null;
   created_at: Date;
   updated_at: Date;
@@ -65,9 +69,9 @@ export interface ISession {
 }
 
 export interface ISessionCreate {
-  user_id: number;
+  user_id: string;
   title?: string;
-  created_by: number;
+  created_by: string;
 }
 
 export interface ISessionWithSummary extends ISession {
@@ -95,7 +99,7 @@ export interface IMessageCreate {
   role: MessageRole;
   content: string;
   sources?: MessageSource[];
-  created_by: number;
+  created_by: string;
 }
 
 // ========================

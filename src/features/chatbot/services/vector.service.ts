@@ -7,8 +7,8 @@
  * - Fetch vectors
  */
 
-import { logger } from '../../../utils/logger';
-import HttpException from '../../../utils/httpException';
+import { logger } from '../../../utils';
+import { HttpException } from '../../../utils';
 import { niraNamespace } from './pinecone.service';
 import { embedTexts } from './embedding.service';
 import { IVectorRecord, IVectorMetadata, IChunk } from '../shared/interface';
@@ -62,7 +62,7 @@ export async function upsertDocumentVectors(
 
     for (let i = 0; i < vectorRecords.length; i += batchSize) {
       const batch = vectorRecords.slice(i, i + batchSize);
-      
+
       await niraNamespace.upsert(
         batch.map(record => ({
           id: record.id,
@@ -79,8 +79,10 @@ export async function upsertDocumentVectors(
       );
 
       vectorIds.push(...batch.map(r => r.id));
-      
-      logger.debug(`📦 Upserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectorRecords.length / batchSize)}`);
+
+      logger.debug(
+        `📦 Upserted batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(vectorRecords.length / batchSize)}`
+      );
     }
 
     logger.info(`✅ Successfully upserted ${vectorIds.length} vectors`);
@@ -110,12 +112,12 @@ export async function deleteDocumentVectors(
     if (vectorIds && vectorIds.length > 0) {
       // Delete by IDs if provided
       const batchSize = 1000; // Pinecone limit
-      
+
       for (let i = 0; i < vectorIds.length; i += batchSize) {
         const batch = vectorIds.slice(i, i + batchSize);
         await niraNamespace.deleteMany(batch);
       }
-      
+
       logger.info(`✅ Deleted ${vectorIds.length} vectors by ID`);
     } else {
       // Delete by metadata filter (document ID)
@@ -128,11 +130,11 @@ export async function deleteDocumentVectors(
           },
         });
         logger.info(`✅ Deleted vectors by document ID filter`);
-      } catch (filterError) {
+      } catch {
         // Fallback: Generate expected vector IDs based on pattern
         logger.warn('Metadata filter delete not supported, using ID pattern');
         const estimatedIds = generateEstimatedVectorIds(documentId, 1000);
-        
+
         if (estimatedIds.length > 0) {
           await niraNamespace.deleteMany(estimatedIds);
         }
@@ -161,7 +163,7 @@ export async function fetchVectors(vectorIds: string[]): Promise<IVectorRecord[]
     const response = await niraNamespace.fetch(vectorIds);
 
     const records: IVectorRecord[] = [];
-    
+
     if (response.records) {
       for (const [id, record] of Object.entries(response.records)) {
         if (record) {

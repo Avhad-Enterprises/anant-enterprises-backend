@@ -9,12 +9,11 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../../../middlewares/auth.middleware';
+import { requireAuth } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { logger } from '../../../utils/logger';
+import { ResponseFormatter, longTextSchema } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { logger } from '../../../utils';
 import {
   createSession,
   getSessionByIdForUser,
@@ -23,22 +22,20 @@ import {
   createMessage,
   getRecentMessages,
 } from '../shared/queries';
-import {
-  generateChatResponse,
-  generateSessionTitle,
-} from '../services/chat.service';
-import { MessageSource } from '../shared/schema';
+import { generateChatResponse, generateSessionTitle } from '../services/chat.service';
+import { chatbotCacheService } from '../services/chatbot-cache.service';
+import { MessageSource } from '../shared/chatbot.schema';
 
 // Request body schema
 const sendMessageSchema = z.object({
-  message: z.string().min(1).max(10000),
+  message: longTextSchema,
   sessionId: z.number().int().positive().optional(),
 });
 
 /**
  * Send message handler
  */
-const handler = asyncHandler(async (req: Request, res: Response) => {
+const handler = async (req: Request, res: Response) => {
   const userId = req.userId!;
   const { message, sessionId } = sendMessageSchema.parse(req.body);
 
@@ -59,6 +56,10 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
       created_by: userId,
     });
     isNewSession = true;
+
+    // Invalidate session list cache (new session created)
+    await chatbotCacheService.invalidateUserSessions(userId);
+
     logger.info(`📝 Created new chat session ${session.id} for user ${userId}`);
   }
 
@@ -71,7 +72,6 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     created_by: userId,
   });
 
-  let responseText: string;
   let sources: MessageSource[] = [];
 
   // Get conversation history for context
@@ -86,7 +86,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
   // Generate response using LLM (includes search internally)
   logger.info(`🤖 Generating response for session ${session.id}`);
   const response = await generateChatResponse(message, conversationHistory);
-  responseText = response.message;
+  const responseText = response.message;
   sources = response.sources;
 
   // Store assistant message
@@ -129,7 +129,7 @@ const handler = asyncHandler(async (req: Request, res: Response) => {
     },
     'Message sent successfully'
   );
-});
+};
 
 const router = Router();
 

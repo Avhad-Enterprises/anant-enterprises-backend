@@ -1,6 +1,6 @@
 /**
  * Test Database Migrations
- * 
+ *
  * Runs database migrations before tests start.
  * This ensures the test database schema is up-to-date.
  */
@@ -27,7 +27,7 @@ export async function runMigrations(): Promise<void> {
   }
 
   console.log('🔄 Running test database migrations...');
-  
+
   const pool = new Pool({ connectionString: dbUrl, max: 1 });
   const db = drizzle(pool);
 

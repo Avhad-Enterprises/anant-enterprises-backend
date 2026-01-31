@@ -1,44 +1,50 @@
-import { eq, and } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
-import { users, type User, type NewUser } from './schema';
+import { eq, sql } from 'drizzle-orm';
+import { PgTransaction } from 'drizzle-orm/pg-core';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { db, schema } from '../../../database';
+import { users, type User, type NewUser } from './user.schema';
+import { userCacheService } from '../services/user-cache.service';
+
+type Database = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema, any>;
 
 /**
- * Find user by ID (excluding deleted users)
- * Shared query used across multiple services
+ * Get distinct tags used in customers
  */
-export const findUserById = async (id: number): Promise<User | undefined> => {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.id, id), eq(users.is_deleted, false)))
-    .limit(1);
+export const getDistinctUserTags = async (tx: Database = db): Promise<string[]> => {
+  const query = sql`
+        SELECT DISTINCT unnest(${users.tags}) as tag
+        FROM ${users}
+        WHERE ${users.is_deleted} = false
+        AND ${users.tags} IS NOT NULL
+        ORDER BY tag ASC
+    `;
 
-  return user;
+  const result = await tx.execute(query);
+  return result.rows.map((row: any) => row.tag).filter(Boolean);
 };
 
 /**
- * Find user by email (excluding deleted users)
- * Shared query used across multiple services
+ * Find user by ID (excluding deleted users) - CACHED
+ * Uses Redis/memory cache for better performance
+ */
+export const findUserById = async (id: string): Promise<User | undefined> => {
+  return userCacheService.getUserById(id);
+};
+
+/**
+ * Find user by email (excluding deleted users) - CACHED
+ * Uses Redis/memory cache for better performance
  */
 export const findUserByEmail = async (email: string): Promise<User | undefined> => {
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.is_deleted, false)))
-    .limit(1);
-
-  return user;
+  return userCacheService.getUserByEmail(email);
 };
 
 /**
  * Create a new user
  * Shared query used across services
  */
-export const createUser = async (userData: NewUser): Promise<User> => {
-  const [newUser] = await db
-    .insert(users)
-    .values(userData)
-    .returning();
+export const createUser = async (userData: NewUser, tx: Database = db): Promise<User> => {
+  const [newUser] = await tx.insert(users).values(userData).returning();
 
   return newUser;
 };
@@ -48,10 +54,11 @@ export const createUser = async (userData: NewUser): Promise<User> => {
  * Shared query used across services
  */
 export const updateUserById = async (
-  id: number, 
-  data: Partial<Omit<User, 'id'>>
+  id: string,
+  data: Partial<Omit<User, 'id'>>,
+  tx: Database = db
 ): Promise<User | undefined> => {
-  const [updatedUser] = await db
+  const [updatedUser] = await tx
     .update(users)
     .set({ ...data, updated_at: new Date() })
     .where(eq(users.id, id))

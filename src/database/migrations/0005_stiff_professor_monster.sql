@@ -1,0 +1,6 @@
+-- Migration 0005: Column already exists, commenting out
+-- ALTER TABLE "customer_profiles" ADD COLUMN "notes" text;--> statement-breakpoint
+-- ALTER TABLE "users" ADD COLUMN "display_name" varchar(100);--> statement-breakpoint
+-- ALTER TABLE "users" ADD COLUMN "tags" text[];--> statement-breakpoint
+-- ALTER TABLE "users" ADD COLUMN "metadata" jsonb;--> statement-breakpoint
+-- ALTER TABLE "users" ADD COLUMN "languages" text[];

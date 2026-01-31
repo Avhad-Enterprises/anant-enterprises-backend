@@ -6,7 +6,7 @@
  */
 
 import { eq, and, desc, asc, sql } from 'drizzle-orm';
-import { db } from '../../../database/drizzle';
+import { db } from '../../../database';
 import {
   chatbotDocuments,
   chatbotSessions,
@@ -18,7 +18,7 @@ import {
   NewChatbotSession,
   NewChatbotMessage,
   DocumentStatus,
-} from './schema';
+} from './chatbot.schema';
 
 // ============================================================================
 // DOCUMENT QUERIES (Core)
@@ -27,9 +27,7 @@ import {
 /**
  * Create a new chatbot document record
  */
-export async function createDocument(
-  data: NewChatbotDocument
-): Promise<ChatbotDocument> {
+export async function createDocument(data: NewChatbotDocument): Promise<ChatbotDocument> {
   const [document] = await db.insert(chatbotDocuments).values(data).returning();
   return document;
 }
@@ -37,9 +35,7 @@ export async function createDocument(
 /**
  * Get a document by ID (excluding soft-deleted)
  */
-export async function getDocumentById(
-  id: number
-): Promise<ChatbotDocument | undefined> {
+export async function getDocumentById(id: number): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .select()
     .from(chatbotDocuments)
@@ -82,12 +78,12 @@ export async function listDocuments(
 export async function updateDocumentStatus(
   id: number,
   status: DocumentStatus,
-  updatedBy: number,
+  updatedBy: string,
   errorMessage?: string
 ): Promise<ChatbotDocument | undefined> {
   const updateData: {
     status: DocumentStatus;
-    updated_by: number;
+    updated_by: string;
     updated_at: Date;
     error_message?: string | null;
     is_embedded?: boolean;
@@ -121,7 +117,7 @@ export async function updateDocumentStatus(
 export async function updateDocumentProcessingResult(
   id: number,
   chunkCount: number,
-  updatedBy: number
+  updatedBy: string
 ): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .update(chatbotDocuments)
@@ -142,7 +138,7 @@ export async function updateDocumentProcessingResult(
  */
 export async function deleteDocument(
   id: number,
-  deletedBy: number
+  deletedBy: string
 ): Promise<ChatbotDocument | undefined> {
   const [document] = await db
     .update(chatbotDocuments)
@@ -169,26 +165,34 @@ export async function getDocumentStats(): Promise<{
   failed: number;
   totalChunks: number;
 }> {
-  const [result] = await db
+  // Fetch all non-deleted documents
+  const allDocs = await db
     .select({
-      total: sql<number>`count(*)::int`,
-      pending: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'pending')::int`,
-      processing: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'processing')::int`,
-      completed: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'completed')::int`,
-      failed: sql<number>`count(*) filter (where ${chatbotDocuments.status} = 'failed')::int`,
-      totalChunks: sql<number>`coalesce(sum(${chatbotDocuments.chunk_count}), 0)::int`,
+      status: chatbotDocuments.status,
+      chunk_count: chatbotDocuments.chunk_count,
     })
     .from(chatbotDocuments)
     .where(eq(chatbotDocuments.is_deleted, false));
 
-  return {
-    total: result?.total || 0,
-    pending: result?.pending || 0,
-    processing: result?.processing || 0,
-    completed: result?.completed || 0,
-    failed: result?.failed || 0,
-    totalChunks: result?.totalChunks || 0,
+  // Calculate stats manually
+  const stats = {
+    total: allDocs.length,
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    failed: 0,
+    totalChunks: 0,
   };
+
+  for (const doc of allDocs) {
+    if (doc.status === 'pending') stats.pending++;
+    else if (doc.status === 'processing') stats.processing++;
+    else if (doc.status === 'completed') stats.completed++;
+    else if (doc.status === 'failed') stats.failed++;
+    stats.totalChunks += doc.chunk_count || 0;
+  }
+
+  return stats;
 }
 
 // ============================================================================
@@ -198,9 +202,7 @@ export async function getDocumentStats(): Promise<{
 /**
  * Create a new chat session
  */
-export async function createSession(
-  data: NewChatbotSession
-): Promise<ChatbotSession> {
+export async function createSession(data: NewChatbotSession): Promise<ChatbotSession> {
   const [session] = await db.insert(chatbotSessions).values(data).returning();
   return session;
 }
@@ -210,10 +212,21 @@ export async function createSession(
  */
 export async function getSessionByIdForUser(
   id: number,
-  userId: number
+  userId: string
 ): Promise<ChatbotSession | undefined> {
   const [session] = await db
-    .select()
+    .select({
+      id: chatbotSessions.id,
+      user_id: chatbotSessions.user_id,
+      title: chatbotSessions.title,
+      created_by: chatbotSessions.created_by,
+      created_at: chatbotSessions.created_at,
+      updated_by: chatbotSessions.updated_by,
+      updated_at: chatbotSessions.updated_at,
+      is_deleted: chatbotSessions.is_deleted,
+      deleted_by: chatbotSessions.deleted_by,
+      deleted_at: chatbotSessions.deleted_at,
+    })
     .from(chatbotSessions)
     .where(
       and(
@@ -229,38 +242,48 @@ export async function getSessionByIdForUser(
  * List sessions for a user with pagination
  */
 export async function listUserSessions(
-  userId: number,
+  userId: string,
   page: number = 1,
   limit: number = 20
 ): Promise<{ sessions: ChatbotSession[]; total: number }> {
   const offset = (page - 1) * limit;
 
-  const [sessions, countResult] = await Promise.all([
-    db
-      .select()
-      .from(chatbotSessions)
-      .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)))
-      .orderBy(desc(chatbotSessions.updated_at))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(chatbotSessions)
-      .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false))),
-  ]);
+  const sessions = await db
+    .select({
+      id: chatbotSessions.id,
+      user_id: chatbotSessions.user_id,
+      title: chatbotSessions.title,
+      created_by: chatbotSessions.created_by,
+      created_at: chatbotSessions.created_at,
+      updated_by: chatbotSessions.updated_by,
+      updated_at: chatbotSessions.updated_at,
+      is_deleted: chatbotSessions.is_deleted,
+      deleted_by: chatbotSessions.deleted_by,
+      deleted_at: chatbotSessions.deleted_at,
+    })
+    .from(chatbotSessions)
+    .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)))
+    .orderBy(desc(chatbotSessions.updated_at))
+    .limit(limit)
+    .offset(offset);
+
+  const allIds = await db
+    .select({ id: chatbotSessions.id })
+    .from(chatbotSessions)
+    .where(and(eq(chatbotSessions.user_id, userId), eq(chatbotSessions.is_deleted, false)));
+
+  const total = allIds.length;
 
   return {
     sessions,
-    total: countResult[0]?.count || 0,
+    total,
   };
 }
 
 /**
  * Update session timestamp and title
  */
-export async function updateSessionTimestamp(
-  id: number
-): Promise<ChatbotSession | undefined> {
+export async function updateSessionTimestamp(id: number): Promise<ChatbotSession | undefined> {
   const [session] = await db
     .update(chatbotSessions)
     .set({ updated_at: new Date() })
@@ -291,7 +314,7 @@ export async function updateSessionTitle(
  */
 export async function deleteSession(
   id: number,
-  deletedBy: number
+  deletedBy: string
 ): Promise<ChatbotSession | undefined> {
   // First soft-delete all messages in the session
   await db
@@ -324,9 +347,7 @@ export async function deleteSession(
 /**
  * Create a new message
  */
-export async function createMessage(
-  data: NewChatbotMessage
-): Promise<ChatbotMessage> {
+export async function createMessage(data: NewChatbotMessage): Promise<ChatbotMessage> {
   const [message] = await db.insert(chatbotMessages).values(data).returning();
   return message;
 }
@@ -341,23 +362,37 @@ export async function getSessionMessages(
 ): Promise<{ messages: ChatbotMessage[]; total: number }> {
   const offset = (page - 1) * limit;
 
-  const [messages, countResult] = await Promise.all([
-    db
-      .select()
-      .from(chatbotMessages)
-      .where(and(eq(chatbotMessages.session_id, sessionId), eq(chatbotMessages.is_deleted, false)))
-      .orderBy(asc(chatbotMessages.created_at))
-      .limit(limit)
-      .offset(offset),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(chatbotMessages)
-      .where(and(eq(chatbotMessages.session_id, sessionId), eq(chatbotMessages.is_deleted, false))),
-  ]);
+  const messages = await db
+    .select({
+      id: chatbotMessages.id,
+      session_id: chatbotMessages.session_id,
+      role: chatbotMessages.role,
+      content: chatbotMessages.content,
+      sources: chatbotMessages.sources,
+      created_by: chatbotMessages.created_by,
+      created_at: chatbotMessages.created_at,
+      updated_by: chatbotMessages.updated_by,
+      updated_at: chatbotMessages.updated_at,
+      is_deleted: chatbotMessages.is_deleted,
+      deleted_by: chatbotMessages.deleted_by,
+      deleted_at: chatbotMessages.deleted_at,
+    })
+    .from(chatbotMessages)
+    .where(and(eq(chatbotMessages.session_id, sessionId), eq(chatbotMessages.is_deleted, false)))
+    .orderBy(asc(chatbotMessages.created_at))
+    .limit(limit)
+    .offset(offset);
+
+  const allIds = await db
+    .select({ id: chatbotMessages.id })
+    .from(chatbotMessages)
+    .where(and(eq(chatbotMessages.session_id, sessionId), eq(chatbotMessages.is_deleted, false)));
+
+  const total = allIds.length;
 
   return {
     messages,
-    total: countResult[0]?.count || 0,
+    total,
   };
 }
 
@@ -369,7 +404,20 @@ export async function getRecentMessages(
   count: number = 10
 ): Promise<ChatbotMessage[]> {
   const messages = await db
-    .select()
+    .select({
+      id: chatbotMessages.id,
+      session_id: chatbotMessages.session_id,
+      role: chatbotMessages.role,
+      content: chatbotMessages.content,
+      sources: chatbotMessages.sources,
+      created_by: chatbotMessages.created_by,
+      created_at: chatbotMessages.created_at,
+      updated_by: chatbotMessages.updated_by,
+      updated_at: chatbotMessages.updated_at,
+      is_deleted: chatbotMessages.is_deleted,
+      deleted_by: chatbotMessages.deleted_by,
+      deleted_at: chatbotMessages.deleted_at,
+    })
     .from(chatbotMessages)
     .where(and(eq(chatbotMessages.session_id, sessionId), eq(chatbotMessages.is_deleted, false)))
     .orderBy(desc(chatbotMessages.created_at))

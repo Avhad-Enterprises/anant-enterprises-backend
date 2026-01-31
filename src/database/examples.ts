@@ -5,10 +5,10 @@
 
 import { db, pool } from './drizzle';
 import { checkDatabaseHealth } from './health';
-import { users } from '../features/user/shared/schema';
-import { uploads } from '../features/upload/shared/schema';
+import { users } from '../features/user';
+import { uploads } from '../features/upload';
 import { eq, and, or, like, desc } from 'drizzle-orm';
-import { logger } from '../utils/logger';
+import { logger } from '../utils';
 
 // ============================================
 // 1. BASIC QUERIES
@@ -45,7 +45,7 @@ async function searchUsers(search: string, page: number = 1, limit: number = 10)
 /**
  * Get user with their uploads (join example)
  */
-async function getUserWithUploads(userId: number) {
+async function getUserWithUploads(userId: string) {
   const result = await db
     .select({
       user: users,
@@ -66,7 +66,7 @@ async function getUserWithUploads(userId: number) {
  * Example transaction: Create user and their first upload
  */
 async function createUserWithUpload(
-  userData: { name: string; email: string; password: string },
+  userData: { name: string; last_name: string; email: string; password: string },
   uploadData: { filename: string; file_path: string; file_size: number }
 ) {
   return await db.transaction(async tx => {
@@ -75,7 +75,7 @@ async function createUserWithUpload(
       .insert(users)
       .values({
         ...userData,
-        created_by: 1,
+        // created_by will be set to self after user creation
       })
       .returning();
 

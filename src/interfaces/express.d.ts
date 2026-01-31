@@ -4,8 +4,6 @@
  * used throughout the application for authentication, logging, and request tracking
  */
 
-import { UserRole } from '../features/user/shared/schema';
-
 declare global {
   namespace Express {
     interface Request {
@@ -13,8 +11,7 @@ declare global {
       requestId?: string;
 
       // Authentication & Authorization
-      userId?: number;
-      userRole?: UserRole;
+      userId?: string;
       userAgent?: string;
       clientIP?: string;
 

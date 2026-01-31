@@ -6,14 +6,13 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { RequestWithUser } from '../../../interfaces/request.interface';
-import { requireAuth } from '../../../middlewares/auth.middleware';
+import { RequestWithUser } from '../../../interfaces';
+import { requireAuth } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils/responseFormatter';
-import { asyncHandler, getUserId, parseIdParam } from '../../../utils/controllerHelpers';
-import HttpException from '../../../utils/httpException';
-import { db } from '../../../database/drizzle';
-import { uploads } from '../shared/schema';
+import { ResponseFormatter } from '../../../utils';
+import { HttpException } from '../../../utils';
+import { db } from '../../../database';
+import { uploads } from '../shared/upload.schema';
 import { Upload, UploadUpdateInput, convertUpload } from '../shared/interface';
 import { findUploadById } from '../shared/queries';
 
@@ -28,7 +27,7 @@ const updateUploadSchema = z.object({
 async function handleUpdateUpload(
   uploadId: number,
   updateData: UploadUpdateInput,
-  userId: number
+  userId: string
 ): Promise<Upload> {
   const existingUpload = await findUploadById(uploadId, userId);
 
@@ -54,15 +53,21 @@ async function handleUpdateUpload(
   return convertUpload(updatedUpload);
 }
 
-const handler = asyncHandler(async (req: RequestWithUser, res: Response) => {
-  const userId = getUserId(req);
-  const uploadId = parseIdParam(req);
+const handler = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
+  const uploadId = parseInt(req.params.id as string);
+  if (!uploadId || isNaN(uploadId)) {
+    throw new HttpException(400, 'Invalid upload ID');
+  }
   const updateData = req.body as UploadUpdateInput;
 
   const updatedUpload = await handleUpdateUpload(uploadId, updateData, userId);
 
   ResponseFormatter.success(res, updatedUpload, 'Upload updated successfully');
-});
+};
 
 const router = Router();
 router.put('/:id', requireAuth, validationMiddleware(updateUploadSchema), handler);

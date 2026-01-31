@@ -12,12 +12,12 @@ The User feature provides user management capabilities including viewing profile
 
 ## Authentication Requirements
 
-| Endpoint | Authentication | Authorization |
-|----------|----------------|---------------|
-| `GET /` | ✅ Required | Admin only |
-| `GET /:id` | ✅ Required | Any authenticated user |
-| `PUT /:id` | ✅ Required | Owner or Admin |
-| `DELETE /:id` | ✅ Required | Admin only |
+| Endpoint      | Authentication | Authorization          |
+| ------------- | -------------- | ---------------------- |
+| `GET /`       | ✅ Required    | Admin only             |
+| `GET /:id`    | ✅ Required    | Any authenticated user |
+| `PUT /:id`    | ✅ Required    | Owner or Admin         |
+| `DELETE /:id` | ✅ Required    | Admin only             |
 
 ---
 
@@ -41,10 +41,10 @@ Authorization: Bearer <jwt_token>
 
 #### Query Parameters
 
-| Parameter | Type | Default | Max | Description |
-|-----------|------|---------|-----|-------------|
-| `page` | number | `1` | - | Page number (min: 1) |
-| `limit` | number | `20` | `100` | Items per page |
+| Parameter | Type   | Default | Max   | Description          |
+| --------- | ------ | ------- | ----- | -------------------- |
+| `page`    | number | `1`     | -     | Page number (min: 1) |
+| `limit`   | number | `20`    | `100` | Items per page       |
 
 #### Example Request
 
@@ -66,7 +66,6 @@ GET /api/users?page=1&limit=20
       "name": "Admin User",
       "email": "admin@example.com",
       "phone_number": "+1234567890",
-      "role": "admin",
       "created_at": "2024-01-01T00:00:00.000Z",
       "updated_at": "2024-01-15T10:30:00.000Z"
     },
@@ -75,7 +74,6 @@ GET /api/users?page=1&limit=20
       "name": "John Doe",
       "email": "john.doe@example.com",
       "phone_number": null,
-      "role": "scientist",
       "created_at": "2024-01-10T09:00:00.000Z",
       "updated_at": "2024-01-10T09:00:00.000Z"
     }
@@ -92,10 +90,10 @@ GET /api/users?page=1&limit=20
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | User is not an admin |
+| Status | Error        | Description                  |
+| ------ | ------------ | ---------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token |
+| `403`  | Forbidden    | User is not an admin         |
 
 ---
 
@@ -117,9 +115,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | User ID |
+| Parameter | Type   | Description |
+| --------- | ------ | ----------- |
+| `id`      | number | User ID     |
 
 #### Success Response
 
@@ -143,25 +141,25 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `404` | Not Found | User not found |
+| Status | Error        | Description                  |
+| ------ | ------------ | ---------------------------- |
+| `401`  | Unauthorized | Missing or invalid JWT token |
+| `404`  | Not Found    | User not found               |
 
 ---
 
 ### 3. Update User
 
-Update user profile information. Users can update their own profile, while admins can update any user including role changes.
+Update user profile information. Users can update their own profile, while admins can update any user.
 
 **Endpoint:** `PUT /api/users/:id`
 
 **Authentication:** Required (Bearer Token)
 
-**Authorization:** 
+**Authorization:**
+
 - **Own profile:** Any authenticated user
 - **Other users:** Admin only
-- **Role changes:** Admin only
 
 #### Request Headers
 
@@ -172,9 +170,9 @@ Content-Type: application/json
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | User ID to update |
+| Parameter | Type   | Description       |
+| --------- | ------ | ----------------- |
+| `id`      | number | User ID to update |
 
 #### Request Body
 
@@ -183,20 +181,18 @@ Content-Type: application/json
   "name": "Jane Smith Updated",
   "email": "jane.updated@example.com",
   "phone_number": "+1122334455",
-  "password": "NewSecurePass123!",
-  "role": "scientist"
+  "password": "NewSecurePass123!"
 }
 ```
 
 #### Request Schema
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | ❌ | User's full name (min 1 char) |
-| `email` | string | ❌ | Valid email address |
-| `phone_number` | string | ❌ | Phone number |
-| `password` | string | ❌ | New password (min 8 chars) |
-| `role` | string | ❌ | Role (admin only): `admin`, `scientist`, `researcher`, `policymaker` |
+| Field          | Type   | Required | Description                   |
+| -------------- | ------ | -------- | ----------------------------- |
+| `name`         | string | ❌       | User's full name (min 1 char) |
+| `email`        | string | ❌       | Valid email address           |
+| `phone_number` | string | ❌       | Phone number                  |
+| `password`     | string | ❌       | New password (min 8 chars)    |
 
 #### Success Response
 
@@ -211,7 +207,6 @@ Content-Type: application/json
     "name": "Jane Smith Updated",
     "email": "jane.updated@example.com",
     "phone_number": "+1122334455",
-    "role": "scientist",
     "created_at": "2024-01-12T14:30:00.000Z",
     "updated_at": "2024-01-15T11:00:00.000Z"
   }
@@ -220,15 +215,13 @@ Content-Type: application/json
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Validation Error | Invalid request body |
-| `400` | Bad Request | Cannot change your own admin role |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | You can only update your own profile |
-| `403` | Forbidden | Only admins can change user roles |
-| `404` | Not Found | User not found |
-| `409` | Conflict | Email already exists |
+| Status | Error            | Description                          |
+| ------ | ---------------- | ------------------------------------ |
+| `400`  | Validation Error | Invalid request body                 |
+| `401`  | Unauthorized     | Missing or invalid JWT token         |
+| `403`  | Forbidden        | You can only update your own profile |
+| `404`  | Not Found        | User not found                       |
+| `409`  | Conflict         | Email already exists                 |
 
 ---
 
@@ -250,9 +243,9 @@ Authorization: Bearer <jwt_token>
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `id` | number | User ID to delete |
+| Parameter | Type   | Description       |
+| --------- | ------ | ----------------- |
+| `id`      | number | User ID to delete |
 
 #### Success Response
 
@@ -268,35 +261,35 @@ Authorization: Bearer <jwt_token>
 
 #### Error Responses
 
-| Status | Error | Description |
-|--------|-------|-------------|
-| `400` | Bad Request | Cannot delete your own account |
-| `400` | Bad Request | Cannot delete the last admin account |
-| `401` | Unauthorized | Missing or invalid JWT token |
-| `403` | Forbidden | User is not an admin |
-| `404` | Not Found | User not found |
+| Status | Error        | Description                          |
+| ------ | ------------ | ------------------------------------ |
+| `400`  | Bad Request  | Cannot delete your own account       |
+| `400`  | Bad Request  | Cannot delete the last admin account |
+| `401`  | Unauthorized | Missing or invalid JWT token         |
+| `403`  | Forbidden    | User is not an admin                 |
+| `404`  | Not Found    | User not found                       |
 
 ---
 
 ## User Roles
 
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `admin` | System administrator | Full access, user management, role changes |
-| `scientist` | Scientific user | Default role for public registration |
-| `researcher` | Research user | Limited access to research features |
-| `policymaker` | Policy user | Access to policy-related features |
+The system uses a dynamic Role-Based Access Control (RBAC) system. Users are assigned roles through the RBAC system, not directly in the user record.
+
+| Role         | Description          | Permissions                                    |
+| ------------ | -------------------- | ---------------------------------------------- |
+| `user`       | Regular user         | Basic access, can view own profile             |
+| `admin`      | System administrator | Full access, user management                   |
+| `superadmin` | Super administrator  | All permissions including system configuration |
 
 ### Role-Based Access Summary
 
-| Action | Admin | Scientist | Researcher | Policymaker |
-|--------|-------|-----------|------------|-------------|
-| View all users | ✅ | ❌ | ❌ | ❌ |
-| View any user by ID | ✅ | ✅ | ✅ | ✅ |
-| Update own profile | ✅ | ✅ | ✅ | ✅ |
-| Update other users | ✅ | ❌ | ❌ | ❌ |
-| Change user roles | ✅ | ❌ | ❌ | ❌ |
-| Delete users | ✅ | ❌ | ❌ | ❌ |
+| Action              | Admin | Superadmin | User          |
+| ------------------- | ----- | ---------- | ------------- |
+| View all users      | ✅    | ✅         | ❌            |
+| View any user by ID | ✅    | ✅         | ✅ (own only) |
+| Update own profile  | ✅    | ✅         | ✅            |
+| Update other users  | ✅    | ✅         | ❌            |
+| Delete users        | ✅    | ✅         | ❌            |
 
 ---
 
@@ -320,25 +313,24 @@ Authorization: Bearer <jwt_token>
                         │ No                        │ Yes
                         ▼                           ▼
                    ┌────────┐               ┌───────────────┐
-                   │  401   │               │ Is user admin?│
-                   │ Error  │               └───────┬───────┘
-                   └────────┘                       │
+                   │  401   │               │ Has users:   │
+                   │ Error  │               │ update perm? │
+                   └────────┘               └───────┬───────┘
                                       ┌─────────────┼─────────────┐
                                       │ No                        │ Yes
                                       ▼                           ▼
                                ┌─────────────┐            ┌───────────────┐
                                │ Is updating │            │ ✅ Can update │
-                               │ own profile?│            │ any user +    │
-                               └──────┬──────┘            │ change roles  │
-                                      │                   └───────────────┘
+                               │ own profile?│            │ any user      │
+                               └──────┬──────┘            └───────────────┘
+                                      │
                         ┌─────────────┼─────────────┐
                         │ No                        │ Yes
                         ▼                           ▼
                    ┌────────┐               ┌───────────────┐
                    │  403   │               │ ✅ Can update │
                    │ Error  │               │ own profile   │
-                   └────────┘               │ (no role chg) │
-                                            └───────────────┘
+                   └────────┘               └───────────────┘
 ```
 
 ---
@@ -357,7 +349,6 @@ interface User {
   name: string;
   email: string;
   phone_number: string | null;
-  role: 'admin' | 'scientist' | 'researcher' | 'policymaker';
   created_at: string;
   updated_at: string;
 }
@@ -367,7 +358,6 @@ interface UpdateUserData {
   email?: string;
   phone_number?: string;
   password?: string;
-  role?: 'admin' | 'scientist' | 'researcher' | 'policymaker';
 }
 
 interface PaginatedUsers {
@@ -380,14 +370,11 @@ interface PaginatedUsers {
 // Get auth header
 const getAuthHeader = (): Record<string, string> => {
   const token = localStorage.getItem('authToken');
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
 // Get all users (admin only)
-export const getAllUsers = async (
-  page = 1,
-  limit = 20
-): Promise<PaginatedUsers> => {
+export const getAllUsers = async (page = 1, limit = 20): Promise<PaginatedUsers> => {
   const response = await fetch(`${API_BASE}?page=${page}&limit=${limit}`, {
     headers: getAuthHeader(),
   });
@@ -426,16 +413,13 @@ export const getCurrentUser = async (): Promise<User> => {
   // Decode JWT to get user ID, or use a /me endpoint if available
   const token = localStorage.getItem('authToken');
   if (!token) throw new Error('Not authenticated');
-  
+
   const payload = JSON.parse(atob(token.split('.')[1]));
   return getUserById(payload.id);
 };
 
 // Update user
-export const updateUser = async (
-  id: number,
-  data: UpdateUserData
-): Promise<User> => {
+export const updateUser = async (id: number, data: UpdateUserData): Promise<User> => {
   const response = await fetch(`${API_BASE}/${id}`, {
     method: 'PUT',
     headers: {
@@ -455,12 +439,10 @@ export const updateUser = async (
 };
 
 // Update current user profile (convenience method)
-export const updateCurrentUser = async (
-  data: Omit<UpdateUserData, 'role'>
-): Promise<User> => {
+export const updateCurrentUser = async (data: Omit<UpdateUserData, 'role'>): Promise<User> => {
   const token = localStorage.getItem('authToken');
   if (!token) throw new Error('Not authenticated');
-  
+
   const payload = JSON.parse(atob(token.split('.')[1]));
   return updateUser(payload.id, data);
 };
@@ -482,7 +464,7 @@ export const deleteUser = async (id: number): Promise<void> => {
 export const isAdmin = (): boolean => {
   const token = localStorage.getItem('authToken');
   if (!token) return false;
-  
+
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload.role === 'admin';
@@ -559,35 +541,21 @@ export function ProfileEdit() {
   return (
     <div className="profile-edit">
       <h2>Edit Profile</h2>
-      
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-          />
+          <input type="text" value={name} onChange={e => setName(e.target.value)} required />
         </div>
 
         <div className="form-group">
           <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-          />
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
         </div>
 
         <div className="form-group">
           <label>Phone Number</label>
-          <input
-            type="tel"
-            value={phoneNumber}
-            onChange={e => setPhoneNumber(e.target.value)}
-          />
+          <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} />
         </div>
 
         <div className="form-group">
@@ -602,8 +570,12 @@ export function ProfileEdit() {
         </div>
 
         <div className="form-info">
-          <p><strong>Role:</strong> {user.role}</p>
-          <p><small>Contact an administrator to change your role.</small></p>
+          <p>
+            <strong>Role:</strong> {user.role}
+          </p>
+          <p>
+            <small>Contact an administrator to change your role.</small>
+          </p>
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -683,7 +655,7 @@ export function AdminUserList() {
   return (
     <div className="admin-user-list">
       <h2>User Management</h2>
-      
+
       <table>
         <thead>
           <tr>
@@ -702,19 +674,14 @@ export function AdminUserList() {
               <td>{user.name}</td>
               <td>{user.email}</td>
               <td>
-                <span className={`badge badge-${getRoleBadgeColor(user.role)}`}>
-                  {user.role}
-                </span>
+                <span className={`badge badge-${getRoleBadgeColor(user.role)}`}>{user.role}</span>
               </td>
               <td>{new Date(user.created_at).toLocaleDateString()}</td>
               <td>
-                <button onClick={() => window.location.href = `/users/${user.id}/edit`}>
+                <button onClick={() => (window.location.href = `/users/${user.id}/edit`)}>
                   Edit
                 </button>
-                <button 
-                  onClick={() => handleDelete(user)}
-                  className="danger"
-                >
+                <button onClick={() => handleDelete(user)} className="danger">
                   Delete
                 </button>
               </td>
@@ -724,17 +691,13 @@ export function AdminUserList() {
       </table>
 
       <div className="pagination">
-        <button 
-          disabled={page === 1} 
-          onClick={() => setPage(p => p - 1)}
-        >
+        <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>
           Previous
         </button>
-        <span>Page {page} of {Math.ceil(total / limit)}</span>
-        <button 
-          disabled={page >= Math.ceil(total / limit)} 
-          onClick={() => setPage(p => p + 1)}
-        >
+        <span>
+          Page {page} of {Math.ceil(total / limit)}
+        </span>
+        <button disabled={page >= Math.ceil(total / limit)} onClick={() => setPage(p => p + 1)}>
           Next
         </button>
       </div>

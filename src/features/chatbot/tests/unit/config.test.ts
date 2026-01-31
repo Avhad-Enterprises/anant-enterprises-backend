@@ -22,7 +22,9 @@ describe('Chatbot Configuration', () => {
       expect(allowedTypes).toContain('application/pdf');
       expect(allowedTypes).toContain('text/plain');
       expect(allowedTypes).toContain('text/markdown');
-      expect(allowedTypes).toContain('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      expect(allowedTypes).toContain(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
     });
 
     it('should have allowed extensions', () => {
@@ -43,9 +45,7 @@ describe('Chatbot Configuration', () => {
 
   describe('chunking configuration', () => {
     it('should have minChunkSize less than maxChunkSize', () => {
-      expect(chatbotConfig.chunking.minChunkSize).toBeLessThan(
-        chatbotConfig.chunking.maxChunkSize
-      );
+      expect(chatbotConfig.chunking.minChunkSize).toBeLessThan(chatbotConfig.chunking.maxChunkSize);
     });
 
     it('should have targetChunkSize between min and max', () => {
@@ -96,9 +96,7 @@ describe('Chatbot Configuration', () => {
   describe('search configuration', () => {
     it('should have valid topK settings', () => {
       expect(chatbotConfig.search.defaultTopK).toBeGreaterThan(0);
-      expect(chatbotConfig.search.maxTopK).toBeGreaterThanOrEqual(
-        chatbotConfig.search.defaultTopK
-      );
+      expect(chatbotConfig.search.maxTopK).toBeGreaterThanOrEqual(chatbotConfig.search.defaultTopK);
     });
 
     it('should have valid similarity threshold (0-1)', () => {
@@ -129,9 +127,7 @@ describe('Chatbot Configuration', () => {
     });
 
     it('should include default model in available models', () => {
-      expect(chatbotConfig.llm.availableModels).toContain(
-        chatbotConfig.llm.defaultModel
-      );
+      expect(chatbotConfig.llm.availableModels).toContain(chatbotConfig.llm.defaultModel);
     });
 
     it('should have valid max tokens', () => {

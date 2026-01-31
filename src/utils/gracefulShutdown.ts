@@ -1,4 +1,4 @@
-import { logger } from './logger';
+import { logger } from './logging/logger';
 
 /**
  * Graceful shutdown utility
@@ -16,7 +16,7 @@ interface ShutdownResources {
  */
 function closeServer(server: import('http').Server): Promise<void> {
   return new Promise((resolve, reject) => {
-    server.close((err) => {
+    server.close(err => {
       if (err) {
         reject(err);
       } else {
