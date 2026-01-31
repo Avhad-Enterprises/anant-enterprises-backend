@@ -15,6 +15,8 @@ import { requireAuth, requirePermission } from '../../../middlewares';
 // import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
 import { notificationService } from '../../notifications/services/notification.service';
+import { auditService } from '../../audit/services/audit.service';
+import { AuditAction, AuditResourceType } from '../../audit/shared/interface';
 import { logger } from '../../../utils';
 
 // Get base URL from environment for email links
@@ -38,13 +40,18 @@ const validTransitions: Record<string, string[]> = {
     'processing': ['shipped', 'cancelled'],
     'shipped': ['delivered', 'returned'],
     'delivered': ['refunded'],
-    'cancelled': [],
+    'cancelled': ['refunded'],
     'refunded': [],
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
     const orderId = req.params.id as string;
+
+    // Validate order ID format
+    if (!z.string().uuid().safeParse(orderId).success) {
+        throw new HttpException(400, 'Invalid order ID format');
+    }
 
     if (!userId) {
         throw new HttpException(401, 'Authentication required');
@@ -67,7 +74,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // Validate order status transition
-    if (body.order_status) {
+    if (body.order_status && body.order_status !== order.order_status) {
         const allowedTransitions = validTransitions[order.order_status] || [];
         if (!allowedTransitions.includes(body.order_status)) {
             throw new HttpException(400, `Cannot transition from "${order.order_status}" to "${body.order_status}". Allowed: ${allowedTransitions.join(', ') || 'none'}`);
@@ -117,6 +124,38 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .set(updateData)
         .where(eq(orders.id, orderId));
 
+    // Audit Log
+    try {
+        let action = AuditAction.UPDATE;
+        if (body.order_status === 'shipped') action = AuditAction.ORDER_SHIPPED;
+        else if (body.order_status === 'delivered') action = AuditAction.ORDER_DELIVERED;
+        else if (body.order_status === 'cancelled') action = AuditAction.ORDER_CANCELLED;
+        else if (body.order_status === 'refunded') action = AuditAction.ORDER_REFUNDED;
+        else if (body.payment_status === 'paid') action = AuditAction.ORDER_PAID;
+
+        await auditService.log({
+            userId,
+            action,
+            resourceType: AuditResourceType.ORDER,
+            resourceId: orderId,
+            oldValues: {
+                order_status: order.order_status,
+                payment_status: order.payment_status,
+                fulfillment_status: order.fulfillment_status,
+            },
+            newValues: body,
+            metadata: {
+                orderNumber: order.order_number,
+                updateReason: 'Admin Status Update'
+            }
+        }, {
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent')
+        });
+    } catch (error) {
+        logger.error('Failed to create audit log for order status update', { error, orderId });
+    }
+
     // STEP: Fulfill inventory when order is shipped
     if (body.order_status === 'shipped') {
         try {
@@ -131,57 +170,55 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // Send notifications based on status changes
     try {
-        // Generic Status Update Notification
         if (body.order_status && body.order_status !== order.order_status) {
-            await notificationService.createFromTemplate(
-                order.user_id!,
-                'order_status_update',
-                {
-                    orderId: order.id,
-                    status: body.order_status,
-                    customerName: 'Customer', // TODO: Fetch actual name if needed
-                    orderNumber: order.order_number,
-                    orderUrl: `${FRONTEND_URL}/profile/orders/${order.id}`,
-                },
-                {
-                    actionUrl: `/profile/orders/${order.id}`,
-                    actionText: 'View Order'
-                }
-            );
-        }
-
-        // Specific Status Notifications (if we want distinct templates for shipped/delivered)
-        if (body.order_status === 'shipped' && order.order_status !== 'shipped') {
-            await notificationService.createFromTemplate(
-                order.user_id!,
-                'order_shipped',
-                {
-                    orderId: order.id,
-                    orderNumber: order.order_number,
-                    trackingNumber: body.order_tracking || 'Not available',
-                    customerName: 'Customer',
-                },
-                {
-                    actionUrl: `/profile/orders/${order.id}`,
-                    actionText: 'Track Order',
-                    priority: 'high'
-                }
-            );
-        } else if (body.order_status === 'delivered' && order.order_status !== 'delivered') {
-            await notificationService.createFromTemplate(
-                order.user_id!,
-                'order_delivered',
-                {
-                    orderId: order.id,
-                    orderNumber: order.order_number,
-                    customerName: 'Customer',
-                },
-                {
-                    actionUrl: `/profile/orders/${order.id}`,
-                    actionText: 'View Order',
-                    priority: 'normal'
-                }
-            );
+            // Specific Status Notifications
+            if (body.order_status === 'shipped') {
+                await notificationService.createFromTemplate(
+                    order.user_id!,
+                    'order_shipped',
+                    {
+                        orderId: order.id,
+                        orderNumber: order.order_number,
+                        trackingNumber: body.order_tracking || 'Not available',
+                        customerName: 'Customer',
+                    },
+                    {
+                        actionUrl: `/profile/orders/${order.id}`,
+                        actionText: 'Track Order',
+                        priority: 'high'
+                    }
+                );
+            } else if (body.order_status === 'delivered') {
+                await notificationService.createFromTemplate(
+                    order.user_id!,
+                    'order_delivered',
+                    {
+                        orderId: order.id,
+                        orderNumber: order.order_number,
+                        customerName: 'Customer',
+                    },
+                    {
+                        actionUrl: `/profile/orders/${order.id}`,
+                        actionText: 'View Order',
+                        priority: 'normal'
+                    }
+                );
+            } else if (body.order_status === 'cancelled') {
+                await notificationService.createFromTemplate(
+                    order.user_id!,
+                    'order_cancelled',
+                    {
+                        orderId: order.id,
+                        orderNumber: order.order_number,
+                        customerName: 'Customer',
+                    },
+                    {
+                        actionUrl: `/profile/orders/${order.id}`,
+                        actionText: 'View Order',
+                        priority: 'high'
+                    }
+                );
+            }
         }
     } catch (error) {
         logger.error('Failed to send order status notification:', error);
