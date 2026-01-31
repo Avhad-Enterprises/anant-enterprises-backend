@@ -9,12 +9,9 @@
  * - Reduced from 1,179 lines (work in progress)
  */
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../../database';
-import { inventory } from '../shared/inventory.schema';
-import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
-import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
 import type {
     InventoryListParams,
@@ -299,9 +296,53 @@ function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'ou
 }
 
 /**
+ * Helper: Resolve location ID for inventory
+ * Uses default location, or creates one if none exists
+ */
+async function resolveLocationForInventory(locationId?: string, createdBy?: string): Promise<string> {
+    if (locationId) return locationId;
+
+    // Find the DEFAULT location
+    const [defaultLocation] = await db
+        .select({ id: inventoryLocations.id })
+        .from(inventoryLocations)
+        .where(eq(inventoryLocations.is_default, true))
+        .limit(1);
+
+    if (defaultLocation) return defaultLocation.id;
+
+    // Fallback: First active location
+    const [activeLocation] = await db
+        .select({ id: inventoryLocations.id })
+        .from(inventoryLocations)
+        .where(eq(inventoryLocations.is_active, true))
+        .limit(1);
+
+    if (activeLocation) return activeLocation.id;
+
+    // Auto-create default location (safety fallback)
+    const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
+    const [newLocation] = await db
+        .insert(inventoryLocations)
+        .values({
+            location_code: 'WH-MAIN',
+            name: 'Main Warehouse',
+            type: 'warehouse',
+            is_active: true,
+            is_default: true,
+            created_by: validUserId,
+        })
+        .returning();
+
+    logger.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
+    return newLocation.id;
+}
+
+/**
  * Create inventory entry for a product
- * Uses the default location and prevents duplicate inventory records.
- * Product name and SKU are queried via JOIN, not stored in inventory table.
+ * 
+ * Phase 2: Uses query layer and extracted location helper
+ * Prevents duplicate inventory records, auto-resolves location
  */
 export async function createInventoryForProduct(
     productId: string,
@@ -309,86 +350,31 @@ export async function createInventoryForProduct(
     createdBy?: string,
     locationId?: string
 ) {
-    // Step 1: Check if inventory already exists for this product (prevent duplicates)
-    const [existing] = await db
-        .select()
-        .from(inventory)
-        .where(eq(inventory.product_id, productId))
-        .limit(1);
-
-    if (existing) {
-        // Return existing inventory record instead of creating duplicate
-        console.info(`[Inventory] Product ${productId} already has inventory record ${existing.id}`);
-        return existing;
+    // Query layer: Check for existing inventory
+    const existing = await inventoryQueries.findInventoryByProduct(productId);
+    
+    if (existing.length > 0) {
+        logger.info(`[Inventory] Product ${productId} already has inventory record ${existing[0].id}`);
+        return existing[0];
     }
 
-    // Resolve valid user UUID if provided
+    // Business logic: Resolve location and user
+    const targetLocationId = await resolveLocationForInventory(locationId, createdBy);
     const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
 
-    // Step 2: Resolve Location - Use default location first
-    let targetLocationId = locationId;
+    // Query layer: Create inventory
+    const created = await inventoryQueries.createInventory({
+        product_id: productId,
+        location_id: targetLocationId,
+        available_quantity: initialQuantity,
+        status: getStatusFromQuantity(initialQuantity),
+        condition: 'sellable',
+        updated_by: validUserId || undefined,
+    });
 
-    if (!targetLocationId) {
-        // Find the DEFAULT location (not just any active one)
-        const [defaultLocation] = await db
-            .select({ id: inventoryLocations.id })
-            .from(inventoryLocations)
-            .where(eq(inventoryLocations.is_default, true))
-            .limit(1);
-
-        if (defaultLocation) {
-            targetLocationId = defaultLocation.id;
-        } else {
-            // Fallback: Find first active location
-            const [activeLocation] = await db
-                .select({ id: inventoryLocations.id })
-                .from(inventoryLocations)
-                .where(eq(inventoryLocations.is_active, true))
-                .limit(1);
-
-            if (activeLocation) {
-                targetLocationId = activeLocation.id;
-            } else {
-                // Auto-create a default location if none exists (Safety fallback)
-                const [newLocation] = await db
-                    .insert(inventoryLocations)
-                    .values({
-                        location_code: 'WH-MAIN',
-                        name: 'Main Warehouse',
-                        type: 'warehouse',
-                        is_active: true,
-                        is_default: true, // Set as default
-                        created_by: validUserId,
-                    })
-                    .returning();
-
-                targetLocationId = newLocation.id;
-                console.warn(`[Inventory] Auto-created default location: ${newLocation.name} (${newLocation.id})`);
-            }
-        }
-    }
-
-    if (!targetLocationId) {
-        throw new Error('No inventory location found. Please create a location first.');
-    }
-
-    // Step 3: Create inventory record
-    const [created] = await db
-        .insert(inventory)
-        .values({
-            product_id: productId,
-            // Removed: product_name, sku (always JOINed from products table)
-            location_id: targetLocationId,
-            available_quantity: initialQuantity,
-            status: getStatusFromQuantity(initialQuantity),
-            condition: 'sellable',
-            updated_by: validUserId,
-        })
-        .returning();
-
-    // Log initial inventory creation
+    // Create audit trail if user provided
     if (validUserId) {
-        await db.insert(inventoryAdjustments).values({
+        await adjustmentQueries.createAdjustment({
             inventory_id: created.id,
             adjustment_type: 'correction',
             quantity_change: initialQuantity,
@@ -404,559 +390,27 @@ export async function createInventoryForProduct(
 }
 
 // ============================================
-// ORDER-INVENTORY INTEGRATION
+// RE-EXPORTS FROM DOMAIN SERVICES (Phase 2)
 // ============================================
 
 /**
- * Validate if stock is available for given products
- * @returns Array of validation results
+ * Phase 2 Refactoring: Order and Cart operations extracted to separate services
+ * Re-exported here for backward compatibility with existing APIs
  */
-export async function validateStockAvailability(
-    items: Array<{ product_id: string; quantity: number }>
-): Promise<import('../shared/interface').StockValidationResult[]> {
-    const results: import('../shared/interface').StockValidationResult[] = [];
 
-    for (const item of items) {
-        const [stock] = await db
-            .select({
-                product_id: inventory.product_id,
-                available_quantity: inventory.available_quantity,
-                reserved_quantity: inventory.reserved_quantity,
-                product_name: products.product_title,
-            })
-            .from(inventory)
-            .leftJoin(products, eq(inventory.product_id, products.id))
-            .where(eq(inventory.product_id, item.product_id));
-
-        if (!stock) {
-            results.push({
-                available: false,
-                product_id: item.product_id,
-                requested_quantity: item.quantity,
-                available_quantity: 0,
-                reserved_quantity: 0,
-                message: 'Product not found in inventory',
-            });
-            continue;
-        }
-
-        const actuallyAvailable = stock.available_quantity - stock.reserved_quantity;
-        const isAvailable = actuallyAvailable >= item.quantity;
-
-        results.push({
-            available: isAvailable,
-            product_id: item.product_id,
-            requested_quantity: item.quantity,
-            available_quantity: stock.available_quantity,
-            reserved_quantity: stock.reserved_quantity,
-            product_name: stock.product_name || undefined,
-            message: isAvailable
-                ? undefined
-                : `${stock.product_name || 'Product'}: Only ${actuallyAvailable} units available (requested ${item.quantity})`,
-        });
-    }
-
-    return results;
-}
-
-/**
- * Reserve stock for an order (increases reserved_quantity)
- * Must be called within a transaction
- */
-export async function reserveStockForOrder(
-    items: Array<{ product_id: string; quantity: number }>,
-    orderId: string,
-    userId: string,
-    allowOverselling: boolean = false
-): Promise<void> {
-    const validUserId = await resolveValidUserId(userId);
-
-    return await db.transaction(async (tx) => {
-        // Step 1: Validate stock availability
-        const validations = await validateStockAvailability(items);
-        const failures = validations.filter((v) => !v.available);
-
-        if (failures.length > 0) {
-            const messages = failures.map((f) => f.message).join('; ');
-            if (!allowOverselling) {
-                throw new Error(`Insufficient stock: ${messages}`);
-            }
-            // If overselling allowed, just log it
-            console.warn(`[Inventory] Overselling allowed for order ${orderId}. Issues: ${messages}`);
-        }
-
-        // Step 2: Reserve stock for each item
-        for (const item of items) {
-            const [updated] = await tx
-                .update(inventory)
-                .set({
-                    reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
-                    updated_at: new Date(),
-                    updated_by: validUserId,
-                })
-                .where(eq(inventory.product_id, item.product_id))
-                .returning();
-
-            if (!updated) {
-                throw new Error(`Failed to reserve stock for product ${item.product_id}`);
-            }
-
-            // Create audit record
-            await tx.insert(inventoryAdjustments).values({
-                inventory_id: updated.id,
-                adjustment_type: 'correction',
-                quantity_change: 0,
-                reason: `Stock reserved for order`,
-                reference_number: orderId,
-                quantity_before: updated.available_quantity,
-                quantity_after: updated.available_quantity,
-                adjusted_by: validUserId!,
-                notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
-            });
-        }
-    });
-}
-
-/**
- * Fulfill order inventory (decreases available_quantity AND reserved_quantity)
- * Called when order is shipped
- */
-export async function fulfillOrderInventory(
-    orderId: string,
-    userId: string,
-    allowNegative: boolean = false
-): Promise<void> {
-    const validUserId = await resolveValidUserId(userId);
-
-    if (!validUserId) {
-        throw new Error('Valid user ID required for inventory fulfillment');
-    }
-
-    return await db.transaction(async (tx) => {
-        // Dynamic import to avoid circular dependency
-        const { orderItems } = await import('../../orders/shared/order-items.schema');
-        const { orders } = await import('../../orders/shared/orders.schema');
-
-        // Get order items
-        const items = await tx
-            .select({
-                product_id: orderItems.product_id,
-                quantity: orderItems.quantity,
-                product_name: orderItems.product_name,
-            })
-            .from(orderItems)
-            .where(eq(orderItems.order_id, orderId));
-
-        if (items.length === 0) {
-            throw new Error('No order items found');
-        }
-
-        // Get order number for reference
-        const [order] = await tx
-            .select({ order_number: orders.order_number })
-            .from(orders)
-            .where(eq(orders.id, orderId));
-
-        if (!order) {
-            throw new Error('Order not found');
-        }
-
-        // Fulfill each item
-        for (const item of items) {
-            if (!item.product_id) continue;
-
-            // Get current inventory
-            const [current] = await tx
-                .select()
-                .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
-
-            if (!current) {
-                throw new Error(`Inventory not found for product ${item.product_name}`);
-            }
-
-            const quantityBefore = current.available_quantity;
-            const quantityAfter = quantityBefore - item.quantity;
-
-            if (quantityAfter < 0 && !allowNegative) {
-                throw new Error(
-                    `Insufficient stock for ${item.product_name}: available=${quantityBefore}, needed=${item.quantity}`
-                );
-            }
-
-            if (quantityAfter < 0 && allowNegative) {
-                logger.warn(`[Inventory] Order ${orderId} fulfillment resulted in negative stock for ${item.product_name}: ${quantityAfter}`);
-            }
-
-            // Update inventory: reduce both available and reserved
-            const [updated] = await tx
-                .update(inventory)
-                .set({
-                    available_quantity: quantityAfter,
-                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
-                    status: getStatusFromQuantity(quantityAfter),
-                    updated_at: new Date(),
-                    updated_by: validUserId,
-                })
-                .where(eq(inventory.product_id, item.product_id))
-                .returning();
-
-            // Create adjustment record
-            await tx.insert(inventoryAdjustments).values({
-                inventory_id: updated.id,
-                adjustment_type: 'decrease',
-                quantity_change: -item.quantity,
-                reason: `Order ${order.order_number} shipped`,
-                reference_number: order.order_number,
-                quantity_before: quantityBefore,
-                quantity_after: quantityAfter,
-                adjusted_by: validUserId,
-                notes: `Fulfilled ${item.quantity} units`,
-            });
-        }
-    });
-}
-
-/**
- * Release stock reservation (decreases reserved_quantity)
- * Called when order is cancelled before shipment
- */
-export async function releaseReservation(
-    orderId: string,
-    userId: string
-): Promise<void> {
-    const validUserId = await resolveValidUserId(userId);
-
-    if (!validUserId) {
-        throw new Error('Valid user ID required for reservation release');
-    }
-
-    return await db.transaction(async (tx) => {
-        // Dynamic import to avoid circular dependency
-        const { orderItems } = await import('../../orders/shared/order-items.schema');
-        const { orders } = await import('../../orders/shared/orders.schema');
-
-        // Get order items
-        const items = await tx
-            .select({
-                product_id: orderItems.product_id,
-                quantity: orderItems.quantity,
-            })
-            .from(orderItems)
-            .where(eq(orderItems.order_id, orderId));
-
-        if (items.length === 0) {
-            throw new Error('No order items found');
-        }
-
-        // Get order number
-        const [order] = await tx
-            .select({ order_number: orders.order_number })
-            .from(orders)
-            .where(eq(orders.id, orderId));
-
-        // Release reservation for each item
-        for (const item of items) {
-            if (!item.product_id) continue;
-
-            const [current] = await tx
-                .select()
-                .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
-
-            if (!current) continue;
-
-            // Update: reduce reserved_quantity only
-            const [updated] = await tx
-                .update(inventory)
-                .set({
-                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
-                    updated_at: new Date(),
-                    updated_by: validUserId,
-                })
-                .where(eq(inventory.product_id, item.product_id))
-                .returning();
-
-            // Create adjustment record
-            await tx.insert(inventoryAdjustments).values({
-                inventory_id: updated.id,
-                adjustment_type: 'correction',
-                quantity_change: 0,
-                reason: `Order ${order?.order_number || orderId} cancelled`,
-                reference_number: order?.order_number || orderId,
-                quantity_before: current.available_quantity,
-                quantity_after: current.available_quantity,
-                adjusted_by: validUserId,
-                notes: `Released ${item.quantity} units reservation`,
-            });
-        }
-    });
-}
-
-/**
- * Process order return (restock inventory)
- * Called when order is returned or cancelled after shipping
- */
-export async function processOrderReturn(
-    orderId: string,
-    userId: string,
-    restock: boolean = true
-): Promise<void> {
-    const validUserId = await resolveValidUserId(userId);
-
-    if (!validUserId) {
-        throw new Error('Valid user ID required for return processing');
-    }
-
-    return await db.transaction(async (tx) => {
-        // Dynamic import to avoid circular dependency
-        const { orderItems } = await import('../../orders/shared/order-items.schema');
-        const { orders } = await import('../../orders/shared/orders.schema');
-
-        // Get order items
-        const items = await tx
-            .select({
-                product_id: orderItems.product_id,
-                quantity: orderItems.quantity,
-                product_name: orderItems.product_name,
-            })
-            .from(orderItems)
-            .where(eq(orderItems.order_id, orderId));
-
-        if (items.length === 0) {
-            throw new Error('No order items found');
-        }
-
-        // Get order info
-        const [order] = await tx
-            .select({ order_number: orders.order_number })
-            .from(orders)
-            .where(eq(orders.id, orderId));
-
-        // Process each item
-        for (const item of items) {
-            if (!item.product_id) continue;
-
-            if (restock) {
-                // Get current inventory
-                const [current] = await tx
-                    .select()
-                    .from(inventory)
-                    .where(eq(inventory.product_id, item.product_id));
-
-                if (!current) {
-                    logger.warn(`[Inventory] Skipping return for ${item.product_name}: Inventory record not found`);
-                    continue;
-                }
-
-                const quantityAfter = current.available_quantity + item.quantity;
-
-                // Update inventory: increase available_quantity
-                const [updated] = await tx
-                    .update(inventory)
-                    .set({
-                        available_quantity: quantityAfter,
-                        status: getStatusFromQuantity(quantityAfter),
-                        updated_at: new Date(),
-                        updated_by: validUserId,
-                    })
-                    .where(eq(inventory.product_id, item.product_id))
-                    .returning();
-
-                // Create adjustment record
-                await tx.insert(inventoryAdjustments).values({
-                    inventory_id: updated.id,
-                    adjustment_type: 'increase',
-                    quantity_change: item.quantity,
-                    reason: `Order ${order?.order_number || orderId} returned`,
-                    reference_number: order?.order_number || orderId,
-                    quantity_before: current.available_quantity,
-                    quantity_after: quantityAfter,
-                    adjusted_by: validUserId,
-                    notes: `Restocked ${item.quantity} units from return`,
-                });
-            }
-        }
-    });
-}
-
-// ============================================
-// CART RESERVATION SYSTEM (Phase 2)
-// ============================================
-
-/**
- * Reserve stock for a cart item (with timeout)
- * @param productId - Product to reserve
- * @param quantity - Quantity to reserve
- * @param cartItemId - Cart item ID for tracking
- * @param expirationMinutes - Timeout in minutes (default: 30)
- */
-export async function reserveCartStock(
-    productId: string,
-    quantity: number,
-    cartItemId: string,
-    expirationMinutes: number = 30
-): Promise<{ reservation_id: string; expires_at: Date }> {
-    return await db.transaction(async (tx) => {
-        // Step 1: Validate stock availability
-        const validations = await validateStockAvailability([{ product_id: productId, quantity }]);
-        const [validation] = validations;
-
-        if (!validation.available) {
-            throw new Error(validation.message || 'Insufficient stock');
-        }
-
-        // Step 2: Reserve stock
-        await tx
-            .update(inventory)
-            .set({
-                reserved_quantity: sql`${inventory.reserved_quantity} + ${quantity}`,
-                updated_at: new Date(),
-            })
-            .where(eq(inventory.product_id, productId));
-
-        // Step 3: Create reservation record in cart_items
-        const reservationId = crypto.randomUUID();
-        const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
-
-        const { cartItems } = await import('../../cart/shared/cart-items.schema');
-
-        await tx
-            .update(cartItems)
-            .set({
-                reservation_id: reservationId,
-                reserved_at: new Date(),
-                reservation_expires_at: expiresAt,
-            })
-            .where(eq(cartItems.id, cartItemId));
-
-        return { reservation_id: reservationId, expires_at: expiresAt };
-    });
-}
-
-/**
- * Release stock reservation for a cart item
- * @param cartItemId - Cart item ID
- */
-export async function releaseCartStock(cartItemId: string): Promise<void> {
-    return await db.transaction(async (tx) => {
-        const { cartItems } = await import('../../cart/shared/cart-items.schema');
-
-        // Get cart item with reservation
-        const [item] = await tx
-            .select({
-                product_id: cartItems.product_id,
-                quantity: cartItems.quantity,
-                reservation_id: cartItems.reservation_id,
-            })
-            .from(cartItems)
-            .where(eq(cartItems.id, cartItemId));
-
-        if (!item || !item.product_id || !item.reservation_id) {
-            return; // Nothing to release
-        }
-
-        // Release reservation
-        await tx
-            .update(inventory)
-            .set({
-                reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
-                updated_at: new Date(),
-            })
-            .where(eq(inventory.product_id, item.product_id));
-
-        // Clear reservation fields
-        await tx
-            .update(cartItems)
-            .set({
-                reservation_id: null,
-                reserved_at: null,
-                reservation_expires_at: null,
-            })
-            .where(eq(cartItems.id, cartItemId));
-    });
-}
-
-/**
- * Extend cart reservation (called during checkout)
- * @param cartId - Cart ID
- * @param additionalMinutes - Time to extend (default: 60 for checkout)
- */
-export async function extendCartReservation(
-    cartId: string,
-    additionalMinutes: number = 60
-): Promise<void> {
-    const { cartItems } = await import('../../cart/shared/cart-items.schema');
-
-    const newExpiresAt = new Date(Date.now() + additionalMinutes * 60 * 1000);
-
-    await db
-        .update(cartItems)
-        .set({
-            reservation_expires_at: newExpiresAt,
-        })
-        .where(
-            and(
-                eq(cartItems.cart_id, cartId),
-                eq(cartItems.is_deleted, false)
-            )
-        );
-}
-
-/**
- * Cleanup expired cart reservations (called by cron job)
- * Returns count of cleaned up items
- */
-export async function cleanupExpiredCartReservations(): Promise<number> {
-    const { cartItems } = await import('../../cart/shared/cart-items.schema');
-
-    // Find expired items
-    const expiredItems = await db
-        .select({
-            id: cartItems.id,
-            product_id: cartItems.product_id,
-            quantity: cartItems.quantity,
-            reservation_id: cartItems.reservation_id,
-        })
-        .from(cartItems)
-        .where(
-            and(
-                sql`${cartItems.reservation_expires_at} IS NOT NULL`,
-                sql`${cartItems.reservation_expires_at} < NOW()`
-            )
-        );
-
-    if (expiredItems.length === 0) {
-        return 0;
-    }
-
-    // Release each expired reservation
-    for (const item of expiredItems) {
-        if (!item.product_id) continue;
-
-        await db.transaction(async (tx) => {
-            // Release from inventory
-            await tx
-                .update(inventory)
-                .set({
-                    reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
-                    updated_at: new Date(),
-                })
-                .where(eq(inventory.product_id, item.product_id!));
-
-            // Clear reservation from cart item
-            await tx
-                .update(cartItems)
-                .set({
-                    reservation_id: null,
-                    reserved_at: null,
-                    reservation_expires_at: null,
-                })
-                .where(eq(cartItems.id, item.id));
-        });
-    }
-
-    console.info(`Cleaned up ${expiredItems.length} expired cart reservations`);
-
-    return expiredItems.length;
-}
+// Order Reservation Service
+export {
+    validateStockAvailability,
+    reserveStockForOrder,
+    fulfillOrderInventory,
+    releaseReservation,
+    processOrderReturn,
+} from './order-reservation.service';
+
+// Cart Reservation Service
+export {
+    reserveCartStock,
+    releaseCartStock,
+    extendCartReservation,
+    cleanupExpiredCartReservations,
+} from './cart-reservation.service';
