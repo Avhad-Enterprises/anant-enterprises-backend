@@ -101,8 +101,8 @@ export interface IProductVariant {
   selling_price: string;
   compare_at_price?: string | null;
 
-  // Inventory
-  inventory_quantity: number;
+  // Phase 2A: inventory_quantity removed - use inventory table with variant_id
+  // Query: SELECT SUM(available_quantity) FROM inventory WHERE variant_id = ?
 
   // Media
   image_url?: string | null;

@@ -24,15 +24,15 @@ export const inventoryTransfers = pgTable(
 
         // Locations
         from_location_id: uuid('from_location_id')
-            .references(() => inventoryLocations.id)
+            .references(() => inventoryLocations.id, { onDelete: 'restrict' })
             .notNull(),
         to_location_id: uuid('to_location_id')
-            .references(() => inventoryLocations.id)
+            .references(() => inventoryLocations.id, { onDelete: 'restrict' })
             .notNull(),
 
         // Product
         product_id: uuid('product_id')
-            .references(() => products.id)
+            .references(() => products.id, { onDelete: 'restrict' })
             .notNull(),
         quantity: integer('quantity').notNull(),
 
@@ -49,7 +49,7 @@ export const inventoryTransfers = pgTable(
         notes: text('notes'),
 
         // Related records
-        related_order_id: uuid('related_order_id').references(() => orders.id),
+        related_order_id: uuid('related_order_id').references(() => orders.id, { onDelete: 'set null' }),
 
         // Audit
         created_at: timestamp('created_at').defaultNow().notNull(),

@@ -97,7 +97,6 @@ export const validateEnv = () => {
     }
 
     // Use console.log to avoid circular dependency with logger
-    console.log('info: ✅ Environment variables validated.');
     return env;
   } catch (error) {
     process.exit(1);

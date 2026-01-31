@@ -318,7 +318,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // FALLBACK: If no user cart found but session ID provided, check for unmerged guest cart
     // This handles the case where cart merge didn't complete during login
     if (!cart && sessionId) {
-        console.log('[create-order] No user cart found, checking for guest cart with session:', sessionId);
         const [guestCart] = await db
             .select()
             .from(carts)
@@ -331,7 +330,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         if (guestCart) {
             // Auto-assign guest cart to user for this order
-            console.log('[create-order] Found unmerged guest cart, assigning to user:', guestCart.id);
             await db.update(carts)
                 .set({
                     user_id: userId,
@@ -410,7 +408,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // PHASE 2: Extend cart item reservations to prevent timeout during checkout
     try {
         await extendCartReservation(cart.id, 60); // Extend to 1 hour
-        console.log('[create-order] Extended cart reservations for checkout:', cart.id);
     } catch (error: any) {
         console.warn('[create-order] Failed to extend cart reservations:', error);
         // Continue anyway - order creation will re-validate stock

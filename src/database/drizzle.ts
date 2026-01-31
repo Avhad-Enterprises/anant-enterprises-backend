@@ -84,7 +84,7 @@ import { productQuestions, questionStatusEnum } from '../features/reviews/shared
 import { inventoryLocations, locationTypeEnum } from '../features/inventory/shared/inventory-locations.schema';
 import { inventory, inventoryStatusEnum } from '../features/inventory/shared/inventory.schema';
 import { inventoryAdjustments, adjustmentTypeEnum, approvalStatusEnum } from '../features/inventory/shared/inventory-adjustments.schema';
-import { variantInventoryAdjustments } from '../features/inventory/shared/variant-inventory-adjustments.schema';
+// REMOVED: variantInventoryAdjustments (Phase 2A - unified into inventory table)
 import { carts, cartStatusEnum, cartSourceEnum } from '../features/cart/shared/carts.schema';
 import { cartItems } from '../features/cart/shared/cart-items.schema';
 // COMMENTED OUT - Unused tables (31 Jan 2026)
@@ -320,7 +320,7 @@ export const schema = {
   inventoryLocations,
   inventory,
   inventoryAdjustments,
-  variantInventoryAdjustments,
+  // variantInventoryAdjustments, // REMOVED (Phase 2A - 31 Jan 2026)
   // productionOrders, // COMMENTED OUT (31 Jan 2026)
   locationTypeEnum,
   inventoryStatusEnum,

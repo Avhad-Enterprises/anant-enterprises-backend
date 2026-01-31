@@ -66,16 +66,16 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             // Variants flag
             has_variants: products.has_variants,
 
-            // Computed: Total stock from inventory table + variant inventory
+            // Phase 2A: Total stock from inventory table (unified for products AND variants)
+            // Variants now have inventory records with variant_id
             total_stock: sql<string>`(
                 SELECT CAST(COALESCE(
-                    (SELECT SUM(${inventory.available_quantity}) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
-                    0
-                ) + COALESCE(
-                    (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
-                     WHERE ${productVariants.product_id} = ${products.id} 
-                     AND ${productVariants.is_active} = true 
-                     AND ${productVariants.is_deleted} = false),
+                    (SELECT SUM(${inventory.available_quantity}) 
+                     FROM ${inventory} 
+                     WHERE ${inventory.product_id} = ${products.id} 
+                     OR ${inventory.variant_id} IN (
+                         SELECT id FROM ${productVariants} WHERE product_id = ${products.id}
+                     )),
                     0
                 ) AS TEXT)
             )`,
@@ -136,7 +136,7 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         .from(productFaqs)
         .where(eq(productFaqs.product_id, productData.id));
 
-    // Fetch variants for this product
+    // Fetch variants for this product (Phase 2A: inventory_quantity removed)
     const variantsData = await db
         .select({
             id: productVariants.id,
@@ -148,7 +148,7 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             cost_price: productVariants.cost_price,
             selling_price: productVariants.selling_price,
             compare_at_price: productVariants.compare_at_price,
-            inventory_quantity: productVariants.inventory_quantity,
+            // Phase 2A: inventory_quantity removed - use inventory table
             image_url: productVariants.image_url,
             thumbnail_url: productVariants.thumbnail_url,
             is_default: productVariants.is_default,
@@ -183,9 +183,25 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         images.push(...productData.additional_images);
     }
 
-    // Calculate total stock explicitly
+    // Phase 2A: Calculate stocks from inventory table
     const inventoryStock = inventoryData.reduce((sum, item) => sum + (Number(item.available_quantity) || 0), 0);
-    const variantStock = variantsData.reduce((sum, v) => sum + (Number(v.inventory_quantity) || 0), 0);
+    
+    // Phase 2A: Calculate variant stock from inventory table (not from inventory_quantity field)
+    // Query inventory records where variant_id matches any of the product's variants
+    const variantIds = variantsData.map(v => v.id);
+    let variantStock = 0;
+    
+    if (variantIds.length > 0) {
+        const variantInventoryData = await db
+            .select({
+                available_quantity: inventory.available_quantity,
+            })
+            .from(inventory)
+            .where(sql`${inventory.variant_id} = ANY(${variantIds})`);
+        
+        variantStock = variantInventoryData.reduce((sum, item) => sum + (Number(item.available_quantity) || 0), 0);
+    }
+    
     const totalCalculatedStock = inventoryStock + variantStock;
 
     // Build response
@@ -259,7 +275,6 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         has_variants: variantsData.length > 0,
         variants: variantsData,
     };
- console.log(response)
     return response;
 }
 

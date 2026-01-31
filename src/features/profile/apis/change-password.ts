@@ -45,24 +45,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
     if (!isPasswordValid) {
       // Fallback: Check if the password matches Supabase Auth (Split-Brain recovery)
       // This handles cases where local DB password is old/different from actual login password
-      console.log('Local password mismatch. Attempting Supabase verification...');
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: currentPassword,
       });
 
       if (error || !data.user) {
-        console.log('Supabase verification failed:', error?.message);
         throw new HttpException(400, 'Invalid current password');
       }
-
-      console.log('Supabase verification successful! Resyncing...');
     }
-  } else {
-    // If no password exists (e.g. Supabase/External auth), we allow setting one
-    // We trust the active session since they successfully authenticated via requireAuth
-    console.log(`Setting initial password for user ${userId} (migrating from external auth)`);
   }
 
   // Hash new password

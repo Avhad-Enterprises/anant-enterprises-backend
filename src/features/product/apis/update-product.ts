@@ -158,14 +158,12 @@ async function updateProduct(
         .limit(1);
 
       if (defaultLocation.length > 0) {
-        // Create with location
+        // Create with location (product_name and sku queried via JOIN)
         await db.insert(inventory).values({
           product_id: id,
           location_id: defaultLocation[0].id,
           available_quantity: data.inventory_quantity,
           reserved_quantity: 0,
-          sku: data.sku || existingProduct.sku,
-          product_name: data.product_title || existingProduct.product_title,
           status: 'in_stock'
         });
       } else {
@@ -225,7 +223,7 @@ async function updateProduct(
               cost_price: variant.cost_price,
               selling_price: variant.selling_price,
               compare_at_price: variant.compare_at_price,
-              inventory_quantity: variant.inventory_quantity,
+              // Phase 2A: inventory_quantity removed - managed via inventory table
               image_url: variant.image_url,
               thumbnail_url: variant.thumbnail_url,
               is_active: variant.is_active ?? true,
@@ -244,7 +242,7 @@ async function updateProduct(
             cost_price: variant.cost_price,
             selling_price: variant.selling_price,
             compare_at_price: variant.compare_at_price,
-            inventory_quantity: variant.inventory_quantity,
+            // Phase 2A: inventory_quantity removed - managed via inventory table
             image_url: variant.image_url,
             thumbnail_url: variant.thumbnail_url,
             is_active: variant.is_active ?? true,
@@ -257,8 +255,6 @@ async function updateProduct(
           const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
           await createInventoryForProduct(
             id,
-            `${existingProduct.product_title} - ${variant.option_value}`,
-            variant.sku,
             variant.inventory_quantity || 0,
             updatedBy
           );
