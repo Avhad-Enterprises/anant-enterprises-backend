@@ -34,7 +34,7 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'cost_price', 'compare_at_price', 'product_title', 'category_tier_1', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
+    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'cost_price', 'compare_at_price', 'product_title', 'category_tier_1', 'inventory_quantity', 'total_stock', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
     sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
 
     // Additional Filters
@@ -231,6 +231,22 @@ const handler = async (req: Request, res: Response) => {
 
         // Computed: Review count
         review_count: sql<number>`COUNT(${reviews.id})`,
+
+        // Computed: Total Stock (Same logic as inventory_quantity for now, but explicit field)
+        total_stock: sql<number>`
+          COALESCE(
+            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) 
+             FROM ${inventory} 
+             WHERE ${inventory.product_id} = ${products.id} 
+             OR ${inventory.variant_id} IN (
+               SELECT id FROM ${productVariants} 
+               WHERE ${productVariants.product_id} = ${products.id} 
+               AND ${productVariants.is_active} = true 
+               AND ${productVariants.is_deleted} = false
+             )),
+            0
+          )
+        `.mapWith(Number),
       })
       .from(products)
       .leftJoin(
@@ -304,6 +320,7 @@ const handler = async (req: Request, res: Response) => {
         case 'compare_at_price':
            return (Number(a.compare_at_price || 0) - Number(b.compare_at_price || 0)) * multiplier;
         case 'inventory_quantity':
+        case 'total_stock':
           // Convert inventory string to number for comparison
           return (Number(a.inventory_quantity || 0) - Number(b.inventory_quantity || 0)) * multiplier;
         case 'rating':
@@ -336,7 +353,8 @@ const handler = async (req: Request, res: Response) => {
       // Format inventory_quantity as string to match frontend expectation
       const adminProducts = paginatedProducts.map(p => ({
         ...p,
-        inventory_quantity: p.inventory_quantity.toString()
+        inventory_quantity: p.inventory_quantity.toString(),
+        total_stock: p.total_stock
       }));
 
       return ResponseFormatter.success(

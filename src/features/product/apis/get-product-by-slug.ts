@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, or, inArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException } from '../../../utils';
@@ -68,16 +68,13 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
 
             // Phase 2A: Total stock from inventory table (unified for products AND variants)
             // Variants now have inventory records with variant_id
-            total_stock: sql<string>`(
-                SELECT CAST(COALESCE(
-                    (SELECT SUM(${inventory.available_quantity}) 
-                     FROM ${inventory} 
-                     WHERE ${inventory.product_id} = ${products.id} 
-                     OR ${inventory.variant_id} IN (
-                         SELECT id FROM ${productVariants} WHERE product_id = ${products.id}
-                     )),
-                    0
-                ) AS TEXT)
+            total_stock_count: sql<number>`(
+                SELECT COALESCE(SUM(${inventory.available_quantity}), 0) 
+                FROM ${inventory} 
+                WHERE ${inventory.product_id} = ${products.id} 
+                OR ${inventory.variant_id} IN (
+                    SELECT id FROM ${productVariants} WHERE product_id = ${products.id}
+                )
             )`,
 
             // Computed: Average rating from reviews
@@ -118,14 +115,6 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         }
     }
 
-    // Fetch inventory for this product (Explicit fetch to ensure accuracy)
-    const inventoryData = await db
-        .select({
-            available_quantity: inventory.available_quantity
-        })
-        .from(inventory)
-        .where(eq(inventory.product_id, productData.id));
-
     // Fetch FAQs for this product
     const faqsData = await db
         .select({
@@ -136,7 +125,7 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         .from(productFaqs)
         .where(eq(productFaqs.product_id, productData.id));
 
-    // Fetch variants for this product (Phase 2A: inventory_quantity removed)
+    // Fetch variants for this product
     const variantsData = await db
         .select({
             id: productVariants.id,
@@ -148,7 +137,6 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
             cost_price: productVariants.cost_price,
             selling_price: productVariants.selling_price,
             compare_at_price: productVariants.compare_at_price,
-            // Phase 2A: inventory_quantity removed - use inventory table
             image_url: productVariants.image_url,
             thumbnail_url: productVariants.thumbnail_url,
             is_default: productVariants.is_default,
@@ -163,6 +151,24 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         })
         .from(productVariants)
         .where(eq(productVariants.product_id, productData.id));
+
+    const variantIds = variantsData.map(v => v.id);
+
+    // Fetch all inventory for this product and its variants (Unified fetch)
+    const inventoryData = await db
+        .select({
+            product_id: inventory.product_id,
+            variant_id: inventory.variant_id,
+            available_quantity: inventory.available_quantity,
+            reserved_quantity: inventory.reserved_quantity
+        })
+        .from(inventory)
+        .where(
+            or(
+                eq(inventory.product_id, productData.id),
+                variantIds.length > 0 ? inArray(inventory.variant_id, variantIds) : sql`1=0`
+            )
+        );
 
     // Calculate discount percentage
     let discount: number | null = null;
@@ -180,29 +186,27 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         images.push(productData.primary_image_url);
     }
     if (productData.additional_images && Array.isArray(productData.additional_images)) {
-        images.push(...productData.additional_images);
+        images.push(...(productData.additional_images as string[]));
     }
 
-    // Phase 2A: Calculate stocks from inventory table
-    const inventoryStock = inventoryData.reduce((sum, item) => sum + (Number(item.available_quantity) || 0), 0);
-    
-    // Phase 2A: Calculate variant stock from inventory table (not from inventory_quantity field)
-    // Query inventory records where variant_id matches any of the product's variants
-    const variantIds = variantsData.map(v => v.id);
-    let variantStock = 0;
-    
-    if (variantIds.length > 0) {
-        const variantInventoryData = await db
-            .select({
-                available_quantity: inventory.available_quantity,
-            })
-            .from(inventory)
-            .where(sql`${inventory.variant_id} = ANY(${variantIds})`);
-        
-        variantStock = variantInventoryData.reduce((sum, item) => sum + (Number(item.available_quantity) || 0), 0);
-    }
-    
-    const totalCalculatedStock = inventoryStock + variantStock;
+    // Mapping for variant inventory
+    const variantInventoryMap = new Map<string, number>();
+    inventoryData.forEach(item => {
+        if (item.variant_id) {
+            const qty = Math.max(0, (Number(item.available_quantity) || 0) - (Number(item.reserved_quantity) || 0));
+            variantInventoryMap.set(item.variant_id, (variantInventoryMap.get(item.variant_id) || 0) + qty);
+        }
+    });
+
+    // Base inventory (tied to product_id)
+    const baseInventory = inventoryData
+        .filter(item => item.product_id === productData.id)
+        .reduce((sum, item) => sum + Math.max(0, (Number(item.available_quantity) || 0) - (Number(item.reserved_quantity) || 0)), 0);
+
+    // Total calculated stock
+    const totalCalculatedStock = inventoryData.reduce((sum, item) => {
+        return sum + Math.max(0, (Number(item.available_quantity) || 0) - (Number(item.reserved_quantity) || 0));
+    }, 0);
 
     // Build response
     const response: IProductDetailResponse = {
@@ -223,10 +227,9 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
 
         // Inventory
         sku: productData.sku,
-        // Use explicitly calculated stock
         inStock: totalCalculatedStock > 0,
         total_stock: totalCalculatedStock,
-        base_inventory: totalCalculatedStock,
+        base_inventory: baseInventory,
 
         // Media
         primary_image_url: productData.primary_image_url,
@@ -272,9 +275,13 @@ async function getProductDetailBySlug(slug: string, userId?: string): Promise<IP
         })),
 
         // Variants
-        has_variants: variantsData.length > 0,
-        variants: variantsData,
+        has_variants: productData.has_variants,
+        variants: variantsData.map(v => ({
+            ...v,
+            inventory_quantity: variantInventoryMap.get(v.id) || 0
+        })),
     };
+
     return response;
 }
 

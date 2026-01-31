@@ -44,6 +44,9 @@ export async function findAdjustmentHistory(inventoryId: string, limit: number =
 
 /**
  * Get adjustment history by product ID (includes all variants)
+ * 
+ * Fixed: Uses OR condition to include both base product and variant adjustments.
+ * Added: quantity_before and quantity_after for audit display.
  */
 export async function findAdjustmentHistoryByProduct(
     productId: string,
@@ -51,13 +54,15 @@ export async function findAdjustmentHistoryByProduct(
     limit: number = 50
 ) {
     const offset = (page - 1) * limit;
-    
+
     const query = sql`
         SELECT
             ia.id,
             ia.inventory_id,
             ia.adjustment_type,
             ia.quantity_change,
+            ia.quantity_before,
+            ia.quantity_after,
             ia.reason,
             ia.reference_number,
             ia.notes,
@@ -67,18 +72,21 @@ export async function findAdjustmentHistoryByProduct(
             i.variant_id,
             i.location_id,
             CASE
-                WHEN i.variant_id IS NOT NULL THEN CONCAT(p.product_title, ' - ', pv.option_name, ': ', pv.option_value)
-                ELSE p.product_title
-            END as product_name,
+                WHEN i.variant_id IS NOT NULL THEN pv.option_value
+                ELSE 'Base Product'
+            END as target_name,
             CASE
                 WHEN i.variant_id IS NOT NULL THEN pv.sku
                 ELSE p.sku
-            END as sku
+            END as variant_sku,
+            u.name as adjusted_by_name
         FROM ${inventoryAdjustments} ia
         INNER JOIN ${inventory} i ON ia.inventory_id = i.id
-        LEFT JOIN ${products} p ON i.product_id = p.id
+        LEFT JOIN ${products} p ON i.product_id = p.id OR p.id = ${productId}
         LEFT JOIN ${productVariants} pv ON i.variant_id = pv.id
+        LEFT JOIN users u ON ia.adjusted_by = u.id
         WHERE i.product_id = ${productId}
+           OR i.variant_id IN (SELECT id FROM ${productVariants} WHERE product_id = ${productId})
         ORDER BY ia.adjusted_at DESC
         LIMIT ${limit} OFFSET ${offset}
     `;
@@ -89,22 +97,25 @@ export async function findAdjustmentHistoryByProduct(
         id: row.id,
         inventory_id: row.inventory_id,
         adjustment_type: row.adjustment_type,
-        quantity_change: row.quantity_change,
+        quantity_change: Number(row.quantity_change),
+        quantity_before: Number(row.quantity_before),
+        quantity_after: Number(row.quantity_after),
         reason: row.reason,
         reference_number: row.reference_number,
         notes: row.notes,
         adjusted_by: row.adjusted_by,
+        adjusted_by_name: row.adjusted_by_name,
         adjusted_at: new Date(row.adjusted_at as string),
         product_id: row.product_id,
         variant_id: row.variant_id,
         location_id: row.location_id,
-        product_name: row.product_name,
-        sku: row.sku
+        target_name: row.target_name,
+        variant_sku: row.variant_sku
     })) as unknown as InventoryHistoryItem[];
 }
 
 /**
- * Count adjustments for a product
+ * Count adjustments for a product (includes all variants)
  */
 export async function countAdjustmentsByProduct(productId: string): Promise<number> {
     const countQuery = sql`
@@ -112,6 +123,7 @@ export async function countAdjustmentsByProduct(productId: string): Promise<numb
         FROM ${inventoryAdjustments} ia
         INNER JOIN ${inventory} i ON ia.inventory_id = i.id
         WHERE i.product_id = ${productId}
+           OR i.variant_id IN (SELECT id FROM ${productVariants} WHERE product_id = ${productId})
     `;
     
     const result = await db.execute(countQuery);

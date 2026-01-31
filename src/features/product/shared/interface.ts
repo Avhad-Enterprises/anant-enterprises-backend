@@ -101,8 +101,9 @@ export interface IProductVariant {
   selling_price: string;
   compare_at_price?: string | null;
 
-  // Phase 2A: inventory_quantity removed - use inventory table with variant_id
-  // Query: SELECT SUM(available_quantity) FROM inventory WHERE variant_id = ?
+  // Phase 2A: inventory_quantity removed from DB - added here for API response
+  // Value is populated by joining with the inventory table (variant_id FK)
+  inventory_quantity: number;
 
   // Media
   image_url?: string | null;
