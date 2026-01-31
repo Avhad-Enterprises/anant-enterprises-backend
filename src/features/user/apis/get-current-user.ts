@@ -31,7 +31,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   const user = await getCurrentUser(req.userId);
+  console.log('DEBUG: getCurrentUser found user:', JSON.stringify(user, null, 2));
+
+  if (user) {
+    console.log('DEBUG: User has last_name?', 'last_name' in user, user.last_name);
+  }
+
   const userResponse = sanitizeUser(user);
+  console.log('DEBUG: Sanitized user response:', JSON.stringify(userResponse, null, 2));
 
   ResponseFormatter.success(res, userResponse, 'User retrieved successfully');
 };
