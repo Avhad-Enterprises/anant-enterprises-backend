@@ -38,7 +38,8 @@
     /* Path Mapping */
     "baseUrl": ".",
     "paths": {
-      "@tests/*": ["./tests/*"]
+      "@tests/*": ["./tests/*"],
+      "@/*": ["./src/*"]
     },
     "typeRoots": ["./node_modules/@types"]
   },
