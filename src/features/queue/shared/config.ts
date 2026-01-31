@@ -8,7 +8,9 @@
  * - Connection settings
  */
 
+import IORedis from 'ioredis';
 import { config } from '../../../utils/validateEnv';
+import { logger } from '../../../utils';
 
 /**
  * Queue names enum
@@ -54,16 +56,91 @@ export const DEFAULT_JOB_OPTIONS = {
 /**
  * Worker concurrency settings
  * Number of concurrent jobs each worker can process
+ * Reduced defaults to prevent Redis connection exhaustion
  */
 export const WORKER_CONCURRENCY = {
-    [QueueName.ORDERS]: config.QUEUE_CONCURRENCY || 5,
-    [QueueName.PAYMENTS]: config.QUEUE_CONCURRENCY || 3,
-    [QueueName.INVENTORY]: config.QUEUE_CONCURRENCY || 5,
-    [QueueName.NOTIFICATIONS]: config.QUEUE_CONCURRENCY || 10,
+    [QueueName.ORDERS]: config.QUEUE_CONCURRENCY || 3,
+    [QueueName.PAYMENTS]: config.QUEUE_CONCURRENCY || 2,
+    [QueueName.INVENTORY]: config.QUEUE_CONCURRENCY || 3,
+    [QueueName.NOTIFICATIONS]: config.QUEUE_CONCURRENCY || 5,
 };
 
 /**
- * Redis connection configuration for queues
+ * Shared Redis connection for all BullMQ workers
+ * Using IORedis with connection pooling to prevent connection exhaustion
+ */
+let sharedRedisConnection: IORedis | null = null;
+
+export const getSharedRedisConnection = (): IORedis => {
+    if (!sharedRedisConnection) {
+        sharedRedisConnection = new IORedis({
+            host: config.REDIS_HOST,
+            port: config.REDIS_PORT,
+            password: config.REDIS_PASSWORD || undefined,
+            maxRetriesPerRequest: null, // Required for BullMQ
+            enableReadyCheck: false,
+            enableOfflineQueue: false,
+            // Connection pool settings
+            lazyConnect: false,
+            keepAlive: 30000,
+            connectTimeout: 10000,
+            // Retry strategy
+            retryStrategy: (times: number) => {
+                const delay = Math.min(times * 50, 2000);
+                logger.warn(`Redis connection retry attempt ${times}, waiting ${delay}ms`);
+                return delay;
+            },
+            // Error handling
+            reconnectOnError: (err) => {
+                logger.error('Redis reconnect on error', { error: err.message });
+                const targetError = 'READONLY';
+                if (err.message.includes(targetError)) {
+                    // Only reconnect on READONLY error
+                    return true;
+                }
+                return false;
+            },
+        });
+
+        // Log connection events
+        sharedRedisConnection.on('connect', () => {
+            logger.info('✅ BullMQ shared Redis connection established');
+        });
+
+        sharedRedisConnection.on('ready', () => {
+            logger.info('✅ BullMQ shared Redis connection ready');
+        });
+
+        sharedRedisConnection.on('error', (err) => {
+            logger.error('❌ BullMQ shared Redis connection error', { error: err.message });
+        });
+
+        sharedRedisConnection.on('close', () => {
+            logger.warn('⚠️ BullMQ shared Redis connection closed');
+        });
+
+        sharedRedisConnection.on('reconnecting', () => {
+            logger.info('🔄 BullMQ shared Redis reconnecting...');
+        });
+    }
+
+    return sharedRedisConnection;
+};
+
+/**
+ * Close shared Redis connection
+ */
+export const closeSharedRedisConnection = async (): Promise<void> => {
+    if (sharedRedisConnection) {
+        logger.info('Closing shared Redis connection...');
+        await sharedRedisConnection.quit();
+        sharedRedisConnection = null;
+    }
+};
+
+/**
+ * Redis connection configuration for queues (legacy, kept for Queue initialization)
+ * Workers should use getSharedRedisConnection() instead
  */
 export const QUEUE_REDIS_CONFIG = {
     host: config.REDIS_HOST,
