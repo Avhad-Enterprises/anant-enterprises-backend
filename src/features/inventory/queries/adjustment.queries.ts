@@ -105,7 +105,7 @@ export async function findAdjustmentHistoryByProduct(
         notes: row.notes,
         adjusted_by: row.adjusted_by,
         adjusted_by_name: row.adjusted_by_name,
-        adjusted_at: new Date(row.adjusted_at as string),
+        adjusted_at: new Date(row.adjusted_at + 'Z'),
         product_id: row.product_id,
         variant_id: row.variant_id,
         location_id: row.location_id,
