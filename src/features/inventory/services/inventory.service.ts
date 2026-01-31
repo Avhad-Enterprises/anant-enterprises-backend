@@ -411,7 +411,9 @@ export {
     fulfillOrderInventory,
     releaseReservation,
     processOrderReturn,
+    logOrderPlacement,
 } from './order-reservation.service';
+
 
 // Cart Reservation Service
 export {

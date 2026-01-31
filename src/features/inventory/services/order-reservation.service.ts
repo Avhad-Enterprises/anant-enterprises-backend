@@ -502,3 +502,86 @@ export async function processOrderReturn(
         }
     });
 }
+
+/**
+ * Log inventory adjustment when an order is placed
+ * 
+ * Business Logic:
+ * - Creates audit trail for order placement
+ * - Records each item with reason "Order {number} placed"
+ * - Logs the current available quantity (no change to stock)
+ * - Called after order is successfully created
+ * 
+ * @param orderId - Order ID to log placement for
+ * @param orderNumber - Order number for reference
+ * @param userId - User who placed the order
+ */
+export async function logOrderPlacement(
+    orderId: string,
+    orderNumber: string,
+    userId: string
+): Promise<void> {
+    const validUserId = await resolveValidUserId(userId);
+
+    if (!validUserId) {
+        logger.warn(`[OrderPlacement] Cannot log order ${orderNumber}: No valid user ID`);
+        return;
+    }
+
+    try {
+        // Dynamic import to avoid circular dependency
+        const { orderItems } = await import('../../orders/shared/order-items.schema');
+
+        // Query layer: Get order items using Drizzle
+        const items = await db
+            .select({
+                product_id: orderItems.product_id,
+                quantity: orderItems.quantity,
+                product_name: orderItems.product_name,
+            })
+            .from(orderItems)
+            .where(eq(orderItems.order_id, orderId));
+
+        if (items.length === 0) {
+            logger.warn(`[OrderPlacement] No items found for order ${orderNumber}`);
+            return;
+        }
+
+        // Log adjustment for each item
+        for (const item of items) {
+            if (!item.product_id) continue;
+
+            // Query layer: Get current inventory using Drizzle
+            const [current] = await db
+                .select({
+                    id: inventory.id,
+                    available_quantity: inventory.available_quantity,
+                    reserved_quantity: inventory.reserved_quantity,
+                })
+                .from(inventory)
+                .where(eq(inventory.product_id, item.product_id));
+
+            if (!current) {
+                logger.warn(`[OrderPlacement] No inventory record for product ${item.product_name}`);
+                continue;
+            }
+
+            // Query layer: Create adjustment record using Drizzle
+            await db.insert(inventoryAdjustments).values({
+                inventory_id: current.id,
+                adjustment_type: 'correction',
+                quantity_change: 0,
+                reason: `Order ${orderNumber} placed`,
+                reference_number: orderNumber,
+                quantity_before: current.available_quantity,
+                quantity_after: current.available_quantity,
+                adjusted_by: validUserId,
+                notes: `Ordered ${item.quantity} units of ${item.product_name}`,
+            });
+        }
+
+        logger.info(`[OrderPlacement] Logged placement for order ${orderNumber} with ${items.length} items`);
+    } catch (error) {
+        logger.error(`[OrderPlacement] Failed to log order ${orderNumber}:`, error);
+    }
+}
