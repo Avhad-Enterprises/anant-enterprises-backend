@@ -14,17 +14,13 @@ error: Worker error {"error":"read ECONNRESET","queue":"orders-queue"}
 - Redis ran out of available client slots
 
 ### Solution
-- **Shared Connection Pool**: All workers now use a single IORedis connection
+- **Optimized Connection Config**: BullMQ now reuses connections internally with proper settings
 - **Reduced Concurrency**: Lowered default worker concurrency (3-5 instead of 5-10)
-- **Better Error Handling**: Added retry strategy and connection monitoring
+- **Better Error Handling**: Added retry strategy and connection optimization
 
 ## Quick Start
 
-1. **Install Dependencies:**
-```bash
-cd anant-enterprises-backend
-npm install
-```
+1. **No installation needed** - fix is already in the code
 
 2. **Restart Backend:**
 ```bash
@@ -34,15 +30,14 @@ npm run dev
 3. **Verify Fix:**
 Look for these success messages:
 ```
-✅ BullMQ shared Redis connection established
-✅ BullMQ shared Redis connection ready
 ✅ All workers started successfully
+  📦 orders-queue: running (concurrency: 3)
 ```
 
 ## Verify Connection Count
 
 Before fix: 25-50 connections
-After fix: 1-3 connections
+After fix: 5-10 connections (BullMQ manages internally)
 
 Check with:
 ```bash
@@ -112,10 +107,10 @@ tail -f logs/combined.log | grep "Redis\|Worker"
 
 | Metric | Before | After |
 |--------|--------|-------|
-| Redis Connections | 25-50 | 1-3 |
+| Redis Connections | 25-50 | 5-10 |
 | Connection Errors | Frequent | None |
 | Startup Time | 2-5s | <1s |
-| Memory Saved | - | ~50MB |
+| Configuration | Basic | Optimized |
 
 ## Next Steps
 
