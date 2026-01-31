@@ -14,6 +14,7 @@ import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { supabase } from '../../../utils/supabase';
 import { users } from '../../user/shared/user.schema';
+import { userCacheService } from '../../user/services/user-cache.service';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.userId;
@@ -23,16 +24,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'Authentication required');
   }
 
-  if (!currentPassword || !newPassword) {
-    throw new HttpException(400, 'Current password and new password are required');
+  if (!newPassword) {
+    throw new HttpException(400, 'New password is required');
   }
 
   // Get user with password
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
   if (!user) {
     throw new HttpException(404, 'User not found');
@@ -40,6 +37,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   // Verify current password if one exists
   if (user.password) {
+    if (!currentPassword) {
+      throw new HttpException(400, 'Current password is required');
+    }
+
     const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
 
     if (!isPasswordValid) {
@@ -69,15 +70,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
     })
     .where(eq(users.id, userId));
 
+  // Invalidate user cache to ensure subsequent requests (like /users/me) get the updated password status
+  await userCacheService.invalidateUser(userId, user.email);
+
   // Update password in Supabase Auth (since frontend uses Supabase for login)
   try {
-    const { error: supabaseError } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password: newPassword }
-    );
+    const { error: supabaseError } = await supabase.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
 
     if (supabaseError) {
-      // We don't throw error here to allow local update to succeed, 
+      // We don't throw error here to allow local update to succeed,
       // but in a real sync scenario we might want to rollback.
       // For now, logging is sufficient as local auth is growing priority.
     }

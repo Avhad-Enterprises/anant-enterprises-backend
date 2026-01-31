@@ -14,6 +14,8 @@ export interface IUser {
   auth_id?: string | null;
   user_type: 'individual' | 'business';
   name: string;
+  last_name: string; // Required in DB
+  display_name?: string | null;
   email: string;
   password?: string | null;
   email_verified: boolean;
@@ -22,6 +24,8 @@ export interface IUser {
   phone_country_code?: string | null;
   phone_verified: boolean;
   phone_verified_at?: Date | null;
+  secondary_email?: string | null; // Added
+  secondary_phone_number?: string | null; // Added
   profile_image_url?: string | null;
   date_of_birth?: string | null;
   gender: 'male' | 'female' | 'other' | 'prefer_not_to_say' | null;
