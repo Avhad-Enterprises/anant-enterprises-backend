@@ -33,44 +33,6 @@ const handler = async (req: Request, res: Response) => {
 
         const result = await getInventoryList(params);
 
-        // DEBUG: Log the service result
-        console.log('=== INVENTORY API DEBUG ===');
-        console.log('Service returned:', {
-            itemsCount: result.items.length,
-            total: result.total,
-            page: result.page,
-            limit: result.limit,
-            firstItem: result.items[0] ? {
-                id: result.items[0].id,
-                product_name: result.items[0].product_name,
-                location_id: result.items[0].location_id,
-            } : 'No items',
-        });
-
-        // This will format the response as { success, data, message, meta }
-        const formattedResponse = {
-            success: true,
-            data: result.items,
-            message: 'Inventory retrieved successfully',
-            meta: {
-                timestamp: new Date().toISOString(),
-                pagination: {
-                    page: result.page,
-                    limit: result.limit,
-                    total: result.total,
-                },
-            },
-        };
-
-        console.log('Response structure:', {
-            success: formattedResponse.success,
-            dataIsArray: Array.isArray(formattedResponse.data),
-            dataLength: formattedResponse.data.length,
-            hasMeta: !!formattedResponse.meta,
-            pagination: formattedResponse.meta.pagination,
-        });
-        console.log('=== END DEBUG ===');
-
         ResponseFormatter.paginated(
             res,
             result.items,

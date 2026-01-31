@@ -336,8 +336,6 @@ async function importProduct(
                     // Create new inventory record
                     await createInventoryForProduct(
                         targetProductId,
-                        rawData.product_title,
-                        normalizedSku,
                         rawData.inventory_quantity,
                         userId
                     );

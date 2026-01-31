@@ -69,34 +69,24 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
 function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
   const signatures = FILE_SIGNATURES[mimeType];
 
-  // Debug: Log first 10 bytes of file
-  const firstBytes = Array.from(buffer.slice(0, 10)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ');
-  console.log(`[Upload Debug] MIME: ${mimeType}, First 10 bytes: [${firstBytes}]`);
-
   // If no signature defined for this type, allow based on MIME check only
   // (e.g., CSV, plain text files)
   if (!signatures) {
-    console.log(`[Upload Debug] No signature check for ${mimeType}, allowing file`);
     return true;
   }
-
-  console.log(`[Upload Debug] Checking against signatures:`, signatures);
 
   // Check if buffer starts with any of the valid signatures
   let isValid = signatures.some(signature => {
     if (buffer.length < signature.length) {
-      console.log(`[Upload Debug] Buffer too short: ${buffer.length} < ${signature.length}`);
       return false;
     }
     const matches = signature.every((byte, index) => buffer[index] === byte);
-    console.log(`[Upload Debug] Signature [${signature.map(b => '0x' + b.toString(16)).join(', ')}] matches: ${matches}`);
     return matches;
   });
 
   // Special handling for HEIC/HEIF/AVIF which may be misidentified as JPEG
   // These formats have "ftyp" signature at bytes 4-7
   if (!isValid && mimeType === 'image/jpeg') {
-    console.log(`[Upload Debug] JPEG validation failed, checking if it's actually AVIF/HEIC...`);
     // Check bytes 4-11 for ftyp + brand
     const ftypRegion = buffer.slice(4, 12);
     const isAVIF = ftypRegion.equals(Buffer.from([0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66]));
@@ -104,13 +94,10 @@ function validateFileSignature(buffer: Buffer, mimeType: string): boolean {
     const isHEIF = ftypRegion.equals(Buffer.from([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x66]));
 
     if (isAVIF || isHEIC || isHEIF) {
-      const format = isAVIF ? 'AVIF' : isHEIC ? 'HEIC' : 'HEIF';
-      console.log(`[Upload Debug] File is actually ${format}, accepting it`);
       isValid = true;
     }
   }
 
-  console.log(`[Upload Debug] Final validation result: ${isValid}`);
   return isValid;
 }
 

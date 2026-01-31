@@ -10,7 +10,7 @@ import {
     varchar,
     text,
     decimal,
-    integer,
+    // integer, // REMOVED (Phase 2A): no longer needed after removing inventory_quantity
     boolean,
     timestamp,
     jsonb,
@@ -201,7 +201,9 @@ export type NewProduct = typeof products.$inferInsert;
 /**
  * Product Variants table
  * Stores variant options for products (e.g., Size: Large, Color: Red)
- * Each variant has independent pricing and inventory.
+ * 
+ * PHASE 2A: Inventory tracking moved to inventory table (variant_id FK)
+ * Query inventory: SELECT SUM(available_quantity) FROM inventory WHERE variant_id = ?
  */
 export const productVariants = pgTable(
     'product_variants',
@@ -227,8 +229,8 @@ export const productVariants = pgTable(
         selling_price: decimal('selling_price', { precision: 15, scale: 2 }).notNull(),
         compare_at_price: decimal('compare_at_price', { precision: 15, scale: 2 }),
 
-        // Inventory (per variant)
-        inventory_quantity: integer('inventory_quantity').default(0).notNull(),
+        // PHASE 2A: inventory_quantity REMOVED
+        // Use inventory table instead: SELECT * FROM inventory WHERE variant_id = ?
 
         // Media
         image_url: text('image_url'),

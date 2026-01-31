@@ -339,14 +339,6 @@ async function handlePaymentCaptured(payment: IRazorpayPaymentEntity) {
     amount: amount / 100, // Convert paise to rupees for logging
   });
 
-  // Explicit console log for development visibility
-  console.log('---------------------------------------------------');
-  console.log(`💰 PAYMENT CAPTURED - ORDER CONFIRMED`);
-  console.log(`📄 Order ID: ${transaction.order_id}`);
-  console.log(`💳 Payment ID: ${paymentId}`);
-  console.log(`💵 Amount: ₹${amount / 100}`);
-  console.log('---------------------------------------------------');
-
   // Trigger invoice generation
   await eventPublisher.publishGenerateInvoice({
     orderId: transaction.order_id,

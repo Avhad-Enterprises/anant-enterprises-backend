@@ -6,6 +6,7 @@
 
 import { pgTable, uuid, varchar, text, timestamp, jsonb, pgEnum, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // ENUMS
@@ -76,9 +77,12 @@ export const collections = pgTable(
     published_at: timestamp('published_at'),
 
     // Audit Fields
-    created_by: uuid('created_by'), // Reference to Supabase Auth ID or internal user UUID
+    created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
     updated_at: timestamp('updated_at').defaultNow().notNull(),
+    deleted_by: uuid('deleted_by').references(() => users.id, { onDelete: 'set null' }),
+    deleted_at: timestamp('deleted_at'),
   },
   table => ({
     // Optimizing common lookups

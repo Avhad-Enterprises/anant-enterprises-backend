@@ -210,19 +210,21 @@ const handler = async (req: Request, res: Response) => {
         slug: products.slug,
         description: products.short_description,
 
-        // Computed: Inventory Quantity (Base stock + Variant stock)
-        inventory_quantity: sql<number>`(
+        // Computed: Inventory Quantity (unified inventory table for both products and variants)
+        inventory_quantity: sql<number>`
           COALESCE(
-            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) FROM ${inventory} WHERE ${inventory.product_id} = ${products.id}),
-            0
-          ) + COALESCE(
-            (SELECT SUM(${productVariants.inventory_quantity}) FROM ${productVariants} 
-             WHERE ${productVariants.product_id} = ${products.id} 
-             AND ${productVariants.is_active} = true 
-             AND ${productVariants.is_deleted} = false),
+            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) 
+             FROM ${inventory} 
+             WHERE ${inventory.product_id} = ${products.id} 
+             OR ${inventory.variant_id} IN (
+               SELECT id FROM ${productVariants} 
+               WHERE ${productVariants.product_id} = ${products.id} 
+               AND ${productVariants.is_active} = true 
+               AND ${productVariants.is_deleted} = false
+             )),
             0
           )
-        )`.mapWith(Number),
+        `.mapWith(Number),
 
         // Computed: Average rating
         rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,

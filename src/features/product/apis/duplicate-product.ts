@@ -176,8 +176,6 @@ async function duplicateProducts(ids: string[], userId: string): Promise<number>
              
              await tx.insert(inventory).values({
                  product_id: newProduct.id,
-                 product_name: newProduct.product_title,
-                 sku: newProduct.sku,
                  location_id: locationId,
                  available_quantity: 0,
                  status: 'out_of_stock',

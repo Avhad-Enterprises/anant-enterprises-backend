@@ -58,7 +58,7 @@ export const chatbotDocuments = pgTable(
     is_embedded: boolean('is_embedded').default(false).notNull(), // Track if content is vectorized
     error_message: text('error_message'),
     // Audit fields
-    created_by: uuid('created_by').references(() => users.id),
+    created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at').defaultNow().notNull(),
     updated_by: uuid('updated_by'),
     updated_at: timestamp('updated_at').defaultNow().notNull(),

@@ -21,9 +21,6 @@ type BulkDeleteDto = z.infer<typeof bulkDeleteSchema>;
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const data: BulkDeleteDto = req.body;
-  console.log('Bulk Delete Handler Reached');
-  console.log('User ID:', req.userId);
-  console.log('Body:', data);
 
   logger.info(`Bulk deleting users: ${data.ids.length} records`);
 

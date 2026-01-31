@@ -19,7 +19,7 @@ export const userRoles = pgTable(
     role_id: uuid('role_id')
       .references(() => roles.id, { onDelete: 'cascade' })
       .notNull(),
-    assigned_by: uuid('assigned_by').references(() => users.id),
+    assigned_by: uuid('assigned_by').references(() => users.id, { onDelete: 'set null' }),
     assigned_at: timestamp('assigned_at').defaultNow().notNull(),
     expires_at: timestamp('expires_at'), // Optional: role expiration
   },

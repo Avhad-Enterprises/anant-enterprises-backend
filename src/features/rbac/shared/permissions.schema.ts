@@ -18,6 +18,7 @@ export const permissions = pgTable(
     action: varchar('action', { length: 50 }).notNull(), // e.g., "read"
     description: text('description'),
     created_at: timestamp('created_at').defaultNow().notNull(),
+    updated_at: timestamp('updated_at').defaultNow().notNull(),
   },
   table => ({
     resourceIdx: index('permissions_resource_idx').on(table.resource),

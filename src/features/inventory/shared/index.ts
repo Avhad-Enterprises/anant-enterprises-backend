@@ -6,5 +6,5 @@ export * from './inventory-locations.schema';
 export * from './inventory.schema';
 export * from './inventory-adjustments.schema';
 export * from './production-orders.schema';
-export * from './variant-inventory-adjustments.schema';
+// REMOVED: variant-inventory-adjustments.schema (Phase 2A - unified into inventory table)
 export * from './interface';

@@ -67,7 +67,6 @@ const handler = async (req: Request, res: Response) => {
     if (CART_RESERVATION_CONFIG.ENABLED) {
         try {
             await releaseCartStock(itemId);
-            console.log('[remove-cart-item] Released cart stock reservation:', itemId);
         } catch (error: any) {
             // Fail entire operation if reservation release fails
             console.error('[remove-cart-item] Failed to release stock reservation:', error);

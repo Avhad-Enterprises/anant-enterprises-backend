@@ -60,7 +60,7 @@ export abstract class BaseWorker {
                     await this.handleJob(job);
                 },
                 {
-                    connection: sharedConnection,
+                    connection: sharedConnection as any,
                     concurrency: this.concurrency,
                 }
             );

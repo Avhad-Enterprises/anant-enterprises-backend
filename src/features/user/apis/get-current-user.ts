@@ -31,7 +31,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   const user = await getCurrentUser(req.userId);
-  console.log('DEBUG: getCurrentUser found user:', user);
   const userResponse = sanitizeUser(user);
 
   ResponseFormatter.success(res, userResponse, 'User retrieved successfully');
