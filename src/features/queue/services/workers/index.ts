@@ -6,7 +6,6 @@
  */
 
 import { logger } from '../../../../utils';
-import { closeSharedRedisConnection } from '../../shared/config';
 import { orderWorker } from './order.worker';
 import { paymentWorker } from './payment.worker';
 import { inventoryWorker } from './inventory.worker';
@@ -46,9 +45,6 @@ export async function stopWorkers(): Promise<void> {
     logger.info('🔄 Stopping workers...');
 
     await Promise.all(workers.map(worker => worker.stop()));
-
-    // Close the shared Redis connection after all workers are stopped
-    await closeSharedRedisConnection();
 
     logger.info('✅ All workers stopped');
   } catch (error) {

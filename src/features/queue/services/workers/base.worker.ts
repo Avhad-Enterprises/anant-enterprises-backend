@@ -12,11 +12,7 @@
 
 import { Worker, Job } from 'bullmq';
 import { logger } from '../../../../utils';
-import {
-    getSharedRedisConnection,
-    WORKER_CONCURRENCY,
-    QueueName,
-} from '../../shared/config';
+import { QUEUE_REDIS_CONFIG, WORKER_CONCURRENCY, QueueName } from '../../shared/config';
 
 /**
  * Abstract Base Worker Class
@@ -51,16 +47,15 @@ export abstract class BaseWorker {
         }
 
         try {
-            // Use shared Redis connection to prevent connection exhaustion
-            const sharedConnection = getSharedRedisConnection();
-
+            // Use shared connection config - BullMQ reuses connections internally
+            // when the same config object is passed to multiple workers
             this.worker = new Worker(
                 this.queueName,
                 async (job: Job) => {
                     await this.handleJob(job);
                 },
                 {
-                    connection: sharedConnection,
+                    connection: QUEUE_REDIS_CONFIG,
                     concurrency: this.concurrency,
                 }
             );
