@@ -107,8 +107,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     };
 
     // Address handling: explicit null check for empty strings
-    if (body.shipping_address_id !== undefined) updateData.shipping_address_id = body.shipping_address_id || null;
-    if (body.billing_address_id !== undefined) updateData.billing_address_id = body.billing_address_id || null;
+    if (body.shipping_address_id !== undefined) {
+      updateData.shipping_address_id = body.shipping_address_id || null;
+    }
+    if (body.billing_address_id !== undefined) {
+      updateData.billing_address_id = body.billing_address_id || null;
+    }
 
     // Customer handling
     if (body.user_id !== undefined) updateData.user_id = body.user_id || null;
