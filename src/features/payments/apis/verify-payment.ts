@@ -4,20 +4,17 @@
  * Verifies payment signature after successful Razorpay checkout.
  * This is called by the frontend after the user completes payment.
  *
- * IMPORTANT: This endpoint performs client-side verification ONLY.
- * It marks the payment as 'authorized', NOT 'paid'.
- * The definitive payment confirmation comes via webhooks (payment.captured).
- * The webhook handler is the single source of truth for 'paid' status.
+ * IMPORTANT: This endpoint marks the payment as 'paid' immediately after verification.
+ * The webhook handler provides additional confirmation but this is the primary update.
  *
  * Flow:
  * 1. Validate request parameters
  * 2. Verify signature using HMAC SHA256
- * 3. Update payment transaction status to 'authorized' (in transaction)
- * 4. Update order payment status to 'authorized' (in transaction)
+ * 3. Update payment transaction status to 'captured' (in transaction)
+ * 4. Update order payment status to 'paid' (in transaction)
  * 5. Return success with order details
- * 6. Webhook will later mark as 'paid' (source of truth)
+ * 6. Webhook will later confirm (source of truth)
  */
-
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -107,28 +104,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 confirmation_source: 'webhook',
             },
             'Payment already verified'
-        );
-    }
-
-    // Check if client already verified (but webhook not yet received)
-    if (transaction.status === 'authorized') {
-        logger.info('Payment already client-verified, awaiting webhook confirmation', {
-            orderId: order.id,
-            razorpayPaymentId: body.razorpay_payment_id,
-        });
-
-        return ResponseFormatter.success(
-            res,
-            {
-                order_id: order.id,
-                order_number: order.order_number,
-                payment_status: 'authorized',
-                transaction_id: transaction.razorpay_payment_id,
-                paid_at: null, // Not yet confirmed paid
-                amount_paid: Number(order.total_amount),
-                confirmation_source: 'client_pending_webhook',
-            },
-            'Payment authorized, awaiting confirmation'
         );
     }
 
@@ -223,7 +198,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 and(
                     eq(paymentTransactions.id, transaction.id),
                     // Only update if still in expected state (idempotency guard)
-                    inArray(paymentTransactions.status, ['initiated', 'failed', 'authorized'])
+                    inArray(paymentTransactions.status, ['initiated', 'failed'])
                 )
             );
 
@@ -243,7 +218,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 and(
                     eq(orders.id, order.id),
                     // Only update if still in expected state
-                    inArray(orders.payment_status, ['pending', 'failed', 'authorized'])
+                    inArray(orders.payment_status, ['pending', 'failed'])
                 )
             );
 

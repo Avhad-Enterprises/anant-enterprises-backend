@@ -34,8 +34,6 @@ export interface IOrder {
   payment_method?: string | null;
   payment_status:
     | 'pending'
-    | 'authorized'
-    | 'partially_paid'
     | 'paid'
     | 'refunded'
     | 'failed'

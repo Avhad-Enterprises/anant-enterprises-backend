@@ -8,12 +8,10 @@
 import { supabaseAnon, supabase } from '../../src/utils/supabase';
 import { db } from '../../src/database';
 import { users } from '../../src/features/user/shared/user.schema';
-import {
-  roles,
-  permissions,
-  userRoles,
-  rolePermissions,
-} from '../../src/features/rbac/shared/rbac.schema';
+import { roles } from '../../src/features/rbac/shared/roles.schema';
+import { permissions } from '../../src/features/rbac/shared/permissions.schema';
+import { userRoles } from '../../src/features/rbac/shared/user-roles.schema';
+import { rolePermissions } from '../../src/features/rbac/shared/role-permissions.schema';
 import { eq } from 'drizzle-orm';
 
 export interface TestUser {

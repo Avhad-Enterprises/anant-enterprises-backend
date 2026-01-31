@@ -96,10 +96,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 and(
                     eq(orders.is_draft, false),
                     eq(orders.is_deleted, false),
-                    or(
-                        eq(orders.payment_status, 'pending'),
-                        eq(orders.payment_status, 'partially_paid')
-                    )
+                    eq(orders.payment_status, 'pending')
                 )
             ),
 

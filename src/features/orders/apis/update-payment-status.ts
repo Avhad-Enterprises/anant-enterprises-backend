@@ -17,11 +17,10 @@ const paramsSchema = z.object({
 });
 
 const bodySchema = z.object({
-    payment_status: z.enum(['pending', 'authorized', 'partially_paid', 'paid', 'refunded', 'failed', 'partially_refunded']),
+    payment_status: z.enum(['pending', 'paid', 'refunded', 'failed', 'partially_refunded']),
     paid_at: z.string().optional(), // ISO date string
     transaction_id: z.string().optional(),
     payment_ref: z.string().optional(),
-    advance_paid_amount: z.string().optional(), // Decimal string for partially_paid
     notes: z.string().optional(),
 });
 
@@ -60,16 +59,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     if (data.payment_ref) {
         updateData.payment_ref = data.payment_ref;
-    }
-
-    // Handle partial payment
-    if (data.payment_status === 'partially_paid' && data.advance_paid_amount) {
-        updateData.advance_paid_amount = data.advance_paid_amount;
-
-        // Calculate COD due amount
-        const totalAmount = parseFloat(existingOrder.total_amount);
-        const advancePaid = parseFloat(data.advance_paid_amount);
-        updateData.cod_due_amount = (totalAmount - advancePaid).toFixed(2);
     }
 
     // Update admin comment if notes provided

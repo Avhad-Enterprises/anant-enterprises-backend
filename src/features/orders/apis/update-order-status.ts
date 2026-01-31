@@ -19,13 +19,10 @@ import { auditService } from '../../audit/services/audit.service';
 import { AuditAction, AuditResourceType } from '../../audit/shared/interface';
 import { logger } from '../../../utils';
 
-// Get base URL from environment for email links
-const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/+$/, '');
-
 const updateStatusSchema = z.object({
     order_status: z.enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'returned']).optional(),
     payment_status: z.enum(['pending', 'paid', 'refunded', 'failed', 'partially_refunded']).optional(),
-    fulfillment_status: z.enum(['unfulfilled', 'fulfilled', 'returned', 'cancelled']).optional(),
+    fulfillment_status: z.enum(['unfulfilled', 'partial', 'fulfilled', 'returned', 'cancelled']).optional(),
     order_tracking: z.string().max(200).optional(),
     admin_comment: z.string().max(500).optional(),
 }).refine(
@@ -98,8 +95,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // 2. Validate Payment Status
     if (body.payment_status && body.payment_status !== order.payment_status) {
-        // Prevent setting 'refunded' if it wasn't paid/partially_paid? 
-        if (body.payment_status === 'refunded' && !['paid', 'partially_paid'].includes(order.payment_status)) {
+        // Prevent setting 'refunded' if it wasn't paid
+        if (body.payment_status === 'refunded' && order.payment_status !== 'paid') {
             throw new HttpException(400, 'Cannot mark as Refunded if the order was never Paid.');
         }
     }

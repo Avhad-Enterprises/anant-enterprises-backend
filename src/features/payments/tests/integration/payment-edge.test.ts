@@ -1,8 +1,5 @@
 import request from 'supertest';
 import express from 'express';
-import crypto from 'crypto';
-
-const TEST_SECRET = 'test_secret';
 
 // Mock dependencies
 jest.mock('@/utils', () => ({

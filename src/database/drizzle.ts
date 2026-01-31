@@ -99,6 +99,7 @@ import { cartItems } from '../features/cart/shared/cart-items.schema';
 // } from '../features/tickets';
 import { orders, orderChannelEnum, paymentStatusEnum, orderDiscountTypeEnum, fulfillmentStatusEnum } from '../features/orders/shared/orders.schema';
 import { orderItems } from '../features/orders/shared/order-items.schema';
+import { ordersRelations, orderItemsRelations } from '../features/orders/shared/orders.relations';
 import { paymentTransactions, paymentTransactionStatusEnum } from '../features/payments/shared/payment-transactions.schema';
 import { paymentWebhookLogs } from '../features/payments/shared/webhook-logs.schema';
 import { invoices, invoiceStatusEnum } from '../features/invoices/shared/invoices.schema';
@@ -376,10 +377,6 @@ export const schema = {
   notificationPriorityEnum,
   notificationFrequencyEnum,
   deliveryStatusEnum,
-  // Invoice feature
-  invoices,
-  invoiceVersions,
-  invoiceLineItems,
 };
 
 /**

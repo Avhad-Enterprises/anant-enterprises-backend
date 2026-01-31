@@ -68,6 +68,7 @@ export const orderStatusEnum = pgEnum('order_status', [
 
 export const fulfillmentStatusEnum = pgEnum('fulfillment_status', [
   'unfulfilled',
+  'partial',
   'fulfilled',
   'returned',
   'cancelled',

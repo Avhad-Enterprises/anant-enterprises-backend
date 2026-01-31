@@ -4,14 +4,14 @@
  * Handles asynchronous payment events from Razorpay.
  * THIS IS THE SINGLE SOURCE OF TRUTH FOR PAYMENT STATUS.
  *
- * The client-side /verify endpoint only marks payments as 'authorized'.
+ * The client-side /verify endpoint marks payments as 'paid'.
  * This webhook handler is responsible for:
  * - Confirming payments (marking as 'paid' / 'captured')
  * - Recording payment failures
  * - Processing refunds
  *
  * Supported Events:
- * - payment.authorized: Payment authorized (for 2-step capture)
+ * - payment.authorized: Payment authorized (treated as captured)
  * - payment.captured: Payment successfully captured (SOURCE OF TRUTH)
  * - payment.failed: Payment attempt failed
  * - refund.processed: Refund successfully processed
@@ -356,12 +356,12 @@ async function handlePaymentCaptured(payment: IRazorpayPaymentEntity) {
 }
 
 /**
- * Handle payment.authorized event (for 2-step capture flow)
+ * Handle payment.authorized event (now treated as payment capture)
  */
 async function handlePaymentAuthorized(payment: IRazorpayPaymentEntity) {
   const { id: paymentId, order_id: razorpayOrderId } = payment;
 
-  logger.info('Processing payment.authorized', { paymentId, razorpayOrderId });
+  logger.info('Processing payment.authorized (treating as captured)', { paymentId, razorpayOrderId });
 
   // Find the transaction first
   const [transaction] = await db
@@ -377,7 +377,7 @@ async function handlePaymentAuthorized(payment: IRazorpayPaymentEntity) {
 
   // Skip if already in a terminal state
   if (['captured', 'refunded'].includes(transaction.status)) {
-    logger.info('Transaction already in terminal state, skipping authorized', { razorpayOrderId });
+    logger.info('Transaction already in terminal state, skipping payment processing', { razorpayOrderId });
     return;
   }
 
@@ -385,18 +385,18 @@ async function handlePaymentAuthorized(payment: IRazorpayPaymentEntity) {
     await tx
       .update(paymentTransactions)
       .set({
-        status: 'authorized',
+        status: 'captured',
         razorpay_payment_id: paymentId,
         webhook_received_at: new Date(),
         updated_at: new Date(),
       })
       .where(eq(paymentTransactions.id, transaction.id));
 
-    // Update order to authorized status (if not already paid)
+    // Update order to paid status (if not already paid)
     await tx
       .update(orders)
       .set({
-        payment_status: 'authorized',
+        payment_status: 'paid',
         updated_at: new Date(),
       })
       .where(
@@ -474,7 +474,7 @@ async function handlePaymentFailed(payment: IRazorpayPaymentEntity) {
         and(
           eq(orders.id, transaction.order_id),
           // Only mark as failed if not already paid
-          inArray(orders.payment_status, ['pending', 'authorized'])
+          inArray(orders.payment_status, ['pending'])
         )
       );
   });
