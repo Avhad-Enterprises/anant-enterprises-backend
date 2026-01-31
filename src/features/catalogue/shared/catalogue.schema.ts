@@ -1,3 +1,18 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * 
+ * This table has 0 rows and is not currently used in the application.
+ * Keeping schema definition but removed from database exports in drizzle.ts
+ * 
+ * Reason: Catalogue feature not implemented yet
+ * Can be uncommented when catalogue development begins
+ * 
+ * To re-enable:
+ * 1. Uncomment exports in src/database/drizzle.ts (imports + schema object)
+ * 2. Run: npm run db:push
+ * 3. Re-enable related API endpoints
+ */
+
 /**
  * Catalogue Schema
  *

@@ -6,150 +6,119 @@ import { Pool } from 'pg';
 import { logger } from '../utils';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
-// Import all schemas
-import {
-  users,
-  userTypeEnum,
-  genderEnum,
-  userAddresses,
-  addressTypeEnum,
-  userPaymentMethods,
-  paymentTypeEnum,
-  cardFundingEnum,
-  customerProfiles,
-  customerAccountStatusEnum,
-  customerSegmentEnum,
-  businessCustomerProfiles,
-  businessTypeEnum,
-  paymentTermsEnum,
-  businessTierEnum,
-  businessAccountStatusEnum,
-  adminProfiles,
-  customerStatistics,
-} from '../features/user';
-import { uploads } from '../features/upload';
-import { invitations } from '../features/admin-invite';
-import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../features/chatbot';
-import { roles, permissions, rolePermissions, userRoles } from '../features/rbac';
-import {
-  currencies,
-  taxRules,
-  taxTypeEnum,
-  taxAppliesToEnum,
-  countries,
-  regions,
-} from '../features/settings';
-import { products, productFaqs, productVariants, productStatusEnum } from '../features/product';
-import {
-  collections,
-  collectionRules,
-  collectionProducts,
-  collectionTypeEnum,
-  collectionStatusEnum,
-  collectionSortOrderEnum,
-  conditionMatchTypeEnum,
-} from '../features/collection';
-import { tiers, tierStatusEnum } from '../features/tiers';
-import { tags } from '../features/tags';
-import {
-  discounts,
-  discountCodes,
-  discountProducts,
-  discountCollections,
-  discountTypeEnum,
-  discountStatusEnum,
-  minRequirementTypeEnum,
-} from '../features/discount';
-import { wishlists, wishlistItems } from '../features/wishlist';
-import { faqs, faqTargetTypeEnum } from '../features/faq';
-import {
-  companies,
-  companyRules,
-  userAssignmentTypeEnum,
-  companyMatchTypeEnum,
-} from '../features/company';
-import {
-  catalogues,
-  catalogueRules,
-  catalogueProductOverrides,
-  catalogueStatusEnum,
-  catalogueRuleMatchTypeEnum,
-  catalogueAdjustmentTypeEnum,
-} from '../features/catalogue';
+// Import all schemas directly from .schema.ts files to avoid circular deps with drizzle-kit
+import { users, userTypeEnum, genderEnum } from '../features/user/shared/user.schema';
+import { userAddresses, addressTypeEnum } from '../features/user/shared/addresses.schema';
+import { customerProfiles, customerAccountStatusEnum, customerSegmentEnum } from '../features/user/shared/customer-profiles.schema';
+import { adminProfiles } from '../features/user/shared/admin-profiles.schema';
+import { uploads } from '../features/upload/shared/upload.schema';
+import { invitations } from '../features/admin-invite/shared/admin-invite.schema';
+// COMMENTED OUT - Unused tables (31 Jan 2026)
+// import { chatbotDocuments, chatbotSessions, chatbotMessages } from '../features/chatbot';
+import { roles } from '../features/rbac/shared/roles.schema';
+import { permissions } from '../features/rbac/shared/permissions.schema';
+import { rolePermissions } from '../features/rbac/shared/role-permissions.schema';
+import { userRoles } from '../features/rbac/shared/user-roles.schema';
+// COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
+// import {
+//   currencies,
+//   taxRules,
+//   taxTypeEnum,
+//   taxAppliesToEnum,
+//   countries,
+//   regions,
+// } from '../features/settings';
+import { products, productVariants, productStatusEnum } from '../features/product/shared/product.schema';
+import { productFaqs } from '../features/product/shared/product-faqs.schema';
+import { collections, collectionTypeEnum, collectionStatusEnum, collectionSortOrderEnum, conditionMatchTypeEnum } from '../features/collection/shared/collection.schema';
+import { collectionProducts } from '../features/collection/shared/collection-products.schema';
+import { tiers, tierStatusEnum } from '../features/tiers/shared/tiers.schema';
+import { tags } from '../features/tags/shared/tags.schema';
+// COMMENTED OUT - Dropped in Phase 3 (31 Jan 2026)
+// import {
+//   discounts,
+//   discountCodes,
+//   discountProducts,
+//   discountCollections,
+//   discountTypeEnum,
+//   discountStatusEnum,
+//   minRequirementTypeEnum,
+// } from '../features/discount';
+import { wishlists } from '../features/wishlist/shared/wishlist.schema';
+import { wishlistItems } from '../features/wishlist/shared/wishlist-items.schema';
+// COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
+// import { faqs, faqTargetTypeEnum } from '../features/faq';
+// COMMENTED OUT - Unused tables (31 Jan 2026)
+// import {
+//   companies,
+//   companyRules,
+//   userAssignmentTypeEnum,
+//   companyMatchTypeEnum,
+// } from '../features/company';
+// COMMENTED OUT - Unused tables (31 Jan 2026)
+// import {
+//   catalogues,
+//   catalogueRules,
+//   catalogueProductOverrides,
+//   catalogueStatusEnum,
+//   catalogueRuleMatchTypeEnum,
+//   catalogueAdjustmentTypeEnum,
+// } from '../features/catalogue';
 import { blogs, blogStatusEnum } from '../features/blog/shared/blog.schema';
 import { blogSubsections } from '../features/blog/shared/blog-subsections.schema';
+import { reviews, reviewStatusEnum } from '../features/reviews/shared/reviews.schema';
+import { productQuestions, questionStatusEnum } from '../features/reviews/shared/product-questions.schema';
+// COMMENTED OUT - Dropped in Phase 3 (31 Jan 2026)
+// import { bundles, /* bundleItems, */ bundleTypeEnum, bundleStatusEnum } from '../features/bundles';
+// COMMENTED OUT - Unused tables (31 Jan 2026)
+// import {
+//   giftCards,
+//   giftCardTransactions,
+//   giftCardTemplates,
+//   giftCardStatusEnum,
+//   giftCardDeliveryMethodEnum,
+//   giftCardSourceEnum,
+//   giftCardTransactionTypeEnum,
+//   giftCardCharacterSetEnum,
+// } from '../features/giftcards';
+import { inventoryLocations, locationTypeEnum } from '../features/inventory/shared/inventory-locations.schema';
+import { inventory, inventoryStatusEnum } from '../features/inventory/shared/inventory.schema';
+import { inventoryAdjustments, adjustmentTypeEnum, approvalStatusEnum } from '../features/inventory/shared/inventory-adjustments.schema';
+import { variantInventoryAdjustments } from '../features/inventory/shared/variant-inventory-adjustments.schema';
+import { carts, cartStatusEnum, cartSourceEnum } from '../features/cart/shared/carts.schema';
+import { cartItems } from '../features/cart/shared/cart-items.schema';
+// COMMENTED OUT - Unused tables (31 Jan 2026)
+// import {
+//   tickets,
+//   ticketMessages,
+//   ticketPriorityEnum,
+//   ticketStatusEnum,
+//   ticketChannelEnum,
+//   ticketSourceEnum,
+//   ticketMessageSenderTypeEnum,
+// } from '../features/tickets';
+import { orders, orderChannelEnum, paymentStatusEnum, orderDiscountTypeEnum, fulfillmentStatusEnum } from '../features/orders/shared/orders.schema';
+import { orderItems } from '../features/orders/shared/order-items.schema';
+import { paymentTransactions, paymentTransactionStatusEnum } from '../features/payments/shared/payment-transactions.schema';
+import { paymentWebhookLogs } from '../features/payments/shared/webhook-logs.schema';
+import { invoices, invoiceStatusEnum } from '../features/invoices/shared/invoices.schema';
+import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoices/shared/invoice-versions.schema';
+import { invoiceLineItems } from '../features/invoices/shared/invoice-line-items.schema';
 import {
-  reviews,
-  productQuestions,
-  reviewStatusEnum,
-  questionStatusEnum,
-} from '../features/reviews';
-import { bundles, bundleItems, bundleTypeEnum, bundleStatusEnum } from '../features/bundles';
-import {
-  giftCards,
-  giftCardTransactions,
-  giftCardTemplates,
-  giftCardStatusEnum,
-  giftCardDeliveryMethodEnum,
-  giftCardSourceEnum,
-  giftCardTransactionTypeEnum,
-  giftCardCharacterSetEnum,
-} from '../features/giftcards';
-import {
-  inventoryLocations,
-  inventory,
-  inventoryAdjustments,
-  variantInventoryAdjustments,
-  productionOrders,
-  locationTypeEnum,
-  inventoryStatusEnum,
-  adjustmentTypeEnum,
-  approvalStatusEnum,
-  productionStatusEnum,
-  productionPriorityEnum,
-} from '../features/inventory';
-import { carts, cartItems, cartStatusEnum, cartSourceEnum } from '../features/cart';
-import {
-  tickets,
-  ticketMessages,
-  ticketPriorityEnum,
-  ticketStatusEnum,
-  ticketChannelEnum,
-  ticketSourceEnum,
-  ticketMessageSenderTypeEnum,
-} from '../features/tickets';
-import {
-  orders,
-  orderItems,
-  orderChannelEnum,
-  paymentStatusEnum,
-  orderDiscountTypeEnum,
-  fulfillmentStatusEnum,
-} from '../features/orders';
-import {
-  paymentTransactions,
-  paymentTransactionStatusEnum,
-  paymentWebhookLogs,
-} from '../features/payments/shared';
-import {
-  sessions,
+  // sessions, // REMOVED - Unused table (31 Jan 2026)
 } from '../features/profile/shared/sessions.schema';
 
-import {
-  entityMedia,
-  entityTypeEnum,
-  mediaTypeEnum,
-} from '../features/media-manager';
-import {
-  notifications,
-  notificationTemplates,
-  notificationPreferences,
-  notificationDeliveryLogs,
-  notificationTypeEnum,
-  notificationPriorityEnum,
-  notificationFrequencyEnum,
-  deliveryStatusEnum,
-} from '../features/notifications/shared';
+// COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
+// import {
+//   entityMedia,
+//   entityTypeEnum,
+//   mediaTypeEnum,
+// } from '../features/media-manager';
+import { notificationTypeEnum, notificationPriorityEnum, notificationFrequencyEnum, deliveryStatusEnum } from '../features/notifications/shared/notification-enums.schema';
+import { notifications } from '../features/notifications/shared/notifications.schema';
+import { notificationTemplates } from '../features/notifications/shared/notification-templates.schema';
+import { notificationPreferences } from '../features/notifications/shared/notification-preferences.schema';
+import { notificationDeliveryLogs } from '../features/notifications/shared/notification-delivery-logs.schema';
 
 /**
  * Database connection configuration
@@ -231,47 +200,51 @@ export const schema = {
   // User feature - addresses
   userAddresses,
   addressTypeEnum,
+  // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
   // User feature - payments
-  userPaymentMethods,
-  paymentTypeEnum,
-  cardFundingEnum,
+  // userPaymentMethods,
+  // paymentTypeEnum,
+  // cardFundingEnum,
   // User feature - customer profiles
   customerProfiles,
   customerAccountStatusEnum,
   customerSegmentEnum,
+  // COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
   // User feature - business profiles (B2B)
-  businessCustomerProfiles,
-  businessTypeEnum,
-  paymentTermsEnum,
-  businessTierEnum,
-  businessAccountStatusEnum,
+  // businessCustomerProfiles,
+  // businessTypeEnum,
+  // paymentTermsEnum,
+  // businessTierEnum,
+  // businessAccountStatusEnum,
   // User feature - admin profiles
   adminProfiles,
   // User feature - vendors (TODO: Enable when vendor feature is needed)
   // vendors,
   // vendorTypeEnum,
+  // COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
   // User feature - statistics
-  customerStatistics,
+  // customerStatistics,
   // Upload feature
   uploads,
   // Admin invite feature
   invitations,
-  // Chatbot feature
-  chatbotDocuments,
-  chatbotSessions,
-  chatbotMessages,
+  // Chatbot feature - COMMENTED OUT (31 Jan 2026)
+  // chatbotDocuments,
+  // chatbotSessions,
+  // chatbotMessages,
   // RBAC feature
   roles,
   permissions,
   rolePermissions,
   userRoles,
+  // COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
   // Settings feature
-  currencies,
-  taxRules,
-  taxTypeEnum,
-  taxAppliesToEnum,
-  countries,
-  regions,
+  // currencies,
+  // taxRules,
+  // taxTypeEnum,
+  // taxAppliesToEnum,
+  // countries,
+  // regions,
   // Product feature
   products,
   productFaqs,
@@ -279,7 +252,7 @@ export const schema = {
   productStatusEnum,
   // Collection feature
   collections,
-  collectionRules,
+  // collectionRules, // REMOVED - Unused table (31 Jan 2026)
   collectionProducts,
   collectionTypeEnum,
   collectionStatusEnum,
@@ -290,32 +263,34 @@ export const schema = {
   tierStatusEnum,
   // Tags feature
   tags,
+  // COMMENTED OUT - Dropped in Phase 3 (31 Jan 2026)
   // Discount feature
-  discounts,
-  discountCodes,
-  discountProducts,
-  discountCollections,
-  discountTypeEnum,
-  discountStatusEnum,
-  minRequirementTypeEnum,
+  // discounts,
+  // discountCodes,
+  // discountProducts,
+  // discountCollections,
+  // discountTypeEnum,
+  // discountStatusEnum,
+  // minRequirementTypeEnum,
   // Wishlist feature
   wishlists,
   wishlistItems,
+  // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
   // FAQ feature
-  faqs,
-  faqTargetTypeEnum,
-  // Company feature
-  companies,
-  companyRules,
-  userAssignmentTypeEnum,
-  companyMatchTypeEnum,
-  // Catalogue feature
-  catalogues,
-  catalogueRules,
-  catalogueProductOverrides,
-  catalogueStatusEnum,
-  catalogueRuleMatchTypeEnum,
-  catalogueAdjustmentTypeEnum,
+  // faqs,
+  // faqTargetTypeEnum,
+  // Company feature - COMMENTED OUT (31 Jan 2026)
+  // companies,
+  // companyRules,
+  // userAssignmentTypeEnum,
+  // // companyMatchTypeEnum,
+  // Catalogue feature - COMMENTED OUT (31 Jan 2026)
+  // catalogues,
+  // catalogueRules,
+  // catalogueProductOverrides,
+  // catalogueStatusEnum,
+  // catalogueRuleMatchTypeEnum,
+  // catalogueAdjustmentTypeEnum,
   // Blog feature
   blogs,
   blogSubsections,
@@ -325,45 +300,46 @@ export const schema = {
   productQuestions,
   reviewStatusEnum,
   questionStatusEnum,
+  // COMMENTED OUT - Dropped in Phase 3 (31 Jan 2026)
   // Bundle feature
-  bundles,
-  bundleItems,
-  bundleTypeEnum,
-  bundleStatusEnum,
-  // Gift Card feature
-  giftCards,
-  giftCardTransactions,
-  giftCardTemplates,
-  giftCardStatusEnum,
-  giftCardDeliveryMethodEnum,
-  giftCardSourceEnum,
-  giftCardTransactionTypeEnum,
-  giftCardCharacterSetEnum,
+  // bundles,
+  // bundleItems, // COMMENTED OUT (31 Jan 2026) - Keep bundles due to FK from cart_items
+  // bundleTypeEnum,
+  // bundleStatusEnum,
+  // Gift Card feature - COMMENTED OUT (31 Jan 2026)
+  // giftCards,
+  // giftCardTransactions,
+  // giftCardTemplates,
+  // giftCardStatusEnum,
+  // giftCardDeliveryMethodEnum,
+  // giftCardSourceEnum,
+  // giftCardTransactionTypeEnum,
+  // giftCardCharacterSetEnum,
   // Inventory feature
   inventoryLocations,
   inventory,
   inventoryAdjustments,
   variantInventoryAdjustments,
-  productionOrders,
+  // productionOrders, // COMMENTED OUT (31 Jan 2026)
   locationTypeEnum,
   inventoryStatusEnum,
   adjustmentTypeEnum,
   approvalStatusEnum,
-  productionStatusEnum,
-  productionPriorityEnum,
+  // productionStatusEnum, // COMMENTED OUT (31 Jan 2026)
+  // productionPriorityEnum, // COMMENTED OUT (31 Jan 2026)
   // Cart feature
   carts,
   cartItems,
   cartStatusEnum,
   cartSourceEnum,
-  // Tickets feature
-  tickets,
-  ticketMessages,
-  ticketPriorityEnum,
-  ticketStatusEnum,
-  ticketChannelEnum,
-  ticketSourceEnum,
-  ticketMessageSenderTypeEnum,
+  // Tickets feature - COMMENTED OUT (31 Jan 2026)
+  // tickets,
+  // ticketMessages,
+  // ticketPriorityEnum,
+  // ticketStatusEnum,
+  // ticketChannelEnum,
+  // ticketSourceEnum,
+  // ticketMessageSenderTypeEnum,
   // Orders feature
   orders,
   orderItems,
@@ -375,12 +351,20 @@ export const schema = {
   paymentTransactions,
   paymentTransactionStatusEnum,
   paymentWebhookLogs,
+  // Invoices feature
+  invoices,
+  invoiceVersions,
+  invoiceLineItems,
+  invoiceStatusEnum,
+  invoiceVersionReasonEnum,
+  invoiceTaxTypeEnum,
   // Profile feature
-  sessions,
+  // sessions, // REMOVED - Unused table (31 Jan 2026)
+  // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
   // Media Manager feature
-  entityMedia,
-  entityTypeEnum,
-  mediaTypeEnum,
+  // entityMedia,
+  // entityTypeEnum,
+  // mediaTypeEnum,
   // Notifications feature
   notifications,
   notificationTemplates,

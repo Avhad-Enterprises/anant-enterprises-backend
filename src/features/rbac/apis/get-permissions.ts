@@ -9,7 +9,7 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { findAllPermissions } from '../shared/queries';
-import { Permission } from '../shared/rbac.schema';
+import { Permission } from '../shared/permissions.schema';
 
 interface PermissionsResponse {
   permissions: Permission[];

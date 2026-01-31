@@ -6,7 +6,10 @@
 
 import { eq, and, isNull, inArray, gt, or } from 'drizzle-orm';
 import { db } from '../../../database';
-import { roles, permissions, rolePermissions, userRoles } from './rbac.schema';
+import { roles } from './roles.schema';
+import { permissions } from './permissions.schema';
+import { rolePermissions } from './role-permissions.schema';
+import { userRoles } from './user-roles.schema';
 import { logger } from '../../../utils';
 
 // ============================================

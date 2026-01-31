@@ -11,7 +11,7 @@ import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles } from '../shared/business-profiles.schema';
+// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
 
 const handler = async (req: RequestWithUser, res: Response) => {
   try {
@@ -37,26 +37,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const total = totalResult?.count ?? 0;
 
     // 2. Active Customers
-    // Active means: (Individual AND active profile) OR (Business AND active profile)
-    // We join both profiles
+    // Active means: Individual customers with active profile status
+    // Business customer profiles were removed in Phase 2 cleanup
     const [activeResult] = await db
       .select({ count: count() })
       .from(users)
       .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
-      .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id))
+      // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
       .where(
         and(
           eq(users.is_deleted, false),
-          or(
-            and(
-              eq(users.user_type, 'individual'),
-              eq(customerProfiles.account_status, 'active')
-            ),
-            and(
-              eq(users.user_type, 'business'),
-              eq(businessCustomerProfiles.account_status, 'active')
-            )
-          ),
+          eq(users.user_type, 'individual'),
+          eq(customerProfiles.account_status, 'active'),
           sql`${users.id} NOT IN (
             SELECT ur.user_id FROM user_roles ur
             INNER JOIN roles r ON ur.role_id = r.id

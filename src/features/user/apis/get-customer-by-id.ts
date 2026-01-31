@@ -14,7 +14,7 @@ import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../u
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles } from '../shared/business-profiles.schema';
+// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
 import { userAddresses } from '../shared/addresses.schema';
 import { sanitizeUser } from '../shared/sanitizeUser';
 
@@ -28,18 +28,18 @@ async function getCustomerById(id: string) {
         .select({
             user: users,
             customerProfile: customerProfiles,
-            businessProfile: businessCustomerProfiles,
+            // businessProfile: businessCustomerProfiles, // Table dropped in Phase 2
         })
         .from(users)
         .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
-        .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id))
+        // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
         .where(eq(users.id, id));
 
     if (!result.length) {
         throw new HttpException(404, 'Customer not found');
     }
 
-    const { user, customerProfile, businessProfile } = result[0];
+    const { user, customerProfile /* businessProfile */ } = result[0]; // businessProfile dropped in Phase 2
 
     // 2. Fetch Addresses
     const addresses = await db
@@ -48,19 +48,17 @@ async function getCustomerById(id: string) {
         .where(eq(userAddresses.user_id, id));
 
     // 3. Construct Rich Response
-    // Determine if it's a "customer" (individual) or "business"
-    // Note: The frontend treats them slightly differently but mostly unifies them.
-    // We'll return a unified "customer" object with a "details" field containing the specific profile.
+    // Only individual customers supported now (business profiles dropped in Phase 2)
 
     const sanitizedUser = sanitizeUser(user);
 
     return {
         ...sanitizedUser,
-        details: customerProfile || businessProfile || null,
+        details: customerProfile || null, // businessProfile dropped in Phase 2
         addresses: addresses,
         type: user.user_type, // 'individual' or 'business'
         // Helper to distinguish profile type
-        profileType: customerProfile ? 'individual' : businessProfile ? 'business' : 'none',
+        profileType: customerProfile ? 'individual' : 'none', // business profile dropped in Phase 2
     };
 }
 

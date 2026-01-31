@@ -4,7 +4,10 @@
  * Type definitions for Role-Based Access Control system
  */
 
-import { Role, Permission, UserRole, RolePermission } from './rbac.schema';
+import { Role } from './roles.schema';
+import { Permission } from './permissions.schema';
+import { UserRole } from './user-roles.schema';
+import { RolePermission } from './role-permissions.schema';
 
 // ============================================
 // ROLE INTERFACES

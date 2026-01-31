@@ -6,7 +6,7 @@
 
 // Schemas
 export * from './collection.schema';
-export * from './collection-rules.schema';
+// export * from './collection-rules.schema'; // REMOVED - Unused table (31 Jan 2026)
 export * from './collection-products.schema';
 
 // Interfaces and types

@@ -1,3 +1,8 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * See company.schema.ts for details
+ */
+
 /**
  * Company Rules Schema
  *

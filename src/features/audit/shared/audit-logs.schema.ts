@@ -6,7 +6,7 @@
  */
 
 import { pgTable, serial, varchar, text, timestamp, jsonb, index, uuid } from 'drizzle-orm/pg-core';
-import { users } from '../../user';
+import { users } from '../../user/shared/user.schema';
 
 /**
  * Audit logs table - comprehensive audit trail for all system operations

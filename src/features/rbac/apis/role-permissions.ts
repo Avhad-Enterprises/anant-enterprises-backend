@@ -20,7 +20,7 @@ import {
   removePermissionFromRole,
 } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
-import { Permission } from '../shared/rbac.schema';
+import { Permission } from '../shared/permissions.schema';
 import { uuidSchema } from '../../../utils/validation/common-schemas';
 
 // Validation schema

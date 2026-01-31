@@ -13,7 +13,7 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { findRoleById, findRoleByName, updateRole } from '../shared/queries';
 import { rbacCacheService } from '../services/rbac-cache.service';
-import { Role } from '../shared/rbac.schema';
+import { Role } from '../shared/roles.schema';
 import { mediumTextSchema } from '../../../utils';
 
 const schema = z.object({

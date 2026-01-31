@@ -1,3 +1,11 @@
+/*
+ * ⚠️ UNUSED TABLE - COMMENTED OUT (31 Jan 2026)
+ * 
+ * This table has 0 rows. Removed from database exports in drizzle.ts
+ * Reason: Production order tracking not implemented yet
+ * To re-enable: Uncomment in src/database/drizzle.ts and run db:push
+ */
+
 /**
  * Production Orders Schema
  *

@@ -21,7 +21,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { carts } from './carts.schema';
 import { products } from '../../product/shared/product.schema';
-import { bundles } from '../../bundles/shared/bundles.schema';
+// COMMENTED OUT - Bundles feature dropped (31 Jan 2026)
+// import { bundles } from '../../bundles/shared/bundles.schema';
 
 // ============================================
 // CART ITEMS TABLE
@@ -38,7 +39,8 @@ export const cartItems = pgTable(
 
     // Product Reference (either product_id OR bundle_id)
     product_id: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
-    bundle_id: uuid('bundle_id').references(() => bundles.id, { onDelete: 'set null' }),
+    // REMOVED FK - Bundles table dropped (31 Jan 2026)
+    bundle_id: uuid('bundle_id'),
 
     // Quantity
     quantity: integer('quantity').default(1).notNull(),

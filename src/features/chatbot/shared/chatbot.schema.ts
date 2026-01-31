@@ -1,3 +1,13 @@
+/*
+ * ⚠️ UNUSED TABLES - COMMENTED OUT (31 Jan 2026)
+ * 
+ * These 3 tables (chatbot_sessions, chatbot_messages, chatbot_documents) have 0 rows.
+ * Removed from database exports in drizzle.ts
+ * 
+ * Reason: Chatbot feature not implemented yet
+ * To re-enable: Uncomment in src/database/drizzle.ts and run db:push
+ */
+
 import {
   pgTable,
   serial,
