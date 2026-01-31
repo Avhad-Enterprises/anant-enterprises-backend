@@ -47,10 +47,15 @@ class InvoiceWorker extends BaseWorker {
    * Handle GENERATE_INVOICE event
    */
   private async handleGenerateInvoice(data: GenerateInvoiceData): Promise<void> {
-    logger.info('Processing GENERATE_INVOICE', { orderId: data.orderId });
+    logger.info('Processing GENERATE_INVOICE', {
+      orderId: data.orderId,
+      force: data.forceNewVersion,
+    });
 
     try {
-      const invoiceData = await invoiceService.generateInvoice(data.orderId);
+      const invoiceData = await invoiceService.generateInvoice(data.orderId, {
+        forceNewVersion: data.forceNewVersion,
+      });
 
       // Fetch order details for order number
       const [order] = await db.select().from(orders).where(eq(orders.id, data.orderId));

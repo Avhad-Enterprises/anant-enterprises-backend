@@ -494,7 +494,7 @@ export class InvoiceService {
   /**
    * Generate invoice for order
    */
-  async generateInvoice(orderId: string): Promise<any> {
+  async generateInvoice(orderId: string, options?: { forceNewVersion?: boolean }): Promise<any> {
     try {
       logger.info('Generating invoice for order', { orderId });
 
@@ -519,7 +519,7 @@ export class InvoiceService {
         .from(invoices)
         .where(eq(invoices.order_id, orderId));
 
-      if (existingInvoice) {
+      if (existingInvoice && !options?.forceNewVersion) {
         logger.info('Invoice already exists for order', { orderId });
         return this.getLatestInvoiceForOrder(orderId);
       }
@@ -565,8 +565,45 @@ export class InvoiceService {
           .where(eq(userAddresses.id, order.shipping_address_id));
       }
 
-      // Generate invoice number
-      const invoiceNumber = await this.generateInvoiceNumber();
+      let invoiceId = '';
+      let versionNumber = 1;
+      let invoiceNumber = '';
+      let currentInvoice;
+
+      if (existingInvoice) {
+        logger.info('Regenerating invoice for order (new version)', { orderId });
+        invoiceId = existingInvoice.id;
+        invoiceNumber = existingInvoice.invoice_number;
+        versionNumber = (existingInvoice.latest_version || 1) + 1;
+        currentInvoice = existingInvoice;
+
+        // Update invoice latest version
+        await db
+          .update(invoices)
+          .set({
+            latest_version: versionNumber,
+            updated_at: new Date(),
+          })
+          .where(eq(invoices.id, invoiceId));
+      } else {
+        // Generate invoice number for new invoice
+        invoiceNumber = await this.generateInvoiceNumber();
+
+        // Create invoice
+        const newInvoice: NewInvoice = {
+          id: crypto.randomUUID(),
+          order_id: orderId,
+          invoice_number: invoiceNumber,
+          latest_version: 1,
+          status: 'generated',
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        const [invoice] = await db.insert(invoices).values(newInvoice).returning();
+        invoiceId = invoice.id;
+        currentInvoice = invoice;
+      }
 
       // Calculate totals
       let subtotal = 0;
@@ -582,24 +619,11 @@ export class InvoiceService {
 
       const grandTotal = subtotal + taxBreakdown.taxAmount + parseFloat(order.shipping_amount);
 
-      // Create invoice
-      const newInvoice: NewInvoice = {
-        id: crypto.randomUUID(),
-        order_id: orderId,
-        invoice_number: invoiceNumber,
-        latest_version: 1,
-        status: 'generated',
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-
-      const [invoice] = await db.insert(invoices).values(newInvoice).returning();
-
       // Create invoice version
       const newInvoiceVersion: NewInvoiceVersion = {
         id: crypto.randomUUID(),
-        invoice_id: invoice.id,
-        version_number: 1,
+        invoice_id: invoiceId,
+        version_number: versionNumber,
         customer_name: billingAddress?.recipient_name || shippingAddress?.recipient_name || 'Guest',
         customer_email: user?.email || '',
         customer_gstin: order.customer_gstin || null,
@@ -619,7 +643,7 @@ export class InvoiceService {
         sgst: taxBreakdown.sgst.toString(),
         igst: taxBreakdown.igst.toString(),
         tax_type: taxBreakdown.igst > 0 ? 'igst' : 'cgst_sgst',
-        reason: 'INITIAL',
+        reason: options?.forceNewVersion ? 'CORRECTION' : 'INITIAL',
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -651,7 +675,7 @@ export class InvoiceService {
 
       // Generate PDF
       const pdfBuffer: Buffer = await this.generatePDFContent(
-        invoice,
+        currentInvoice,
         order,
         orderItemsResult,
         billingAddress,
@@ -683,7 +707,7 @@ export class InvoiceService {
 
       logger.info('Invoice generated successfully', {
         orderId,
-        invoiceId: invoice.id,
+        invoiceId: invoiceId,
         invoiceNumber,
         fileUrl: uploadResult.url,
       });

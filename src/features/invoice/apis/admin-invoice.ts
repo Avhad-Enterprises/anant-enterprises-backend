@@ -38,12 +38,13 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id: orderId } = req.params as { id: string };
-      const { reason } = req.body;
+      const { reason, force } = req.body;
 
       await eventPublisher.publishGenerateInvoice({
         orderId,
         reason: reason || 'CORRECTION',
         triggeredBy: req.userId || 'admin',
+        forceNewVersion: force === true,
       });
 
       ResponseFormatter.success(res, null, 'Invoice generation triggered');

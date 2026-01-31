@@ -25,17 +25,17 @@ import { findUserById, findUserByEmail } from '../shared/queries';
 
 const updateUserSchema = z.object({
   name: shortTextSchema.optional(),
-  last_name: shortTextSchema.optional(), // Added
-  display_name: shortTextSchema.optional(), // Added
+  last_name: shortTextSchema.optional(),
+  display_name: z.string().max(100).optional(), // Allow empty string
   email: emailSchema.optional(),
-  secondary_email: emailSchema.optional().or(z.literal('')), // Added
+  secondary_email: emailSchema.optional().or(z.literal('')),
   phone_number: z.string().optional(),
-  secondary_phone_number: z.string().optional().or(z.literal('')), // Added
+  secondary_phone_number: z.string().optional().or(z.literal('')),
   timezone: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
-  preferred_currency: z.string().max(50).optional(), // Added
+  preferred_currency: z.string().max(50).optional(),
   user_type: z.enum(['individual', 'business']).optional(),
-  date_of_birth: z.string().datetime().or(z.string()).optional().nullable(), // Allow null
+  date_of_birth: z.string().datetime().or(z.string()).optional().nullable(),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
   profile_image_url: z.string().url().optional(),
 });
