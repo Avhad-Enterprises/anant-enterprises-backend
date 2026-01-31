@@ -133,6 +133,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // 2. Create Order & Items
         const order = await db.transaction(async (tx) => {
             // Reserve stock (Allow Overselling = true for Admin)
+            // NOTE: Direct/Admin orders MUST reserve here since they don't go through cart
             await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', true);
 
             // Insert Order
@@ -414,6 +415,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // STEP 1: Validate stock availability
+    // NOTE: Stock is already reserved when items were added to cart via reserveCartStock()
+    // We only need to validate that reservations still exist, NOT reserve again
     const stockItems = items
         .filter(item => item.product_id)
         .map(item => ({
@@ -434,12 +437,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Create order
     const orderNumber = generateOrderNumber();
 
-    // STEP 2: Create order and reserve stock in transaction
+    // STEP 2: Create order WITHOUT re-reserving stock (already reserved in cart)
     const order = await db.transaction(async (tx) => {
-        // Reserve stock first
-        if (stockItems.length > 0) {
-            await reserveStockForOrder(stockItems, orderNumber, userId);
-        }
+        // REMOVED: await reserveStockForOrder() - Stock already reserved when added to cart
+        // The cart items already have reservation_id and reserved inventory
+        // When order is fulfilled/shipped, fulfillOrderInventory() will decrease both
+        // available_quantity and reserved_quantity appropriately
 
         // Create order
         const [newOrder] = await tx.insert(orders).values({
