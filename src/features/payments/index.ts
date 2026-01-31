@@ -24,6 +24,7 @@ class PaymentsRoute implements Route {
         const { default: retryPaymentRouter } = await import('./apis/retry-payment');
         const { default: initiateRefundRouter } = await import('./apis/initiate-refund');
         const { default: paymentHistoryRouter } = await import('./apis/payment-history');
+        const { default: adminPaymentHistoryRouter } = await import('./apis/get-admin-payment-history');
 
         // Register routes
         // POST /payments/create-order - Create Razorpay order
@@ -41,8 +42,11 @@ class PaymentsRoute implements Route {
         // POST /payments/refund - Initiate refund (admin)
         this.router.use(this.path, initiateRefundRouter);
 
-        // GET /payments/transactions - Payment history
+        // GET /payments/transactions - Payment history (Current User)
         this.router.use(this.path, paymentHistoryRouter);
+
+        // GET /payments/admin/payments/customer/:userId - Customer Transaction History (Admin)
+        this.router.use(this.path, adminPaymentHistoryRouter);
     }
 }
 
