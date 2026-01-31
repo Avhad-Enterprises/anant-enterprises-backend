@@ -348,13 +348,17 @@ export async function createInventoryForProduct(
     productId: string,
     initialQuantity: number = 0,
     createdBy?: string,
-    locationId?: string
+    locationId?: string,
+    variantId?: string
 ) {
     // Query layer: Check for existing inventory
-    const existing = await inventoryQueries.findInventoryByProduct(productId);
+    // If variantId provided, check by variant. Otherwise check by product.
+    const existing = variantId 
+        ? await inventoryQueries.findInventoryByVariant(variantId)
+        : await inventoryQueries.findInventoryByProduct(productId);
     
     if (existing.length > 0) {
-        logger.info(`[Inventory] Product ${productId} already has inventory record ${existing[0].id}`);
+        logger.info(`[Inventory] ${variantId ? 'Variant ' + variantId : 'Product ' + productId} already has inventory record ${existing[0].id}`);
         return existing[0];
     }
 
@@ -364,7 +368,9 @@ export async function createInventoryForProduct(
 
     // Query layer: Create inventory
     const created = await inventoryQueries.createInventory({
-        product_id: productId,
+        // Respect XOR constraint: Mutually exclusive product_id and variant_id
+        product_id: variantId ? undefined : productId,
+        variant_id: variantId,
         location_id: targetLocationId,
         available_quantity: initialQuantity,
         status: getStatusFromQuantity(initialQuantity),

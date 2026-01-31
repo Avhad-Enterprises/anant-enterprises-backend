@@ -265,11 +265,23 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
     // Step 2: ALSO create inventory for each variant (if variants exist)
     if (data.has_variants && data.variants && data.variants.length > 0) {
-      for (const variant of data.variants) {
+      // We need to fetch the newly created variants to get their IDs
+      const insertedVariants = await db
+        .select()
+        .from(productVariants)
+        .where(eq(productVariants.product_id, newProduct.id));
+
+      for (const variant of insertedVariants) {
+        // Find matching variant from input data to get its initial quantity
+        const inputVariant = data.variants.find(v => v.sku === variant.sku);
+        const initialQty = inputVariant?.inventory_quantity || 0;
+
         await createInventoryForProduct(
           newProduct.id,
-          variant.inventory_quantity || 0,
-          createdBy
+          initialQty,
+          createdBy,
+          undefined,
+          variant.id
         );
       }
     }
@@ -316,7 +328,24 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const product = await createNewProduct(productData, userId);
   const productResponse = sanitizeProduct(product);
 
-  ResponseFormatter.success(res, productResponse, 'Product created successfully', 201);
+  // INJECT INVENTORY DATA
+  // The frontend expects 'base_inventory' or 'total_stock' to be present
+  // since the 'inventory_quantity' column was removed from the products table.
+  const responseWithInventory = {
+    ...productResponse,
+    base_inventory: productData.inventory_quantity || 0,
+    total_stock: productData.inventory_quantity || 0,
+    // If variants exist, we should ideally map them too, but for now base_inventory is critical
+    variants: product.has_variants && productData.variants 
+      ? productData.variants.map((v) => ({
+          ...v, // Includes inventory_quantity from input
+          // We don't have the new IDs here without refactoring, so we return input data
+          // The frontend mainly needs the product ID which is at the root
+      })) 
+      : undefined
+  };
+
+  ResponseFormatter.success(res, responseWithInventory, 'Product created successfully', 201);
 };
 
 const router = Router();

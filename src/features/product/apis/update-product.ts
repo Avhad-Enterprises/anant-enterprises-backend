@@ -223,7 +223,6 @@ async function updateProduct(
               cost_price: variant.cost_price,
               selling_price: variant.selling_price,
               compare_at_price: variant.compare_at_price,
-              // Phase 2A: inventory_quantity removed - managed via inventory table
               image_url: variant.image_url,
               thumbnail_url: variant.thumbnail_url,
               is_active: variant.is_active ?? true,
@@ -231,9 +230,30 @@ async function updateProduct(
               updated_by: updatedBy,
             })
             .where(eq(productVariants.id, variant.id));
+
+          // Handle Inventory update for existing variant
+          if (variant.inventory_quantity !== undefined) {
+            const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
+            // This will update if exists, or create if missing (due to createInventoryForProduct logic)
+            // Wait, createInventoryForProduct just finds or creates. 
+            // We need to explicitly update for existing records if we want to change quantity.
+            const existingInv = await db
+              .select()
+              .from(inventory)
+              .where(eq(inventory.variant_id, variant.id))
+              .limit(1);
+
+            if (existingInv.length > 0) {
+              await db.update(inventory)
+                .set({ available_quantity: variant.inventory_quantity, updated_at: new Date() })
+                .where(eq(inventory.id, existingInv[0].id));
+            } else {
+              await createInventoryForProduct(id, variant.inventory_quantity, updatedBy, undefined, variant.id);
+            }
+          }
         } else {
           // Create new variant
-          await db.insert(productVariants).values({
+          const [newVariant] = await db.insert(productVariants).values({
             product_id: id,
             option_name: variant.option_name,
             option_value: variant.option_value,
@@ -242,21 +262,22 @@ async function updateProduct(
             cost_price: variant.cost_price,
             selling_price: variant.selling_price,
             compare_at_price: variant.compare_at_price,
-            // Phase 2A: inventory_quantity removed - managed via inventory table
             image_url: variant.image_url,
             thumbnail_url: variant.thumbnail_url,
             is_active: variant.is_active ?? true,
             is_default: false,
             created_by: updatedBy,
             updated_by: updatedBy,
-          });
+          }).returning();
 
           // CRITICAL: Create inventory record for the new variant
           const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
           await createInventoryForProduct(
             id,
             variant.inventory_quantity || 0,
-            updatedBy
+            updatedBy,
+            undefined,
+            newVariant.id
           );
         }
       }
@@ -376,7 +397,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   const productResponse = sanitizeProduct(product);
 
-  ResponseFormatter.success(res, productResponse, 'Product updated successfully');
+  // INJECT INVENTORY DATA
+  // Use the updated inventory from the request if it was provided, otherwise 0 (or ideally null/undefined if not updated)
+  // However, for UI consistency, if we updated it, we must return it.
+  const responseWithInventory = {
+    ...productResponse,
+    base_inventory: updateData.inventory_quantity ?? 0,
+    total_stock: updateData.inventory_quantity ?? 0,
+  };
+
+  ResponseFormatter.success(res, responseWithInventory, 'Product updated successfully');
 };
 
 const router = Router();

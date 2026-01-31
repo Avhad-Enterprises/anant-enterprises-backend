@@ -9,7 +9,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, or, inArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, HttpException } from '../../../utils';
@@ -129,14 +129,28 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     .from(productFaqs)
     .where(eq(productFaqs.product_id, productData.id));
 
-  // Fetch inventory for this product (Explicit fetch to ensure accuracy)
+  // Fetch variants if product has variants (Need this before inventory to get IDs)
+  const variantsData = productData.has_variants
+    ? await findVariantsByProductId(productData.id)
+    : [];
+  
+  const variantIds = variantsData.map(v => v.id);
+
+  // Fetch all inventory for this product and its variants (Unified fetch)
   const inventoryData = await db
     .select({
+      product_id: inventory.product_id,
+      variant_id: inventory.variant_id,
       available_quantity: inventory.available_quantity,
       reserved_quantity: inventory.reserved_quantity
     })
     .from(inventory)
-    .where(eq(inventory.product_id, productData.id));
+    .where(
+      or(
+        eq(inventory.product_id, productData.id),
+        variantIds.length > 0 ? inArray(inventory.variant_id, variantIds) : sql`1=0`
+      )
+    );
 
   // Calculate discount percentage
   let discount: number | null = null;
@@ -148,10 +162,14 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
     }
   }
 
-  // Fetch variants if product has variants
-  const variantsData = productData.has_variants
-    ? await findVariantsByProductId(productData.id)
-    : [];
+  // Mapping for variant inventory
+  const variantInventoryMap = new Map<string, number>();
+  inventoryData.forEach(item => {
+    if (item.variant_id) {
+      const qty = Math.max(0, (Number(item.available_quantity) || 0) - (Number(item.reserved_quantity) || 0));
+      variantInventoryMap.set(item.variant_id, (variantInventoryMap.get(item.variant_id) || 0) + qty);
+    }
+  });
 
   // Combine images (primary + additional)
   const images: string[] = [];
@@ -253,6 +271,7 @@ async function getProductDetailById(idOrSlug: string, userId?: string): Promise<
       cost_price: v.cost_price,
       selling_price: v.selling_price,
       compare_at_price: v.compare_at_price,
+      inventory_quantity: variantInventoryMap.get(v.id) || 0,
       image_url: v.image_url,
       thumbnail_url: v.thumbnail_url,
       is_default: v.is_default,
