@@ -184,18 +184,30 @@ export async function clearReservation(reservationId: string)
 
 ---
 
-### Phase 2: Split Domain Services ✅ RECOMMENDED SECOND
+### Phase 2: Split Domain Services ✅ COMPLETE (January 2025)
+
+**Status:** ✅ **COMPLETE** - All 9 functions extracted, build passing
+
+**Results:**
+- ✅ Created `order-reservation.service.ts` (504 lines, 5 functions)
+- ✅ Created `cart-reservation.service.ts` (225 lines, 4 functions)
+- ✅ Refactored `inventory.service.ts` (963 → 416 lines, -56.8%)
+- ✅ Added re-exports for backward compatibility
+- ✅ Refactored `createInventoryForProduct()` to use query layer
+- ✅ Build: 0 errors
+
+**Details:** See [PHASE_2_DOMAIN_SERVICES_COMPLETE.md](./refactoring/PHASE_2_DOMAIN_SERVICES_COMPLETE.md)
 
 **Goal:** Separate cart, order, and inventory concerns
 
-**Step 2.1: Create `services/order-reservation.service.ts`**
+**Step 2.1: Create `services/order-reservation.service.ts`** ✅
 
 Move order-specific functions:
-- `validateStockAvailability()`
-- `reserveStockForOrder()`
-- `fulfillOrderInventory()`
-- `releaseReservation()`
-- `processOrderReturn()`
+- `validateStockAvailability()` ✅
+- `reserveStockForOrder()` ✅
+- `fulfillOrderInventory()` ✅
+- `releaseReservation()` ✅
+- `processOrderReturn()` ✅
 
 ```typescript
 /**
@@ -212,13 +224,13 @@ export async function releaseOrderReservation(...)
 export async function processOrderReturn(...)
 ```
 
-**Step 2.2: Create `services/cart-reservation.service.ts`**
+**Step 2.2: Create `services/cart-reservation.service.ts`** ✅
 
 Move cart-specific functions:
-- `reserveCartStock()`
-- `releaseCartStock()`
-- `extendCartReservation()`
-- `cleanupExpiredCartReservations()`
+- `reserveCartStock()` ✅
+- `releaseCartStock()` ✅
+- `extendCartReservation()` ✅
+- `cleanupExpiredCartReservations()` ✅
 
 ```typescript
 /**
@@ -234,17 +246,17 @@ export async function extendCartReservation(...)
 export async function cleanupExpiredReservations(...)
 ```
 
-**Step 2.3: Refactor `services/inventory.service.ts`**
+**Step 2.3: Refactor `services/inventory.service.ts`** ✅
 
 Keep only core inventory operations:
-- `getInventoryList()` - Use inventoryQueries
-- `getInventoryById()` - Use inventoryQueries
-- `updateInventory()` - Use inventoryQueries
-- `adjustInventory()` - Use adjustmentQueries
-- `getInventoryHistory()` - Use adjustmentQueries
-- `createInventoryForProduct()` - Use inventoryQueries
+- `getInventoryList()` - Use inventoryQueries ✅
+- `getInventoryById()` - Use inventoryQueries ✅
+- `updateInventory()` - Use inventoryQueries ✅
+- `adjustInventory()` - Use adjustmentQueries ✅
+- `getInventoryHistory()` - Use adjustmentQueries ✅
+- `createInventoryForProduct()` - Use inventoryQueries ✅
 
-Should reduce from 1,179 lines to ~300-400 lines.
+**Result:** Reduced from 963 lines to **416 lines** (-56.8%) ✅
 
 ---
 
