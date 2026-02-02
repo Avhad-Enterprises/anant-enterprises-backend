@@ -9,7 +9,7 @@ import { Router, Response, Request } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { blogs } from '../../blog/shared/blog.schema';
 import { tags } from '../../tags/shared/tags.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';

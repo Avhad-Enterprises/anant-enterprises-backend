@@ -25,7 +25,8 @@ import { userRoles } from '../features/rbac/shared/user-roles.schema';
 //   countries,
 //   regions,
 // } from '../features/settings';
-import { products, productVariants, productStatusEnum } from '../features/product/shared/product.schema';
+import { products, productStatusEnum } from '../features/product/shared/products.schema';
+import { productVariants } from '../features/product/shared/product-variants.schema';
 import { productFaqs } from '../features/product/shared/product-faqs.schema';
 import { collections, collectionTypeEnum, collectionStatusEnum, collectionSortOrderEnum, conditionMatchTypeEnum } from '../features/collection/shared/collection.schema';
 import { collectionProducts } from '../features/collection/shared/collection-products.schema';

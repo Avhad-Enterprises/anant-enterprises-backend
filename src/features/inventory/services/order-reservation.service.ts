@@ -11,7 +11,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import type { StockValidationResult } from '../shared/interface';
 import { logger } from '../../../utils';
 

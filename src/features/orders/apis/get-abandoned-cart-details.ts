@@ -6,7 +6,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { HttpException, ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../../cart/shared/carts.schema';
 import { cartItems } from '../../cart/shared/cart-items.schema';
@@ -58,7 +58,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         ));
 
     if (!cart) {
-        return ResponseFormatter.error(res, 'CART_NOT_FOUND', 'Cart not found', 404);
+        throw new HttpException(404, 'Cart not found');
     }
 
     // Get cart items

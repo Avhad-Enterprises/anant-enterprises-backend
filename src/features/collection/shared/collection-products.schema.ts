@@ -7,7 +7,7 @@
 
 import { pgTable, uuid, integer, primaryKey, index } from 'drizzle-orm/pg-core';
 import { collections } from './collection.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 
 // ============================================
 // COLLECTION PRODUCTS TABLE

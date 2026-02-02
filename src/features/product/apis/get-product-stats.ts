@@ -8,7 +8,7 @@ import { Router, Response, Request } from 'express';
 import { sql } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 
 const handler = async (req: Request, res: Response) => {
@@ -46,11 +46,12 @@ const handler = async (req: Request, res: Response) => {
     }, 'Product statistics retrieved successfully');
 
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve product statistics',
-      error: error instanceof Error ? error.message : String(error)
-    });
+    return ResponseFormatter.error(
+      res,
+      'FETCH_ERROR',
+      'Failed to retrieve product statistics',
+      500
+    );
   }
 };
 

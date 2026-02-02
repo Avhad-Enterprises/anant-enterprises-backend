@@ -10,22 +10,18 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import {
-  ResponseFormatter,
-  uuidSchema,
-  decimalSchema,
-  slugSchema,
-  shortTextSchema,
-} from '../../../utils';
+import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { products, productVariants } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
 import { IProduct } from '../shared/interface';
+import { updateProductSchema } from '../shared/validation';
 import { productCacheService } from '../services/product-cache.service';
-import { findProductById, findProductBySku, findProductBySlug, findVariantsByProductId, isSkuTaken } from '../shared/queries';
+import { findProductById, findProductBySku, findProductBySlug } from '../shared/queries';
 import { updateTagUsage } from '../../tags/services/tag-sync.service';
 import { updateTierUsage } from '../../tiers/services/tier-sync.service';
+import { updateProductVariants } from '../services/product-variant-update.service';
 
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
@@ -34,77 +30,9 @@ const paramsSchema = z.object({
   id: uuidSchema,
 });
 
-const updateProductSchema = z.object({
-  slug: slugSchema.optional(),
-  product_title: shortTextSchema.optional(),
-  secondary_title: z.string().optional().nullable(),
-
-  short_description: z.string().optional().nullable(),
-  full_description: z.string().optional().nullable(),
-
-  status: z.enum(['draft', 'active', 'archived']).optional(),
-  featured: z.boolean().optional(),
-
-  cost_price: decimalSchema.optional(),
-  selling_price: decimalSchema.optional(),
-  compare_at_price: decimalSchema.optional().nullable(),
-
-  sku: shortTextSchema.optional(),
-  hsn_code: z.string().optional().nullable(),
-
-  // Inventory - coerced to number to handle string inputs
-  inventory_quantity: z.coerce.number().int().nonnegative().optional(),
-
-  weight: decimalSchema.optional().nullable(),
-  length: decimalSchema.optional().nullable(),
-  breadth: decimalSchema.optional().nullable(),
-  height: decimalSchema.optional().nullable(),
-
-  category_tier_1: z.string().optional().nullable(),
-  category_tier_2: z.string().optional().nullable(),
-  category_tier_3: z.string().optional().nullable(),
-  category_tier_4: z.string().optional().nullable(),
-
-  primary_image_url: z.string().url().optional().nullable(),
-  thumbnail_url: z.string().url().optional().nullable(),
-  additional_images: z.array(z.string().url()).optional(),
-  additional_thumbnails: z.array(z.union([z.string().url(), z.literal('')])).optional(),
-
-  meta_title: z.string().optional().nullable(),
-  meta_description: z.string().optional().nullable(),
-  product_url: z.string().optional().nullable(),
-
-  tags: z.array(z.string()).optional(),
-
-  // FAQs - array of question/answer pairs
-  faqs: z.array(z.object({
-    question: z.string().min(1, 'Question is required'),
-    answer: z.string().min(1, 'Answer is required'),
-  })).optional(),
-
-  // Variants support
-  has_variants: z.boolean().optional(),
-  variants: z.array(z.object({
-    id: z.string().uuid().optional(), // Existing variant ID for updates
-    option_name: z.string().min(1, 'Variant name is required'),
-    option_value: z.string().min(1, 'Variant value is required'),
-    sku: z.string().min(1, 'Variant SKU is required'),
-    barcode: z.string().optional().nullable(),
-    cost_price: decimalSchema.default('0.00'),
-    selling_price: decimalSchema,
-    compare_at_price: decimalSchema.optional().nullable(),
-    inventory_quantity: z.number().int().nonnegative().default(0),
-    image_url: z.string().url().optional().nullable(),
-    thumbnail_url: z.string().url().optional().nullable(),
-    is_active: z.boolean().optional().default(true),
-  })).optional(),
-});
-
-type UpdateProduct = z.infer<typeof updateProductSchema>;
-
 async function updateProduct(
   id: string,
-  data: UpdateProduct,
+  data: z.infer<typeof updateProductSchema>,
   updatedBy: string
 ): Promise<IProduct> {
   const existingProduct = await findProductById(id);
@@ -190,130 +118,12 @@ async function updateProduct(
     }
   }
 
-  // Handle Variant Updates
-  if (data.has_variants !== undefined || data.variants !== undefined) {
-    const existingVariants = await findVariantsByProductId(id);
-    const existingVariantIds = new Set(existingVariants.map(v => v.id));
-
-    // Validate variant SKUs are unique (globally)
-    if (data.variants && data.variants.length > 0) {
-      for (const variant of data.variants) {
-        // Check if SKU is taken (excluding this product's variants)
-        const skuTaken = await isSkuTaken(variant.sku, id);
-        if (skuTaken) {
-          // Check if it's the same variant being updated
-          const sameVariant = existingVariants.find(v => v.sku === variant.sku && v.id === variant.id);
-          if (!sameVariant) {
-            throw new HttpException(409, `SKU '${variant.sku}' is already in use`);
-          }
-        }
-      }
-
-      // Process each variant
-      for (const variant of data.variants) {
-        if (variant.id && existingVariantIds.has(variant.id)) {
-          // Update existing variant
-          await db
-            .update(productVariants)
-            .set({
-              option_name: variant.option_name,
-              option_value: variant.option_value,
-              sku: variant.sku,
-              barcode: variant.barcode,
-              cost_price: variant.cost_price,
-              selling_price: variant.selling_price,
-              compare_at_price: variant.compare_at_price,
-              image_url: variant.image_url,
-              thumbnail_url: variant.thumbnail_url,
-              is_active: variant.is_active ?? true,
-              updated_at: new Date(),
-              updated_by: updatedBy,
-            })
-            .where(eq(productVariants.id, variant.id));
-
-          // Handle Inventory update for existing variant
-          if (variant.inventory_quantity !== undefined) {
-            const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
-            // This will update if exists, or create if missing (due to createInventoryForProduct logic)
-            // Wait, createInventoryForProduct just finds or creates. 
-            // We need to explicitly update for existing records if we want to change quantity.
-            const existingInv = await db
-              .select()
-              .from(inventory)
-              .where(eq(inventory.variant_id, variant.id))
-              .limit(1);
-
-            if (existingInv.length > 0) {
-              await db.update(inventory)
-                .set({ available_quantity: variant.inventory_quantity, updated_at: new Date() })
-                .where(eq(inventory.id, existingInv[0].id));
-            } else {
-              await createInventoryForProduct(id, variant.inventory_quantity, updatedBy, undefined, variant.id);
-            }
-          }
-        } else {
-          // Create new variant
-          const [newVariant] = await db.insert(productVariants).values({
-            product_id: id,
-            option_name: variant.option_name,
-            option_value: variant.option_value,
-            sku: variant.sku,
-            barcode: variant.barcode,
-            cost_price: variant.cost_price,
-            selling_price: variant.selling_price,
-            compare_at_price: variant.compare_at_price,
-            image_url: variant.image_url,
-            thumbnail_url: variant.thumbnail_url,
-            is_active: variant.is_active ?? true,
-            is_default: false,
-            created_by: updatedBy,
-            updated_by: updatedBy,
-          }).returning();
-
-          // CRITICAL: Create inventory record for the new variant
-          const { createInventoryForProduct } = await import('../../inventory/services/inventory.service');
-          await createInventoryForProduct(
-            id,
-            variant.inventory_quantity || 0,
-            updatedBy,
-            undefined,
-            newVariant.id
-          );
-        }
-      }
-
-      // Soft delete variants not in the update list
-      const updatedVariantIds = new Set(
-        data.variants.filter(v => v.id).map(v => v.id!)
-      );
-      const variantsToDelete = existingVariants.filter(
-        v => !updatedVariantIds.has(v.id)
-      );
-
-      for (const variant of variantsToDelete) {
-        await db
-          .update(productVariants)
-          .set({
-            is_deleted: true,
-            deleted_at: new Date(),
-            deleted_by: updatedBy,
-          })
-          .where(eq(productVariants.id, variant.id));
-      }
-    } else if (data.has_variants === false && existingVariants.length > 0) {
-      // Variants disabled - soft delete all variants
-      for (const variant of existingVariants) {
-        await db
-          .update(productVariants)
-          .set({
-            is_deleted: true,
-            deleted_at: new Date(),
-            deleted_by: updatedBy,
-          })
-          .where(eq(productVariants.id, variant.id));
-      }
-    }
-  }
+  await updateProductVariants({
+    productId: id,
+    hasVariants: data.has_variants,
+    variants: data.variants,
+    updatedBy,
+  });
 
   // Extract inventory_quantity, faqs, and variants to avoid passing to products table update
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -388,7 +198,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   const { id } = paramsSchema.parse(req.params);
-  const updateData: UpdateProduct = req.body;
+  const updateData = req.body;
 
   const product = await updateProduct(id, updateData, userId);
 

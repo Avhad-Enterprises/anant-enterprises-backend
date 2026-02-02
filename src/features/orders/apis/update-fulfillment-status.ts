@@ -6,7 +6,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { ResponseFormatter, logger } from '../../../utils';
+import { HttpException, ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
@@ -38,7 +38,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .where(eq(orders.id, id));
 
     if (!existingOrder) {
-        return ResponseFormatter.error(res, 'ORDER_NOT_FOUND', 'Order not found', 404);
+        throw new HttpException(404, 'Order not found');
     }
 
     // Prepare update data

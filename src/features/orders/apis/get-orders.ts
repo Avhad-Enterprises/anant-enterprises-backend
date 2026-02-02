@@ -14,33 +14,13 @@ import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { logger } from '../../../utils';
+import { IOrderSummary, IOrderItemSummary } from '../shared/interface';
 
 const querySchema = paginationSchema.extend({
   status: z
     .enum(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'])
     .optional(),
 });
-
-interface OrderItemSummary {
-  id: string;
-  product_name: string;
-  product_image: string | null;
-  quantity: number;
-  cost_price: string;
-  line_total: string;
-}
-
-interface OrderSummary {
-  id: string;
-  order_number: string;
-  order_status: string;
-  payment_status: string;
-  total_amount: string;
-  total_quantity: number;
-  items_count: number;
-  created_at: Date;
-  items: OrderItemSummary[];
-}
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.userId;
@@ -86,8 +66,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     .limit(limit)
     .offset(offset);
 
-  // Enrich with items
-  const enrichedOrders: OrderSummary[] = await Promise.all(
+  // Build order summaries with items
+  const orderSummaries: IOrderSummary[] = await Promise.all(
     userOrders.map(async order => {
       const items = await db
         .select({
@@ -103,7 +83,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
       const itemsCount = items.length;
 
-      const mappedItems: OrderItemSummary[] = items.map(item => ({
+      const itemSummaries: IOrderItemSummary[] = items.map((item) => ({
         id: item.id,
         product_name: item.product_name,
         product_image: item.product_image,
@@ -121,7 +101,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         total_quantity: order.total_quantity,
         items_count: itemsCount,
         created_at: order.created_at,
-        items: mappedItems,
+        items: itemSummaries,
       };
     })
   );
@@ -129,7 +109,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   return ResponseFormatter.success(
     res,
     {
-      orders: enrichedOrders,
+      orders: orderSummaries,
       pagination: {
         page,
         limit,

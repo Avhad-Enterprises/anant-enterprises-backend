@@ -10,7 +10,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { tags } from '../shared/tags.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { blogs } from '../../blog/shared/blog.schema';
 import { users } from '../../user/shared/user.schema';
 import { orders } from '../../orders/shared/orders.schema';

@@ -9,7 +9,7 @@
 import { Router, Response, NextFunction } from 'express';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
 import { sql, eq } from 'drizzle-orm';
 import { ResponseFormatter, logger } from '../../../utils';

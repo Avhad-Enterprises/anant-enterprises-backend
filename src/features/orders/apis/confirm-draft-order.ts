@@ -6,7 +6,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { ResponseFormatter, logger } from '../../../utils';
+import { HttpException, ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
@@ -36,16 +36,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
             .where(eq(orders.id, id));
 
         if (!draftOrder) {
-            return ResponseFormatter.error(res, 'ORDER_NOT_FOUND', 'Draft order not found', 404);
+            throw new HttpException(404, 'Draft order not found');
         }
 
         if (!draftOrder.is_draft) {
-            return ResponseFormatter.error(
-                res,
-                'ORDER_NOT_DRAFT',
-                'Order is not a draft',
-                400
-            );
+            throw new HttpException(400, 'Order is not a draft');
         }
 
         // Get order items to reserve inventory
@@ -55,12 +50,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             .where(eq(orderItems.order_id, id));
 
         if (items.length === 0) {
-            return ResponseFormatter.error(
-                res,
-                'ORDER_NO_ITEMS',
-                'Cannot confirm order without items',
-                400
-            );
+            throw new HttpException(400, 'Cannot confirm order without items');
         }
 
         // TODO: Reserve inventory for each item

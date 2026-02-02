@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 
 /**
  * Get total available stock for a product (subquery)

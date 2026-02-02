@@ -9,14 +9,18 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { eq, and, sql, count } from 'drizzle-orm';
+import { eq, and, count } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, shortTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
+import {
+  buildAverageRating,
+  buildReviewCount,
+  buildInventoryQuantity,
+} from '../../product/shared/query-builders';
 
 const paramsSchema = z.object({
   slug: shortTextSchema,
@@ -96,17 +100,13 @@ const handler = async (req: Request, res: Response) => {
       created_at: products.created_at,
 
       // Computed: Average rating
-      rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+      rating: buildAverageRating(),
 
       // Computed: Review count
-      review_count: sql<number>`COUNT(${reviews.id})`,
+      review_count: buildReviewCount(),
 
       // Computed: Inventory Quantity (matches product service approach)
-      inventory_quantity: sql<number>`(
-        SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
-        FROM ${inventory}
-        WHERE ${inventory.product_id} = ${products.id}
-      )`.mapWith(Number),
+      inventory_quantity: buildInventoryQuantity().mapWith(Number),
     })
     .from(collectionProducts)
     .innerJoin(products, eq(products.id, collectionProducts.product_id))

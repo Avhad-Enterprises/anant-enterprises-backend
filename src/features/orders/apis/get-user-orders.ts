@@ -14,38 +14,13 @@ import { ResponseFormatter, uuidSchema, paginationSchema } from '../../../utils'
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
+import { IOrderResponse, IOrderItemResponse, formatDate } from '../shared';
 
 const paramsSchema = z.object({
   userId: uuidSchema,
 });
 
 const querySchema = paginationSchema;
-
-interface OrderItemResponse {
-  name: string;
-  quantity: number;
-  price: number;
-  image: string;
-}
-
-interface OrderResponse {
-  id: string;
-  date: string;
-  status: string;
-  total: number;
-  deliveryDate?: string;
-  trackingNumber?: string;
-  items: OrderItemResponse[];
-}
-
-const formatDate = (date: Date | null): string => {
-  if (!date) return '';
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-};
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const { userId } = req.params as unknown as { userId: string };
@@ -81,7 +56,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     userOrders.map(async order => {
       const items = await db.select().from(orderItems).where(eq(orderItems.order_id, order.id));
 
-      const orderItemsMapped: OrderItemResponse[] = items.map(item => ({
+      const orderItemsMapped: IOrderItemResponse[] = items.map(item => ({
         name: item.product_name,
         quantity: item.quantity,
         price: Number(item.line_total),
@@ -90,7 +65,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
       // 4. Format dates for display
       // 5. Map order_status to frontend status enum
-      const orderResponse: OrderResponse = {
+      const orderResponse: IOrderResponse = {
         id: order.order_number, // User requested string ID like ORD-2024-001
         date: formatDate(order.created_at),
         status: order.order_status, // Schema enum matches frontend expectations closely

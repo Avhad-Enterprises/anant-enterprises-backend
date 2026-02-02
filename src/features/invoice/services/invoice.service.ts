@@ -10,7 +10,7 @@ import {
 } from '../shared/invoice.schema';
 import { orders } from '../../orders/shared/orders.schema';
 import { orderItems } from '../../orders/shared/order-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { users } from '../../user/shared/user.schema';
 import { userAddresses } from '../../address/shared/addresses.schema';
 import { HttpException, logger } from '../../../utils';

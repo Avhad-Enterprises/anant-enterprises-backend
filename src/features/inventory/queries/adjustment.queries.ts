@@ -11,7 +11,8 @@ import { eq, desc, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
 import { inventory } from '../shared/inventory.schema';
-import { products, productVariants } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import type { InventoryHistoryItem } from '../shared/interface';
 
 // ============================================

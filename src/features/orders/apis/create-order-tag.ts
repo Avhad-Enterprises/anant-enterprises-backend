@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { ResponseFormatter } from '../../../utils';
+import { HttpException, ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tags } from '../../tags/shared/tags.schema';
 import { RequestWithUser } from '../../../interfaces';
@@ -43,14 +43,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
     } catch (error) {
         // Handle duplicate tag name
         if (error instanceof Error && error.message.includes('unique')) {
-            return ResponseFormatter.error(res, 'TAG_ALREADY_EXISTS', 'Tag name already exists', 409);
+            throw new HttpException(409, 'Tag name already exists');
         }
 
         logger.error('Failed to create order tag', {
             tagName: name,
             error: error instanceof Error ? error.message : String(error),
         });
-        return ResponseFormatter.error(res, 'TAG_CREATE_FAILED', 'Failed to create tag', 500);
+        throw new HttpException(500, 'Failed to create tag');
     }
 };
 

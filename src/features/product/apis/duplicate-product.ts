@@ -10,7 +10,8 @@ import { requireAuth, requirePermission, validationMiddleware } from '../../../m
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { eq, inArray } from 'drizzle-orm';
-import { products, productVariants } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
+import { productVariants } from '../shared/product-variants.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
 import { productCacheService } from '../services/product-cache.service';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -247,7 +248,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
-  const { ids } = req.body;
+  const { ids } = duplicateProductSchema.parse(req.body);
   const count = await duplicateProducts(ids, userId);
 
   ResponseFormatter.success(res, { count }, `Successfully duplicated ${count} product(s)`, 201);

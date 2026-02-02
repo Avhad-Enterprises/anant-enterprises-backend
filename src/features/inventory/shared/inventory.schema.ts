@@ -17,7 +17,8 @@ import {
   unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { products, productVariants } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import { users } from '../../user/shared/user.schema';
 import { inventoryLocations } from './inventory-locations.schema';
 

@@ -1,6 +1,6 @@
 
 import { sql, ilike, or, and, type SQL } from 'drizzle-orm';
-import { products } from './product.schema';
+import { products } from './products.schema';
 
 /**
  * Splits a query string into formatted search terms.

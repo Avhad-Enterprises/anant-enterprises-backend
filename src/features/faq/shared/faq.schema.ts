@@ -16,7 +16,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
 
 // ============================================

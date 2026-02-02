@@ -10,11 +10,15 @@ import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
-import { products, productVariants } from '../shared/product.schema';
-import { ICollectionProduct } from '../shared/interface';
+import { products } from '../shared/products.schema';
+import { IProductListItem } from '../shared/responses';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
+import {
+  buildAverageRating,
+  buildReviewCount,
+  buildInventoryQuantityWithVariants,
+} from '../shared/query-builders';
 
 // Query params validation
 const querySchema = paginationSchema
@@ -211,42 +215,16 @@ const handler = async (req: Request, res: Response) => {
         description: products.short_description,
 
         // Computed: Inventory Quantity (unified inventory table for both products and variants)
-        inventory_quantity: sql<number>`
-          COALESCE(
-            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) 
-             FROM ${inventory} 
-             WHERE ${inventory.product_id} = ${products.id} 
-             OR ${inventory.variant_id} IN (
-               SELECT id FROM ${productVariants} 
-               WHERE ${productVariants.product_id} = ${products.id} 
-               AND ${productVariants.is_active} = true 
-               AND ${productVariants.is_deleted} = false
-             )),
-            0
-          )
-        `.mapWith(Number),
+        inventory_quantity: buildInventoryQuantityWithVariants().mapWith(Number),
 
         // Computed: Average rating
-        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        rating: buildAverageRating(),
 
         // Computed: Review count
-        review_count: sql<number>`COUNT(${reviews.id})`,
+        review_count: buildReviewCount(),
 
         // Computed: Total Stock (Same logic as inventory_quantity for now, but explicit field)
-        total_stock: sql<number>`
-          COALESCE(
-            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) 
-             FROM ${inventory} 
-             WHERE ${inventory.product_id} = ${products.id} 
-             OR ${inventory.variant_id} IN (
-               SELECT id FROM ${productVariants} 
-               WHERE ${productVariants.product_id} = ${products.id} 
-               AND ${productVariants.is_active} = true 
-               AND ${productVariants.is_deleted} = false
-             )),
-            0
-          )
-        `.mapWith(Number),
+        total_stock: buildInventoryQuantityWithVariants().mapWith(Number),
       })
       .from(products)
       .leftJoin(
@@ -370,7 +348,7 @@ const handler = async (req: Request, res: Response) => {
     }
 
     // Public/Storefront Response: Format response with field mapping
-    const formattedProducts: ICollectionProduct[] = paginatedProducts.map(product => {
+    const formattedProducts: IProductListItem[] = paginatedProducts.map(product => {
       const createdDate = new Date(product.created_at);
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -406,11 +384,13 @@ const handler = async (req: Request, res: Response) => {
       'Products retrieved successfully'
     );
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve products',
-      error: error instanceof Error ? error.message : String(error)
-    });
+    console.error('Failed to retrieve products:', error);
+    return ResponseFormatter.error(
+      res,
+      'FETCH_ERROR',
+      'Failed to retrieve products',
+      500
+    );
   }
 };
 

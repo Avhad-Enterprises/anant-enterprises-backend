@@ -12,7 +12,8 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
-import { products, productVariants } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
 import type { InventoryListParams, InventoryWithProduct } from '../shared/interface';
 

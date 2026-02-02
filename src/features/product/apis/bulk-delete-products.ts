@@ -20,8 +20,12 @@ const bulkDeleteSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { ids } = req.body;
   const userId = req.userId;
+  if (!userId) {
+    return ResponseFormatter.error(res, 'AUTH_ERROR', 'User authentication required', 401);
+  }
+
+  const { ids } = bulkDeleteSchema.parse(req.body);
   
   let deletedCount = 0;
   const errors: string[] = [];
@@ -30,7 +34,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // but looping ensures all side effects (cache, tier usage) are handled safely via existing logic.
   for (const id of ids) {
     try {
-      const deletedProduct = await softDeleteProduct(id, userId!);
+      const deletedProduct = await softDeleteProduct(id, userId);
 
       if (deletedProduct) {
         deletedCount++;
@@ -67,7 +71,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
       // Keeping it simple: 200 with info
   }
 
-  ResponseFormatter.success(res, { deletedCount, errors }, `Successfully deleted ${deletedCount} products`);
+  return ResponseFormatter.success(
+    res,
+    { deletedCount, errors },
+    `Successfully deleted ${deletedCount} products`
+  );
 };
 
 const router = Router();
