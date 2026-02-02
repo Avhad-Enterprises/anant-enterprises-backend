@@ -1,14 +1,13 @@
 /**
  * GET /api/inventory
  * Get all inventory items with pagination and filtering
- * 
- * TODO: TEMPORARY - Add requireAuth and requirePermission('inventory:read') after fixing middleware circular dependency
  */
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
 import { ResponseFormatter, logger } from '../../../utils';
 import { getInventoryList } from '../services/inventory.service';
+import { requireAuth, requirePermission } from '../../../middlewares';
 
 const querySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
@@ -46,8 +45,6 @@ const handler = async (req: Request, res: Response) => {
 };
 
 const router = Router();
-// TODO: TEMPORARY - No auth middleware to avoid circular dependency
-// router.get('/', requireAuth, requirePermission('inventory:read'), handler);
-router.get('/', handler);
+router.get('/', requireAuth, requirePermission('inventory:read'), handler);
 
 export default router;

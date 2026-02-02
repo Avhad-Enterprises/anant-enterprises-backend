@@ -6,7 +6,7 @@
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { ResponseFormatter } from '../../../utils';
-import requireAuth from '../../../middlewares/auth.middleware';
+import { requireAuth } from '../../../middlewares';
 import { createTransfer } from '../services/inventory-transfer.service';
 import { RequestWithUser } from '../../../interfaces';
 

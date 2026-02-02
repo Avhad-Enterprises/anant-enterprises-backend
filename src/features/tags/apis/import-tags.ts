@@ -5,11 +5,7 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
-import { eq } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
-import { db } from '../../../database';
-import { tags } from '../shared/tags.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 import { 
@@ -20,19 +16,14 @@ import {
     formatImportSummary,
     type ImportMode 
 } from '../../../utils/import-export';
-
-// Validation schema for a single tag import
-const tagImportSchema = z.object({
-    name: z.string().min(1).max(255).trim(),
-    type: z.enum(['customer', 'product', 'blogs', 'order'] as const),
-    status: z.boolean().or(z.string().transform(val => val === 'true' || val === '1')).optional().default(true),
-});
-
-// Validation schema for the import request
-const importTagsSchema = z.object({
-    data: z.array(tagImportSchema).min(1).max(1000),
-    mode: z.enum(['create', 'update', 'upsert']).default('create'),
-});
+import {
+    importTagsRequestSchema,
+    tagImportSchema,
+    findTagByName,
+    createTag,
+    updateTagById,
+} from '../shared';
+import { z } from 'zod';
 
 /**
  * Process a single tag import record
@@ -42,29 +33,23 @@ async function processTagRecord(
     mode: ImportMode,
     userId: string
 ): Promise<{ success: boolean; recordId?: string; error?: string }> {
-    const normalizedName = tagData.name.toLowerCase();
-
     try {
         // Check if tag exists
-        const existing = await db
-            .select()
-            .from(tags)
-            .where(eq(tags.name, normalizedName))
-            .limit(1);
-
-        const tagExists = existing.length > 0;
+        const existing = await findTagByName(tagData.name);
+        const tagExists = !!existing;
 
         if (mode === 'create') {
             if (tagExists) {
                 return { success: false, error: 'Tag already exists' };
             }
 
-            const [newTag] = await db.insert(tags).values({
-                name: normalizedName,
+            const newTag = await createTag({
+                name: tagData.name,
                 type: tagData.type,
                 status: tagData.status,
+                usage_count: 0,
                 created_by: userId,
-            }).returning({ id: tags.id });
+            });
 
             return { success: true, recordId: newTag.id };
         }
@@ -74,37 +59,32 @@ async function processTagRecord(
                 return { success: false, error: 'Tag does not exist' };
             }
 
-            await db
-                .update(tags)
-                .set({
-                    type: tagData.type,
-                    status: tagData.status,
-                    updated_at: new Date(),
-                })
-                .where(eq(tags.name, normalizedName));
+            await updateTagById(existing!.id, {
+                type: tagData.type,
+                status: tagData.status,
+                updated_by: userId,
+            });
 
-            return { success: true, recordId: existing[0].id };
+            return { success: true, recordId: existing!.id };
         }
 
         if (mode === 'upsert') {
             if (tagExists) {
-                await db
-                    .update(tags)
-                    .set({
-                        type: tagData.type,
-                        status: tagData.status,
-                        updated_at: new Date(),
-                    })
-                    .where(eq(tags.name, normalizedName));
-                
-                return { success: true, recordId: existing[0].id };
-            } else {
-                const [newTag] = await db.insert(tags).values({
-                    name: normalizedName,
+                await updateTagById(existing!.id, {
                     type: tagData.type,
                     status: tagData.status,
+                    updated_by: userId,
+                });
+                
+                return { success: true, recordId: existing!.id };
+            } else {
+                const newTag = await createTag({
+                    name: tagData.name,
+                    type: tagData.type,
+                    status: tagData.status,
+                    usage_count: 0,
                     created_by: userId,
-                }).returning({ id: tags.id });
+                });
 
                 return { success: true, recordId: newTag.id };
             }
@@ -121,7 +101,7 @@ async function processTagRecord(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const validation = importTagsSchema.safeParse(req.body);
+    const validation = importTagsRequestSchema.safeParse(req.body);
     if (!validation.success) {
         throw new HttpException(400, 'Invalid request data', {
             details: validation.error.issues,
