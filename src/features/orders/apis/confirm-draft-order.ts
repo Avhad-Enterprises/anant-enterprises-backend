@@ -12,6 +12,9 @@ import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { reserveStockForOrder } from '../../inventory/services/inventory.service';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
+import { TEMPLATE_CODES } from '../../notifications/shared/constants';
 
 const paramsSchema = z.object({
     id: z.string().uuid(),
@@ -53,9 +56,26 @@ const handler = async (req: RequestWithUser, res: Response) => {
             throw new HttpException(400, 'Cannot confirm order without items');
         }
 
-        // TODO: Reserve inventory for each item
-        // This should call the inventory service to reserve stock
-        // For now, we'll add a comment noting this needs to be done
+        // Reserve inventory for each item
+        const stockItems = items
+            .filter(item => item.product_id !== null) // Skip items without product_id
+            .map(item => ({
+                product_id: item.product_id!,
+                quantity: item.quantity,
+            }));
+
+        try {
+            await reserveStockForOrder(
+                stockItems,
+                draftOrder.order_number,
+                draftOrder.user_id || 'GUEST',
+                false // allowOverselling = false for confirmed orders
+            );
+            logger.info(`[ConfirmDraft] Inventory reserved for order ${draftOrder.order_number}`);
+        } catch (error: any) {
+            logger.error(`[ConfirmDraft] Failed to reserve inventory:`, error);
+            throw new HttpException(400, `Cannot confirm order: ${error.message || 'Insufficient stock'}`);
+        }
 
         // Prepare update data
         const updateData: any = {
@@ -81,17 +101,41 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         logger.info(`Draft order ${id} converted to confirmed order ${confirmedOrder.order_number}`);
 
-        // TODO: If send_confirmation_email is true, queue confirmation email
-        // TODO: Integrate with inventory service to reserve stock
-        // TODO: Create order timeline entry
+        // Send confirmation email if requested (non-blocking)
+        let emailSent = false;
+        if (data.send_confirmation_email && confirmedOrder.user_id) {
+            setImmediate(async () => {
+                try {
+                    await eventPublisher.publishNotification({
+                        userId: confirmedOrder.user_id!,
+                        templateCode: TEMPLATE_CODES.ORDER_CONFIRMED,
+                        variables: {
+                            orderNumber: confirmedOrder.order_number,
+                            totalAmount: confirmedOrder.total_amount,
+                            currency: confirmedOrder.currency || 'INR',
+                            orderStatus: confirmedOrder.order_status,
+                        },
+                        options: {
+                            priority: 'high',
+                            actionUrl: `/profile/orders/${confirmedOrder.id}`,
+                            actionText: 'View Order',
+                        },
+                    });
+                    logger.info(`[ConfirmDraft] Confirmation email queued for order ${confirmedOrder.order_number}`);
+                } catch (error) {
+                    logger.error(`[ConfirmDraft] Failed to queue confirmation email:`, error);
+                }
+            });
+            emailSent = true;
+        }
 
         return ResponseFormatter.success(
             res,
             {
                 ...confirmedOrder,
                 items,
-                inventory_reserved: false, // TODO: Set to true once inventory integration is done
-                email_sent: false, // TODO: Set based on actual email sending
+                inventory_reserved: true,
+                email_sent: emailSent,
             },
             'Draft order confirmed successfully',
             200
@@ -108,3 +152,4 @@ router.post(
 );
 
 export default router;
+

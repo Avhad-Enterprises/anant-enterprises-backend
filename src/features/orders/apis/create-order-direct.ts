@@ -2,7 +2,7 @@
  * POST /api/admin/orders/direct
  * Admin: Create a direct order with custom items
  * - Allows admin to create orders manually
- * - Accepts pre-calculated pricing from admin
+ * - Calculates pricing SERVER-SIDE (secure)
  * - Allows overselling (warns but doesn't block)
  * - Reserves stock for the order
  */
@@ -15,7 +15,7 @@ import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { reserveStockForOrder, logOrderPlacement } from '../../inventory/services/inventory.service';
-import { createOrderSchema, orderService, validateAndWarnStock, mapOrderItems, queueCustomerOrderNotification, queueAdminOrderNotification } from '../shared';
+import { directOrderSchema, orderService, validateAndWarnStock, queueCustomerOrderNotification, queueAdminOrderNotification } from '../shared';
 import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
 
@@ -25,12 +25,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(401, 'Authentication required');
     }
 
-    const body = createOrderSchema.parse(req.body);
-
-    // Direct orders MUST have items
-    if (!body.items || body.items.length === 0) {
-        throw new HttpException(400, 'Direct order must include items');
-    }
+    // Use directOrderSchema (doesn't include pricing fields)
+    const body = directOrderSchema.parse(req.body);
 
     const targetUserId = body.user_id || null; // Customer ID (nullable for guest orders)
     const creatorId = req.userId!; // Admin/Staff ID
@@ -43,40 +39,61 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     await validateAndWarnStock(stockItems, true); // allowOverselling = true
 
+    // 2. Calculate pricing SERVER-SIDE (security fix)
+    const pricing = await orderService.calculateOrderPricing({
+        items: body.items.map(item => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            product_sku: item.sku,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            cost_price: item.cost_price || item.unit_price,
+            discount_percentage: item.discount_percentage,
+            discount_amount: item.discount_amount,
+            tax_percentage: item.tax_percentage,
+        })),
+        discount_code: body.discount_code,
+        giftcard_code: body.giftcard_code,
+        shipping_amount: body.shipping_amount || 0,
+        delivery_price: body.delivery_price || body.shipping_amount || 0,
+        shipping_state: body.shipping_state,
+        billing_state: body.billing_state,
+        is_international: body.is_international,
+    });
+
     const orderNumber = await orderService.generateOrderNumber();
 
-    // 2. Create Order & Items
+    // 3. Create Order & Items
     const order = await db.transaction(async (tx) => {
         // Reserve stock (Allow Overselling = true for Admin)
-        // NOTE: Direct/Admin orders MUST reserve here since they don't go through cart
         await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', true);
 
-        // Insert Order
+        // Insert Order with SERVER-CALCULATED pricing
         const [newOrder] = await tx.insert(orders).values({
             order_number: orderNumber,
-            user_id: targetUserId, // nullable
+            user_id: targetUserId,
             shipping_address_id: body.shipping_address_id || null,
             billing_address_id: body.billing_address_id || body.shipping_address_id || null,
-            channel: body.channel || 'web',
+            channel: body.channel,
             order_status: body.is_draft ? 'pending' : 'pending',
-            is_draft: body.is_draft || false,
+            is_draft: body.is_draft,
             payment_method: body.payment_method,
             payment_status: 'pending',
-            currency: body.currency || 'INR',
+            currency: body.currency,
 
-            // Pricing (admin provides these)
-            subtotal: body.subtotal || '0',
-            discount_amount: body.discount_total || '0',
-            cgst: body.cgst_amount || '0',
-            sgst: body.sgst_amount || '0',
-            igst: body.igst_amount || '0',
-            shipping_amount: body.shipping_total || '0',
-            partial_cod_charges: body.cod_charges || '0',
-            giftcard_amount: body.giftcard_total || '0',
-            total_amount: body.total_amount || '0',
-            advance_paid_amount: body.advance_paid_amount || '0',
-
-            total_quantity: body.items!.reduce((sum, item) => sum + item.quantity, 0),
+            // SERVER-SIDE CALCULATED PRICING (security fix)
+            subtotal: pricing.subtotal.toFixed(2),
+            discount_amount: pricing.discount_total.toFixed(2),
+            cgst: pricing.cgst.toFixed(2),
+            sgst: pricing.sgst.toFixed(2),
+            igst: pricing.igst.toFixed(2),
+            shipping_amount: pricing.shipping_amount.toFixed(2),
+            delivery_price: pricing.delivery_price.toFixed(2),
+            tax_amount: pricing.tax_amount.toFixed(2),
+            giftcard_amount: pricing.giftcard_discount.toFixed(2),
+            total_amount: pricing.total_amount.toFixed(2),
+            total_quantity: pricing.total_quantity,
+            advance_paid_amount: body.advance_paid_amount?.toFixed(2) || '0',
 
             customer_note: body.customer_note,
             admin_comment: body.admin_comment,
@@ -91,8 +108,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
             throw new HttpException(500, 'Failed to create order');
         }
 
-        // Insert Items using helper
-        const orderItemsData = mapOrderItems(newOrder.id, body.items!);
+        // Insert Items with calculated pricing
+        const orderItemsData = body.items.map((item, index) => ({
+            order_id: newOrder.id,
+            product_id: item.product_id,
+            sku: item.sku,
+            product_name: item.product_name,
+            product_image: item.product_image,
+            cost_price: (item.cost_price || item.unit_price).toFixed(2),
+            quantity: item.quantity,
+            line_total: pricing.items[index].line_total.toFixed(2),
+        }));
+
         await tx.insert(orderItems).values(orderItemsData);
 
         return newOrder;
@@ -108,6 +135,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
         order_status: order.order_status,
         payment_status: order.payment_status,
         total_amount: order.total_amount,
+        pricing_breakdown: {
+            subtotal: order.subtotal,
+            discount: order.discount_amount,
+            tax: order.tax_amount,
+            shipping: order.shipping_amount,
+            total: order.total_amount,
+        },
         created_at: order.created_at,
     }, 'Order created successfully', 201);
 
@@ -150,3 +184,4 @@ const router = Router();
 router.post('/direct', requireAuth, requirePermission('orders:create'), handler);
 
 export default router;
+

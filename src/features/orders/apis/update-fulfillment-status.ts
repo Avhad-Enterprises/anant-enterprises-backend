@@ -12,6 +12,8 @@ import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { fulfillOrderInventory } from '../../inventory/services/inventory.service';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
+import { TEMPLATE_CODES } from '../../notifications/shared/constants';
 
 const paramsSchema = z.object({
     id: z.string().uuid(),
@@ -95,7 +97,31 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
     }
 
-    // TODO: Send notification/email to customer
+    // Send fulfillment notification to customer (non-blocking)
+    if (updatedOrder.user_id && data.fulfillment_status !== existingOrder.fulfillment_status) {
+        setImmediate(async () => {
+            try {
+                await eventPublisher.publishNotification({
+                    userId: updatedOrder.user_id!,
+                    templateCode: TEMPLATE_CODES.ORDER_FULFILLMENT_UPDATED,
+                    variables: {
+                        orderNumber: updatedOrder.order_number,
+                        fulfillmentStatus: data.fulfillment_status,
+                        trackingNumber: data.tracking_number || updatedOrder.order_tracking || 'Not available',
+                        deliveryDate: data.delivery_date || 'Pending',
+                    },
+                    options: {
+                        priority: 'normal',
+                        actionUrl: `/profile/orders/${updatedOrder.id}`,
+                        actionText: 'View Order',
+                    },
+                });
+                logger.info(`[UpdateFulfillment] Fulfillment notification queued for order ${updatedOrder.order_number}`);
+            } catch (error) {
+                logger.error(`[UpdateFulfillment] Failed to queue fulfillment notification:`, error);
+            }
+        });
+    }
 
     return ResponseFormatter.success(
         res,
@@ -113,3 +139,4 @@ router.put(
 );
 
 export default router;
+

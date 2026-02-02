@@ -11,6 +11,8 @@ import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { eventPublisher } from '../../queue/services/event-publisher.service';
+import { TEMPLATE_CODES } from '../../notifications/shared/constants';
 
 const paramsSchema = z.object({
     id: z.string().uuid(),
@@ -81,8 +83,31 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     logger.info(`Tracking info updated for order ${id}`);
 
-    // TODO: Send tracking email to customer
-    // TODO: Integrate with carrier API for real-time tracking
+    // Send tracking notification to customer (non-blocking)
+    if (updatedOrder.user_id) {
+        setImmediate(async () => {
+            try {
+                await eventPublisher.publishNotification({
+                    userId: updatedOrder.user_id!,
+                    templateCode: TEMPLATE_CODES.ORDER_TRACKING_UPDATED,
+                    variables: {
+                        orderNumber: updatedOrder.order_number,
+                        trackingNumber: data.tracking_number,
+                        carrier: data.carrier || 'Standard Carrier',
+                        shippingMethod: updatedOrder.shipping_method || 'Standard Shipping',
+                    },
+                    options: {
+                        priority: 'normal',
+                        actionUrl: `/profile/orders/${updatedOrder.id}`,
+                        actionText: 'Track Order',
+                    },
+                });
+                logger.info(`[UpdateTracking] Tracking notification queued for order ${updatedOrder.order_number}`);
+            } catch (error) {
+                logger.error(`[UpdateTracking] Failed to queue tracking notification:`, error);
+            }
+        });
+    }
 
     return ResponseFormatter.success(
         res,
@@ -107,3 +132,4 @@ router.put(
 );
 
 export default router;
+

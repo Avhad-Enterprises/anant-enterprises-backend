@@ -7,12 +7,19 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { tags } from '../shared/tags.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import { logger } from '../../../utils/logging/logger';
+import { 
+    createImportResult,
+    recordSuccess,
+    recordFailure,
+    recordSkipped,
+    formatImportSummary,
+    type ImportMode 
+} from '../../../utils/import-export';
 
 // Validation schema for a single tag import
 const tagImportSchema = z.object({
@@ -23,26 +30,18 @@ const tagImportSchema = z.object({
 
 // Validation schema for the import request
 const importTagsSchema = z.object({
-    data: z.array(tagImportSchema).min(1).max(1000), // Limit to 1000 tags per import
+    data: z.array(tagImportSchema).min(1).max(1000),
     mode: z.enum(['create', 'update', 'upsert']).default('create'),
 });
 
-type ImportMode = 'create' | 'update' | 'upsert';
-type ImportResult = {
-    success: number;
-    failed: number;
-    skipped: number;
-    errors: Array<{ row: number; name: string; error: string }>;
-};
-
 /**
- * Import a single tag based on the mode
+ * Process a single tag import record
  */
-async function importTag(
+async function processTagRecord(
     tagData: z.infer<typeof tagImportSchema>,
     mode: ImportMode,
     userId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; recordId?: string; error?: string }> {
     const normalizedName = tagData.name.toLowerCase();
 
     try {
@@ -60,15 +59,14 @@ async function importTag(
                 return { success: false, error: 'Tag already exists' };
             }
 
-            // Create new tag
-            await db.insert(tags).values({
+            const [newTag] = await db.insert(tags).values({
                 name: normalizedName,
                 type: tagData.type,
                 status: tagData.status,
                 created_by: userId,
-            });
+            }).returning({ id: tags.id });
 
-            return { success: true };
+            return { success: true, recordId: newTag.id };
         }
 
         if (mode === 'update') {
@@ -76,7 +74,6 @@ async function importTag(
                 return { success: false, error: 'Tag does not exist' };
             }
 
-            // Update existing tag
             await db
                 .update(tags)
                 .set({
@@ -86,12 +83,11 @@ async function importTag(
                 })
                 .where(eq(tags.name, normalizedName));
 
-            return { success: true };
+            return { success: true, recordId: existing[0].id };
         }
 
         if (mode === 'upsert') {
             if (tagExists) {
-                // Update existing tag
                 await db
                     .update(tags)
                     .set({
@@ -100,21 +96,22 @@ async function importTag(
                         updated_at: new Date(),
                     })
                     .where(eq(tags.name, normalizedName));
+                
+                return { success: true, recordId: existing[0].id };
             } else {
-                // Create new tag
-                await db.insert(tags).values({
+                const [newTag] = await db.insert(tags).values({
                     name: normalizedName,
                     type: tagData.type,
                     status: tagData.status,
                     created_by: userId,
-                });
-            }
+                }).returning({ id: tags.id });
 
-            return { success: true };
+                return { success: true, recordId: newTag.id };
+            }
         }
 
         return { success: false, error: 'Invalid import mode' };
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error('Error importing tag', { error, tagData });
         return {
             success: false,
@@ -124,21 +121,8 @@ async function importTag(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    // Log the incoming request for debugging
-    logger.info('Import tags request received', {
-        bodyKeys: Object.keys(req.body),
-        dataLength: req.body?.data?.length,
-        mode: req.body?.mode,
-        sampleData: req.body?.data?.slice(0, 2), // Log first 2 rows
-    });
-
-    // Validate request body
     const validation = importTagsSchema.safeParse(req.body);
     if (!validation.success) {
-        logger.error('Import validation failed', {
-            errors: validation.error.issues,
-            body: req.body,
-        });
         throw new HttpException(400, 'Invalid request data', {
             details: validation.error.issues,
         });
@@ -151,45 +135,30 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(401, 'User not authenticated');
     }
 
+    const result = createImportResult();
     logger.info(`Importing ${tagsData.length} tags in ${mode} mode`, { userId });
-
-    const result: ImportResult = {
-        success: 0,
-        failed: 0,
-        skipped: 0,
-        errors: [],
-    };
 
     // Process each tag
     for (let i = 0; i < tagsData.length; i++) {
         const tagData = tagsData[i];
         const rowNumber = i + 1;
+        // const entityKey = tagData.name; // Entity identifier for logging
 
-        const importResult = await importTag(tagData, mode, userId);
+        const importResult = await processTagRecord(tagData, mode, userId);
 
         if (importResult.success) {
-            result.success++;
+            recordSuccess(result, mode, importResult.recordId);
         } else {
             if (importResult.error === 'Tag already exists') {
-                result.skipped++;
+                recordSkipped(result, rowNumber, 'Already exists');
             } else {
-                result.failed++;
+                recordFailure(result, rowNumber, importResult.error || 'Unknown error');
             }
-
-            result.errors.push({
-                row: rowNumber,
-                name: tagData.name,
-                error: importResult.error || 'Unknown error',
-            });
         }
     }
 
-    logger.info('Tag import completed', { result });
-
-    // Return result
-    const statusCode = result.failed === 0 ? 200 : 207; // 207 = Multi-Status (partial success)
-
-    return ResponseFormatter.success(res, result, 'Tag import completed', statusCode);
+    const statusCode = result.failed === 0 ? 200 : 207;
+    return ResponseFormatter.success(res, result, formatImportSummary(result), statusCode);
 };
 
 const router = Router();

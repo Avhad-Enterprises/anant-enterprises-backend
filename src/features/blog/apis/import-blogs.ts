@@ -7,14 +7,23 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { blogs } from '../shared/blog.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import { logger } from '../../../utils/logging/logger';
+import {
+    createImportResult,
+    recordSuccess,
+    recordFailure,
+    recordSkipped,
+    formatImportSummary,
+    caseInsensitiveEnum,
+    arrayParser,
+    type ImportMode
+} from '../../../utils/import-export';
 
-// Validation schema for a single blog import
+// Blog-specific validation schema
 const blogImportSchema = z.object({
     title: z.string().min(1).max(255).trim(),
     slug: z.string().max(255).optional(),
@@ -22,30 +31,18 @@ const blogImportSchema = z.object({
     content: z.string().optional(),
     quote: z.string().max(500).optional(),
     category: z.string().max(100).optional(),
-    tags: z.union([
-        z.array(z.string()),
-        z.string().transform(val => val.split(',').map(t => t.trim()).filter(t => t.length > 0))
-    ]).optional(),
+    tags: arrayParser().optional(),
     author: z.string().max(255).optional(),
-    status: z.enum(['public', 'private', 'draft'] as const).optional().default('draft'),
+    status: caseInsensitiveEnum(['public', 'private', 'draft']).default('draft'),
     meta_title: z.string().max(60).optional(),
     meta_description: z.string().max(160).optional(),
     admin_comment: z.string().optional(),
 });
 
-// Validation schema for the import request
-const importBlogsSchema = z.object({
-    data: z.array(blogImportSchema).min(1).max(1000), // Limit to 1000 blogs per import
+const importRequestSchema = z.object({
+    data: z.array(blogImportSchema).min(1).max(1000),
     mode: z.enum(['create', 'update', 'upsert']).default('create'),
 });
-
-type ImportMode = 'create' | 'update' | 'upsert';
-type ImportResult = {
-    success: number;
-    failed: number;
-    skipped: number;
-    errors: Array<{ row: number; title: string; error: string }>;
-};
 
 /**
  * Generate a unique slug from title
@@ -86,13 +83,13 @@ async function ensureUniqueSlug(baseSlug: string, existingId?: string): Promise<
 }
 
 /**
- * Import a single blog based on the mode
+ * Process a single blog import record
  */
-async function importBlog(
+async function processBlogRecord(
     blogData: z.infer<typeof blogImportSchema>,
     mode: ImportMode,
     userId: string
-): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
+): Promise<{ success: boolean; recordId?: string; error?: string }> {
     try {
         // Generate or validate slug
         let slug = blogData.slug?.trim() || generateSlug(blogData.title);
@@ -114,14 +111,14 @@ async function importBlog(
 
         if (mode === 'create') {
             if (blogExists) {
-                return { success: false, skipped: true };
+                return { success: false, error: 'Blog already exists' };
             }
 
             // Ensure slug is unique
             slug = await ensureUniqueSlug(slug);
 
             // Create new blog
-            await db.insert(blogs).values({
+            const [newBlog] = await db.insert(blogs).values({
                 title: blogData.title,
                 slug,
                 description: blogData.description,
@@ -135,9 +132,9 @@ async function importBlog(
                 meta_description: blogData.meta_description,
                 admin_comment: blogData.admin_comment,
                 created_by: userId,
-            });
+            }).returning({ id: blogs.id });
 
-            return { success: true };
+            return { success: true, recordId: newBlog.id };
         }
 
         if (mode === 'update') {
@@ -164,7 +161,7 @@ async function importBlog(
                 })
                 .where(eq(blogs.slug, slug));
 
-            return { success: true };
+            return { success: true, recordId: existing[0].id };
         }
 
         if (mode === 'upsert') {
@@ -187,12 +184,14 @@ async function importBlog(
                         updated_at: new Date(),
                     })
                     .where(eq(blogs.slug, slug));
+                    
+                return { success: true, recordId: existing[0].id };
             } else {
                 // Ensure slug is unique
                 slug = await ensureUniqueSlug(slug);
 
                 // Create new blog
-                await db.insert(blogs).values({
+                const [newBlog] = await db.insert(blogs).values({
                     title: blogData.title,
                     slug,
                     description: blogData.description,
@@ -206,10 +205,10 @@ async function importBlog(
                     meta_description: blogData.meta_description,
                     admin_comment: blogData.admin_comment,
                     created_by: userId,
-                });
+                }).returning({ id: blogs.id });
+                
+                return { success: true, recordId: newBlog.id };
             }
-
-            return { success: true };
         }
 
         return { success: false, error: 'Invalid import mode' };
@@ -223,22 +222,9 @@ async function importBlog(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    // Log the incoming request for debugging
-    logger.info('Import blogs request received', {
-        bodyKeys: Object.keys(req.body),
-        dataLength: req.body?.data?.length,
-        mode: req.body?.mode,
-        sampleData: req.body?.data?.slice(0, 2), // Log first 2 rows
-    });
-
-    // Validate request body
-    const validation = importBlogsSchema.safeParse(req.body);
+    const validation = importRequestSchema.safeParse(req.body);
     if (!validation.success) {
-        logger.error('Import validation failed', {
-            errors: validation.error.issues,
-            body: req.body,
-        });
-        throw new HttpException(400, 'Invalid request data', {
+        return ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request data', 400, {
             details: validation.error.issues,
         });
     }
@@ -247,55 +233,32 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const userId = req.userId;
 
     if (!userId) {
-        throw new HttpException(401, 'User not authenticated');
+        return ResponseFormatter.error(res, 'UNAUTHORIZED', 'User not authenticated', 401);
     }
 
-    const result: ImportResult = {
-        success: 0,
-        failed: 0,
-        skipped: 0,
-        errors: [],
-    };
+    const result = createImportResult();
+    logger.info(`Importing ${blogsData.length} blogs in ${mode} mode`, { userId });
 
-    // Process blogs sequentially to maintain order and handle errors properly
+    // Process each blog
     for (let i = 0; i < blogsData.length; i++) {
         const blogData = blogsData[i];
-        const rowNumber = i + 2; // +2 because row 1 is header and array is 0-indexed
+        const rowNumber = i + 1;
 
-        try {
-            const importResult = await importBlog(blogData, mode, userId);
+        const importResult = await processBlogRecord(blogData, mode, userId);
 
-            if (importResult.success) {
-                result.success++;
-            } else if ((importResult as any).skipped) {
-                result.skipped++;
+        if (importResult.success) {
+            recordSuccess(result, mode, importResult.recordId);
+        } else {
+            if (importResult.error === 'Blog already exists') {
+                recordSkipped(result, rowNumber, 'Already exists');
             } else {
-                result.failed++;
-                result.errors.push({
-                    row: rowNumber,
-                    title: blogData.title,
-                    error: importResult.error || 'Unknown error',
-                });
+                recordFailure(result, rowNumber, importResult.error || 'Unknown error');
             }
-        } catch (error) {
-            result.failed++;
-            result.errors.push({
-                row: rowNumber,
-                title: blogData.title,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
-            logger.error('Error processing blog row', { rowNumber, error, blogData });
         }
     }
 
-    logger.info('Import blogs completed', { result });
-
-    return ResponseFormatter.success(
-        res,
-        result,
-        `Import completed: ${result.success} succeeded, ${result.failed} failed`,
-        200
-    );
+    const statusCode = result.failed === 0 ? 200 : 207;
+    return ResponseFormatter.success(res, result, formatImportSummary(result), statusCode);
 };
 
 const router = Router();
