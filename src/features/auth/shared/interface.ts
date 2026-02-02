@@ -14,33 +14,12 @@ export interface SyncUserData {
 }
 
 /**
- * Password reset request
- */
-export interface PasswordResetRequest {
-  email: string;
-}
-
-/**
- * Password reset with token
- */
-export interface PasswordReset {
-  token: string;
-  password: string;
-}
-
-/**
- * Refresh token request
- */
-export interface RefreshTokenRequest {
-  refresh_token: string;
-}
-
-/**
  * Auth response from Supabase
  */
 export interface AuthResponse {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  error: any;
+  data: {
+    user: any | null;
+    session?: any | null;
+  } | null;
+  error: any | null;
 }

@@ -1,6 +1,9 @@
 import App from './app';
 import { logger } from './utils';
 import UserRoute from './features/user';
+import CustomerRoute from './features/customer';
+import AddressRoute from './features/address';
+import AdminRoute from './features/admin';
 import AuthRoute from './features/auth';
 import ProductRoute from './features/product';
 import CollectionRoute from './features/collection';
@@ -30,7 +33,7 @@ import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
-import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
+import { initializeDiscountCron } from './features/discount/jobs/discount-status-updater';
 import { startWorkers, stopWorkers } from './features/queue';
 import { config } from './utils/validateEnv';
 import { socketService } from './features/notifications/socket/socket.service';
@@ -65,6 +68,9 @@ async function bootstrap() {
     const app = new App([
       new AuthRoute(),
       new UserRoute(),
+      new CustomerRoute(),
+      new AddressRoute(),
+      new AdminRoute(),
       new ProductRoute(),
       new CollectionRoute(),
       new UploadRoute(),
@@ -95,10 +101,8 @@ async function bootstrap() {
     initializeDiscountCron();
 
     // Phase 2: Start cart reservation cleanup (every 5 minutes)
-    if (process.env.NODE_ENV !== 'test') {
-      const { startCartReservationCleanup } = await import('./jobs/cleanup-expired-reservations');
-      startCartReservationCleanup();
-    }
+    const { startCartReservationCleanup } = await import('./features/cart/jobs/cleanup-expired-reservations');
+    startCartReservationCleanup();
 
     // Initialize async routes (ensures dynamic imports complete before server starts)
     await app.initializeAsyncRoutes();

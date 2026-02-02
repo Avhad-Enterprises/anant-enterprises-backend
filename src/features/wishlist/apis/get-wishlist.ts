@@ -6,42 +6,25 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../shared/wishlist.schema';
 import { wishlistItems } from '../shared/wishlist-items.schema';
 import { products } from '../../product/shared/product.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
-import { requireAuth } from '../../../middlewares';
-
-interface WishlistItemResponse {
-    product_id: string;
-    product_name: string;
-    product_image: string | null;
-    selling_price: string;
-    compare_at_price: string | null;
-    sku: string;
-    inStock: boolean;
-    availableStock: number;
-    notes: string | null;
-    added_at: Date;
-    added_to_cart_at: Date | null;
-    purchased_at: Date | null;
-}
-
-interface WishlistResponse {
-    id: string | null;
-    access_token: string | null;
-    items: WishlistItemResponse[];
-    itemCount: number;
-}
+import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
+import { z } from 'zod';
+import { IWishlistItemResponse, IWishlistResponse } from '../shared/interface';
+import { getProductRatingSubquery, getProductReviewCountSubquery, getProductStockSubquery } from '../shared/queries';
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const userId = req.userId;
-    if (!userId) {
+    // Support admin/owner access
+    // We prioritize param (admin mode), fallback to auth user (self mode)
+    const targetUserId = req.params.userId || req.userId;
+
+    if (!targetUserId) {
         throw new HttpException(401, 'Authentication required');
     }
 
@@ -50,7 +33,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .select()
         .from(wishlists)
         .where(and(
-            eq(wishlists.user_id, userId),
+            eq(wishlists.user_id, targetUserId),
             eq(wishlists.status, true)
         ))
         .limit(1);
@@ -61,10 +44,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
             access_token: null,
             items: [],
             itemCount: 0,
-        } as WishlistResponse, 'No wishlist found');
+        } as IWishlistResponse, 'No wishlist found');
     }
 
-    // Get wishlist items with product data
+    // Get wishlist items with product data and optimized stats subqueries
     const items = await db
         .select({
             product_id: wishlistItems.product_id,
@@ -79,42 +62,39 @@ const handler = async (req: RequestWithUser, res: Response) => {
             compare_at_price: products.compare_at_price,
             sku: products.sku,
             product_status: products.status,
+            // Optimized: Get stock in same query using subquery
+            totalStock: getProductStockSubquery(),
+            // Optimized: Get rating stats
+            avg_rating: getProductRatingSubquery(),
+            review_count: getProductReviewCountSubquery(),
         })
         .from(wishlistItems)
         .innerJoin(products, eq(wishlistItems.product_id, products.id))
         .where(eq(wishlistItems.wishlist_id, wishlist.id));
 
-    // Enrich items with stock information
-    const enrichedItems: WishlistItemResponse[] = await Promise.all(
-        items.map(async (item) => {
-            // Get stock for this product
-            const [stockData] = await db
-                .select({
-                    totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
-                })
-                .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
+    // Enrich items with stats
+    const enrichedItems: IWishlistItemResponse[] = items.map((item) => {
+        const availableStock = Number(item.totalStock) || 0;
 
-            const availableStock = Number(stockData?.totalStock) || 0;
+        return {
+            product_id: item.product_id,
+            product_name: item.product_name,
+            product_image: item.product_image,
+            selling_price: item.selling_price,
+            compare_at_price: item.compare_at_price,
+            sku: item.sku,
+            inStock: availableStock > 0 && item.product_status === 'active',
+            availableStock,
+            notes: item.notes,
+            added_at: item.added_at,
+            added_to_cart_at: item.added_to_cart_at,
+            purchased_at: item.purchased_at,
+            rating: Number(item.avg_rating) || 0,
+            reviews: Number(item.review_count) || 0,
+        };
+    });
 
-            return {
-                product_id: item.product_id,
-                product_name: item.product_name,
-                product_image: item.product_image,
-                selling_price: item.selling_price,
-                compare_at_price: item.compare_at_price,
-                sku: item.sku,
-                inStock: availableStock > 0 && item.product_status === 'active',
-                availableStock,
-                notes: item.notes,
-                added_at: item.added_at,
-                added_to_cart_at: item.added_to_cart_at,
-                purchased_at: item.purchased_at,
-            };
-        })
-    );
-
-    const response: WishlistResponse = {
+    const response: IWishlistResponse = {
         id: wishlist.id,
         access_token: wishlist.access_token,
         items: enrichedItems,
@@ -125,6 +105,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.get('/', requireAuth, handler);
+
+// Admin route only - get any user's wishlist
+router.get(
+    '/:userId/wishlist',
+    requireAuth,
+    validationMiddleware(z.object({ userId: z.string().uuid() }), 'params'),
+    requireOwnerOrPermission('userId', 'users:read'),
+    handler
+);
 
 export default router;

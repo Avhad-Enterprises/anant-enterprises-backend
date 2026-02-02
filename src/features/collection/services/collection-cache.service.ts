@@ -205,12 +205,10 @@ export class CollectionCacheService {
 // Singleton instance
 export const collectionCacheService = new CollectionCacheService();
 
-// Cleanup expired cache every 5 minutes
-if (process.env.NODE_ENV !== 'test') {
-  setInterval(
-    () => {
-      collectionCacheService.cleanupExpired();
-    },
-    5 * 60 * 1000
-  );
-}
+// Cleanup expired cache every 5 minutes (all environments)
+setInterval(
+  () => {
+    collectionCacheService.cleanupExpired();
+  },
+  5 * 60 * 1000
+);

@@ -67,7 +67,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // Resolve sort column
     let sortCol: any = orders[params.sort_by as keyof typeof orders];
-    if (params.sort_by === 'customer_name') sortCol = users.name;
+    if (params.sort_by === 'customer_name') sortCol = users.first_name;
     if (params.sort_by === 'customer_email') sortCol = users.email;
 
     // Get draft orders with customer info
@@ -84,7 +84,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             updated_at: orders.updated_at,
             user_id: orders.user_id,
             customer_email: users.email,
-            customer_name: users.name,
+            customer_name: users.first_name,
             customer_note: orders.customer_note,
             admin_comment: orders.admin_comment,
         })

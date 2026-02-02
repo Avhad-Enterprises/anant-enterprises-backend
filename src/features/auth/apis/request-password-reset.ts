@@ -3,7 +3,7 @@
  * Request password reset link via email using Supabase Auth (Public - no auth)
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter } from '../../../utils';
@@ -29,15 +29,10 @@ export async function handleRequestPasswordReset(email: string) {
   };
 }
 
-const handler = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email }: RequestPasswordResetDto = req.body;
-    const result = await handleRequestPasswordReset(email);
-
-    ResponseFormatter.success(res, result, result.message);
-  } catch (error) {
-    next(error);
-  }
+const handler = async (req: Request, res: Response) => {
+  const { email }: RequestPasswordResetDto = req.body;
+  const result = await handleRequestPasswordReset(email);
+  ResponseFormatter.success(res, result, result.message);
 };
 
 const router = Router();

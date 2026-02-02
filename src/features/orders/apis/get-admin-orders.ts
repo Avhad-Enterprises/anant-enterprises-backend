@@ -118,7 +118,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             case 'order_status': return orders.order_status;
             case 'payment_status': return orders.payment_status;
             case 'total_amount': return orders.total_amount;
-            case 'customer_name': return users.name;
+            case 'customer_name': return users.first_name;
             case 'created_at':
             default: return orders.created_at;
         }
@@ -139,7 +139,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             created_at: orders.created_at,
             user_id: orders.user_id,
             customer_email: users.email,
-            customer_name: users.name,
+            customer_name: users.first_name,
         })
         .from(orders)
         .leftJoin(users, eq(orders.user_id, users.id))

@@ -4,7 +4,7 @@ import { logger } from '../utils';
 import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
 import { db } from '../database';
 import { users } from '../features/user/shared/user.schema';
-import { customerProfiles } from '../features/user/shared/customer-profiles.schema';
+import { customerProfiles } from '../features/customer/shared/customer-profiles.schema';
 import { eq } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { redisClient } from '../utils/database/redis';
@@ -91,8 +91,8 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     // Check customer profile status
     if (profile) {
-      if (profile.account_status === 'closed') {
-        logger.warn('Authentication failed: User account is closed/inactive', {
+      if (profile.account_status === 'inactive') {
+        logger.warn('Authentication failed: User account is inactive', {
           ip: clientIP,
           userId: user.id,
           status: profile.account_status
@@ -100,13 +100,13 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         return next(new HttpException(403, 'Your account is inactive. Please contact support.'));
       }
 
-      if (profile.account_status === 'suspended') {
-        logger.warn('Authentication failed: User account is suspended', {
+      if (profile.account_status === 'banned') {
+        logger.warn('Authentication failed: User account is banned', {
           ip: clientIP,
           userId: user.id,
           status: profile.account_status
         });
-        return next(new HttpException(403, 'Your account has been suspended. Please contact support.'));
+        return next(new HttpException(403, 'Your account has been banned. Please contact support.'));
       }
     }
 
@@ -218,7 +218,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
     // Check customer profile status
     if (profile) {
-      if (profile.account_status === 'closed' || profile.account_status === 'suspended') {
+      if (profile.account_status === 'inactive' || profile.account_status === 'banned') {
         // Optional auth: treat as anonymous if account is closed/suspended?
         // Or fail? Usually, if you try to auth and are banned, you should probably be told you are banned.
         return next(new HttpException(403, 'Your account is inactive/suspended.'));

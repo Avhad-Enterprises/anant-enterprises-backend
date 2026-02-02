@@ -9,6 +9,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
@@ -17,6 +18,7 @@ import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { verifySupabaseToken } from '../services/supabase-auth.service';
 import { shortTextSchema, optionalPhoneSchema } from '../../../utils/validation/common-schemas';
+
 
 const syncUserSchema = z.object({
   name: shortTextSchema.optional(),
@@ -38,8 +40,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'Invalid or expired token');
   }
 
-  // Parse optional body data
-  const bodyData = syncUserSchema.parse(req.body || {});
+  // Get validated body data from middleware
+  const bodyData = req.body;
 
   // Extract email verification status from Supabase Auth
   const emailVerified = !!authUser.email_confirmed_at;
@@ -116,14 +118,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const fullName =
     bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
   const nameParts = fullName.trim().split(' ');
-  const name = nameParts[0] || 'User';
+  const first_name = nameParts[0] || 'User';
   const last_name = nameParts.slice(1).join(' ') || '';
 
   const [newUser] = await db
     .insert(users)
     .values({
       auth_id: authUser.id,
-      name,
+      first_name,
       last_name,
       email: authUser.email!,
       phone_number: bodyData.phone_number || authUser.phone || '',
@@ -154,6 +156,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.post('/sync-user', handler);
+router.post('/sync-user', validationMiddleware(syncUserSchema), handler);
 
 export default router;

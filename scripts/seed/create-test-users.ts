@@ -1,0 +1,211 @@
+/**
+ * Test Users Creation Script
+ *
+ * This script creates test users for different roles:
+ * - Regular User: user@gmail.com / 12345678 (role: user)
+ * - Admin User: admin2@gmail.com / 12345678 (role: admin)
+ * - Super Admin: superadmin@gmail.com / 12345678 (role: superadmin)
+ *
+ * Usage:
+ * - npm run create-test-users
+ * - or: npx tsx scripts/create-test-users.ts
+ *
+ * The script will:
+ * 1. Check if test users already exist
+ * 2. Create missing test users with hashed passwords
+ * 3. Display created user details
+ *
+ * Prerequisites:
+ * - Database must be running and accessible
+ * - DATABASE_URL environment variable must be set
+ * - RBAC roles must be seeded first (run: npm run db:seed)
+ * - Admin user should exist (run: npm run create-admin)
+ *   The script uses an existing admin user as the creator reference
+ */
+
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+import { eq, and } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import bcrypt from 'bcrypt';
+const nodeEnv = process.env.NODE_ENV || 'development';
+if (nodeEnv === 'development') {
+  dotenv.config({ path: '.env.dev' });
+} else if (nodeEnv === 'production') {
+  dotenv.config({ path: '.env.prod' });
+} else if (nodeEnv === 'test') {
+  dotenv.config({ path: '.env.dev' }); // Use same env as development
+}
+dotenv.config();
+
+/**
+ * Get database URL with Docker hostname converted to localhost
+ * Port mapping: dev=5434, test=5433
+ */
+function getDatabaseUrl(): string {
+  let dbUrl = process.env.DATABASE_URL || '';
+
+  if (dbUrl.includes('@postgres:5432')) {
+    const hostPort = nodeEnv === 'development' ? 5434 : nodeEnv === 'test' ? 5433 : 5432;
+    dbUrl = dbUrl.replace('@postgres:5432', `@localhost:${hostPort}`);
+  }
+
+  return dbUrl;
+}
+
+// Import schemas after env is configured
+import { users } from '../../src/features/user';
+import { roles, userRoles } from '../../src/features/rbac';
+import { logger } from '../../src/utils';
+
+const TEST_USERS = [
+  {
+    name: 'Regular User',
+    email: 'user@gmail.com',
+    password: '12345678',
+    role: 'user' as const,
+  },
+  {
+    name: 'Admin User',
+    email: 'admin2@gmail.com',
+    password: '12345678',
+    role: 'admin' as const,
+  },
+  {
+    name: 'Super Admin User',
+    email: 'superadmin@gmail.com',
+    password: '12345678',
+    role: 'superadmin' as const,
+  },
+];
+
+async function createTestUsers() {
+  const dbUrl = getDatabaseUrl();
+
+
+  logger.info('🚀 Starting test users creation script...');
+  logger.info(`📍 Environment: ${nodeEnv}`);
+  logger.info(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
+
+  // Create database connection
+  const pool = new Pool({ connectionString: dbUrl, max: 1 });
+  const db = drizzle(pool);
+
+  try {
+    // Test connection
+    logger.info('🔄 Connecting to database...');
+    const client = await pool.connect();
+    client.release();
+    logger.info('✅ Database connected');
+
+    // Get admin user ID for created_by reference via RBAC
+    const [adminUserRole] = await db
+      .select({ user_id: userRoles.user_id })
+      .from(userRoles)
+      .innerJoin(roles, eq(userRoles.role_id, roles.id))
+      .where(and(eq(roles.name, 'admin'), eq(roles.is_deleted, false)))
+      .limit(1);
+
+    if (!adminUserRole) {
+      throw new Error(
+        'Admin user not found.\n' +
+        'Please run: npm run create-admin\n' +
+        'This will create an admin user that can be used as the creator reference.'
+      );
+    }
+
+    const adminUser = { id: adminUserRole.user_id };
+
+    logger.info(`👤 Using admin user ID ${adminUser.id} as creator reference`);
+
+    // Process each test user
+    for (const userData of TEST_USERS) {
+      logger.info(`\n📝 Processing ${userData.role} user...`);
+
+      // Check if user already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, userData.email), eq(users.is_deleted, false)))
+        .limit(1);
+
+      if (existingUser) {
+        logger.info(`ℹ️  ${userData.role} user with email ${userData.email} already exists`);
+        logger.info(`   ID: ${existingUser.id}`);
+        logger.info(`   Name: ${existingUser.name}`);
+        continue;
+      }
+
+      // Hash the password
+      logger.info(`🔐 Hashing password for ${userData.role}...`);
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+
+      // Create test user (no role column)
+      logger.info(`📝 Creating ${userData.role} user...`);
+
+      const result = await pool.query(
+        `
+        INSERT INTO users (name, email, password, created_by)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, name, email, created_at
+      `,
+        [userData.name, userData.email, hashedPassword, adminUser.id]
+      );
+
+      const newUser = result.rows[0];
+
+      // Get role ID from RBAC
+      const [roleRecord] = await db
+        .select()
+        .from(roles)
+        .where(eq(roles.name, userData.role))
+        .limit(1);
+
+      if (!roleRecord) {
+        throw new Error(
+          `Role '${userData.role}' not found in RBAC system.\n` +
+          'Please run the following commands first:\n' +
+          '  1. npm run db:migrate (to create tables)\n' +
+          '  2. npm run db:seed (to seed RBAC roles and permissions)'
+        );
+      }
+
+      // Assign role via RBAC
+      await db
+        .insert(userRoles)
+        .values({
+          user_id: newUser.id,
+          role_id: roleRecord.id,
+          assigned_by: adminUser.id,
+        })
+        .onConflictDoNothing();
+
+      logger.info(`✅ ${userData.role} user created successfully!`);
+      logger.info(`   ID: ${newUser.id}`);
+      logger.info(`   Name: ${newUser.name}`);
+      logger.info(`   Email: ${newUser.email}`);
+      logger.info(`   Role: ${userData.role} (assigned via RBAC)`);
+      logger.info(`   Created at: ${newUser.created_at}`);
+      logger.info(`   Login credentials: ${userData.email} / ${userData.password}`);
+    }
+
+    logger.info('\n🎉 All test users processed successfully!');
+  } catch (error) {
+    logger.error('❌ Error creating test users:', error);
+    throw error;
+  } finally {
+    await pool.end();
+    logger.info('🔌 Database connection closed');
+  }
+}
+
+// Run the script
+createTestUsers()
+  .then(() => {
+    logger.info('✅ Script completed successfully');
+    process.exit(0);
+  })
+  .catch(error => {
+    logger.error('❌ Script failed:', error.message);
+    process.exit(1);
+  });

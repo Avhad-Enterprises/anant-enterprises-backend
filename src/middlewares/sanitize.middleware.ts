@@ -108,10 +108,6 @@ function sanitizeValue(value: unknown, fieldName?: string): unknown {
  * Applied to all POST, PUT, PATCH requests before validation.
  */
 export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
-    // Skip sanitization in test environment
-    if (process.env.NODE_ENV === 'test') {
-        return next();
-    }
 
     // Sanitize request body (POST, PUT, PATCH)
     if (req.body && typeof req.body === 'object') {

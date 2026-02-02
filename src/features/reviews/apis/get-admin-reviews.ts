@@ -71,7 +71,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             product_id: reviews.product_id,
             product_name: products.product_title,
             user_id: reviews.user_id,
-            user_name: users.name,
+            user_name: users.first_name,
             user_email: users.email,
             rating: reviews.rating,
             title: reviews.title,

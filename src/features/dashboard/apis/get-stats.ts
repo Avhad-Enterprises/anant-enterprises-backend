@@ -168,7 +168,7 @@ const handler = async (req: Request, res: Response) => {
         // Recent 5 customers
         db.select({
             id: users.id,
-            name: users.name,
+            name: users.first_name,
             email: users.email,
             profileImageUrl: users.profile_image_url,
             createdAt: users.created_at,

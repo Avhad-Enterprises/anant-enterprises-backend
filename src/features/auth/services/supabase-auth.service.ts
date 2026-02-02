@@ -166,12 +166,12 @@ export async function syncUserToPublicTable(authId: string, userData: SyncUserDa
       // Create new user record with auth_id
       const fullName = userData.name || 'User';
       const nameParts = fullName.trim().split(' ');
-      const name = nameParts[0] || 'User';
+      const first_name = nameParts[0] || 'User';
       const last_name = nameParts.slice(1).join(' ') || '';
 
       await db.insert(users).values({
         auth_id: authId,
-        name,
+        first_name,
         last_name,
         email: userData.email,
         phone_number: userData.phone_number || '',
@@ -264,7 +264,8 @@ export async function migrateUserToSupabaseAuth(
       password,
       options: {
         data: {
-          name: user.name,
+          first_name: user.first_name,
+          last_name: user.last_name,
           phone_number: user.phone_number,
           migrated: true,
           original_user_id: userId,
