@@ -77,6 +77,7 @@ export interface GenerateInvoiceData {
   orderId: string;
   reason?: 'INITIAL' | 'CORRECTION' | 'REFUND';
   triggeredBy?: string; // userId or 'system'
+  forceNewVersion?: boolean;
 }
 
 export interface InvoiceGeneratedData {
@@ -304,3 +305,4 @@ export interface WorkerHealth {
   lastJobAt?: Date;
   errorCount: number;
 }
+

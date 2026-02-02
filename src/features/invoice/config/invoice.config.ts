@@ -15,6 +15,13 @@ export const invoiceConfig = {
     gstin: '27ABCDE1234F1Z5',
   },
 
+  // --- Tax Configuration ---
+  tax: {
+    enabled: false, // Master switch for tax calculation
+    isInclusive: false, // Whether product prices include tax
+    rate: 0.18, // Default tax rate (18%)
+  },
+
   // --- Invoice Header Metadata ---
   header: {
     title: 'TAX INVOICE',
@@ -81,3 +88,4 @@ export const invoiceConfig = {
     },
   },
 };
+

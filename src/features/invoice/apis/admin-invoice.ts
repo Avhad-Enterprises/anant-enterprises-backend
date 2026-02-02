@@ -27,6 +27,11 @@ router.get(
   }
 );
 
+// Local interface for authenticated request until global types are fixed
+interface AuthenticatedRequest extends Request {
+  userId?: string;
+}
+
 /**
  * POST /api/admin/orders/:id/invoices
  * Trigger generation of a new invoice version
@@ -38,12 +43,14 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id: orderId } = req.params as { id: string };
-      const { reason } = req.body;
+      const { reason, force } = req.body;
+      const authReq = req as AuthenticatedRequest;
 
       await eventPublisher.publishGenerateInvoice({
         orderId,
         reason: reason || 'CORRECTION',
-        triggeredBy: req.userId || 'admin',
+        triggeredBy: authReq.userId || 'admin',
+        forceNewVersion: force === true,
       });
 
       ResponseFormatter.success(res, null, 'Invoice generation triggered');
@@ -81,17 +88,17 @@ router.post(
 
       await eventPublisher.publishEmailNotification({
         to: invoiceData.version.customer_email,
-        subject: `Invoice #${invoiceData.version.invoice_number} (Resent)`,
+        subject: `Invoice #${invoiceData.invoice_number} (Resent)`,
         template: 'invoice_generated',
         templateData: {
           customerName: invoiceData.version.customer_name,
           orderNumber: invoiceData.order_id, // Accessing order_id from invoice parent
-          invoiceNumber: invoiceData.version.invoice_number,
+          invoiceNumber: invoiceData.invoice_number,
           date: new Date(invoiceData.version.created_at).toLocaleDateString(),
         },
         attachments: [
           {
-            filename: `${invoiceData.version.invoice_number}.pdf`,
+            filename: `${invoiceData.invoice_number}.pdf`,
             path: invoiceData.version.pdf_url,
           },
         ],
@@ -106,3 +113,4 @@ router.post(
 );
 
 export default router;
+

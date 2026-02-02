@@ -24,3 +24,4 @@ export const sanitizeUser = (user: IUser): SanitizedUser => {
 export const sanitizeUsers = (users: IUser[]): SanitizedUser[] => {
   return users.map(sanitizeUser);
 };
+

@@ -59,7 +59,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     const result = await db
       .select({
         user: users,
-        profile: customerProfiles
+        profile: customerProfiles,
       })
       .from(users)
       .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
@@ -95,7 +95,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         logger.warn('Authentication failed: User account is inactive', {
           ip: clientIP,
           userId: user.id,
-          status: profile.account_status
+          status: profile.account_status,
         });
         return next(new HttpException(403, 'Your account is inactive. Please contact support.'));
       }
@@ -104,10 +104,12 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         logger.warn('Authentication failed: User account is banned', {
           ip: clientIP,
           userId: user.id,
-          status: profile.account_status
+          status: profile.account_status,
         });
         return next(new HttpException(403, 'Your account has been banned. Please contact support.'));
       }
+    } else {
+      console.log(`DEBUG: requireAuth - No customer profile found for user ${user.id}`);
     }
 
     // Attach user information to request (use integer ID for RBAC)
@@ -192,7 +194,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     const result = await db
       .select({
         user: users,
-        profile: customerProfiles
+        profile: customerProfiles,
       })
       .from(users)
       .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
@@ -232,3 +234,4 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 };
 
 export default requireAuth;
+
