@@ -235,9 +235,9 @@ async function processCustomerRecord(
                 const addressData = {
                     user_id: targetUserId!,
                     recipient_name: customer.address_name || `${customer.first_name} ${customer.last_name}`,
-                    address_line1: customer.address_line1,
-                    address_line2: customer.address_line2,
-                    city: customer.city,
+                    address_line1: customer.address_line1!,
+                    address_line2: customer.address_line2 || '',
+                    city: customer.city || '',
                     state_province: customer.state_province || '',
                     postal_code: customer.postal_code || '000000',
                     country: customer.country || 'India',
