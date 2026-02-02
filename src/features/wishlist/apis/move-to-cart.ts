@@ -13,7 +13,7 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../shared/wishlist.schema';
 import { wishlistItems } from '../shared/wishlist-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { carts } from '../../cart/shared/carts.schema';
 import { cartItems } from '../../cart/shared/cart-items.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';

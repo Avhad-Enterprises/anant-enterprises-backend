@@ -5,70 +5,53 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
-import { db } from '../../../database';
-import { tags } from '../shared/tags.schema';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import { logger } from '../../../utils/logging/logger';
-
-// Validation schema for a single tag import
-const tagImportSchema = z.object({
-    name: z.string().min(1).max(255).trim(),
-    type: z.enum(['customer', 'product', 'blogs', 'order'] as const),
-    status: z.boolean().or(z.string().transform(val => val === 'true' || val === '1')).optional().default(true),
-});
-
-// Validation schema for the import request
-const importTagsSchema = z.object({
-    data: z.array(tagImportSchema).min(1).max(1000), // Limit to 1000 tags per import
-    mode: z.enum(['create', 'update', 'upsert']).default('create'),
-});
-
-type ImportMode = 'create' | 'update' | 'upsert';
-type ImportResult = {
-    success: number;
-    failed: number;
-    skipped: number;
-    errors: Array<{ row: number; name: string; error: string }>;
-};
+import { 
+    createImportResult,
+    recordSuccess,
+    recordFailure,
+    recordSkipped,
+    formatImportSummary,
+    type ImportMode 
+} from '../../../utils/import-export';
+import {
+    importTagsRequestSchema,
+    tagImportSchema,
+    findTagByName,
+    createTag,
+    updateTagById,
+} from '../shared';
+import { z } from 'zod';
 
 /**
- * Import a single tag based on the mode
+ * Process a single tag import record
  */
-async function importTag(
+async function processTagRecord(
     tagData: z.infer<typeof tagImportSchema>,
     mode: ImportMode,
     userId: string
-): Promise<{ success: boolean; error?: string }> {
-    const normalizedName = tagData.name.toLowerCase();
-
+): Promise<{ success: boolean; recordId?: string; error?: string }> {
     try {
         // Check if tag exists
-        const existing = await db
-            .select()
-            .from(tags)
-            .where(eq(tags.name, normalizedName))
-            .limit(1);
-
-        const tagExists = existing.length > 0;
+        const existing = await findTagByName(tagData.name);
+        const tagExists = !!existing;
 
         if (mode === 'create') {
             if (tagExists) {
                 return { success: false, error: 'Tag already exists' };
             }
 
-            // Create new tag
-            await db.insert(tags).values({
-                name: normalizedName,
+            const newTag = await createTag({
+                name: tagData.name,
                 type: tagData.type,
                 status: tagData.status,
+                usage_count: 0,
                 created_by: userId,
             });
 
-            return { success: true };
+            return { success: true, recordId: newTag.id };
         }
 
         if (mode === 'update') {
@@ -76,45 +59,39 @@ async function importTag(
                 return { success: false, error: 'Tag does not exist' };
             }
 
-            // Update existing tag
-            await db
-                .update(tags)
-                .set({
-                    type: tagData.type,
-                    status: tagData.status,
-                    updated_at: new Date(),
-                })
-                .where(eq(tags.name, normalizedName));
+            await updateTagById(existing!.id, {
+                type: tagData.type,
+                status: tagData.status,
+                updated_by: userId,
+            });
 
-            return { success: true };
+            return { success: true, recordId: existing!.id };
         }
 
         if (mode === 'upsert') {
             if (tagExists) {
-                // Update existing tag
-                await db
-                    .update(tags)
-                    .set({
-                        type: tagData.type,
-                        status: tagData.status,
-                        updated_at: new Date(),
-                    })
-                    .where(eq(tags.name, normalizedName));
-            } else {
-                // Create new tag
-                await db.insert(tags).values({
-                    name: normalizedName,
+                await updateTagById(existing!.id, {
                     type: tagData.type,
                     status: tagData.status,
+                    updated_by: userId,
+                });
+                
+                return { success: true, recordId: existing!.id };
+            } else {
+                const newTag = await createTag({
+                    name: tagData.name,
+                    type: tagData.type,
+                    status: tagData.status,
+                    usage_count: 0,
                     created_by: userId,
                 });
-            }
 
-            return { success: true };
+                return { success: true, recordId: newTag.id };
+            }
         }
 
         return { success: false, error: 'Invalid import mode' };
-    } catch (error) {
+    } catch (error: unknown) {
         logger.error('Error importing tag', { error, tagData });
         return {
             success: false,
@@ -124,21 +101,8 @@ async function importTag(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    // Log the incoming request for debugging
-    logger.info('Import tags request received', {
-        bodyKeys: Object.keys(req.body),
-        dataLength: req.body?.data?.length,
-        mode: req.body?.mode,
-        sampleData: req.body?.data?.slice(0, 2), // Log first 2 rows
-    });
-
-    // Validate request body
-    const validation = importTagsSchema.safeParse(req.body);
+    const validation = importTagsRequestSchema.safeParse(req.body);
     if (!validation.success) {
-        logger.error('Import validation failed', {
-            errors: validation.error.issues,
-            body: req.body,
-        });
         throw new HttpException(400, 'Invalid request data', {
             details: validation.error.issues,
         });
@@ -151,45 +115,30 @@ const handler = async (req: RequestWithUser, res: Response) => {
         throw new HttpException(401, 'User not authenticated');
     }
 
+    const result = createImportResult();
     logger.info(`Importing ${tagsData.length} tags in ${mode} mode`, { userId });
-
-    const result: ImportResult = {
-        success: 0,
-        failed: 0,
-        skipped: 0,
-        errors: [],
-    };
 
     // Process each tag
     for (let i = 0; i < tagsData.length; i++) {
         const tagData = tagsData[i];
         const rowNumber = i + 1;
+        // const entityKey = tagData.name; // Entity identifier for logging
 
-        const importResult = await importTag(tagData, mode, userId);
+        const importResult = await processTagRecord(tagData, mode, userId);
 
         if (importResult.success) {
-            result.success++;
+            recordSuccess(result, mode, importResult.recordId);
         } else {
             if (importResult.error === 'Tag already exists') {
-                result.skipped++;
+                recordSkipped(result, rowNumber, 'Already exists');
             } else {
-                result.failed++;
+                recordFailure(result, rowNumber, importResult.error || 'Unknown error');
             }
-
-            result.errors.push({
-                row: rowNumber,
-                name: tagData.name,
-                error: importResult.error || 'Unknown error',
-            });
         }
     }
 
-    logger.info('Tag import completed', { result });
-
-    // Return result
-    const statusCode = result.failed === 0 ? 200 : 207; // 207 = Multi-Status (partial success)
-
-    return ResponseFormatter.success(res, result, 'Tag import completed', statusCode);
+    const statusCode = result.failed === 0 ? 200 : 207;
+    return ResponseFormatter.success(res, result, formatImportSummary(result), statusCode);
 };
 
 const router = Router();

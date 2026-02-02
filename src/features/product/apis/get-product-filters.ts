@@ -2,7 +2,7 @@ import { Router, Response, Request } from 'express';
 import { sql, eq, and } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 

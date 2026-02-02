@@ -10,7 +10,7 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 
@@ -293,7 +293,7 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, response, 'Cart retrieved successfully');
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.get('/', optionalAuth, handler);

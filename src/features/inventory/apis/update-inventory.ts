@@ -1,8 +1,6 @@
 /**
  * PUT /api/inventory/:id
  * Update inventory fields (condition, location, incoming stock)
- * 
- * TODO: TEMPORARY - Add requireAuth and requirePermission('inventory:update') after fixing middleware circular dependency
  */
 
 import { Router, Response } from 'express';
@@ -10,6 +8,7 @@ import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
 import { updateInventory, getInventoryById } from '../services/inventory.service';
+import { requireAuth, requirePermission } from '../../../middlewares';
 
 const paramsSchema = z.object({
     id: uuidSchema,
@@ -40,7 +39,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
 
         const data = bodyValidation.data;
-        const userId = req.userId || 'system';
+        const userId = req.userId;
+
+        if (!userId) {
+            throw new HttpException(401, 'Unauthorized: User ID required for audit logging');
+        }
 
         logger.info(`PUT /api/inventory/${id}`, { data });
 
@@ -59,6 +62,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.put('/:id', handler);
+router.put('/:id', requireAuth, requirePermission('inventory:update'), handler);
 
 export default router;

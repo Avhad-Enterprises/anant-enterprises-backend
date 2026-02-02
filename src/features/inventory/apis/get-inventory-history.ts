@@ -1,8 +1,6 @@
 /**
  * GET /api/inventory/:id/history
  * Get adjustment history for an inventory item
- * 
- * TODO: TEMPORARY - Add requireAuth and requirePermission('inventory:read') after fixing middleware circular dependency
  */
 
 import { Router, Response } from 'express';
@@ -10,6 +8,7 @@ import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
 import { getInventoryById, getInventoryHistory } from '../services/inventory.service';
+import { requireAuth, requirePermission } from '../../../middlewares';
 
 const paramsSchema = z.object({
     id: uuidSchema,
@@ -48,6 +47,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.get('/:id/history', handler);
+router.get('/:id/history', requireAuth, requirePermission('inventory:read'), handler);
 
 export default router;

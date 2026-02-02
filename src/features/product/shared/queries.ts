@@ -1,6 +1,6 @@
 import { eq, and } from 'drizzle-orm';
 import { db } from '../../../database';
-import { products, type Product, type NewProduct } from './product.schema';
+import { products, type Product, type NewProduct } from './products.schema';
 
 // Define columns to select (excluding search_vector which is a generated column)
 const selectColumns = {
@@ -116,7 +116,7 @@ export const updateProductById = async (
 // ============================================
 
 import { asc, ne } from 'drizzle-orm';
-import { productVariants, type ProductVariant } from './product.schema';
+import { productVariants, type ProductVariant } from './product-variants.schema';
 
 /**
  * Find all variants for a product (excluding deleted)

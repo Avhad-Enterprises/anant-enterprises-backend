@@ -6,7 +6,7 @@
 
 import { pgTable, uuid, text, timestamp, primaryKey, index } from 'drizzle-orm/pg-core';
 import { wishlists } from './wishlist.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { orders } from '../../orders/shared/orders.schema';
 
 // ============================================

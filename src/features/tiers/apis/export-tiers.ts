@@ -5,82 +5,50 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
-import { eq, inArray, gte, lte, and } from 'drizzle-orm';
+import { eq, inArray, and, between } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import ExcelJS from 'exceljs';
+import {
+  generateCSV,
+  generateExcelBuffer,
+  baseExportSchema
+} from '../../../utils/import-export';
 
-const exportRequestSchema = z.object({
-    scope: z.enum(['all', 'selected']),
-    format: z.enum(['csv', 'xlsx']),
-    selectedIds: z.array(z.string().uuid()).optional(),
-    selectedColumns: z.array(z.string()),
-    dateRange: z.object({
-        from: z.string(),
-        to: z.string(),
-    }).optional(),
-});
-
-/**
- * Convert array of objects to CSV string
- */
-function convertToCSV(data: any[], columns: string[]): string {
-    if (data.length === 0) {
-        return columns.join(',') + '\n';
-    }
-
-    // Header row
-    const header = columns.join(',');
-
-    // Data rows
-    const rows = data.map(row => {
-        return columns.map(col => {
-            const value = row[col];
-            // Handle null/undefined
-            if (value === null || value === undefined) {
-                return '';
-            }
-            // Handle strings with commas or quotes
-            const stringValue = String(value);
-            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-                return `"${stringValue.replace(/"/g, '""')}"`;
-            }
-            return stringValue;
-        }).join(',');
-    });
-
-    return header + '\n' + rows.join('\n');
-}
-
-/**
- * Convert array of objects to XLSX buffer
- */
-
+// Tiers-specific export schema
+const tiersExportSchema = baseExportSchema;
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const validation = exportRequestSchema.safeParse(req.body);
+    const validation = tiersExportSchema.safeParse(req.body);
 
     if (!validation.success) {
-        throw new HttpException(400, 'Invalid export options');
+        throw new HttpException(400, 'Invalid export options', {
+            details: validation.error.issues,
+        });
     }
 
-    const { scope, format, selectedIds, selectedColumns, dateRange } = validation.data;
+    const options = validation.data;
 
     // Build query conditions
-    const conditions: any[] = [eq(tiers.is_deleted, false)];
+    const conditions = [eq(tiers.is_deleted, false)];
 
-    if (scope === 'selected' && selectedIds && selectedIds.length > 0) {
-        conditions.push(inArray(tiers.id, selectedIds));
+    if (options.scope === 'selected' && options.selectedIds?.length) {
+        conditions.push(inArray(tiers.id, options.selectedIds));
     }
 
-    if (dateRange) {
+    if (options.dateRange?.from && options.dateRange?.to) {
+        const dateField = options.dateRange.field === 'updated_at' ? tiers.updated_at : tiers.created_at;
+        const toDate = new Date(options.dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+
         conditions.push(
-            gte(tiers.created_at, new Date(dateRange.from)),
-            lte(tiers.created_at, new Date(dateRange.to))
+            between(
+                dateField,
+                new Date(options.dateRange.from),
+                toDate
+            )
         );
     }
 
@@ -100,7 +68,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             updated_at: tiers.updated_at,
         })
         .from(tiers)
-        .where(and(...conditions))
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
         .orderBy(tiers.level, tiers.priority);
 
     // Fetch parent codes for export
@@ -122,82 +90,67 @@ const handler = async (req: RequestWithUser, res: Response) => {
         parents.forEach(p => parentMap.set(p.id, p.code));
     }
 
-    // Transform data for export
-    const exportData = tiersData.map(tier => {
-        const row: any = {};
+    if (options.selectedColumns.length === 0) {
+        throw new HttpException(400, 'Please select at least one column to export.');
+    }
 
-        // Map database fields to export columns
-        const columnMap: Record<string, any> = {
-            id: tier.id,
-            name: tier.name,
-            code: tier.code,
-            description: tier.description || '',
-            level: tier.level,
-            parent_id: tier.parent_id || '',
-            parent_code: tier.parent_id ? parentMap.get(tier.parent_id) || '' : '',
-            priority: tier.priority,
-            status: tier.status,
-            usage_count: tier.usage_count,
-            created_at: tier.created_at?.toISOString() || '',
-            updated_at: tier.updated_at?.toISOString() || '',
-        };
-
-        // Include only selected columns
-        selectedColumns.forEach(col => {
-            if (col in columnMap) {
-                row[col] = columnMap[col];
+    // Format data for export
+    const formattedData = tiersData.map(tier => {
+        const filtered: any = {};
+        options.selectedColumns.forEach(col => {
+            if (col === 'parent_code') {
+                filtered[col] = tier.parent_id ? parentMap.get(tier.parent_id) || '' : '';
+            } else if (col in tier) {
+                const value = tier[col as keyof typeof tier];
+                // Format dates
+                if (value instanceof Date) {
+                    filtered[col] = value.toISOString();
+                } else {
+                    filtered[col] = value;
+                }
             }
         });
-
-        return row;
+        return filtered;
     });
 
     logger.info('Exporting tiers', {
-        count: exportData.length,
-        format,
-        scope,
+        count: formattedData.length,
+        format: options.format,
+        scope: options.scope,
         userId: req.userId,
     });
 
-    // Generate file based on format
-    if (format === 'csv') {
-        const csv = convertToCSV(exportData, selectedColumns);
+    // Generate file
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `tiers-export-${timestamp}`;
+
+    if (options.format === 'csv') {
+        const csvString = generateCSV(formattedData, options.selectedColumns);
+        const fileBuffer = Buffer.from(csvString, 'utf-8');
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename=tiers-export-${Date.now()}.csv`);
-        return res.send(csv);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+        res.setHeader('Content-Length', String(fileBuffer.length));
+        return res.send(fileBuffer);
+    }
 
-    } else if (format === 'xlsx') {
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet('Tiers');
-
-        if (exportData.length > 0) {
-          // Add headers
-          const headers = Object.keys(exportData[0]);
-          worksheet.columns = headers.map(header => ({
-            header,
-            key: header,
-            width: 15,
-          }));
-
-          // Add rows
-          worksheet.addRows(exportData);
-        }
-
-        const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    if (options.format === 'xlsx') {
+        const fileBuffer = await generateExcelBuffer(formattedData, options.selectedColumns, {
+            sheetName: 'Tiers'
+        });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=tiers-export-${Date.now()}.xlsx`);
-        return res.send(buffer);
-    } else {
-        // Technically unreachable due to Zod validation
-        return ResponseFormatter.error(res, 'INVALID_FORMAT', 'Invalid export format', 400);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+        res.setHeader('Content-Length', String(fileBuffer.length));
+        return res.send(fileBuffer);
     }
+
+    return ResponseFormatter.error(res, 'INVALID_FORMAT', 'Invalid export format', 400);
 };
 
 const router = Router();
 router.post(
-    '/export',
+    '/',
     requireAuth,
     requirePermission('tiers:read'),
     handler

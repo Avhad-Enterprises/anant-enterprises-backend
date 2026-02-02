@@ -6,7 +6,7 @@
 import { Router, Response, Request, NextFunction } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import requireAuth from '../../../middlewares/auth.middleware';
+import { requireAuth } from '../../../middlewares';
 import { getProductStockByLocation } from '../services/location-allocation.service';
 
 const handler = async (req: Request, res: Response, next: NextFunction) => {

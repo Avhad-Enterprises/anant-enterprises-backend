@@ -5,13 +5,17 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, sql, and, desc } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { eq, and, desc } from 'drizzle-orm';
+import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
-import { ICollectionProduct } from '../shared/interface';
+import { products } from '../shared/products.schema';
+import { IProductListItem } from '../shared/responses';
 import { reviews } from '../../reviews/shared/reviews.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
+import {
+    buildAverageRating,
+    buildReviewCount,
+    buildInventoryQuantity,
+} from '../shared/query-builders';
 
 const handler = async (req: Request, res: Response) => {
     try {
@@ -34,17 +38,13 @@ const handler = async (req: Request, res: Response) => {
                 short_description: products.short_description,
 
                 // Computed: Inventory Quantity
-                inventory_quantity: sql<number>`(
-          SELECT COALESCE(SUM(${inventory.available_quantity}), 0)
-          FROM ${inventory}
-          WHERE ${inventory.product_id} = ${products.id}
-        )`.mapWith(Number),
+                                inventory_quantity: buildInventoryQuantity().mapWith(Number),
 
-                // Computed: Average rating
-                rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+                                // Computed: Average rating
+                                rating: buildAverageRating(),
 
-                // Computed: Review count
-                review_count: sql<number>`COUNT(${reviews.id})`,
+                                // Computed: Review count
+                                review_count: buildReviewCount(),
             })
             .from(products)
             .leftJoin(
@@ -81,7 +81,7 @@ const handler = async (req: Request, res: Response) => {
             .orderBy(desc(products.created_at));
 
         // Format response
-        const formattedProducts: ICollectionProduct[] = featuredProducts.map(product => {
+        const formattedProducts: IProductListItem[] = featuredProducts.map(product => {
             const createdDate = new Date(product.created_at);
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -110,13 +110,14 @@ const handler = async (req: Request, res: Response) => {
             formattedProducts,
             'Featured products retrieved successfully'
         );
-    } catch (error) {
-        console.error('[GET /api/products/featured] Error:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to retrieve featured products',
-            error: error instanceof Error ? error.message : String(error)
-        });
+    } catch (error: unknown) {
+        logger.error('[GET /api/products/featured] Error:', error);
+        return ResponseFormatter.error(
+            res,
+            'FETCH_ERROR',
+            'Failed to retrieve featured products',
+            500
+        );
     }
 };
 

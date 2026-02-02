@@ -5,12 +5,10 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { tags } from '../shared/tags.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { blogs } from '../../blog/shared/blog.schema';
 import { users } from '../../user/shared/user.schema';
 import { orders } from '../../orders/shared/orders.schema';
@@ -20,14 +18,10 @@ import { collections } from '../../collection/shared/collection.schema';
 import { discountCodes } from '../../discount/shared/discount-codes.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-
-// Validation schema
-const paramsSchema = z.object({
-    id: z.string().uuid(),
-});
+import { tagIdParamSchema, findTagById, softDeleteTag } from '../shared';
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const validation = paramsSchema.safeParse(req.params);
+    const validation = tagIdParamSchema.safeParse(req.params);
     if (!validation.success) {
         throw new HttpException(400, 'Invalid tag ID');
     }
@@ -35,15 +29,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const { id } = validation.data;
 
     // Check if tag exists
-    const [existing] = await db
-        .select()
-        .from(tags)
-        .where(and(
-            eq(tags.id, id),
-            eq(tags.is_deleted, false)
-        ))
-        .limit(1);
-
+    const existing = await findTagById(id);
     if (!existing) {
         throw new HttpException(404, 'Tag not found');
     }
@@ -85,14 +71,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
             })
             .where(sql`${tagName} = ANY(${users.tags})`);
 
-        // 2. Finally soft delete the tag itself
-        await tx
-            .update(tags)
-            .set({
-                is_deleted: true,
-                updated_at: new Date(),
-            })
-            .where(eq(tags.id, id));
+        // 2. Finally soft delete the tag itself using shared function
+        await softDeleteTag(id, req.userId!, tx);
     });
 
     return ResponseFormatter.success(

@@ -20,7 +20,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { carts } from './carts.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
 // COMMENTED OUT - Bundles feature dropped (31 Jan 2026)
 // import { bundles } from '../../bundles/shared/bundles.schema';

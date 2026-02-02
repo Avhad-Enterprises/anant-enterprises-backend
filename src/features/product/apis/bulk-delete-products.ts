@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { productCacheService } from '../services/product-cache.service';
 import { softDeleteProduct } from '../shared/queries';
 import { decrementTierUsage } from '../../tiers/services/tier-sync.service';
@@ -19,18 +19,26 @@ const bulkDeleteSchema = z.object({
   ids: z.array(z.string().uuid()).min(1, 'At least one ID is required'),
 });
 
+/**
+ * Bulk delete products handler
+ * Can be optimized with a single transaction/query for better performance
+ */
 const handler = async (req: RequestWithUser, res: Response) => {
-  const { ids } = req.body;
   const userId = req.userId;
+  if (!userId) {
+    return ResponseFormatter.error(res, 'AUTH_ERROR', 'User authentication required', 401);
+  }
+
+  const { ids } = bulkDeleteSchema.parse(req.body);
   
   let deletedCount = 0;
   const errors: string[] = [];
 
-  // TODO: Can be optimized with a single transaction/query if needed, 
+  // NOTE: Can be optimized with a single transaction/query if needed, 
   // but looping ensures all side effects (cache, tier usage) are handled safely via existing logic.
   for (const id of ids) {
     try {
-      const deletedProduct = await softDeleteProduct(id, userId!);
+      const deletedProduct = await softDeleteProduct(id, userId);
 
       if (deletedProduct) {
         deletedCount++;
@@ -53,10 +61,10 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // 3. Invalidate Cache
         await productCacheService.invalidateProduct(id, deletedProduct.sku, deletedProduct.slug);
       } else {
-          console.warn(`[BulkDelete] softDeleteProduct returned null for ${id}`);
+          logger.warn(`[BulkDelete] softDeleteProduct returned null for ${id}`);
       }
-    } catch (error: any) {
-      console.error(`Failed to delete product ${id}:`, error);
+    } catch (error: unknown) {
+      logger.error(`Failed to delete product ${id}:`, error);
       errors.push(id);
     }
   }
@@ -67,7 +75,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
       // Keeping it simple: 200 with info
   }
 
-  ResponseFormatter.success(res, { deletedCount, errors }, `Successfully deleted ${deletedCount} products`);
+  return ResponseFormatter.success(
+    res,
+    { deletedCount, errors },
+    `Successfully deleted ${deletedCount} products`
+  );
 };
 
 const router = Router();

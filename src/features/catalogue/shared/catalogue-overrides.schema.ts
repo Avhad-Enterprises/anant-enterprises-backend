@@ -21,7 +21,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 import { catalogues } from './catalogue.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 
 // ============================================
 // ENUMS

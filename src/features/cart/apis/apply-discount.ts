@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { ResponseFormatter } from '../../../utils';
 import { RequestWithUser } from '../../../interfaces';
 import { cartService } from '../services';
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const applyDiscountSchema = z.object({
     code: z.string().min(1, 'Discount code is required'),

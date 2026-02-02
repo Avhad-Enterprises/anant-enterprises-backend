@@ -13,7 +13,7 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { reviews } from '../shared/reviews.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { orderItems } from '../../orders/shared/order-items.schema';
 import { orders } from '../../orders/shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';

@@ -11,7 +11,7 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { releaseCartStock, reserveCartStock } from '../../inventory/services/inventory.service';
@@ -178,7 +178,7 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, updatedItem, 'Cart item updated successfully');
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.put('/items/:id', optionalAuth, handler);

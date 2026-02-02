@@ -6,12 +6,11 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { inArray } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { HttpException, ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { logger } from '../../../utils';
 
 const bodySchema = z.object({
     order_ids: z.array(z.string().uuid()).min(1).max(100), // Max 100 orders at once
@@ -49,7 +48,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             orderIds: order_ids,
             error: error instanceof Error ? error.message : String(error),
         });
-        return ResponseFormatter.error(res, 'DELETE_FAILED', 'Failed to delete orders', 500);
+        throw new HttpException(500, 'Failed to delete orders');
     }
 };
 

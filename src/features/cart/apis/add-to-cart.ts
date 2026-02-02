@@ -13,7 +13,7 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 // carts removed
 import { cartItems } from '../shared/cart-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { reserveCartStock, releaseCartStock } from '../../inventory/services/inventory.service';
@@ -208,7 +208,7 @@ const handler = async (req: Request, res: Response) => {
     }, 'Item added to cart successfully', 201);
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.post('/items', optionalAuth, handler);

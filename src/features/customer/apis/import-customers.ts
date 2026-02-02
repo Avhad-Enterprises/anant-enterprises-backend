@@ -1,20 +1,25 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
 import { userAddresses } from '../../address/shared/addresses.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-import { logger } from '../../../utils/logging/logger';
+import {
+    createImportResult,
+    recordSuccess,
+    recordFailure,
+    recordSkipped,
+    formatImportSummary,
+    caseInsensitiveEnum,
+    arrayParser,
+    type ImportMode
+} from '../../../utils/import-export';
 
-// ============================================
-// HELPERS
-// ============================================
-
-// Helper for loose date parsing
+// Customer-specific validation helpers
 const parseDateLoose = (val: unknown): string | undefined => {
     if (typeof val !== 'string') return undefined;
     const cleanVal = val.trim();
@@ -27,7 +32,6 @@ const parseDateLoose = (val: unknown): string | undefined => {
     const match = cleanVal.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
     if (match) {
         const [_, day, month, year] = match;
-        // Basic check for validity could be added, but this handles format
         return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     }
 
@@ -36,22 +40,9 @@ const parseDateLoose = (val: unknown): string | undefined => {
     if (!isNaN(timestamp)) {
         return new Date(timestamp).toISOString().split('T')[0];
     }
-    return undefined; // Invalid format
+    return undefined;
 };
 
-// Helper for case-insensitive enum mapping
-const caseInsensitiveEnum = <T extends string>(values: readonly T[]) => {
-    return z.preprocess((val) => {
-        if (typeof val === 'string') {
-            const lower = val.toLowerCase().trim();
-            const match = values.find(v => v.toLowerCase() === lower);
-            return match || val;
-        }
-        return val;
-    }, z.enum(values as [T, ...T[]]));
-};
-
-// Start number parser
 const looseNumber = z.preprocess((val) => {
     if (typeof val === 'string') return parseFloat(val.replace(/,/g, ''));
     return val;
@@ -83,10 +74,7 @@ const customerImportSchema = z.object({
     gender: caseInsensitiveEnum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
     user_type: caseInsensitiveEnum(['individual', 'business']).default('individual'),
 
-    tags: z.union([
-        z.array(z.string()),
-        z.string().transform(val => val.split(',').map(t => t.trim()).filter(t => t.length > 0))
-    ]).optional(),
+    tags: arrayParser().optional(),
 
     // Profile / Status
     segments: z.preprocess((val) => {
@@ -115,57 +103,48 @@ const customerImportSchema = z.object({
 });
 
 const importRequestSchema = z.object({
-    data: z.array(z.any()),
+    data: z.array(customerImportSchema),
     mode: z.enum(['create', 'update', 'upsert']).default('create'),
 });
 
-
-// ============================================
-// LOGIC
-// ============================================
-
-async function processRow(
-    rawData: any,
-    mode: 'create' | 'update' | 'upsert',
+/**
+ * Process a single customer import record
+ */
+async function processCustomerRecord(
+    rawData: z.infer<typeof customerImportSchema>,
+    mode: ImportMode,
     userId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; recordId?: string; error?: string }> {
     try {
-        // 1. Validate
-        const customer = customerImportSchema.parse(rawData);
+        const customer = rawData;
         const email = customer.email;
 
-        // 2. Check Existence (Including Deleted!)
+        // Check existence (including deleted)
         const [existing] = await db
             .select({ id: users.id, is_deleted: users.is_deleted })
             .from(users)
-            .where(eq(users.email, email)) // Removed is_deleted = false check to find deleted ones
+            .where(eq(users.email, email))
             .limit(1);
 
-        // Handle Create Mode Conflicts
+        // Handle mode conflicts
         if (mode === 'create' && existing) {
             if (existing.is_deleted) {
-                // Determine if we should restore. For 'create' mode on a deleted user, 
-                // typically we fail or treat as conflict, BUT user asked to "import customers that are deleted again"
-                // effectively meaning "restore/recreate".
-                // We'll proceed to UPDATE path to restore them.
-                mode = 'update'; // Valid strategy: treat as update/restore
+                mode = 'update'; // Restore deleted user
             } else {
                 return { success: false, error: 'Email already exists' };
             }
         }
 
-        // Handle Update Mode missing
         if (mode === 'update' && !existing) {
             return { success: false, error: 'Customer not found' };
         }
 
-        // 3. Database Ops
-        await db.transaction(async (tx) => {
+        // Database operations
+        const result = await db.transaction(async (tx) => {
             let targetUserId = existing?.id;
 
-            // --- A) Create New ---
             if (!targetUserId) {
-                // console.log('Creating new user with email:', customer.email);
+                // Create new user
                 const [newUser] = await tx.insert(users).values({
                     email: customer.email,
                     first_name: customer.first_name,
@@ -183,24 +162,56 @@ async function processRow(
 
                 targetUserId = newUser.id;
 
-                if (!targetUserId) throw new Error("Failed to create user ID");
+                // Create profile
+                await tx.insert(customerProfiles).values({
+                    user_id: targetUserId,
+                    segment: customer.segment || 'new',
+                    account_status: customer.account_status as 'active' | 'inactive' | 'banned',
+                    notes: customer.notes
+                });
+            } else {
+                // Update existing user
+                await tx.update(users)
+                    .set({
+                        first_name: customer.first_name,
+                        last_name: customer.last_name,
+                        display_name: customer.display_name || `${customer.first_name} ${customer.last_name}`,
+                        phone_number: customer.phone_number,
+                        secondary_email: customer.secondary_email,
+                        secondary_phone_number: customer.secondary_phone_number,
+                        date_of_birth: customer.date_of_birth,
+                        gender: customer.gender,
+                        tags: customer.tags as string[],
+                        is_deleted: false, // Restore if deleted
+                        updated_by: userId,
+                        updated_at: new Date(),
+                    })
+                    .where(eq(users.id, targetUserId));
 
-                // Create Profile (Generic for all users)
-                try {
+                // Update or create profile
+                const [existingProfile] = await tx
+                    .select({ user_id: customerProfiles.user_id })
+                    .from(customerProfiles)
+                    .where(eq(customerProfiles.user_id, targetUserId))
+                    .limit(1);
+
+                if (existingProfile) {
+                    await tx.update(customerProfiles)
+                        .set({
+                            segment: customer.segment || 'new',
+                            account_status: customer.account_status as 'active' | 'inactive' | 'banned',
+                            notes: customer.notes
+                        })
+                        .where(eq(customerProfiles.user_id, targetUserId));
+                } else {
                     await tx.insert(customerProfiles).values({
-                        user_id: targetUserId!,
-                        segments: customer.segments || ['new'],
+                        user_id: targetUserId,
+                        segment: customer.segment || 'new',
                         account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                         notes: customer.notes
                     });
-                } catch (e: any) {
-                    console.error("Profile Insert Error:", e.message);
-                    throw e;
                 }
             }
-            // --- B) Update / Restore Existing ---
-            else {
-                if (!targetUserId) throw new Error("Invalid Target User ID for update");
 
                 // Update User (and restore if deleted)
                 await tx.update(users).set({
@@ -237,10 +248,8 @@ async function processRow(
                 }).where(eq(customerProfiles.user_id, targetUserId));
             }
 
-            // --- C) Address Handling ---
-            if (customer.address_line1 && customer.city && targetUserId) {
-                await tx.insert(userAddresses).values({
-                    user_id: targetUserId!,
+                const addressData = {
+                    user_id: targetUserId,
                     recipient_name: customer.address_name || `${customer.first_name} ${customer.last_name}`,
                     address_line1: customer.address_line1,
                     address_line2: customer.address_line2,
@@ -254,71 +263,62 @@ async function processRow(
                     is_default_billing: true,
                 });
             }
+
+            return targetUserId;
         });
 
-        return { success: true };
-
-    } catch (err: any) {
-        if (err instanceof z.ZodError) {
-            const issues = err.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
-            return { success: false, error: `Validation: ${issues}` };
-        }
-        return { success: false, error: err.message || 'Database error' };
+        return { success: true, recordId: result };
+    } catch (error: unknown) {
+        logger.error('Customer import error', { error, email: rawData.email });
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
     }
 }
 
+const handler = async (req: RequestWithUser, res: Response) => {
+    const validation = importRequestSchema.safeParse(req.body);
+    if (!validation.success) {
+        return ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request data', 400, {
+            details: validation.error.issues,
+        });
+    }
 
-// ============================================
-// ROUTE HANDLER
-// ============================================
+    const { data: customersData, mode } = validation.data;
+    const userId = req.userId;
 
-const router = Router();
+    if (!userId) {
+        return ResponseFormatter.error(res, 'UNAUTHORIZED', 'User not authenticated', 401);
+    }
 
-router.post(
-    '/',
-    requireAuth,
-    requirePermission('customers:write'),
-    async (req: RequestWithUser, res: Response) => {
-        try {
-            const body = importRequestSchema.parse(req.body);
-            const { data, mode } = body;
-            const userId = req.userId!;
+    const result = createImportResult();
+    logger.info(`Importing ${customersData.length} customers in ${mode} mode`, { userId });
 
-            const results = {
-                success: 0,
-                failed: 0,
-                skipped: 0,
-                errors: [] as Array<{ row: number; email: string; error: string }>
-            };
+    // Process each customer
+    for (let i = 0; i < customersData.length; i++) {
+        const customerData = customersData[i];
+        const rowNumber = i + 1;
 
-            for (let i = 0; i < data.length; i++) {
-                const row = data[i];
-                const result = await processRow(row, mode, userId);
+        const importResult = await processCustomerRecord(customerData, mode, userId);
 
-                if (result.success) {
-                    results.success++;
-                } else {
-                    results.failed++;
-                    results.errors.push({
-                        row: i + 2,
-                        email: (row.email || 'unknown') as string,
-                        error: (result.error || 'Unknown error') as string
-                    });
-                }
-            }
-
-            ResponseFormatter.success(res, results);
-
-        } catch (error: any) {
-            logger.error('Import failed', error);
-            if (error instanceof z.ZodError) {
-                // Fixed: Pass error details correctly
-                ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request format', 400, { issues: error.issues });
+        if (importResult.success) {
+            recordSuccess(result, mode, importResult.recordId);
+        } else {
+            if (importResult.error === 'Email already exists') {
+                recordSkipped(result, rowNumber, 'Already exists');
             } else {
-                ResponseFormatter.error(res, 'SERVER_ERROR', error.message, 500);
+                recordFailure(result, rowNumber, importResult.error || 'Unknown error');
             }
         }
     }
-);
+
+    const statusCode = result.failed === 0 ? 200 : 207;
+    return ResponseFormatter.success(res, result, formatImportSummary(result), statusCode);
+};
+
+const router = Router();
+router.post('/', requireAuth, requirePermission('customers:create'), handler);
 
 export default router;
+

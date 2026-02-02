@@ -7,10 +7,11 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { eq, inArray } from 'drizzle-orm';
-import { products, productVariants } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
+import { productVariants } from '../shared/product-variants.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
 import { productCacheService } from '../services/product-cache.service';
 import { inventory } from '../../inventory/shared/inventory.schema';
@@ -200,7 +201,7 @@ async function duplicateProducts(ids: string[], userId: string): Promise<number>
                   });
              }
         } else {
-            console.warn(`[Duplicate] No inventory location found. Skipping inventory creation for ${newProduct.id}`);
+            logger.warn(`[Duplicate] No inventory location found. Skipping inventory creation for ${newProduct.id}`);
         }
         
         // Variant inventory logic removed as it was incorrect (redundant base product calls)
@@ -224,8 +225,8 @@ async function duplicateProducts(ids: string[], userId: string): Promise<number>
 
         successCount++;
 
-      } catch (err: any) {
-        console.error(`Failed to duplicate product ${original.id}:`, err);
+      } catch (err: unknown) {
+        logger.error(`Failed to duplicate product ${original.id}:`, err);
         // We continue processing other products, but log the error (or we could throw to abort all)
         // For bulk actions, usually best to process as many as possible or atomic. 
         // Logic here: Atomic PER product. One failure shouldn't stop others if they are independent.
@@ -247,7 +248,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
-  const { ids } = req.body;
+  const { ids } = duplicateProductSchema.parse(req.body);
   const count = await duplicateProducts(ids, userId);
 
   ResponseFormatter.success(res, { count }, `Successfully duplicated ${count} product(s)`, 201);
