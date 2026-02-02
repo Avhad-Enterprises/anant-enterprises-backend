@@ -15,7 +15,7 @@ import { products } from '../../product/shared/product.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { releaseCartStock, reserveCartStock } from '../../inventory/services/inventory.service';
-import { CART_RESERVATION_CONFIG } from '../../../config/cart-reservation.config';
+import { CART_RESERVATION_CONFIG } from '../config/cart-reservation.config';
 
 // Validation schema
 const updateCartItemSchema = z.object({

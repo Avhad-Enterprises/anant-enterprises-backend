@@ -4,8 +4,8 @@
  */
 
 import cron from 'node-cron';
-import { cleanupExpiredCartReservations } from '../features/inventory/services/inventory.service';
-import { logger } from '../utils';
+import { cleanupExpiredCartReservations } from '../../inventory/services/inventory.service';
+import { logger } from '../../../utils';
 import { CART_RESERVATION_CONFIG } from '../config/cart-reservation.config';
 
 /**

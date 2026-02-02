@@ -95,10 +95,8 @@ async function bootstrap() {
     initializeDiscountCron();
 
     // Phase 2: Start cart reservation cleanup (every 5 minutes)
-    if (process.env.NODE_ENV !== 'test') {
-      const { startCartReservationCleanup } = await import('./jobs/cleanup-expired-reservations');
-      startCartReservationCleanup();
-    }
+    const { startCartReservationCleanup } = await import('./features/cart/jobs/cleanup-expired-reservations');
+    startCartReservationCleanup();
 
     // Initialize async routes (ensures dynamic imports complete before server starts)
     await app.initializeAsyncRoutes();

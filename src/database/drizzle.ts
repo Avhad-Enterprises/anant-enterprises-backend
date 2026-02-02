@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config({ quiet: true });
-
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { logger } from '../utils';
@@ -105,9 +102,7 @@ import { paymentWebhookLogs } from '../features/payments/shared/webhook-logs.sch
 import { invoices, invoiceStatusEnum } from '../features/invoices/shared/invoices.schema';
 import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoices/shared/invoice-versions.schema';
 import { invoiceLineItems } from '../features/invoices/shared/invoice-line-items.schema';
-import {
-  // sessions, // REMOVED - Unused table (31 Jan 2026)
-} from '../features/profile/shared/sessions.schema';
+// sessions table - REMOVED (31 Jan 2026)
 
 // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
 // import {
@@ -142,10 +137,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-      rejectUnauthorized: false, // Supabase uses self-signed certificates
-      // If using self-signed certs, set DATABASE_SSL_CA env var
-      ca: process.env.DATABASE_SSL_CA || undefined,
-    }
+    rejectUnauthorized: false, // Supabase uses self-signed certificates
+    // If using self-signed certs, set DATABASE_SSL_CA env var
+    ca: process.env.DATABASE_SSL_CA || undefined,
+  }
   : undefined;
 
 export const pool = new Pool({

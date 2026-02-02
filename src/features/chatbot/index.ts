@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import Route from '../../interfaces/route.interface';
 import { logger } from '../../utils';
+import { isDevelopment } from '../../utils/validateEnv';
 
 // Import API routers
 
@@ -24,12 +25,12 @@ class ChatbotRoute implements Route {
   public router = Router();
 
   constructor() {
-    // Always initialize routes, but handle async initialization differently in tests
-    if (process.env.NODE_ENV === 'test') {
-      // In test environment, initialize synchronously to avoid Jest teardown issues
+    // Use sync initialization in development for faster startup, async in production
+    if (isDevelopment) {
+      // In development, initialize synchronously for simplicity
       this.initializeRoutesSync();
     } else {
-      // In production/development, use async initialization
+      // In production, use async initialization
       this.initializeRoutes();
     }
   }

@@ -4,7 +4,7 @@ import { Request, RequestHandler } from 'express';
 import { logger } from '../utils/logging/logger';
 import { redisClient, isRedisReady } from '../utils/database/redis';
 import { RequestWithId } from '../interfaces';
-import { isDevelopment, isTest, isProduction } from '../utils/validateEnv';
+import { isDevelopment, isProduction } from '../utils/validateEnv';
 
 /**
  * Create rate limit store based on environment
@@ -58,12 +58,10 @@ const createRateLimitHandler =
         .status(429)
         .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
     };
-// Skip logic for development localhost and test environment
+// Skip logic for development localhost
 const skipDevOrTest = (req: Request) =>
-  isTest ||
-  (isDevelopment &&
-    (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) ||
-  false; // Rate limiting ENABLED for production/staging
+  isDevelopment &&
+  (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1'); // Rate limiting ENABLED for production
 
 // Auth endpoints - strict rate limiting (5 requests per 15 minutes) - PRODUCTION ONLY
 export const authRateLimit: RequestHandler = rateLimit({
