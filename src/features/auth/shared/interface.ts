@@ -17,6 +17,9 @@ export interface SyncUserData {
  * Auth response from Supabase
  */
 export interface AuthResponse {
-  data: unknown;
-  error: unknown;
+  data: {
+    user: any | null;
+    session?: any | null;
+  } | null;
+  error: any | null;
 }
