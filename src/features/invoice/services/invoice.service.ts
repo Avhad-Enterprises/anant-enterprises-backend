@@ -15,7 +15,7 @@ import { users } from '../../user/shared/user.schema';
 import { userAddresses } from '../../user/shared/addresses.schema';
 import { HttpException, logger } from '../../../utils';
 import PDFKit from 'pdfkit';
-import { uploadToStorage } from '../../../utils/supabaseStorage';
+import { uploadToStorage, downloadFromStorageAsBuffer } from '../../../utils/supabaseStorage';
 import { numberToWords } from '../../../utils/numberToWords';
 import { invoiceConfig } from '../invoice.config';
 
@@ -855,59 +855,28 @@ export class InvoiceService {
         .where(eq(invoiceVersions.id, versionId));
 
       if (!version || !version.pdf_url) {
-        throw new HttpException(404, 'Invoice PDF not found');
+        throw new HttpException(404, 'Invoice PDF not found or not generated yet');
       }
 
-      // Extract filename from URL
-      const filename = version.pdf_url.split('/').pop() || 'invoice.pdf';
+      // Fetch parent invoice to get invoice number for filename
+      const [invoice] = await db
+        .select({ invoice_number: invoices.invoice_number })
+        .from(invoices)
+        .where(eq(invoices.id, version.invoice_id));
 
-      // For Supabase storage, we need to use the storage client directly to get the file
-      // This is a placeholder - you need to implement the actual download from Supabase
-      // For now, we'll generate a new PDF as a fallback
-      const [invoice] = await db.select().from(invoices).where(eq(invoices.id, version.invoice_id));
+      const filename = `${invoice?.invoice_number || 'invoice'}.pdf`;
 
-      const [order] = await db.select().from(orders).where(eq(orders.id, invoice.order_id));
-
-      const orderItemsResult = await db
-        .select()
-        .from(orderItems)
-        .where(eq(orderItems.order_id, invoice.order_id));
-
-      // Get user and addresses for PDF generation
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, order.user_id || ''));
-
-      let billingAddress = null;
-      let shippingAddress = null;
-
-      if (order.billing_address_id) {
-        [billingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.billing_address_id));
+      // Download directly from storage using the stored path
+      // This ensures we get the exact same file that was emailed/generated
+      if (!version.pdf_path) {
+        throw new HttpException(404, 'Invoice file path missing');
       }
 
-      if (order.shipping_address_id) {
-        [shippingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.shipping_address_id));
-      }
-
-      const pdfBuffer = await this.generatePDFContent(
-        invoice,
-        order,
-        orderItemsResult,
-        billingAddress,
-        shippingAddress,
-        user
-      );
+      const buffer = await downloadFromStorageAsBuffer(version.pdf_path);
 
       return {
-        buffer: pdfBuffer,
-        filename: filename,
+        buffer,
+        filename,
       };
     } catch (error) {
       logger.error('Error downloading invoice', { versionId, error });

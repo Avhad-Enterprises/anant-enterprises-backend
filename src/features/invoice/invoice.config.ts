@@ -18,7 +18,7 @@ export const invoiceConfig = {
   // --- Tax Configuration ---
   tax: {
     enabled: false, // Master switch for tax calculation
-    isInclusive: true, // Whether product prices include tax
+    isInclusive: false, // Whether product prices include tax
     rate: 0.18, // Default tax rate (18%)
   },
 
