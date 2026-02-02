@@ -3,17 +3,20 @@
  * Update address
  * - Users can update their own addresses
  * - Users with users:write permission can update any user's addresses
+ * 
+ * Uses Label vs Role pattern:
+ * - Label (type): Where is the address? (Home, Office, Warehouse, Other)
+ * - Roles (isDefaultShipping, isDefaultBilling): What is it used for?
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException, uuidSchema, shortTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { userAddresses } from '../shared/addresses.schema';
-import { IAddressUpdateInput } from '../shared/interface';
 
 const paramsSchema = z.object({
   userId: uuidSchema,
@@ -21,7 +24,7 @@ const paramsSchema = z.object({
 });
 
 const bodySchema = z.object({
-  type: z.enum(['Home', 'Office', 'Other']).optional(),
+  type: z.enum(['Home', 'Office', 'Warehouse', 'Other']).optional(),
   name: shortTextSchema.optional(),
   phone: shortTextSchema.optional(),
   addressLine1: shortTextSchema.optional(),
@@ -30,29 +33,35 @@ const bodySchema = z.object({
   state: shortTextSchema.optional(),
   pincode: shortTextSchema.optional(),
   country: shortTextSchema.optional(),
-  isDefault: z.boolean().optional(),
-  isDefaultBilling: z.boolean().optional(),
   isDefaultShipping: z.boolean().optional(),
+  isDefaultBilling: z.boolean().optional(),
+  deliveryInstructions: z.string().optional(),
 });
 
-// Map frontend type to backend address_type enum
-const mapToBackendType = (
-  type: 'Home' | 'Office' | 'Other'
-): 'billing' | 'shipping' | 'both' | 'company' | 'other' => {
-  switch (type) {
-    case 'Home':
-      return 'shipping';
-    case 'Office':
-      return 'company';
-    case 'Other':
-      return 'other';
-  }
+// Map frontend type to backend address_label enum
+const mapToBackendLabel = (
+  type: 'Home' | 'Office' | 'Warehouse' | 'Other'
+): 'home' | 'office' | 'warehouse' | 'other' => {
+  return type.toLowerCase() as 'home' | 'office' | 'warehouse' | 'other';
+};
+
+// Map backend label to frontend type
+const mapToFrontendType = (
+  label: 'home' | 'office' | 'warehouse' | 'other'
+): 'Home' | 'Office' | 'Warehouse' | 'Other' => {
+  const map: Record<string, 'Home' | 'Office' | 'Warehouse' | 'Other'> = {
+    home: 'Home',
+    office: 'Office',
+    warehouse: 'Warehouse',
+    other: 'Other',
+  };
+  return map[label] || 'Other';
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId as string;
   const addressId = req.params.id as string;
-  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefault, isDefaultBilling, isDefaultShipping } = req.body;
+  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefaultShipping, isDefaultBilling, deliveryInstructions } = req.body;
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db
@@ -70,33 +79,51 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(404, 'Address not found');
   }
 
-  // Determine Type and Default Status
-  let backendType = type ? mapToBackendType(type) : existingAddress.address_type;
-  let finalIsDefault = isDefault !== undefined ? isDefault : existingAddress.is_default;
-
-  // If new default flags are provided, they take precedence
-  if (isDefaultBilling !== undefined || isDefaultShipping !== undefined) {
-    const isBilling = isDefaultBilling !== undefined ? isDefaultBilling : (backendType === 'billing' || backendType === 'both');
-    const isShipping = isDefaultShipping !== undefined ? isDefaultShipping : (backendType === 'shipping' || backendType === 'both');
-
-    finalIsDefault = isBilling || isShipping;
-
-    if (isBilling && isShipping) {
-      backendType = 'both';
-    } else if (isBilling) {
-      backendType = 'billing';
-    } else if (isShipping) {
-      backendType = 'shipping';
-    }
-  }
-
   // Build update data
-  const updateData: IAddressUpdateInput & { country?: string; country_code?: string; updated_at: Date } = {
+  const updateData: Record<string, unknown> = {
     updated_at: new Date(),
   };
 
-  updateData.address_type = backendType as any;
-  updateData.is_default = finalIsDefault;
+  // Update label if type is provided
+  if (type) {
+    updateData.address_label = mapToBackendLabel(type);
+  }
+
+  // Handle default shipping
+  if (isDefaultShipping !== undefined) {
+    if (isDefaultShipping) {
+      // Unset other default shipping addresses first
+      await db
+        .update(userAddresses)
+        .set({ is_default_shipping: false })
+        .where(
+          and(
+            eq(userAddresses.user_id, userId),
+            eq(userAddresses.is_deleted, false),
+            eq(userAddresses.is_default_shipping, true)
+          )
+        );
+    }
+    updateData.is_default_shipping = isDefaultShipping;
+  }
+
+  // Handle default billing
+  if (isDefaultBilling !== undefined) {
+    if (isDefaultBilling) {
+      // Unset other default billing addresses first
+      await db
+        .update(userAddresses)
+        .set({ is_default_billing: false })
+        .where(
+          and(
+            eq(userAddresses.user_id, userId),
+            eq(userAddresses.is_deleted, false),
+            eq(userAddresses.is_default_billing, true)
+          )
+        );
+    }
+    updateData.is_default_billing = isDefaultBilling;
+  }
 
   if (country) {
     updateData.country = country;
@@ -126,26 +153,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
   if (pincode) {
     updateData.postal_code = pincode;
   }
-
-  // If setting as default, unset other defaults for this type
-  if (finalIsDefault) {
-    const typesToClear: string[] = ['both'];
-    if (backendType === 'both') {
-      typesToClear.push('billing', 'shipping');
-    } else {
-      typesToClear.push(backendType);
-    }
-
-    await db
-      .update(userAddresses)
-      .set({ is_default: false })
-      .where(
-        and(
-          eq(userAddresses.user_id, userId),
-          eq(userAddresses.is_deleted, false),
-          inArray(userAddresses.address_type, typesToClear as any[])
-        )
-      );
+  if (deliveryInstructions !== undefined) {
+    updateData.delivery_instructions = deliveryInstructions;
   }
 
   // Update address
@@ -159,26 +168,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
     res,
     {
       id: updatedAddress.id,
-      type:
-        type ||
-        (existingAddress.address_type === 'shipping'
-          ? 'Home'
-          : existingAddress.address_type === 'company'
-            ? 'Office'
-            : 'Other'),
+      type: type || mapToFrontendType(updatedAddress.address_label),
       name: updatedAddress.recipient_name,
-      phone:
-        phone ||
-        `${existingAddress.phone_country_code || ''}${existingAddress.phone_number || ''}`.trim(),
+      phone: phone || `${existingAddress.phone_country_code || ''}${existingAddress.phone_number || ''}`.trim(),
       addressLine1: updatedAddress.address_line1,
       addressLine2: updatedAddress.address_line2 || '',
       city: updatedAddress.city,
       state: updatedAddress.state_province,
       pincode: updatedAddress.postal_code,
       country: updatedAddress.country,
-      isDefault: updatedAddress.is_default,
-      isDefaultBilling: updatedAddress.address_type === 'billing' || updatedAddress.address_type === 'both',
-      isDefaultShipping: updatedAddress.address_type === 'shipping' || updatedAddress.address_type === 'both',
+      isDefaultShipping: updatedAddress.is_default_shipping,
+      isDefaultBilling: updatedAddress.is_default_billing,
+      deliveryInstructions: updatedAddress.delivery_instructions,
     },
     'Address updated successfully'
   );

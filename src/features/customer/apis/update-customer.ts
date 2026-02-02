@@ -11,7 +11,7 @@ import { requireAuth, requirePermission, validationMiddleware } from '../../../m
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-import { customerProfiles, customerSegmentEnum, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
+import { customerProfiles, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, businessAccountStatusEnum, paymentTermsEnum } from '../shared/business-profiles.schema';
 import { updateTagUsage } from '../../tags/services/tag-sync.service';
 
@@ -38,7 +38,7 @@ const updateCustomerSchema = z.object({
     profile_image_url: z.string().optional().nullable(),
 
     // Customer (Individual) Profile Fields
-    segment: z.enum(customerSegmentEnum.enumValues).optional(),
+    segments: z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional(),
     notes: z.string().optional(), // Shared with Business profile conceptually, but stored in respective table
     account_status: z.enum(customerAccountStatusEnum.enumValues).optional(),
     store_credit_balance: z.number().or(z.string()).optional(),
@@ -143,7 +143,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // 2. Update Profile Tables - polymorphic approach
         // Update customer profile (always exists for customers)
         const customerProfileUpdates: Record<string, unknown> = {};
-        if (data.segment !== undefined) customerProfileUpdates.segment = data.segment;
+        if (data.segments !== undefined) customerProfileUpdates.segments = data.segments;
         if (data.notes !== undefined) customerProfileUpdates.notes = data.notes;
         if (data.account_status !== undefined) customerProfileUpdates.account_status = data.account_status;
         if (data.store_credit_balance !== undefined) customerProfileUpdates.store_credit_balance = String(data.store_credit_balance);

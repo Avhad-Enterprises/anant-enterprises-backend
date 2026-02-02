@@ -11,7 +11,7 @@ import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger 
 import { db } from '../../../database';
 import { eq, and } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
-import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
+import { customerProfiles } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
 import { syncTags } from '../../tags/services/tag-sync.service';
 import { notificationService } from '../../notifications/services/notification.service';
@@ -38,7 +38,7 @@ const createCustomerSchema = z.object({
     languages: z.array(z.string()).optional(),
 
     // Customer (Individual) Profile Fields
-    segment: z.enum(customerSegmentEnum.enumValues).optional(),
+    segments: z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional(),
     notes: z.string().optional(),
 
     // Business (B2B) Profile Fields
@@ -126,7 +126,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         await tx.insert(customerProfiles)
             .values({
                 user_id: newUser.id,
-                segment: data.segment || 'new',
+                segments: data.segments || ['new'],
                 notes: data.notes,
             });
 
@@ -173,24 +173,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         logger.error('Failed to send welcome notification:', error);
     }
 
-    // Send Welcome Notification
-    try {
-        await notificationService.createFromTemplate(
-            result.id,
-            'customer_welcome',
-            {
-                name: result.first_name,
-                email: result.email,
-            },
-            {
-                priority: 'normal',
-                actionUrl: '/profile',
-                actionText: 'Go to Profile',
-            }
-        );
-    } catch (error) {
-        logger.error('Failed to send welcome notification:', error);
-    }
+
 
     ResponseFormatter.success(res, result, 'Customer created successfully', 201);
 };
