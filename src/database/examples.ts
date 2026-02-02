@@ -31,7 +31,7 @@ async function searchUsers(search: string, page: number = 1, limit: number = 10)
     .from(users)
     .where(
       and(
-        or(like(users.name, `%${search}%`), like(users.email, `%${search}%`)),
+        or(like(users.first_name, `%${search}%`), like(users.email, `%${search}%`)),
         eq(users.is_deleted, false)
       )
     )
@@ -66,7 +66,7 @@ async function getUserWithUploads(userId: string) {
  * Example transaction: Create user and their first upload
  */
 async function createUserWithUpload(
-  userData: { name: string; last_name: string; email: string; password: string },
+  userData: { first_name: string; last_name: string; email: string; password: string },
   uploadData: { filename: string; file_path: string; file_size: number }
 ) {
   return await db.transaction(async tx => {

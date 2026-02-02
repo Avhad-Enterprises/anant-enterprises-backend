@@ -1,6 +1,9 @@
 import App from './app';
 import { logger } from './utils';
 import UserRoute from './features/user';
+import CustomerRoute from './features/customer';
+import AddressRoute from './features/address';
+import AdminRoute from './features/admin';
 import AuthRoute from './features/auth';
 import ProductRoute from './features/product';
 import CollectionRoute from './features/collection';
@@ -65,6 +68,9 @@ async function bootstrap() {
     const app = new App([
       new AuthRoute(),
       new UserRoute(),
+      new CustomerRoute(),
+      new AddressRoute(),
+      new AdminRoute(),
       new ProductRoute(),
       new CollectionRoute(),
       new UploadRoute(),

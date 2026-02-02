@@ -25,7 +25,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { carts } from '../../cart/shared/carts.schema';
 // COMMENTED OUT - Tables dropped (31 Jan 2026)
 // import { discounts } from '../../discount/shared/discount.schema';

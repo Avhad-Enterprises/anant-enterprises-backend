@@ -12,7 +12,7 @@
 
 import { pgTable, integer, uuid, timestamp, decimal, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './user.schema';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // CUSTOMER STATISTICS TABLE

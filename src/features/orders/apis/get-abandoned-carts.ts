@@ -68,7 +68,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .select({
             cart_id: carts.id,
             user_id: carts.user_id,
-            customer_name: users.name,
+            customer_name: users.first_name,
             customer_email: users.email,
             customer_phone: users.phone_number,
             cart_value: carts.grand_total,

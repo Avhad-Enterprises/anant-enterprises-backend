@@ -47,6 +47,5 @@ class ProfileRoute implements Route {
 // Main route export
 export default ProfileRoute;
 
-// Shared resources - SAFE to export
-export * from './shared/sessions.schema';
-export * from './shared/interface';
+// Shared resources
+export * from './shared';

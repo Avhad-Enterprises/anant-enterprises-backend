@@ -10,7 +10,7 @@
 
 import { pgTable, varchar, boolean, uuid, timestamp, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './user.schema';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // ADMIN PROFILES TABLE

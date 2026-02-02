@@ -12,11 +12,11 @@ import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
-import { userAddresses } from '../shared/addresses.schema';
-import { sanitizeUser } from '../shared/sanitizeUser';
+// import { businessCustomerProfiles } from '../../user/shared/business-profiles.schema'; // Table dropped in Phase 2
+import { userAddresses } from '../../address/shared/addresses.schema';
+import { sanitizeUser } from '../../user/shared/sanitizeUser';
 
 const paramsSchema = z.object({
     id: uuidSchema,
@@ -54,11 +54,10 @@ async function getCustomerById(id: string) {
 
     return {
         ...sanitizedUser,
-        details: customerProfile || null, // businessProfile dropped in Phase 2
+        details: customerProfile || null,
         addresses: addresses,
-        type: user.user_type, // 'individual' or 'business'
-        // Helper to distinguish profile type
-        profileType: customerProfile ? 'individual' : 'none', // business profile dropped in Phase 2
+        // Profile type determined by existence of profile record
+        profileType: customerProfile ? 'individual' : 'none',
     };
 }
 

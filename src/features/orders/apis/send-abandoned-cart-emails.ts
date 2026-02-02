@@ -30,7 +30,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             cart_id: carts.id,
             user_id: carts.user_id,
             customer_email: users.email,
-            customer_name: users.name,
+            customer_name: users.first_name,
             grand_total: carts.grand_total,
             abandoned_at: carts.abandoned_at,
         })

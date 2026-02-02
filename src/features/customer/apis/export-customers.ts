@@ -9,7 +9,7 @@ import ExcelJS from 'exceljs';
 import { and, between, inArray, eq } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 

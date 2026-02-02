@@ -9,7 +9,7 @@ import { isDevelopment, isProduction } from '../utils/validateEnv';
 /**
  * Create rate limit store based on environment
  * - Production: Redis store for distributed rate limiting across instances
- * - Development/Test: In-memory store (default)
+ * - Development: In-memory store (default)
  */
 const createStore = (): Store | undefined => {
   // Only use Redis in production when connected
@@ -75,7 +75,7 @@ export const authRateLimit: RequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createStore(),
-  skip: skipDevOrTest, // Skip rate limiting in test and development environments
+  skip: skipDevOrTest, // Skip rate limiting in development environment
   handler: createRateLimitHandler(
     'Too many authentication attempts, please try again later.',
     '15 minutes'
@@ -130,7 +130,7 @@ export const invitationRateLimit: RequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createStore(),
-  skip: skipDevOrTest, // Skip rate limiting in test and development environments
+  skip: skipDevOrTest, // Skip rate limiting in development environment
   handler: createRateLimitHandler(
     'Too many invitation attempts, please try again later.',
     '15 minutes'

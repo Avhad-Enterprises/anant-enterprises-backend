@@ -10,7 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 
 // Validation Schema
 const bulkDeleteSchema = z.object({

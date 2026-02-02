@@ -4,10 +4,10 @@ import { logger } from '../utils';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas directly from .schema.ts files to avoid circular deps with drizzle-kit
-import { users, userTypeEnum, genderEnum } from '../features/user/shared/user.schema';
-import { userAddresses, addressTypeEnum } from '../features/user/shared/addresses.schema';
-import { customerProfiles, customerAccountStatusEnum, customerSegmentEnum } from '../features/user/shared/customer-profiles.schema';
-import { adminProfiles } from '../features/user/shared/admin-profiles.schema';
+import { users, genderEnum } from '../features/user/shared/user.schema';
+import { userAddresses, addressTypeEnum } from '../features/address/shared/addresses.schema';
+import { customerProfiles, customerAccountStatusEnum, customerSegmentEnum } from '../features/customer/shared/customer-profiles.schema';
+import { adminProfiles } from '../features/admin/shared/admin-profiles.schema';
 import { uploads } from '../features/upload/shared/upload.schema';
 import { invitations } from '../features/admin-invite/shared/admin-invite.schema';
 // COMMENTED OUT - Unused tables (31 Jan 2026)
@@ -191,7 +191,6 @@ export async function connectWithRetry(
 export const schema = {
   // User feature - core
   users,
-  userTypeEnum,
   genderEnum,
   // User feature - addresses
   userAddresses,

@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { userAddresses } from '../shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 import { logger } from '../../../utils/logging/logger';
@@ -90,7 +90,7 @@ const customerImportSchema = z.object({
 
     // Profile / Status
     segment: caseInsensitiveEnum(['new', 'regular', 'vip', 'at_risk']).optional(),
-    account_status: caseInsensitiveEnum(['active', 'suspended', 'closed']).default('active'),
+    account_status: caseInsensitiveEnum(['active', 'inactive', 'banned']).default('active'),
     notes: z.string().optional(),
 
     // Business Only (Mapped to generic or ignored if unused)
@@ -119,15 +119,6 @@ const importRequestSchema = z.object({
 // LOGIC
 // ============================================
 
-async function generateCustomerId(): Promise<string> {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = 'CUST-';
-    for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-}
-
 async function processRow(
     rawData: any,
     mode: 'create' | 'update' | 'upsert',
@@ -140,7 +131,7 @@ async function processRow(
 
         // 2. Check Existence (Including Deleted!)
         const [existing] = await db
-            .select({ id: users.id, user_type: users.user_type, is_deleted: users.is_deleted })
+            .select({ id: users.id, is_deleted: users.is_deleted })
             .from(users)
             .where(eq(users.email, email)) // Removed is_deleted = false check to find deleted ones
             .limit(1);
@@ -170,14 +161,11 @@ async function processRow(
             // --- A) Create New ---
             if (!targetUserId) {
                 // console.log('Creating new user with email:', customer.email);
-                const newId = await generateCustomerId();
                 const [newUser] = await tx.insert(users).values({
-                    customer_id: newId,
                     email: customer.email,
-                    name: customer.first_name,
+                    first_name: customer.first_name,
                     last_name: customer.last_name,
                     display_name: customer.display_name || `${customer.first_name} ${customer.last_name}`,
-                    user_type: customer.user_type,
                     phone_number: customer.phone_number,
                     secondary_email: customer.secondary_email,
                     secondary_phone_number: customer.secondary_phone_number,
@@ -197,7 +185,7 @@ async function processRow(
                     await tx.insert(customerProfiles).values({
                         user_id: targetUserId!,
                         segment: customer.segment || 'new',
-                        account_status: customer.account_status as 'active' | 'suspended' | 'closed',
+                        account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                         notes: customer.notes
                     });
                 } catch (e: any) {
@@ -211,7 +199,7 @@ async function processRow(
 
                 // Update User (and restore if deleted)
                 await tx.update(users).set({
-                    name: customer.first_name,
+                    first_name: customer.first_name,
                     last_name: customer.last_name,
                     display_name: customer.display_name,
                     phone_number: customer.phone_number,
@@ -238,7 +226,7 @@ async function processRow(
 
                 await tx.update(customerProfiles).set({
                     segment: customer.segment,
-                    account_status: customer.account_status as 'active' | 'suspended' | 'closed',
+                    account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                     notes: customer.notes,
                     updated_at: new Date()
                 }).where(eq(customerProfiles.user_id, targetUserId));

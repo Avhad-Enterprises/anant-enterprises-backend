@@ -14,9 +14,9 @@ import validationMiddleware from '../../../middlewares/validation.middleware';
 import { ResponseFormatter, uuidSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
-import { findUserById } from '../shared/queries';
-import { userCacheService } from '../services/user-cache.service';
+import { users } from '../../user/shared/user.schema';
+import { findUserById } from '../../user/shared/queries';
+import { userCacheService } from '../../user/services/user-cache.service';
 import { decrementTagUsage } from '../../tags/services/tag-sync.service';
 
 const paramsSchema = z.object({

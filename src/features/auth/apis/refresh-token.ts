@@ -44,7 +44,9 @@ export async function handleRefreshToken(refreshToken: string) {
     user: {
       id: publicUser[0].id,
       auth_id: authData.user.id,
-      name: publicUser[0].name,
+      first_name: publicUser[0].first_name,
+      middle_name: publicUser[0].middle_name,
+      last_name: publicUser[0].last_name,
       email: publicUser[0].email,
       phone_number: publicUser[0].phone_number || undefined,
       created_at: publicUser[0].created_at,

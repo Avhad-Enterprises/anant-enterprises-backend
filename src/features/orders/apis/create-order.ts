@@ -22,7 +22,6 @@ import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { reserveStockForOrder, validateStockAvailability, extendCartReservation, logOrderPlacement } from '../../inventory/services/inventory.service';
-
 import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { getAllAdminUserIds } from '../../rbac/shared/queries';
 import { TEMPLATE_CODES } from '../../notifications/shared/constants';
@@ -218,7 +217,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 try {
                     // Fetch customer details for notification
                     const [customer] = await db
-                        .select({ name: users.name, email: users.email })
+                        .select({ name: users.first_name, email: users.email })
                         .from(users)
                         .where(eq(users.id, targetUserId))
                         .limit(1);
@@ -256,7 +255,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     let customerEmail = 'N/A';
                     if (targetUserId) {
                         const [customer] = await db
-                            .select({ name: users.name, email: users.email })
+                            .select({ name: users.first_name, email: users.email })
                             .from(users)
                             .where(eq(users.id, targetUserId))
                             .limit(1);
@@ -553,7 +552,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         try {
             // Fetch customer details for personalized notification
             const [customer] = await db
-                .select({ name: users.name, email: users.email })
+                .select({ name: users.first_name, email: users.email })
                 .from(users)
                 .where(eq(users.id, userId))
                 .limit(1);
@@ -588,7 +587,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (adminUserIds.length > 0) {
                 // Fetch customer details for admin notification
                 const [customer] = await db
-                    .select({ name: users.name, email: users.email })
+                    .select({ name: users.first_name, email: users.email })
                     .from(users)
                     .where(eq(users.id, userId))
                     .limit(1);

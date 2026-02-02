@@ -12,11 +12,11 @@ import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
-import { sanitizeUsers } from '../shared/sanitizeUser';
-import { userAddresses } from '../shared/addresses.schema';
+// import { businessCustomerProfiles } from '../../user/shared/business-profiles.schema'; // Table dropped in Phase 2
+import { sanitizeUsers } from '../../user/shared/sanitizeUser';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
 import { userRoles } from '../../rbac/shared/user-roles.schema';
 import { roles } from '../../rbac/shared/roles.schema';
@@ -50,17 +50,19 @@ async function getAllCustomers(
     // Base conditions (not deleted)
     const conditions = [eq(users.is_deleted, false)];
 
-    // Type Filter
-    if (type !== 'all') {
-        conditions.push(eq(users.user_type, type as 'individual' | 'business'));
-    }
+    // Type Filter - Now based on profile existence, not user_type
+    // 'individual' = has customer profile only
+    // 'business' = has business profile
+    // 'all' = any customer (has either profile)
+    // Note: Filtering by profile will be done via JOIN, not WHERE clause here
 
     // Search Filter
     if (search) {
         const searchTerm = `%${search}%`;
         conditions.push(
             or(
-                ilike(users.name, searchTerm),
+                ilike(users.first_name, searchTerm),
+                ilike(users.last_name, searchTerm),
                 ilike(users.email, searchTerm),
                 ilike(users.phone_number, searchTerm),
                 ilike(users.display_name, searchTerm)
@@ -89,14 +91,14 @@ async function getAllCustomers(
                 eq(customerProfiles.account_status, 'active')
             );
         }
-        if (statuses.includes('inactive') || statuses.includes('closed')) {
+        if (statuses.includes('inactive')) {
             statusConditions.push(
-                eq(customerProfiles.account_status, 'closed')
+                eq(customerProfiles.account_status, 'inactive')
             );
         }
-        if (statuses.includes('blocked') || statuses.includes('suspended')) {
+        if (statuses.includes('blocked') || statuses.includes('banned')) {
             statusConditions.push(
-                eq(customerProfiles.account_status, 'suspended')
+                eq(customerProfiles.account_status, 'banned')
             );
         }
 

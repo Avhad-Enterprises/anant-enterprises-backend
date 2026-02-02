@@ -118,14 +118,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const fullName =
     bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
   const nameParts = fullName.trim().split(' ');
-  const name = nameParts[0] || 'User';
+  const first_name = nameParts[0] || 'User';
   const last_name = nameParts.slice(1).join(' ') || '';
 
   const [newUser] = await db
     .insert(users)
     .values({
       auth_id: authUser.id,
-      name,
+      first_name,
       last_name,
       email: authUser.email!,
       phone_number: bodyData.phone_number || authUser.phone || '',

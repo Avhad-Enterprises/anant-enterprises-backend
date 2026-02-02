@@ -19,8 +19,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './user.schema';
-import { userAddresses } from './addresses.schema';
+import { users } from '../../user/shared/user.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 
 // ============================================
 // ENUMS
@@ -45,10 +45,10 @@ export const paymentTermsEnum = pgEnum('payment_terms', [
 export const businessTierEnum = pgEnum('business_tier', ['standard', 'silver', 'gold', 'platinum']);
 
 export const businessAccountStatusEnum = pgEnum('business_account_status', [
-  'pending', // Awaiting approval
+  'pending', // Awaiting approval (B2B specific)
   'active',
-  'suspended',
-  'closed',
+  'inactive', // Dormant/deactivated account
+  'banned',   // Blocked due to violations
 ]);
 
 // ============================================
@@ -97,7 +97,7 @@ export const businessCustomerProfiles = pgTable(
     // Credit terms
     payment_terms: paymentTermsEnum('payment_terms').default('immediate').notNull(),
     credit_limit: decimal('credit_limit', { precision: 12, scale: 2 }).default('0.00').notNull(),
-    credit_used: decimal('credit_used', { precision: 12, scale: 2 }).default('0.00').notNull(),
+    // Note: credit_used removed - compute from SUM of unpaid invoices instead (better normalization)
     credit_approved_by: uuid('credit_approved_by').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -119,7 +119,8 @@ export const businessCustomerProfiles = pgTable(
     account_status: businessAccountStatusEnum('account_status').default('pending').notNull(),
     approved_by: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
     approved_at: timestamp('approved_at'),
-    suspended_reason: text('suspended_reason'),
+    banned_reason: text('banned_reason'),
+    banned_until: timestamp('banned_until'), // NULL = permanent ban, timestamp = temporary ban
 
     // Notes
     notes: text('notes'), // Internal admin notes

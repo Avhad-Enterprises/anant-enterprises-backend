@@ -10,7 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, logger } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { customerProfiles, customerSegmentEnum, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
 import { businessCustomerProfiles, businessAccountStatusEnum, paymentTermsEnum } from '../shared/business-profiles.schema';
 import { updateTagUsage } from '../../tags/services/tag-sync.service';
@@ -18,7 +18,8 @@ import { updateTagUsage } from '../../tags/services/tag-sync.service';
 // Validation Schema
 const updateCustomerSchema = z.object({
     // User Fields
-    name: shortTextSchema.optional(),
+    first_name: shortTextSchema.optional(),
+    middle_name: shortTextSchema.optional().nullable(),
     last_name: shortTextSchema.optional(),
     email: emailSchema.optional(),
     phone_number: z.string().optional(),
@@ -27,7 +28,7 @@ const updateCustomerSchema = z.object({
     // Verification status fields for primary/secondary swap
     email_verified: z.boolean().optional(),
     secondary_email_verified: z.boolean().optional(),
-    user_type: z.enum(['individual', 'business']).optional(),
+    // DEPRECATED: user_type removed - use profile tables
     tags: z.array(z.string()).optional(),
     display_name: z.string().max(100).optional(),
     date_of_birth: z.string().optional(),
@@ -82,11 +83,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     await db.transaction(async (tx) => {
         // 1. Update User Table (Basic Info)
         const userUpdates: Record<string, unknown> = {};
-        if (data.name) userUpdates.name = data.name;
+        if (data.first_name) userUpdates.first_name = data.first_name;
+        if (data.middle_name !== undefined) userUpdates.middle_name = data.middle_name;
         if (data.last_name) userUpdates.last_name = data.last_name;
         if (data.email) userUpdates.email = data.email;
         if (data.phone_number !== undefined) userUpdates.phone_number = data.phone_number;
-        if (data.user_type) userUpdates.user_type = data.user_type;
+        // user_type removed (deprecated)
         if (data.tags) userUpdates.tags = data.tags;
         if (data.display_name !== undefined) userUpdates.display_name = data.display_name || null;
         if (data.date_of_birth !== undefined) userUpdates.date_of_birth = data.date_of_birth || null;
@@ -106,7 +108,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             userUpdates.secondary_email_verified = data.secondary_email_verified;
         } else if (data.secondary_email) {
             // Fallback: Check if secondary email was verified via OTP
-            const { emailOtps } = await import('../shared/email-otp.schema');
+            const { emailOtps } = await import('../../user/shared/email-otp.schema');
             const [secondaryVerifiedOtp] = await tx
                 .select()
                 .from(emailOtps)
@@ -122,21 +124,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
             }
         }
 
-        // Fetch current user type if not provided, to know which profile to update
-        // However, for efficiency, if user_type IS provided, we use it.
-        // If not provided, we might assume the existng type.
-        // But simplify: We try to update the profile that matches the user_type.
-
-        let targetUserType = data.user_type;
-
-        // Fetch current user to get user_type and old tags
+        // Fetch current user for old tags
         const currentUser = await tx.query.users.findFirst({
             where: eq(users.id, id),
-            columns: { user_type: true, tags: true }
+            columns: { tags: true }
         });
 
         if (currentUser) {
-            targetUserType = data.user_type || (currentUser.user_type as 'individual' | 'business') || 'individual';
             oldTags = (currentUser.tags as string[]) || [];
         }
 
@@ -146,79 +140,36 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 .where(eq(users.id, id));
         }
 
-        // 2. Update Profile Based on Type
-        if (targetUserType === 'business') {
-            // UPDATE BUSINESS PROFILE
-            const businessUpdates: Record<string, unknown> = {};
-            // Map fields from DTO to business profile
-            if (data.company_legal_name) businessUpdates.company_legal_name = data.company_legal_name;
-            if (data.tax_id) businessUpdates.tax_id = data.tax_id;
-            if (data.notes) businessUpdates.notes = data.notes;
-            if (data.payment_terms) businessUpdates.payment_terms = data.payment_terms;
+        // 2. Update Profile Tables - polymorphic approach
+        // Update customer profile (always exists for customers)
+        const customerProfileUpdates: Record<string, unknown> = {};
+        if (data.segment !== undefined) customerProfileUpdates.segment = data.segment;
+        if (data.notes !== undefined) customerProfileUpdates.notes = data.notes;
+        if (data.account_status !== undefined) customerProfileUpdates.account_status = data.account_status;
+        if (data.store_credit_balance !== undefined) customerProfileUpdates.store_credit_balance = String(data.store_credit_balance);
+        if (data.marketing_opt_in !== undefined) customerProfileUpdates.marketing_opt_in = data.marketing_opt_in;
+        if (data.sms_opt_in !== undefined) customerProfileUpdates.sms_opt_in = data.sms_opt_in;
+        if (data.email_opt_in !== undefined) customerProfileUpdates.email_opt_in = data.email_opt_in;
+        if (data.whatsapp_opt_in !== undefined) customerProfileUpdates.whatsapp_opt_in = data.whatsapp_opt_in;
 
-            // Account status - priority: business_account_status > account_status
-            if (data.business_account_status) {
-                businessUpdates.account_status = data.business_account_status;
-            } else if (data.account_status) {
-                businessUpdates.account_status = data.account_status;
-            }
+        if (Object.keys(customerProfileUpdates).length > 0) {
+            await tx.update(customerProfiles)
+                .set({ ...customerProfileUpdates, updated_at: new Date() })
+                .where(eq(customerProfiles.user_id, id));
+        }
 
-            if (data.credit_limit !== undefined) businessUpdates.credit_limit = String(data.credit_limit);
+        // Update business profile if B2B data provided (upsert approach)
+        const businessProfileUpdates: Record<string, unknown> = {};
+        if (data.company_legal_name) businessProfileUpdates.company_legal_name = data.company_legal_name;
+        if (data.tax_id !== undefined) businessProfileUpdates.tax_id = data.tax_id;
+        if (data.credit_limit !== undefined) businessProfileUpdates.credit_limit = String(data.credit_limit);
+        if (data.payment_terms) businessProfileUpdates.payment_terms = data.payment_terms;
+        if (data.business_account_status) businessProfileUpdates.account_status = data.business_account_status;
 
-            if (Object.keys(businessUpdates).length > 0) {
-                await tx.insert(businessCustomerProfiles)
-                    .values({
-                        user_id: id,
-                        business_type: 'sole_proprietor',
-                        company_legal_name: businessUpdates.company_legal_name as string || 'N/A',
-                        business_email: userUpdates.email as string || data.email || 'pending@update.com',
-                        ...businessUpdates
-                    })
-                    .onConflictDoUpdate({
-                        target: businessCustomerProfiles.user_id,
-                        set: { ...businessUpdates, updated_at: new Date() }
-                    });
-            }
-
-        } else {
-            // UPDATE INDIVIDUAL CUSTOMER PROFILE
-            const profileUpdates: Record<string, unknown> = {};
-            if (data.segment !== undefined) profileUpdates.segment = data.segment;
-            if (data.notes !== undefined) profileUpdates.notes = data.notes;
-            if (data.account_status !== undefined) profileUpdates.account_status = data.account_status;
-
-            if (data.store_credit_balance !== undefined) profileUpdates.store_credit_balance = String(data.store_credit_balance);
-
-            // Marketing
-            if (data.marketing_opt_in !== undefined) profileUpdates.marketing_opt_in = data.marketing_opt_in;
-            if (data.sms_opt_in !== undefined) profileUpdates.sms_opt_in = data.sms_opt_in;
-            if (data.email_opt_in !== undefined) profileUpdates.email_opt_in = data.email_opt_in;
-            if (data.whatsapp_opt_in !== undefined) profileUpdates.whatsapp_opt_in = data.whatsapp_opt_in;
-
-            // Risk & Loyalty & Subscription
-            if (data.risk_profile !== undefined) profileUpdates.risk_profile = data.risk_profile;
-            if (data.loyalty_enrolled !== undefined) profileUpdates.loyalty_enrolled = data.loyalty_enrolled;
-            if (data.loyalty_tier !== undefined) profileUpdates.loyalty_tier = data.loyalty_tier;
-            if (data.loyalty_points !== undefined) profileUpdates.loyalty_points = String(data.loyalty_points);
-            if (data.loyalty_enrollment_date !== undefined) profileUpdates.loyalty_enrollment_date = data.loyalty_enrollment_date ? new Date(data.loyalty_enrollment_date) : null;
-
-            if (data.subscription_plan !== undefined) profileUpdates.subscription_plan = data.subscription_plan;
-            if (data.subscription_status !== undefined) profileUpdates.subscription_status = data.subscription_status;
-            if (data.billing_cycle !== undefined) profileUpdates.billing_cycle = data.billing_cycle;
-            if (data.subscription_start_date !== undefined) profileUpdates.subscription_start_date = data.subscription_start_date ? new Date(data.subscription_start_date) : null;
-            if (data.auto_renew !== undefined) profileUpdates.auto_renew = data.auto_renew;
-
-            if (Object.keys(profileUpdates).length > 0) {
-                await tx.insert(customerProfiles)
-                    .values({
-                        user_id: id,
-                        ...profileUpdates
-                    })
-                    .onConflictDoUpdate({
-                        target: customerProfiles.user_id,
-                        set: { ...profileUpdates, updated_at: new Date() }
-                    });
-            }
+        if (Object.keys(businessProfileUpdates).length > 0) {
+            await tx.update(businessCustomerProfiles)
+                .set({ ...businessProfileUpdates, updated_at: new Date() })
+                .where(eq(businessCustomerProfiles.user_id, id));
         }
     });
 

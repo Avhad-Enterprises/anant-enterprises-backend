@@ -7,7 +7,7 @@ import { Router, Response } from 'express';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
-import { getDistinctUserTags } from '../shared/queries';
+import { getDistinctUserTags } from '../../user/shared/queries';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const tags = await getDistinctUserTags();

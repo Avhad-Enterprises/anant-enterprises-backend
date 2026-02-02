@@ -12,7 +12,7 @@ import { orders } from '../../orders/shared/orders.schema';
 import { orderItems } from '../../orders/shared/order-items.schema';
 import { products } from '../../product/shared/product.schema';
 import { users } from '../../user/shared/user.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { HttpException, logger } from '../../../utils';
 import PDFKit from 'pdfkit';
 import { uploadToStorage } from '../../../utils/supabaseStorage';

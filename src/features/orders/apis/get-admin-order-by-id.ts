@@ -9,7 +9,7 @@ import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { users } from '../../user/shared/user.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
@@ -55,7 +55,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             channel: orders.channel,
             is_draft: orders.is_draft,
             // User info
-            customer_name: users.name,
+            customer_name: users.first_name,
             customer_email: users.email,
         })
         .from(orders)

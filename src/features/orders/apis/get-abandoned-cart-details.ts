@@ -11,7 +11,7 @@ import { db } from '../../../database';
 import { carts } from '../../cart/shared/carts.schema';
 import { cartItems } from '../../cart/shared/cart-items.schema';
 import { users } from '../../user/shared/user.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 
@@ -46,7 +46,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             recovery_email_sent_at: carts.recovery_email_sent_at,
             created_at: carts.created_at,
             // User fields
-            customer_name: users.name,
+            customer_name: users.first_name,
             customer_email: users.email,
             customer_phone: users.phone_number,
         })

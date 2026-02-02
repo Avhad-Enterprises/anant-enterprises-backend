@@ -22,7 +22,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './user.schema';
+import { users } from '../../user/shared/user.schema';
 
 // ============================================
 // ENUMS
@@ -30,8 +30,8 @@ import { users } from './user.schema';
 
 export const customerAccountStatusEnum = pgEnum('customer_account_status', [
   'active',
-  'suspended',
-  'closed',
+  'inactive',
+  'banned',
 ]);
 
 export const customerSegmentEnum = pgEnum('customer_segment', [
@@ -69,7 +69,7 @@ export const customerProfiles = pgTable(
     referred_by_user_id: uuid('referred_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
-    referral_bonus_credited: boolean('referral_bonus_credited').default(false).notNull(),
+    // Note: referral_bonus_credited removed - track via store_credit transactions instead
 
     // Marketing preferences
     marketing_opt_in: boolean('marketing_opt_in').default(false).notNull(),
@@ -80,8 +80,8 @@ export const customerProfiles = pgTable(
 
     // Account status
     account_status: customerAccountStatusEnum('account_status').default('active').notNull(),
-    suspended_reason: text('suspended_reason'),
-    suspended_until: timestamp('suspended_until'),
+    banned_reason: text('banned_reason'),
+    banned_until: timestamp('banned_until'), // NULL = permanent ban, timestamp = temporary ban
 
     // Risk Profile
     risk_profile: varchar('risk_profile', { length: 20 }).default('low'), // low, medium, high

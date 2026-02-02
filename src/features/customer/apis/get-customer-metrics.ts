@@ -9,11 +9,10 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
-import { users } from '../shared/user.schema';
+import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
 import { userRoles } from '../../rbac/shared/user-roles.schema';
 import { roles } from '../../rbac/shared/roles.schema';
-// import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
 
 const handler = async (req: RequestWithUser, res: Response) => {
   // Admin exclusion subquery - reusable for both queries
@@ -24,16 +23,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
     .where(or(eq(roles.name, 'admin'), eq(roles.name, 'superadmin')));
 
   // 1. Total Customers (non-deleted)
+  // Count all users who have a customer profile (excludes admins)
   const [totalResult] = await db
     .select({ count: count() })
     .from(users)
+    .innerJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
     .where(
       and(
         eq(users.is_deleted, false),
-        or(
-          eq(users.user_type, 'individual'),
-          eq(users.user_type, 'business')
-        ),
         notInArray(users.id, adminUserIdsSubquery)
       )
     );
@@ -41,16 +38,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const total = totalResult?.count ?? 0;
 
   // 2. Active Customers
-  // Active means: Individual customers with active profile status
-  // Business customer profiles were removed in Phase 2 cleanup
+  // Active means: Customers with active profile status
   const [activeResult] = await db
     .select({ count: count() })
     .from(users)
-    .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+    .innerJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
     .where(
       and(
         eq(users.is_deleted, false),
-        eq(users.user_type, 'individual'),
         eq(customerProfiles.account_status, 'active'),
         notInArray(users.id, adminUserIdsSubquery)
       )
