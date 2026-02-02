@@ -63,17 +63,12 @@ async function getCustomerById(id: string) {
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    try {
-        const { id } = req.params as { id: string };
-        logger.info(`GET /customer/${id} request received`);
-        const customer = await getCustomerById(id);
-        logger.info(`Customer found: ${customer.id}`);
+    const { id } = req.params as { id: string };
+    logger.info(`GET /customer/${id} request received`);
+    const customer = await getCustomerById(id);
+    logger.info(`Customer found: ${customer.id}`);
 
-        ResponseFormatter.success(res, customer, 'Customer retrieved successfully');
-    } catch (error) {
-        logger.error('Error in get-client-by-id:', error);
-        throw error;
-    }
+    ResponseFormatter.success(res, customer, 'Customer retrieved successfully');
 };
 
 const router = Router();

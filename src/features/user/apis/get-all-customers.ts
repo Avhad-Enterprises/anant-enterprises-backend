@@ -6,7 +6,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, or, sql, arrayOverlaps, SQL } from 'drizzle-orm';
+import { eq, count, desc, and, or, arrayOverlaps, SQL, ilike, notInArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -18,6 +18,8 @@ import { customerProfiles } from '../shared/customer-profiles.schema';
 import { sanitizeUsers } from '../shared/sanitizeUser';
 import { userAddresses } from '../shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
+import { userRoles } from '../../rbac/shared/user-roles.schema';
+import { roles } from '../../rbac/shared/roles.schema';
 
 // Default pagination values
 const DEFAULT_PAGE = 1;
@@ -57,18 +59,24 @@ async function getAllCustomers(
     if (search) {
         const searchTerm = `%${search}%`;
         conditions.push(
-            sql`(${users.name} ILIKE ${searchTerm} OR ${users.email} ILIKE ${searchTerm} OR ${users.phone_number} ILIKE ${searchTerm} OR ${users.display_name} ILIKE ${searchTerm})`
+            or(
+                ilike(users.name, searchTerm),
+                ilike(users.email, searchTerm),
+                ilike(users.phone_number, searchTerm),
+                ilike(users.display_name, searchTerm)
+            ) as SQL<unknown>
         );
     }
 
-    // Exclude users with admin/superadmin roles
-    // Subquery to find user IDs that have admin-like roles
+    // Exclude users with admin/superadmin roles using Drizzle subquery
+    const adminUserIdsSubquery = db
+        .select({ userId: userRoles.user_id })
+        .from(userRoles)
+        .innerJoin(roles, eq(userRoles.role_id, roles.id))
+        .where(inArray(roles.name, ['admin', 'superadmin']));
+
     conditions.push(
-        sql`${users.id} NOT IN (
-            SELECT ur.user_id FROM user_roles ur
-            INNER JOIN roles r ON ur.role_id = r.id
-            WHERE r.name IN ('admin', 'superadmin')
-        )`
+        notInArray(users.id, adminUserIdsSubquery)
     );
 
     // Status Filter - only individual customer profiles supported now (business dropped Phase 2)

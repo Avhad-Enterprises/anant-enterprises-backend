@@ -89,7 +89,7 @@ export class InvoiceService {
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
       // Import config
-      const { invoiceConfig: config } = require('../invoice.config');
+      const { invoiceConfig: config } = require('./config/invoice.config');
 
       // Base Y position
       let yPos = 50;

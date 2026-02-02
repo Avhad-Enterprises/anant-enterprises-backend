@@ -30,7 +30,7 @@ import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
-import { initializeDiscountCron } from './features/discount/cron/discount-status-updater';
+import { initializeDiscountCron } from './features/discount/jobs/discount-status-updater';
 import { startWorkers, stopWorkers } from './features/queue';
 import { config } from './utils/validateEnv';
 import { socketService } from './features/notifications/socket/socket.service';

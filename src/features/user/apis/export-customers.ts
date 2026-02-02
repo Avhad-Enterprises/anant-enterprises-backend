@@ -7,7 +7,7 @@ import { Router, Response } from 'express';
 import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { and, between, inArray, eq } from 'drizzle-orm';
-import { ResponseFormatter, HttpException } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
@@ -33,7 +33,7 @@ const exportSchema = z.object({
 /**
  * Generate CSV string from data
  */
-function generateCSV(data: any[], columns: string[]): string {
+function generateCSV(data: Record<string, unknown>[], columns: string[]): string {
   if (data.length === 0) {
     return columns.join(',') + '\n';
   }
@@ -129,7 +129,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
   // Filter selected columns and format data
   const filteredData = data.map(user => {
-    const filtered: any = {};
+    const filtered: Record<string, unknown> = {};
     options.selectedColumns.forEach(col => {
       // Map columns if names are different or need formatting
       if (col in user) {
@@ -206,7 +206,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         filename = `customers-export-${timestamp}.xlsx`;
       } catch (error) {
-        console.error('Excel generation failed:', error);
+        logger.error('Excel generation failed:', error);
         throw new HttpException(500, 'Failed to generate Excel file');
       }
       break;

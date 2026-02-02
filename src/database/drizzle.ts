@@ -99,9 +99,9 @@ import { orderItems } from '../features/orders/shared/order-items.schema';
 import { ordersRelations, orderItemsRelations } from '../features/orders/shared/orders.relations';
 import { paymentTransactions, paymentTransactionStatusEnum } from '../features/payments/shared/payment-transactions.schema';
 import { paymentWebhookLogs } from '../features/payments/shared/webhook-logs.schema';
-import { invoices, invoiceStatusEnum } from '../features/invoices/shared/invoices.schema';
-import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoices/shared/invoice-versions.schema';
-import { invoiceLineItems } from '../features/invoices/shared/invoice-line-items.schema';
+import { invoices, invoiceStatusEnum } from '../features/invoice/shared/invoices.schema';
+import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoice/shared/invoice-versions.schema';
+import { invoiceLineItems } from '../features/invoice/shared/invoice-line-items.schema';
 // sessions table - REMOVED (31 Jan 2026)
 
 // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)

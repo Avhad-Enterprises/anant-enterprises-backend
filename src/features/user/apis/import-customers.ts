@@ -197,7 +197,7 @@ async function processRow(
                     await tx.insert(customerProfiles).values({
                         user_id: targetUserId!,
                         segment: customer.segment || 'new',
-                        account_status: customer.account_status as any,
+                        account_status: customer.account_status as 'active' | 'suspended' | 'closed',
                         notes: customer.notes
                     });
                 } catch (e: any) {
@@ -238,7 +238,7 @@ async function processRow(
 
                 await tx.update(customerProfiles).set({
                     segment: customer.segment,
-                    account_status: customer.account_status as any,
+                    account_status: customer.account_status as 'active' | 'suspended' | 'closed',
                     notes: customer.notes,
                     updated_at: new Date()
                 }).where(eq(customerProfiles.user_id, targetUserId));
@@ -294,12 +294,12 @@ router.post(
                 success: 0,
                 failed: 0,
                 skipped: 0,
-                errors: [] as any[]
+                errors: [] as Array<{ row: number; email: string; error: string }>
             };
 
             for (let i = 0; i < data.length; i++) {
                 const row = data[i];
-                const result = await processRow(row, mode as any, userId);
+                const result = await processRow(row, mode, userId);
 
                 if (result.success) {
                     results.success++;
@@ -307,8 +307,8 @@ router.post(
                     results.failed++;
                     results.errors.push({
                         row: i + 2,
-                        email: row.email || 'unknown',
-                        error: result.error
+                        email: (row.email || 'unknown') as string,
+                        error: (result.error || 'Unknown error') as string
                     });
                 }
             }

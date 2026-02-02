@@ -9,6 +9,9 @@ type Database = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema
 
 /**
  * Get distinct tags used in customers
+ * 
+ * NOTE: Uses raw SQL because PostgreSQL's UNNEST function doesn't have
+ * a direct Drizzle ORM equivalent for expanding arrays into rows.
  */
 export const getDistinctUserTags = async (tx: Database = db): Promise<string[]> => {
   const query = sql`

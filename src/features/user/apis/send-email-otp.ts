@@ -6,7 +6,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, emailSchema, HttpException, logger } from '../../../utils';
+import { ResponseFormatter, emailSchema, logger } from '../../../utils';
 import { otpService } from '../services/otp.service';
 
 // Validation Schema
@@ -22,19 +22,13 @@ const handler = async (req: Request, res: Response) => {
 
   logger.info('Sending OTP', { email: data.email, purpose: data.purpose });
 
-  try {
-    const result = await otpService.generateAndSendOtp(data.email, data.purpose);
+  const result = await otpService.generateAndSendOtp(data.email, data.purpose);
 
-    ResponseFormatter.success(res, {
-      success: result.success,
-      expiresIn: result.expiresIn,
-      message: 'Verification code sent to your email',
-    }, 'OTP sent successfully');
-
-  } catch (error: any) {
-    logger.error('Error sending OTP:', { message: error.message });
-    throw new HttpException(500, 'Failed to send verification code. Please try again.');
-  }
+  ResponseFormatter.success(res, {
+    success: result.success,
+    expiresIn: result.expiresIn,
+    message: 'Verification code sent to your email',
+  }, 'OTP sent successfully');
 };
 
 const router = Router();

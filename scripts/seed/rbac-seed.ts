@@ -5,11 +5,11 @@
  * Run this after migrations to populate the RBAC tables.
  */
 
-import { db } from '../../database';
-import { roles } from './shared/roles.schema';
-import { permissions } from './shared/permissions.schema';
-import { rolePermissions } from './shared/role-permissions.schema';
-import { logger } from '../../utils';
+import { db } from '../../src/database';
+import { roles } from '../../src/features/rbac/shared/roles.schema';
+import { permissions } from '../../src/features/rbac/shared/permissions.schema';
+import { rolePermissions } from '../../src/features/rbac/shared/role-permissions.schema';
+import { logger } from '../../src/utils';
 
 // ============================================
 // INITIAL ROLES

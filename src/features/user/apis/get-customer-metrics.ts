@@ -4,72 +4,66 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, and, or, count, sql } from 'drizzle-orm';
+import { eq, and, or, count, notInArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { ResponseFormatter, HttpException, logger } from '../../../utils';
+import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
+import { userRoles } from '../../rbac/shared/user-roles.schema';
+import { roles } from '../../rbac/shared/roles.schema';
 // import { businessCustomerProfiles } from '../shared/business-profiles.schema'; // Table dropped in Phase 2
 
 const handler = async (req: RequestWithUser, res: Response) => {
-  try {
-    // 1. Total Customers (non-deleted)
-    const [totalResult] = await db
-      .select({ count: count() })
-      .from(users)
-      .where(
-        and(
-          eq(users.is_deleted, false),
-          or(
-            eq(users.user_type, 'individual'),
-            eq(users.user_type, 'business')
-          ),
-          sql`${users.id} NOT IN (
-            SELECT ur.user_id FROM user_roles ur
-            INNER JOIN roles r ON ur.role_id = r.id
-            WHERE r.name IN ('admin', 'superadmin')
-          )`
-        )
-      );
+  // Admin exclusion subquery - reusable for both queries
+  const adminUserIdsSubquery = db
+    .select({ userId: userRoles.user_id })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.role_id, roles.id))
+    .where(or(eq(roles.name, 'admin'), eq(roles.name, 'superadmin')));
 
-    const total = totalResult?.count ?? 0;
-
-    // 2. Active Customers
-    // Active means: Individual customers with active profile status
-    // Business customer profiles were removed in Phase 2 cleanup
-    const [activeResult] = await db
-      .select({ count: count() })
-      .from(users)
-      .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
-      // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
-      .where(
-        and(
-          eq(users.is_deleted, false),
+  // 1. Total Customers (non-deleted)
+  const [totalResult] = await db
+    .select({ count: count() })
+    .from(users)
+    .where(
+      and(
+        eq(users.is_deleted, false),
+        or(
           eq(users.user_type, 'individual'),
-          eq(customerProfiles.account_status, 'active'),
-          sql`${users.id} NOT IN (
-            SELECT ur.user_id FROM user_roles ur
-            INNER JOIN roles r ON ur.role_id = r.id
-            WHERE r.name IN ('admin', 'superadmin')
-          )`
-        )
-      );
+          eq(users.user_type, 'business')
+        ),
+        notInArray(users.id, adminUserIdsSubquery)
+      )
+    );
 
-    const active = activeResult?.count ?? 0;
-    const inactive = total - active;
+  const total = totalResult?.count ?? 0;
 
-    ResponseFormatter.success(res, {
-      total,
-      active,
-      inactive
-    }, 'Customer metrics retrieved successfully');
+  // 2. Active Customers
+  // Active means: Individual customers with active profile status
+  // Business customer profiles were removed in Phase 2 cleanup
+  const [activeResult] = await db
+    .select({ count: count() })
+    .from(users)
+    .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+    .where(
+      and(
+        eq(users.is_deleted, false),
+        eq(users.user_type, 'individual'),
+        eq(customerProfiles.account_status, 'active'),
+        notInArray(users.id, adminUserIdsSubquery)
+      )
+    );
 
-  } catch (error: any) {
-    logger.error('Failed to fetch customer metrics:', error);
-    throw new HttpException(500, error.message || 'Failed to fetch customer metrics');
-  }
+  const active = activeResult?.count ?? 0;
+  const inactive = total - active;
+
+  ResponseFormatter.success(res, {
+    total,
+    active,
+    inactive
+  }, 'Customer metrics retrieved successfully');
 };
 
 const router = Router();
