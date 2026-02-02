@@ -29,7 +29,7 @@ class UserRoute implements Route {
     const { default: updateUserRouter } = await import('./apis/update-user');
     const { default: deleteUserRouter } = await import('./apis/delete-user');
 
-    const { default: getUserOrdersRouter } = await import('./apis/get-user-orders');
+    const { default: getUserOrdersRouter } = await import('../orders/apis/get-user-orders');
 
     const { default: getUserAddressesRouter } = await import('./apis/get-user-addresses');
     const { default: createUserAddressRouter } = await import('./apis/create-user-address');
@@ -37,10 +37,7 @@ class UserRoute implements Route {
     const { default: deleteUserAddressRouter } = await import('./apis/delete-user-address');
     const { default: setDefaultAddressRouter } = await import('./apis/set-default-address');
 
-    const { default: getUserWishlistRouter } = await import('./apis/get-user-wishlist');
-    const { default: addToWishlistRouter } = await import('./apis/add-to-wishlist');
-    const { default: removeFromWishlistRouter } = await import('./apis/remove-from-wishlist');
-    const { default: moveWishlistToCartRouter } = await import('./apis/move-wishlist-to-cart');
+
 
     // OTP verification routes
     const { default: sendEmailOtpRouter } = await import('./apis/send-email-otp');
@@ -84,10 +81,7 @@ class UserRoute implements Route {
     this.router.use(this.path, updateUserAddressRouter);
     this.router.use(this.path, deleteUserAddressRouter);
     this.router.use(this.path, setDefaultAddressRouter);
-    this.router.use(this.path, getUserWishlistRouter);
-    this.router.use(this.path, addToWishlistRouter);
-    this.router.use(this.path, removeFromWishlistRouter);
-    this.router.use(this.path, moveWishlistToCartRouter);
+
 
     // Dynamic ID routes LAST
     this.router.use(this.path, getUserByIdRouter);

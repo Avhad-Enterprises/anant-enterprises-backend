@@ -12,8 +12,8 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, uuidSchema, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
-import { orders } from '../../orders/shared/orders.schema';
-import { orderItems } from '../../orders/shared/order-items.schema';
+import { orders } from '../shared/orders.schema';
+import { orderItems } from '../shared/order-items.schema';
 
 const paramsSchema = z.object({
   userId: uuidSchema,
