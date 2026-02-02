@@ -208,7 +208,7 @@ const handler = async (req: Request, res: Response) => {
     }, 'Item added to cart successfully', 201);
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.post('/items', optionalAuth, handler);

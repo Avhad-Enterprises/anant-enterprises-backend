@@ -2,7 +2,7 @@
 
 // Authentication middleware
 export { default as requireAuth } from './auth.middleware';
-export { requireAuth as requireAuthNamed } from './auth.middleware';
+export { requireAuth as requireAuthNamed, optionalAuth } from './auth.middleware';
 
 // Authorization/Permission middleware
 export {

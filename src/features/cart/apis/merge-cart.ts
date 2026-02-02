@@ -21,7 +21,7 @@ import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
-import authMiddleware from '../../../middlewares/auth.middleware';
+import { requireAuth } from '../../../middlewares';
 import { redisClient, isRedisReady } from '../../../utils';
 
 // Validation schema
@@ -359,6 +359,6 @@ const handler = async (req: Request, res: Response) => {
 };
 
 const router = Router();
-router.post('/merge', authMiddleware, handler);
+router.post('/merge', requireAuth, handler);
 
 export default router;

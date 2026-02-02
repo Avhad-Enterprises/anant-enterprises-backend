@@ -89,7 +89,7 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, null, `"${cartItem.product_name || 'Item'}" removed from cart`);
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.delete('/items/:id', optionalAuth, handler);
