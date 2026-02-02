@@ -5,7 +5,6 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
@@ -18,49 +17,21 @@ import {
     recordFailure,
     recordSkipped,
     formatImportSummary,
-    caseInsensitiveEnum,
     type ImportMode
 } from '../../../utils/import-export';
-
-// Validation schema for import data
-const tierImportSchema = z.object({
-    name: z.string().min(1).max(255).trim(),
-    code: z.string().min(1).max(255).trim().optional(),
-    description: z.string().optional(),
-    level: z.number().int().min(1).max(4),
-    parent_code: z.string().optional(),
-    priority: z.number().int().optional(),
-    status: caseInsensitiveEnum(['active', 'inactive']).default('active'),
-});
-
-const importRequestSchema = z.object({
-    data: z.array(tierImportSchema),
-    mode: z.enum(['create', 'update', 'upsert']).default('create'),
-});
-
-/**
- * Generate URL-friendly code from name
- */
-function generateCode(name: string): string {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/--+/g, '-')
-        .replace(/^-+|-+$/g, '');
-}
+import { importTiersRequestSchema, type TierImportInput } from '../shared/validation';
+import { generateTierCode } from '../shared/utils';
 
 /**
  * Process a single tier import record
  */
 async function processTierRecord(
-    tierData: z.infer<typeof tierImportSchema>,
+    tierData: TierImportInput,
     mode: ImportMode,
     parentCache: Map<string, string>
 ): Promise<{ success: boolean; recordId?: string; error?: string }> {
     try {
-        const code = tierData.code || generateCode(tierData.name);
+        const code = tierData.code || generateTierCode(tierData.name);
         
         // Find parent_id if parent_code is provided
         let parent_id: string | null = null;
@@ -174,7 +145,7 @@ async function processTierRecord(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const validation = importRequestSchema.safeParse(req.body);
+    const validation = importTiersRequestSchema.safeParse(req.body);
     
     if (!validation.success) {
         return ResponseFormatter.error(res, 'VALIDATION_ERROR', 'Invalid request data', 400, {

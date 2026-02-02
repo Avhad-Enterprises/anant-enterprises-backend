@@ -84,3 +84,88 @@ export async function getOrderItems(orderId: string) {
 
     return items;
 }
+
+/**
+ * Build dynamic order query conditions based on provided filters
+ * 
+ * This helper consolidates common filtering logic used across multiple endpoints
+ * to reduce code duplication and ensure consistent filtering behavior.
+ * 
+ * @param filters - Filter criteria object
+ * @param filters.userId - Filter by specific user ID
+ * @param filters.status - Filter by order status
+ * @param filters.paymentStatus - Filter by payment status
+ * @param filters.fulfillmentStatus - Filter by fulfillment status
+ * @param filters.dateFrom - Filter orders created on or after this date
+ * @param filters.dateTo - Filter orders created on or before this date
+ * @param filters.isDraft - Filter draft vs confirmed orders (default: false)
+ * @param filters.isDeleted - Include/exclude deleted orders (default: false)
+ * @returns Array of Drizzle query conditions
+ * 
+ * @example
+ * // Filter confirmed orders for a specific user
+ * const conditions = buildOrderQueryConditions({
+ *   userId: 'user-123',
+ *   status: 'confirmed',
+ *   isDraft: false
+ * });
+ * 
+ * const results = await db
+ *   .select()
+ *   .from(orders)
+ *   .where(and(...conditions));
+ */
+export function buildOrderQueryConditions(filters: {
+    userId?: string;
+    status?: string;
+    paymentStatus?: string;
+    fulfillmentStatus?: string;
+    dateFrom?: Date;
+    dateTo?: Date;
+    isDraft?: boolean;
+    isDeleted?: boolean;
+}) {
+    const conditions = [];
+
+    // User filter
+    if (filters.userId !== undefined) {
+        conditions.push(eq(orders.user_id, filters.userId));
+    }
+
+    // Status filters
+    if (filters.status) {
+        conditions.push(eq(orders.order_status, filters.status as any));
+    }
+
+    if (filters.paymentStatus) {
+        conditions.push(eq(orders.payment_status, filters.paymentStatus as any));
+    }
+
+    if (filters.fulfillmentStatus) {
+        conditions.push(eq(orders.fulfillment_status, filters.fulfillment_status as any));
+    }
+
+    // Date range filters
+    if (filters.dateFrom) {
+        conditions.push(gte(orders.created_at, filters.dateFrom));
+    }
+
+    if (filters.dateTo) {
+        conditions.push(lte(orders.created_at, filters.dateTo));
+    }
+
+    // Draft/deleted filters (with defaults)
+    if (filters.isDraft !== undefined) {
+        conditions.push(eq(orders.is_draft, filters.isDraft));
+    } else {
+        conditions.push(eq(orders.is_draft, false));
+    }
+
+    if (filters.isDeleted !== undefined) {
+        conditions.push(eq(orders.is_deleted, filters.isDeleted));
+    } else {
+        conditions.push(eq(orders.is_deleted, false));
+    }
+
+    return conditions;
+}

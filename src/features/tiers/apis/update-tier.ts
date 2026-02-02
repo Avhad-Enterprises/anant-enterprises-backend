@@ -1,93 +1,63 @@
 /**
  * PUT /api/tiers/:id
- * Update a tier
- * Admin only
+ * Update a tier (Admin only)
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
-import { eq } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
-import { db } from '../../../database';
-import { tiers } from '../shared/tiers.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
-
-// Validation schemas
-const paramsSchema = z.object({
-    id: z.string().uuid(),
-});
-
-const updateTierSchema = z.object({
-    name: z.string().min(1).max(255).trim().optional(),
-    code: z.string().min(1).max(255).trim().optional(),
-    description: z.string().optional(),
-    status: z.enum(['active', 'inactive']).optional(),
-});
+import { updateTierSchema, tierIdParamSchema } from '../shared/validation';
+import { findTierById, isTierCodeTaken, updateTierById } from '../shared/queries';
+import { sanitizeTier } from '../shared/sanitizeTier';
 
 const handler = async (req: RequestWithUser, res: Response) => {
     // Validate params
-    const paramsValidation = paramsSchema.safeParse(req.params);
+    const paramsValidation = tierIdParamSchema.safeParse(req.params);
     if (!paramsValidation.success) {
-        throw new HttpException(400, 'Invalid tier ID');
+        throw new HttpException(400, 'Invalid tier ID', {
+            details: paramsValidation.error.issues
+        });
     }
 
     // Validate body
     const bodyValidation = updateTierSchema.safeParse(req.body);
     if (!bodyValidation.success) {
-        throw new HttpException(400, 'Invalid request data');
+        throw new HttpException(400, 'Invalid request data', {
+            details: bodyValidation.error.issues
+        });
     }
 
     const { id } = paramsValidation.data;
     const data = bodyValidation.data;
 
     // Check if tier exists
-    const [existing] = await db
-        .select()
-        .from(tiers)
-        .where(eq(tiers.id, id))
-        .limit(1);
-
+    const existing = await findTierById(id);
     if (!existing) {
         throw new HttpException(404, 'Tier not found');
     }
 
     // If updating code, check for duplicates
     if (data.code && data.code !== existing.code) {
-        const [duplicate] = await db
-            .select()
-            .from(tiers)
-            .where(eq(tiers.code, data.code))
-            .limit(1);
-
-        if (duplicate && duplicate.id !== id) {
+        const codeTaken = await isTierCodeTaken(data.code, id);
+        if (codeTaken) {
             throw new HttpException(409, `Tier with code "${data.code}" already exists`);
         }
     }
 
     // Update tier
-    const [updated] = await db
-        .update(tiers)
-        .set({
-            ...data,
-            updated_at: new Date(),
-        })
-        .where(eq(tiers.id, id))
-        .returning();
+    const updated = await updateTierById(id, {
+        ...data,
+        updated_by: req.userId!,
+    });
+
+    if (!updated) {
+        throw new HttpException(500, 'Failed to update tier');
+    }
 
     return ResponseFormatter.success(
         res,
-        {
-            id: updated.id,
-            name: updated.name,
-            code: updated.code,
-            description: updated.description,
-            level: updated.level,
-            parent_id: updated.parent_id,
-            status: updated.status,
-            usage_count: updated.usage_count,
-            updated_at: updated.updated_at,
-        },
+        sanitizeTier(updated),
         'Tier updated successfully'
     );
 };

@@ -17,7 +17,26 @@ const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:3000').repla
 const ADMIN_URL = (process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 /**
- * Queue customer notification for new order
+ * Queue customer email notification for new order
+ * 
+ * Sends a confirmation email to the customer with order details and a link to view the order.
+ * This function runs asynchronously and will not throw errors if notification fails.
+ * 
+ * @param userId - Customer's user ID
+ * @param orderId - Unique order ID (UUID)
+ * @param orderNumber - Human-readable order number (e.g., "ORD-26-000123")
+ * @param totalAmount - Order total amount as string
+ * @param currency - Currency code (e.g., "INR", "USD")
+ * @returns Promise that resolves when notification is queued (doesn't fail on error)
+ * 
+ * @example
+ * await queueCustomerOrderNotification(
+ *   'user-123',
+ *   'order-uuid',
+ *   'ORD-26-000001',
+ *   '1234.56',
+ *   'INR'
+ * );
  */
 export async function queueCustomerOrderNotification(
     userId: string,
@@ -58,7 +77,25 @@ export async function queueCustomerOrderNotification(
 }
 
 /**
- * Queue admin notifications for new order
+ * Queue admin notification for new order to all admin users
+ * 
+ * Sends batch notifications to all admin users alerting them of a new order.
+ * Each admin receives a notification with order details and link to admin panel.
+ * This function runs asynchronously and will not throw errors if notification fails.
+ * 
+ * @param orderId - Unique order ID (UUID)
+ * @param orderNumber - Human-readable order number (e.g., "ORD-26-000123")
+ * @param customerName - Name of the customer who placed the order
+ * @param totalAmount - Order total amount as string
+ * @returns Promise that resolves when notifications are queued (doesn't fail on error)
+ * 
+ * @example
+ * await queueAdminOrderNotification(
+ *   'order-uuid',
+ *   'ORD-26-000001',
+ *   'John Doe',
+ *   '1234.56'
+ * );
  */
 export async function queueAdminOrderNotification(
     orderId: string,
@@ -99,9 +136,30 @@ export async function queueAdminOrderNotification(
 }
 
 /**
- * Validate stock availability and handle warnings/errors
- * @param items - Items to validate
- * @param allowOverselling - If true, log warning; if false, throw error
+ * Validate stock availability for order items and handle appropriately
+ * 
+ * Checks if sufficient stock exists for all items in the order.
+ * Behavior depends on `allowOverselling` parameter:
+ * - If `true`: Logs warning but allows order to proceed (admin override)
+ * - If `false`: Throws HttpException preventing order creation (user orders)
+ * 
+ * @param items - Array of items to validate with product IDs and quantities
+ * @param allowOverselling - Whether to allow order with insufficient stock
+ * @throws {HttpException} 400 if stock insufficient and overselling not allowed
+ * 
+ * @example
+ * // User order - strict validation
+ * await validateAndWarnStock(
+ *   [{ product_id: 'prod-123', quantity: 5 }],
+ *   false  // Will throw if insufficient stock
+ * );
+ * 
+ * @example
+ * // Admin order - allow overselling
+ * await validateAndWarnStock(
+ *   [{ product_id: 'prod-123', quantity: 100 }],
+ *   true  // Will log warning but proceed
+ * );
  */
 export async function validateAndWarnStock(
     items: Array<{ product_id: string; quantity: number }>,
@@ -126,7 +184,27 @@ export async function validateAndWarnStock(
 }
 
 /**
- * Map order items for database insertion
+ * Transform order items from request format to database format
+ * 
+ * Maps order item data to the structure required for `order_items` table insertion.
+ * Handles default values for missing fields and type conversions.
+ * 
+ * @param orderId - Order ID to associate items with
+ * @param items - Array of order items from request/cart
+ * @returns Array of items formatted for database insertion
+ * 
+ * @example
+ * const dbItems = mapOrderItems('order-uuid', [
+ *   {
+ *     product_id: 'prod-123',
+ *     sku: 'WIDGET-001',
+ *     product_name: 'Premium Widget',
+ *     quantity: 2,
+ *     cost_price: 50,
+ *     line_total: 200
+ *   }
+ * ]);
+ * // Returns: [{ order_id: 'order-uuid', product_id: 'prod-123', sku: 'WIDGET-001', ... }]
  */
 export function mapOrderItems(
     orderId: string,

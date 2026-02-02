@@ -66,8 +66,17 @@ export interface ValidationResult {
 
 class OrderService {
     /**
-     * Generate unique order number
-     * Format: ORD-YY-NNNNNN (e.g., ORD-24-000123)
+     * Generate a unique, sequential order number for the current year
+     * 
+     * Format: `ORD-YY-NNNNNN` where:
+     * - YY = Last 2 digits of current year
+     * - NNNNNN = Zero-padded sequential number (resets yearly)
+     * 
+     * @returns Promise resolving to unique order number (e.g., "ORD-24-000123")
+     * 
+     * @example
+     * const orderNumber = await orderService.generateOrderNumber();
+     * // Returns: "ORD-26-000001" (first order of 2026)
      */
     async generateOrderNumber(): Promise<string> {
         const currentYear = new Date().getFullYear().toString().slice(-2);
@@ -86,7 +95,40 @@ class OrderService {
     }
 
     /**
-     * Calculate comprehensive order pricing
+     * Calculate comprehensive order pricing including items, discounts, shipping, and taxes
+     * 
+     * This is the central pricing calculation method that:
+     * 1. Calculates item subtotals and discounts
+     * 2. Applies order-level discount codes
+     * 3. Applies gift card discounts
+     * 4. Adds shipping costs
+     * 5. Calculates GST (CGST/SGST or IGST)
+     * 6. Returns complete pricing breakdown
+     * 
+     * @param input - Order pricing input containing items, discounts, and location
+     * @param input.items - Array of order items with quantities and prices
+     * @param input.discount_code - Optional discount code to apply
+     * @param input.giftcard_code - Optional gift card code to apply
+     * @param input.shipping_amount - Shipping cost (default: 0)
+     * @param input.shipping_state - Shipping location for tax calculation
+     * @param input.billing_state - Billing location for tax calculation
+     * @param input.is_international - Whether order is international (affects tax)
+     * 
+     * @returns Promise resolving to complete pricing breakdown
+     * @throws {HttpException} If discount code is invalid or expired
+     * @throws {HttpException} If gift card code is invalid
+     * 
+     * @example
+     * const pricing = await orderService.calculateOrderPricing({
+     *   items: [
+     *     { product_id: 'abc', quantity: 2, unit_price: 100, product_name: 'Widget', product_sku: 'W-001', cost_price: 50 }
+     *   ],
+     *   discount_code: 'SAVE10',
+     *   shipping_amount: 50,
+     *   shipping_state: 'MH',
+     *   billing_state: 'MH',
+     * });
+     * // Returns: { subtotal: 200, discount_total: 20, tax_amount: 41.40, total_amount: 271.40, ... }
      */
     async calculateOrderPricing(input: OrderPricingInput): Promise<OrderPricing> {
         // Calculate item-level pricing
@@ -252,7 +294,20 @@ class OrderService {
     }
 
     /**
-     * Apply gift card discount
+     * Apply gift card discount to order total
+     * 
+     * Note: Gift card integration is currently a placeholder.
+     * This method returns 0 until gift card system is implemented.
+     * 
+     * @param orderTotal - Current order total before gift card
+     * @param giftCardCode - Gift card code to apply
+     * @returns Promise resolving to gift card discount amount (currently always 0)
+     * 
+     * @todo Implement gift card validation and balance checking
+     * 
+     * @example
+     * const giftCardDiscount = await orderService.applyGiftCardDiscount(500, 'GC-ABC123');
+     * // Returns: 0 (not yet implemented)
      */
     async applyGiftCardDiscount(orderTotal: number, giftCardCode: string): Promise<number> {
         try {
@@ -299,10 +354,28 @@ class OrderService {
     }
 
     /**
-     * Calculate GST (India-specific tax calculation)
-     * - Intra-state: CGST + SGST (9% + 9% = 18%)
-     * - Inter-state: IGST (18%)
-     * - International: 0% (handled separately)
+     * Calculate GST (Goods and Services Tax) for Indian orders
+     * 
+     * Tax calculation logic:
+     * - **Intra-state** (same state): CGST (9%) + SGST (9%) = 18% total
+     * - **Inter-state** (different states): IGST (18%)
+     * - **International**: 0% GST (customs/import duties handled separately)
+     * 
+     * @param subtotal - Order subtotal before tax
+     * @param shippingState - Destination state code (e.g., "MH", "DL")
+     * @param billingState - Billing state code
+     * @param isInternational - Whether order is international
+     * @returns Tax breakdown object with CGST, SGST, IGST, and total tax amount
+     * 
+     * @example
+     * // Intra-state (Maharashtra to Maharashtra)
+     * const tax = orderService.calculateGST(1000, 'MH', 'MH', false);
+     * // Returns: { cgst: 90, sgst: 90, igst: 0, taxAmount: 180 }
+     * 
+     * @example
+     * // Inter-state (Maharashtra to Delhi)
+     * const tax = orderService.calculateGST(1000, 'DL', 'MH', false);
+     * // Returns: { cgst: 0, sgst: 0, igst: 180, taxAmount: 180 }
      */
     calculateGST(
         subtotal: number,
@@ -329,7 +402,28 @@ class OrderService {
     }
 
     /**
-     * Validate order data before processing
+     * Validate order data before processing to ensure data integrity
+     * 
+     * Validates:
+     * - At least one item present
+     * - All items have valid quantities (> 0)
+     * - All items have valid prices (>= 0)
+     * - Shipping and billing states are present
+     * 
+     * @param orderData - Order data to validate (typically includes items and addresses)
+     * @returns Validation result with isValid flag and array of error messages
+     * 
+     * @example
+     * const result = orderService.validateOrder({ items: [], shipping_state: 'MH' });
+     * // Returns: { isValid: false, errors: ['Order must have at least one item'] }
+     * 
+     * @example
+     * const result = orderService.validateOrder({
+     *   items: [{ quantity: 2, unit_price: 100 }],
+     *   shipping_state: 'MH',
+     *   billing_state: 'MH'
+     * });
+     * // Returns: { isValid: true, errors: [] }
      */
     validateOrder(orderData: any): ValidationResult {
         const errors: string[] = [];
