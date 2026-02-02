@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { eq } from 'drizzle-orm';
@@ -82,15 +82,15 @@ async function createNewProduct(data: z.infer<typeof createProductSchema>, creat
   let newProduct;
   try {
     [newProduct] = await db.insert(products).values(productData).returning();
-  } catch (err: any) {
-    console.error('❌ Error inserting product:', {
-      message: err.message,
-      code: err.code,
-      detail: err.detail,
-      constraint: err.constraint,
+  } catch (err: unknown) {
+    logger.error('❌ Error inserting product:', {
+      error: err instanceof Error ? err.message : 'Unknown error',
+      code: (err as any)?.code,
+      detail: (err as any)?.detail,
+      constraint: (err as any)?.constraint,
       params: productData
     });
-    throw new HttpException(500, `Database error: ${err.message}`);
+    throw new HttpException(500, `Database error: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
   if (!newProduct) {
@@ -190,7 +190,7 @@ async function createNewProduct(data: z.infer<typeof createProductSchema>, creat
         data.category_tier_4 ?? null,
       ]);
     } catch (tierError) {
-      console.error('[create-product] ERROR syncing tier usage:', tierError);
+      logger.error('[create-product] ERROR syncing tier usage:', tierError);
       // Don't fail product creation if tier sync fails
       // Just log the error
     }
@@ -198,7 +198,7 @@ async function createNewProduct(data: z.infer<typeof createProductSchema>, creat
     return newProduct as IProduct;
 
   } catch (error) {
-    console.error('Error during product creation post-processing. Rolling back product...', error);
+    logger.error('Error during product creation post-processing. Rolling back product...', error);
     // Compensating transaction: Delete the product if any subsequent step fails
     await db.delete(products).where(eq(products.id, newProduct.id));
     throw error;

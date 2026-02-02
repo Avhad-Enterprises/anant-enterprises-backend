@@ -10,7 +10,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter, uuidSchema } from '../../../utils';
+import { ResponseFormatter, uuidSchema, logger } from '../../../utils';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -151,15 +151,15 @@ async function updateProduct(
       })
       .where(eq(products.id, id))
       .returning();
-  } catch (error: any) {
-    console.error('❌ [updateProduct] Database update failed:', {
-      error: error.message,
-      code: error.code,
-      detail: error.detail,
-      constraint: error.constraint,
+  } catch (error: unknown) {
+    logger.error('❌ [updateProduct] Database update failed:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      code: (error as any)?.code,
+      detail: (error as any)?.detail,
+      constraint: (error as any)?.constraint,
       updateData: updateData,
     });
-    throw new HttpException(500, `Failed to update product: ${error.message}`);
+    throw new HttpException(500, `Failed to update product: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
   if (!result) {

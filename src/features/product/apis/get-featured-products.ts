@@ -6,7 +6,7 @@
 
 import { Router, Response, Request } from 'express';
 import { eq, and, desc } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/products.schema';
 import { IProductListItem } from '../shared/responses';
@@ -110,8 +110,8 @@ const handler = async (req: Request, res: Response) => {
             formattedProducts,
             'Featured products retrieved successfully'
         );
-    } catch (error) {
-        console.error('[GET /api/products/featured] Error:', error);
+    } catch (error: unknown) {
+        logger.error('[GET /api/products/featured] Error:', error);
         return ResponseFormatter.error(
             res,
             'FETCH_ERROR',

@@ -177,9 +177,9 @@ export async function importSingleProduct(
 
     return { success: true, recordId };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error('Product Import Error', { sku: rawData.sku, error });
-    return { success: false, error: error.message || 'Database error' };
+    return { success: false, error: error instanceof Error ? error.message : 'Database error' };
   }
 }
 

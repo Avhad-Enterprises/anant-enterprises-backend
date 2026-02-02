@@ -8,7 +8,7 @@
 import { Router, Response, Request } from 'express';
 import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
 import { z } from 'zod';
-import { ResponseFormatter, paginationSchema } from '../../../utils';
+import { ResponseFormatter, paginationSchema, logger } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../shared/products.schema';
 import { IProductListItem } from '../shared/responses';
@@ -383,8 +383,8 @@ const handler = async (req: Request, res: Response) => {
       },
       'Products retrieved successfully'
     );
-  } catch (error) {
-    console.error('Failed to retrieve products:', error);
+  } catch (error: unknown) {
+    logger.error('Failed to retrieve products:', error);
     return ResponseFormatter.error(
       res,
       'FETCH_ERROR',

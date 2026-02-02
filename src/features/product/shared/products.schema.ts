@@ -144,7 +144,7 @@ export const products = pgTable(
         // Fuzzy search index on product title (pg_trgm)
         // Enables typo-tolerant search: "water purifer" finds "water purifier"
         // Supports ILIKE, similarity(), and <-> operators
-        // TODO: Fix SyntaxError: "undefined" is not valid JSON during tests with Drizzle/PG-TRGM
+        // NOTE: Fix SyntaxError: \"undefined\" is not valid JSON during tests with Drizzle/PG-TRGM
         // titleTrgmIdx: index('products_title_trgm_idx').using(
         //     'gin',
         //     sql`${table.product_title} gin_trgm_ops`

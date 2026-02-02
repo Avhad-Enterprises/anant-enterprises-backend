@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { HttpException } from '../../../utils';
 import {
@@ -107,8 +107,8 @@ const handler = async (req: any, res: any) => {
       filename: filename.replace(/\.[^/.]+$/, ''), // Remove extension, will be added by helper
       includeTimestamp: false, // We already added timestamp
     });
-  } catch (error: any) {
-    console.error('Product export failed:', error);
+  } catch (error: unknown) {
+    logger.error('Product export failed:', error);
     
     if (error instanceof HttpException) {
       return ResponseFormatter.error(res, 'EXPORT_ERROR', error.message, error.status);
