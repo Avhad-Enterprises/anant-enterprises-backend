@@ -31,7 +31,8 @@ import { users } from '../../user/shared/user.schema';
 // ENUMS
 // ============================================
 
-export const addressTypeEnum = pgEnum('address_type', ['billing', 'shipping', 'both', 'company', 'other']);
+// Address label - user-driven categorization (where the address is)
+export const addressLabelEnum = pgEnum('address_label', ['home', 'office', 'warehouse', 'other']);
 
 // ============================================
 // USER ADDRESSES TABLE
@@ -48,8 +49,12 @@ export const userAddresses = pgTable(
     user_id: uuid('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    address_type: addressTypeEnum('address_type').default('shipping').notNull(),
-    is_default: boolean('is_default').default(false).notNull(),
+    // Address label (user-driven: where is this address?)
+    address_label: addressLabelEnum('address_label').default('home').notNull(),
+    
+    // Address roles (system-driven: what is this address used for?)
+    is_default_shipping: boolean('is_default_shipping').default(false).notNull(),
+    is_default_billing: boolean('is_default_billing').default(false).notNull(),
 
     // Recipient info (can differ from user)
     recipient_name: varchar('recipient_name', { length: 255 }).notNull(),
@@ -83,19 +88,28 @@ export const userAddresses = pgTable(
   table => ({
     // User's addresses lookup
     userIdIdx: index('user_addresses_user_id_idx').on(table.user_id, table.is_deleted),
-    // Default address lookup
-    userDefaultIdx: index('user_addresses_user_default_idx').on(
+    // Default shipping address lookup
+    userDefaultShippingIdx: index('user_addresses_user_default_shipping_idx').on(
       table.user_id,
-      table.address_type,
-      table.is_default,
+      table.is_default_shipping,
+      table.is_deleted
+    ),
+    // Default billing address lookup
+    userDefaultBillingIdx: index('user_addresses_user_default_billing_idx').on(
+      table.user_id,
+      table.is_default_billing,
       table.is_deleted
     ),
     // Country-based queries for shipping zones
     countryIdx: index('user_addresses_country_idx').on(table.country_code),
-    // CRITICAL FIX #2: Unique constraint - only one default address per type per user
-    uniqueDefaultIdx: uniqueIndex('user_addresses_unique_default_idx')
-      .on(table.user_id, table.address_type)
-      .where(sql`${table.is_default} = true AND ${table.is_deleted} = false`),
+    // Unique constraint - only one default shipping address per user
+    uniqueDefaultShippingIdx: uniqueIndex('user_addresses_unique_default_shipping_idx')
+      .on(table.user_id)
+      .where(sql`${table.is_default_shipping} = true AND ${table.is_deleted} = false`),
+    // Unique constraint - only one default billing address per user
+    uniqueDefaultBillingIdx: uniqueIndex('user_addresses_unique_default_billing_idx')
+      .on(table.user_id)
+      .where(sql`${table.is_default_billing} = true AND ${table.is_deleted} = false`),
   })
 );
 

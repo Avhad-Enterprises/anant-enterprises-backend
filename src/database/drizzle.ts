@@ -5,8 +5,8 @@ import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas directly from .schema.ts files to avoid circular deps with drizzle-kit
 import { users, genderEnum } from '../features/user/shared/user.schema';
-import { userAddresses, addressTypeEnum } from '../features/address/shared/addresses.schema';
-import { customerProfiles, customerAccountStatusEnum, customerSegmentEnum } from '../features/customer/shared/customer-profiles.schema';
+import { userAddresses, addressLabelEnum } from '../features/address/shared/addresses.schema';
+import { customerProfiles, customerAccountStatusEnum } from '../features/customer/shared/customer-profiles.schema';
 import { adminProfiles } from '../features/admin/shared/admin-profiles.schema';
 import { uploads } from '../features/upload/shared/upload.schema';
 import { invitations } from '../features/admin-invite/shared/admin-invite.schema';
@@ -194,7 +194,7 @@ export const schema = {
   genderEnum,
   // User feature - addresses
   userAddresses,
-  addressTypeEnum,
+  addressLabelEnum,
   // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
   // User feature - payments
   // userPaymentMethods,
@@ -203,7 +203,6 @@ export const schema = {
   // User feature - customer profiles
   customerProfiles,
   customerAccountStatusEnum,
-  customerSegmentEnum,
   // COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
   // User feature - business profiles (B2B)
   // businessCustomerProfiles,

@@ -30,6 +30,18 @@ class UserRoute implements Route {
     const { default: sendEmailOtpRouter } = await import('./apis/send-email-otp');
     const { default: verifyEmailOtpRouter } = await import('./apis/verify-email-otp');
 
+    // Customer routes - MUST be before dynamic :id routes to avoid 'customers', 'metrics', 'tags' being treated as UUIDs
+    const { default: getAllCustomersRouter } = await import('../customer/apis/get-all-customers');
+    const { default: getCustomerByIdRouter } = await import('../customer/apis/get-customer-by-id');
+    const { default: createCustomerRouter } = await import('../customer/apis/create-customer');
+    const { default: updateCustomerRouter } = await import('../customer/apis/update-customer');
+    const { default: deleteCustomerRouter } = await import('../customer/apis/delete-customer');
+    const { default: bulkDeleteCustomersRouter } = await import('../customer/apis/bulk-delete-customers');
+    const { default: getCustomerMetricsRouter } = await import('../customer/apis/get-customer-metrics');
+    const { default: importCustomersRouter } = await import('../customer/apis/import-customers');
+    const { default: exportCustomersRouter } = await import('../customer/apis/export-customers');
+    const { default: getUserTagsRouter } = await import('../customer/apis/get-user-tags');
+
     // Core user routes
     this.router.use(this.path, getAllUsersRouter);          // GET /users
     this.router.use(this.path, getCurrentUserRouter);       // GET /users/me
@@ -38,10 +50,24 @@ class UserRoute implements Route {
     this.router.use(this.path, sendEmailOtpRouter);         // POST /users/send-otp
     this.router.use(this.path, verifyEmailOtpRouter);       // POST /users/verify-otp
 
+    // Customer routes (static paths BEFORE dynamic :id)
+    this.router.use(this.path, getAllCustomersRouter);      // GET /users/customers
+    this.router.use(this.path, getCustomerMetricsRouter);   // GET /users/metrics
+    this.router.use(this.path, getUserTagsRouter);          // GET /users/tags
+    this.router.use(this.path, createCustomerRouter);       // POST /users/customer
+    this.router.use(this.path, bulkDeleteCustomersRouter);  // POST /users/bulk-delete
+    this.router.use(`${this.path}/customers/import`, importCustomersRouter);   // POST /users/customers/import
+    this.router.use(`${this.path}/customers/export`, exportCustomersRouter);   // POST /users/customers/export
+
     // Sub-resources
     this.router.use(this.path, getUserOrdersRouter);        // GET /users/:userId/orders
 
-    // Dynamic ID routes LAST
+    // Dynamic ID routes (customer-specific) - these use /customer/:id pattern
+    this.router.use(this.path, getCustomerByIdRouter);      // GET /users/customer/:id
+    this.router.use(this.path, updateCustomerRouter);       // PUT /users/customer/:id
+    this.router.use(this.path, deleteCustomerRouter);       // DELETE /users/customer/:id
+
+    // Dynamic ID routes LAST (generic user routes)
     this.router.use(this.path, getUserByIdRouter);          // GET /users/:id
     this.router.use(this.path, updateUserRouter);           // PUT /users/:id
     this.router.use(this.path, deleteUserRouter);           // DELETE /users/:id

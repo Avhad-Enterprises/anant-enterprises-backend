@@ -89,7 +89,12 @@ const customerImportSchema = z.object({
     ]).optional(),
 
     // Profile / Status
-    segment: caseInsensitiveEnum(['new', 'regular', 'vip', 'at_risk']).optional(),
+    segments: z.preprocess((val) => {
+        if (typeof val === 'string') {
+            return val.split(',').map(s => s.trim().toLowerCase()).filter(s => ['new', 'regular', 'vip', 'at_risk'].includes(s));
+        }
+        return val;
+    }, z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional()),
     account_status: caseInsensitiveEnum(['active', 'inactive', 'banned']).default('active'),
     notes: z.string().optional(),
 
@@ -184,7 +189,7 @@ async function processRow(
                 try {
                     await tx.insert(customerProfiles).values({
                         user_id: targetUserId!,
-                        segment: customer.segment || 'new',
+                        segments: customer.segments || ['new'],
                         account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                         notes: customer.notes
                     });
@@ -225,7 +230,7 @@ async function processRow(
                 // We'll Stick to update.
 
                 await tx.update(customerProfiles).set({
-                    segment: customer.segment,
+                    segments: customer.segments,
                     account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                     notes: customer.notes,
                     updated_at: new Date()
@@ -244,8 +249,9 @@ async function processRow(
                     postal_code: customer.postal_code || '000000',
                     country: customer.country || 'India',
                     country_code: 'IN',
-                    is_default: true,
-                    address_type: 'both'
+                    address_label: 'home',
+                    is_default_shipping: true,
+                    is_default_billing: true,
                 });
             }
         });

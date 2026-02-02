@@ -114,7 +114,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             phone: cart.customer_phone,
             addresses: addresses.map(addr => ({
                 id: addr.id,
-                address_type: addr.address_type,
+                address_label: addr.address_label,
                 recipient_name: addr.recipient_name,
                 company_name: addr.company_name,
                 address_line1: addr.address_line1,
@@ -123,7 +123,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 state_province: addr.state_province,
                 postal_code: addr.postal_code,
                 country: addr.country,
-                is_default: addr.is_default,
+                is_default_shipping: addr.is_default_shipping,
+                is_default_billing: addr.is_default_billing,
             })),
         },
         pricing: {
