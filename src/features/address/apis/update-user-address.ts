@@ -13,20 +13,7 @@ import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../
 import { ResponseFormatter, HttpException, uuidSchema, shortTextSchema } from '../../../utils';
 import { db } from '../../../database';
 import { userAddresses } from '../shared/addresses.schema';
-
-type AddressUpdateData = Partial<{
-  updated_at: Date;
-  address_type: 'billing' | 'shipping' | 'both' | 'company';
-  recipient_name: string;
-  phone_country_code: string;
-  phone_number: string;
-  address_line1: string;
-  address_line2: string;
-  city: string;
-  state_province: string;
-  postal_code: string;
-  is_default: boolean;
-}>;
+import { IAddressUpdateInput } from '../shared/interface';
 
 const paramsSchema = z.object({
   userId: uuidSchema,
@@ -104,7 +91,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   // Build update data
-  const updateData: AddressUpdateData & { country?: string; country_code?: string } = {
+  const updateData: IAddressUpdateInput & { country?: string; country_code?: string; updated_at: Date } = {
     updated_at: new Date(),
   };
 
