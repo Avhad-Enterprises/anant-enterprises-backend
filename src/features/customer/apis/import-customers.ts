@@ -216,7 +216,7 @@ async function processCustomerRecord(
                         .where(eq(customerProfiles.user_id, targetUserId));
                 } else {
                     await tx.insert(customerProfiles).values({
-                        user_id: targetUserId,
+                        user_id: targetUserId!,
                         segments: customer.segments || ['new'],
                         account_status: customer.account_status as 'active' | 'inactive' | 'banned',
                         notes: customer.notes
@@ -225,8 +225,7 @@ async function processCustomerRecord(
             }
 
             // Handle address if provided
-            if (customer.address_line1) {
-                // Check if address already exists
+            if (customer.address_line1 && customer.city && targetUserId) {
                 const [existingAddress] = await tx
                     .select({ id: userAddresses.id })
                     .from(userAddresses)
@@ -234,11 +233,11 @@ async function processCustomerRecord(
                     .limit(1);
 
                 const addressData = {
-                    user_id: targetUserId,
+                    user_id: targetUserId!,
                     recipient_name: customer.address_name || `${customer.first_name} ${customer.last_name}`,
-                    address_line1: customer.address_line1!,
-                    address_line2: customer.address_line2 || '',
-                    city: customer.city || '',
+                    address_line1: customer.address_line1,
+                    address_line2: customer.address_line2,
+                    city: customer.city,
                     state_province: customer.state_province || '',
                     postal_code: customer.postal_code || '000000',
                     country: customer.country || 'India',
