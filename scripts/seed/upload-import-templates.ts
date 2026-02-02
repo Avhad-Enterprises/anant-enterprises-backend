@@ -10,6 +10,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
+import { logger } from '../../src/utils';
+
 // Load environment variables based on NODE_ENV
 const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
 dotenv.config({ path: envFile });
@@ -20,7 +22,7 @@ const BUCKET_NAME = 'uploads';
 const TEMPLATE_FOLDER = 'import-templates';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error('❌ Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+  logger.error('❌ Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
 }
 
@@ -38,11 +40,11 @@ async function uploadFile(
     // Read file from local filesystem
     const fileBuffer = fs.readFileSync(localFilePath);
     const filename = path.basename(localFilePath);
-    
-    console.log(`📤 Uploading ${filename} to ${storageFilePath}...`);
+
+    logger.info(`📤 Uploading ${filename} to ${storageFilePath}...`);
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(storageFilePath, fileBuffer, {
         contentType: 'text/csv',
@@ -63,10 +65,10 @@ async function uploadFile(
       throw new Error('Failed to generate public URL');
     }
 
-    console.log(`✅ Successfully uploaded: ${urlData.publicUrl}`);
+    logger.info(`✅ Successfully uploaded: ${urlData.publicUrl}`);
     return urlData.publicUrl;
   } catch (error) {
-    console.error(`❌ Error uploading ${localFilePath}:`, error);
+    logger.error(`❌ Error uploading ${localFilePath}:`, error);
     throw error;
   }
 }
@@ -75,7 +77,7 @@ async function uploadFile(
  * Main upload function
  */
 async function main() {
-  console.log('🚀 Starting import template upload process...\n');
+  logger.info('🚀 Starting import template upload process...\n');
 
   // Define templates to upload
   const templates = [
@@ -113,45 +115,45 @@ async function main() {
     try {
       // Check if local file exists
       if (!fs.existsSync(template.localPath)) {
-        console.warn(`⚠️  File not found: ${template.localPath}, skipping...`);
+        logger.warn(`⚠️  File not found: ${template.localPath}, skipping...`);
         continue;
       }
 
       const url = await uploadFile(template.localPath, template.storagePath);
       results.push({ name: template.name, url });
     } catch (error) {
-      console.error(`Failed to upload ${template.name}:`, error);
+      logger.error(`Failed to upload ${template.name}:`, error);
     }
   }
 
   // Print summary
-  console.log('\n📊 Upload Summary:');
-  console.log('='.repeat(80));
-  
+  logger.info('\n📊 Upload Summary:');
+  logger.info('='.repeat(80));
+
   if (results.length === 0) {
-    console.log('❌ No templates were uploaded successfully');
+    logger.error('❌ No templates were uploaded successfully');
   } else {
     results.forEach(({ name, url }) => {
-      console.log(`✅ ${name}`);
-      console.log(`   URL: ${url}\n`);
+      logger.info(`✅ ${name}`);
+      logger.info(`   URL: ${url}\n`);
     });
-    
-    console.log('\n📝 Next Steps:');
-    console.log('1. Update the import-export.config.ts files with the new URLs');
-    console.log('2. Remove local template files from public/templates if desired');
-    console.log('3. Test the import functionality with the new template URLs');
+
+    logger.info('\n📝 Next Steps:');
+    logger.info('1. Update the import-export.config.ts files with the new URLs');
+    logger.info('2. Remove local template files from public/templates if desired');
+    logger.info('3. Test the import functionality with the new template URLs');
   }
 
-  console.log('='.repeat(80));
+  logger.info('='.repeat(80));
 }
 
 // Run the script
 main()
   .then(() => {
-    console.log('\n✅ Upload process completed successfully');
+    logger.info('\n✅ Upload process completed successfully');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('\n❌ Upload process failed:', error);
+    logger.error('\n❌ Upload process failed:', error);
     process.exit(1);
   });

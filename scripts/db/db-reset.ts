@@ -1,10 +1,10 @@
 // Load env FIRST, before any other imports
-import { loadEnv } from '../src/utils/loadEnv';
+import { loadEnv } from '../../src/utils/loadEnv';
 const nodeEnv = loadEnv();
 
 import { Pool } from 'pg';
-import { logger } from '../src/utils';
-import { getDatabaseUrl, getMaskedDatabaseUrl } from '../src/utils';
+import { logger } from '../../src/utils';
+import { getDatabaseUrl, getMaskedDatabaseUrl } from '../../src/utils';
 
 /**
  * Complete database reset script

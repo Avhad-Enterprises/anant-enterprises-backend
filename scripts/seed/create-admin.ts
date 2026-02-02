@@ -28,8 +28,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import { eq, and } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { createClient } from '@supabase/supabase-js';
-import { supabase } from '../src/utils/supabase';
+import { supabase } from '../../src/utils/supabase';
 const nodeEnv = process.env.NODE_ENV || 'development';
 if (nodeEnv === 'development') {
   dotenv.config({ path: '.env.dev' });
@@ -57,9 +56,9 @@ function getDatabaseUrl(): string {
 
 // Import schemas after env is configured
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { db } from '../src/database';
-import { users } from '../src/features/user/shared/user.schema';
-import { roles, userRoles } from '../src/features/rbac';
+import { users } from '../../src/features/user/shared/user.schema';
+import { roles, userRoles } from '../../src/features/rbac';
+import { logger } from '../../src/utils';
 
 const ADMIN_EMAIL = 'admin@gmail.com';
 const ADMIN_PASSWORD = '12345678';
@@ -68,9 +67,9 @@ const ADMIN_NAME = 'Admin User';
 async function createAdminUser() {
   const dbUrl = getDatabaseUrl();
 
-  console.log('🚀 Starting admin user creation script...');
-  console.log(`📍 Environment: ${nodeEnv}`);
-  console.log(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
+  logger.info('🚀 Starting admin user creation script...');
+  logger.info(`📍 Environment: ${nodeEnv}`);
+  logger.info(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
 
   // No need to create Supabase client here as we're using the shared one
   /*
@@ -100,10 +99,10 @@ async function createAdminUser() {
 
   try {
     // Test connection
-    console.log('🔄 Connecting to database...');
+    logger.info('🔄 Connecting to database...');
     const client = await pool.connect();
     client.release();
-    console.log('✅ Database connected');
+    logger.info('✅ Database connected');
 
     // Check if admin user already exists in custom users table
     const [existingUser] = await db
@@ -112,13 +111,10 @@ async function createAdminUser() {
       .where(and(eq(users.email, ADMIN_EMAIL), eq(users.is_deleted, false)))
       .limit(1);
 
-    let userId: string;
-
     if (existingUser) {
-      console.log(`ℹ️  Admin user with email ${ADMIN_EMAIL} already exists in users table`);
-      console.log(`   ID: ${existingUser.id}`);
-      console.log(`   Name: ${existingUser.name}`);
-      userId = existingUser.id;
+      logger.info(`ℹ️  Admin user with email ${ADMIN_EMAIL} already exists in users table`);
+      logger.info(`   ID: ${existingUser.id}`);
+      logger.info(`   Name: ${existingUser.name}`);
 
       // Check their roles via RBAC
       const userRole = await db
@@ -129,11 +125,11 @@ async function createAdminUser() {
         .limit(1);
 
       if (userRole.length > 0) {
-        console.log(`   Role: ${userRole[0].roleName}`);
-        console.log('✅ Admin user is already properly configured!');
+        logger.info(`   Role: ${userRole[0].roleName}`);
+        logger.info('✅ Admin user is already properly configured!');
         return;
       } else {
-        console.log('⚠️  No role assigned to this user. Assigning admin role...');
+        logger.warn('⚠️  No role assigned to this user. Assigning admin role...');
 
         // Get admin role ID
         const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
@@ -155,14 +151,14 @@ async function createAdminUser() {
           })
           .onConflictDoNothing();
 
-        console.log('✅ Admin role assigned successfully!');
-        console.log(`   Role: admin`);
+        logger.info('✅ Admin role assigned successfully!');
+        logger.info(`   Role: admin`);
         return;
       }
     }
 
     // Create user in Supabase Auth
-    console.log('📝 Creating admin user in Supabase Auth...');
+    logger.info('📝 Creating admin user in Supabase Auth...');
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
@@ -182,28 +178,27 @@ async function createAdminUser() {
       throw new Error('No user returned from Supabase Auth');
     }
 
-    console.log('✅ Admin user created in Supabase Auth');
-    console.log(`   Auth ID: ${authData.user.id}`);
-
-    userId = authData.user.id;
+    logger.info('✅ Admin user created in Supabase Auth');
+    logger.info(`   Auth ID: ${authData.user.id}`);
 
     // Create user in custom users table
-    console.log('📝 Syncing admin user to users table...');
+    logger.info('📝 Syncing admin user to users table...');
     const [newUser] = await db
       .insert(users)
       .values({
         id: authData.user.id, // Use Supabase auth ID
         auth_id: authData.user.id,
         email: ADMIN_EMAIL,
-        name: ADMIN_NAME,
+        name: 'Admin',
+        last_name: 'User',
         email_verified: true,
         email_verified_at: new Date(),
         created_by: authData.user.id, // Self-created
       })
       .returning();
 
-    console.log('✅ Admin user synced to users table');
-    console.log(`   ID: ${newUser.id}`);
+    logger.info('✅ Admin user synced to users table');
+    logger.info(`   ID: ${newUser.id}`);
 
     // Get admin role ID from RBAC
     const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'admin')).limit(1);
@@ -218,7 +213,7 @@ async function createAdminUser() {
     }
 
     // Assign admin role via RBAC
-    console.log('📝 Assigning admin role...');
+    logger.info('📝 Assigning admin role...');
     await db
       .insert(userRoles)
       .values({
@@ -228,30 +223,30 @@ async function createAdminUser() {
       })
       .onConflictDoNothing();
 
-    console.log('✅ Admin user created successfully!');
-    console.log(`   ID: ${newUser.id}`);
-    console.log(`   Name: ${newUser.name}`);
-    console.log(`   Email: ${newUser.email}`);
-    console.log(`   Role: admin (assigned via RBAC)`);
-    console.log(`\n📧 You can now login with:`);
-    console.log(`   Email: ${ADMIN_EMAIL}`);
-    console.log(`   Password: ${ADMIN_PASSWORD}`);
+    logger.info('✅ Admin user created successfully!');
+    logger.info(`   ID: ${newUser.id}`);
+    logger.info(`   Name: ${newUser.name}`);
+    logger.info(`   Email: ${newUser.email}`);
+    logger.info(`   Role: admin (assigned via RBAC)`);
+    logger.info(`\n📧 You can now login with:`);
+    logger.info(`   Email: ${ADMIN_EMAIL}`);
+    logger.info(`   Password: ${ADMIN_PASSWORD}`);
   } catch (error) {
-    console.error('❌ Error creating admin user:', error);
+    logger.error('❌ Error creating admin user:', error);
     throw error;
   } finally {
     await pool.end();
-    console.log('🔌 Database connection closed');
+    logger.info('🔌 Database connection closed');
   }
 }
 
 // Run the script
 createAdminUser()
   .then(() => {
-    console.log('✅ Script completed successfully');
+    logger.info('✅ Script completed successfully');
     process.exit(0);
   })
   .catch(error => {
-    console.error('❌ Script failed:', error.message);
+    logger.error('❌ Script failed:', error.message);
     process.exit(1);
   });

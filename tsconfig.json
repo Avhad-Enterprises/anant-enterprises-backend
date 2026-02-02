@@ -2,7 +2,9 @@
   "compilerOptions": {
     /* Language and Environment */
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     /* Modules */
@@ -38,15 +40,30 @@
     /* Path Mapping */
     "baseUrl": ".",
     "paths": {
-      "@tests/*": ["./tests/*"],
-      "@/*": ["./src/*"]
+      "@tests/*": [
+        "./tests/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     },
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
   },
   "ts-node": {
     "transpileOnly": true,
     "files": true
   },
-  "include": ["./src/**/*", "!./tests/**/*"],
-  "exclude": ["node_modules", "build", "coverage", "database-reference", "tests/**/*"]
+  "include": [
+    "./src/**/*",
+    "!./tests/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "coverage",
+    "database-reference",
+    "tests/**/*"
+  ]
 }

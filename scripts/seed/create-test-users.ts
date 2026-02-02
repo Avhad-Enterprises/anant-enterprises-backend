@@ -54,8 +54,9 @@ function getDatabaseUrl(): string {
 }
 
 // Import schemas after env is configured
-import { users } from '../src/features/user';
-import { roles, userRoles } from '../src/features/rbac';
+import { users } from '../../src/features/user';
+import { roles, userRoles } from '../../src/features/rbac';
+import { logger } from '../../src/utils';
 
 const TEST_USERS = [
   {
@@ -81,9 +82,10 @@ const TEST_USERS = [
 async function createTestUsers() {
   const dbUrl = getDatabaseUrl();
 
-  console.log('🚀 Starting test users creation script...');
-  console.log(`📍 Environment: ${nodeEnv}`);
-  console.log(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
+
+  logger.info('🚀 Starting test users creation script...');
+  logger.info(`📍 Environment: ${nodeEnv}`);
+  logger.info(`📍 Database: ${dbUrl.replace(/:[^:@]+@/, ':****@')}`);
 
   // Create database connection
   const pool = new Pool({ connectionString: dbUrl, max: 1 });
@@ -91,10 +93,10 @@ async function createTestUsers() {
 
   try {
     // Test connection
-    console.log('🔄 Connecting to database...');
+    logger.info('🔄 Connecting to database...');
     const client = await pool.connect();
     client.release();
-    console.log('✅ Database connected');
+    logger.info('✅ Database connected');
 
     // Get admin user ID for created_by reference via RBAC
     const [adminUserRole] = await db
@@ -107,18 +109,18 @@ async function createTestUsers() {
     if (!adminUserRole) {
       throw new Error(
         'Admin user not found.\n' +
-          'Please run: npm run create-admin\n' +
-          'This will create an admin user that can be used as the creator reference.'
+        'Please run: npm run create-admin\n' +
+        'This will create an admin user that can be used as the creator reference.'
       );
     }
 
     const adminUser = { id: adminUserRole.user_id };
 
-    console.log(`👤 Using admin user ID ${adminUser.id} as creator reference`);
+    logger.info(`👤 Using admin user ID ${adminUser.id} as creator reference`);
 
     // Process each test user
     for (const userData of TEST_USERS) {
-      console.log(`\n📝 Processing ${userData.role} user...`);
+      logger.info(`\n📝 Processing ${userData.role} user...`);
 
       // Check if user already exists
       const [existingUser] = await db
@@ -128,18 +130,18 @@ async function createTestUsers() {
         .limit(1);
 
       if (existingUser) {
-        console.log(`ℹ️  ${userData.role} user with email ${userData.email} already exists`);
-        console.log(`   ID: ${existingUser.id}`);
-        console.log(`   Name: ${existingUser.name}`);
+        logger.info(`ℹ️  ${userData.role} user with email ${userData.email} already exists`);
+        logger.info(`   ID: ${existingUser.id}`);
+        logger.info(`   Name: ${existingUser.name}`);
         continue;
       }
 
       // Hash the password
-      console.log(`🔐 Hashing password for ${userData.role}...`);
+      logger.info(`🔐 Hashing password for ${userData.role}...`);
       const hashedPassword = await bcrypt.hash(userData.password, 10);
 
       // Create test user (no role column)
-      console.log(`📝 Creating ${userData.role} user...`);
+      logger.info(`📝 Creating ${userData.role} user...`);
 
       const result = await pool.query(
         `
@@ -162,9 +164,9 @@ async function createTestUsers() {
       if (!roleRecord) {
         throw new Error(
           `Role '${userData.role}' not found in RBAC system.\n` +
-            'Please run the following commands first:\n' +
-            '  1. npm run db:migrate (to create tables)\n' +
-            '  2. npm run db:seed (to seed RBAC roles and permissions)'
+          'Please run the following commands first:\n' +
+          '  1. npm run db:migrate (to create tables)\n' +
+          '  2. npm run db:seed (to seed RBAC roles and permissions)'
         );
       }
 
@@ -178,32 +180,32 @@ async function createTestUsers() {
         })
         .onConflictDoNothing();
 
-      console.log(`✅ ${userData.role} user created successfully!`);
-      console.log(`   ID: ${newUser.id}`);
-      console.log(`   Name: ${newUser.name}`);
-      console.log(`   Email: ${newUser.email}`);
-      console.log(`   Role: ${userData.role} (assigned via RBAC)`);
-      console.log(`   Created at: ${newUser.created_at}`);
-      console.log(`   Login credentials: ${userData.email} / ${userData.password}`);
+      logger.info(`✅ ${userData.role} user created successfully!`);
+      logger.info(`   ID: ${newUser.id}`);
+      logger.info(`   Name: ${newUser.name}`);
+      logger.info(`   Email: ${newUser.email}`);
+      logger.info(`   Role: ${userData.role} (assigned via RBAC)`);
+      logger.info(`   Created at: ${newUser.created_at}`);
+      logger.info(`   Login credentials: ${userData.email} / ${userData.password}`);
     }
 
-    console.log('\n🎉 All test users processed successfully!');
+    logger.info('\n🎉 All test users processed successfully!');
   } catch (error) {
-    console.error('❌ Error creating test users:', error);
+    logger.error('❌ Error creating test users:', error);
     throw error;
   } finally {
     await pool.end();
-    console.log('🔌 Database connection closed');
+    logger.info('🔌 Database connection closed');
   }
 }
 
 // Run the script
 createTestUsers()
   .then(() => {
-    console.log('✅ Script completed successfully');
+    logger.info('✅ Script completed successfully');
     process.exit(0);
   })
   .catch(error => {
-    console.error('❌ Script failed:', error.message);
+    logger.error('❌ Script failed:', error.message);
     process.exit(1);
   });
