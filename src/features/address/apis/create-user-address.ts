@@ -3,11 +3,15 @@
  * Create new address
  * - Users can create their own addresses
  * - Users with users:write permission can create addresses for any user
+ * 
+ * Uses Label vs Role pattern:
+ * - Label (type): Where is the address? (Home, Office, Warehouse, Other)
+ * - Roles (isDefaultShipping, isDefaultBilling): What is it used for?
  */
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, uuidSchema, shortTextSchema } from '../../../utils';
@@ -19,7 +23,7 @@ const paramsSchema = z.object({
 });
 
 const bodySchema = z.object({
-  type: z.enum(['Home', 'Office', 'Other']),
+  type: z.enum(['Home', 'Office', 'Warehouse', 'Other']),
   name: shortTextSchema,
   phone: shortTextSchema,
   addressLine1: shortTextSchema,
@@ -28,63 +32,51 @@ const bodySchema = z.object({
   state: shortTextSchema,
   pincode: shortTextSchema,
   country: shortTextSchema.optional(),
-  isDefault: z.boolean().optional(),
-  isDefaultBilling: z.boolean().optional(),
   isDefaultShipping: z.boolean().optional(),
+  isDefaultBilling: z.boolean().optional(),
+  deliveryInstructions: z.string().optional(),
 });
 
-// Map frontend type to backend address_type enum
-const mapToBackendType = (
-  type: 'Home' | 'Office' | 'Other'
-): 'billing' | 'shipping' | 'both' | 'company' | 'other' => {
-  switch (type) {
-    case 'Home':
-      return 'shipping';
-    case 'Office':
-      return 'company';
-    case 'Other':
-      return 'other';
-  }
+// Map frontend type to backend address_label enum
+const mapToBackendLabel = (
+  type: 'Home' | 'Office' | 'Warehouse' | 'Other'
+): 'home' | 'office' | 'warehouse' | 'other' => {
+  return type.toLowerCase() as 'home' | 'office' | 'warehouse' | 'other';
 };
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId as string;
-  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefault, isDefaultBilling, isDefaultShipping } =
+  const { type, name, phone, addressLine1, addressLine2, city, state, pincode, country, isDefaultShipping, isDefaultBilling, deliveryInstructions } =
     req.body;
 
-  let backendType = mapToBackendType(type);
-  let finalIsDefault = isDefault || isDefaultBilling || isDefaultShipping || false;
+  const addressLabel = mapToBackendLabel(type);
+  const setAsDefaultShipping = isDefaultShipping || false;
+  const setAsDefaultBilling = isDefaultBilling || false;
 
-  // Override type if setting specific defaults
-  if (isDefaultBilling && isDefaultShipping) {
-    backendType = 'both';
-  } else if (isDefaultBilling) {
-    backendType = 'billing';
-  } else if (isDefaultShipping) {
-    backendType = 'shipping';
-  }
-
-  // If setting as default, unset other defaults for this type
-  if (finalIsDefault) {
-    // If setting as 'both', clear defaults for billing, shipping, and both
-    // If setting as 'billing', clear defaults for billing and both
-    // If setting as 'shipping', clear defaults for shipping and both
-
-    const typesToClear: string[] = ['both'];
-    if (backendType === 'both') {
-      typesToClear.push('billing', 'shipping');
-    } else {
-      typesToClear.push(backendType);
-    }
-
+  // If setting as default shipping, unset other default shipping addresses
+  if (setAsDefaultShipping) {
     await db
       .update(userAddresses)
-      .set({ is_default: false })
+      .set({ is_default_shipping: false })
       .where(
         and(
           eq(userAddresses.user_id, userId),
           eq(userAddresses.is_deleted, false),
-          inArray(userAddresses.address_type, typesToClear as any[])
+          eq(userAddresses.is_default_shipping, true)
+        )
+      );
+  }
+
+  // If setting as default billing, unset other default billing addresses
+  if (setAsDefaultBilling) {
+    await db
+      .update(userAddresses)
+      .set({ is_default_billing: false })
+      .where(
+        and(
+          eq(userAddresses.user_id, userId),
+          eq(userAddresses.is_deleted, false),
+          eq(userAddresses.is_default_billing, true)
         )
       );
   }
@@ -99,7 +91,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
     .insert(userAddresses)
     .values({
       user_id: userId,
-      address_type: backendType,
+      address_label: addressLabel,
+      is_default_shipping: setAsDefaultShipping,
+      is_default_billing: setAsDefaultBilling,
       recipient_name: name,
       phone_number: phoneNumber,
       phone_country_code: phoneCountryCode,
@@ -109,8 +103,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
       state_province: state,
       postal_code: pincode,
       country: country || 'India',
-      country_code: country === 'India' ? 'IN' : 'XX', // Simple fallback
-      is_default: finalIsDefault,
+      country_code: country === 'India' ? 'IN' : 'XX',
+      delivery_instructions: deliveryInstructions,
     })
     .returning();
 
@@ -127,9 +121,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
       state: newAddress.state_province,
       pincode: newAddress.postal_code,
       country: newAddress.country,
-      isDefault: newAddress.is_default,
-      isDefaultBilling: newAddress.address_type === 'billing' || newAddress.address_type === 'both',
-      isDefaultShipping: newAddress.address_type === 'shipping' || newAddress.address_type === 'both',
+      isDefaultShipping: newAddress.is_default_shipping,
+      isDefaultBilling: newAddress.is_default_billing,
+      deliveryInstructions: newAddress.delivery_instructions,
     },
     'Address created successfully'
   );

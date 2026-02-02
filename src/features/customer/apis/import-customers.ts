@@ -77,7 +77,12 @@ const customerImportSchema = z.object({
     tags: arrayParser().optional(),
 
     // Profile / Status
-    segment: caseInsensitiveEnum(['new', 'regular', 'vip', 'at_risk']).optional(),
+    segments: z.preprocess((val) => {
+        if (typeof val === 'string') {
+            return val.split(',').map(s => s.trim().toLowerCase()).filter(s => ['new', 'regular', 'vip', 'at_risk'].includes(s));
+        }
+        return val;
+    }, z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional()),
     account_status: caseInsensitiveEnum(['active', 'inactive', 'banned']).default('active'),
     notes: z.string().optional(),
 
@@ -208,33 +213,55 @@ async function processCustomerRecord(
                 }
             }
 
-            // Handle address if provided
-            if (customer.address_line1) {
-                const [existingAddress] = await tx
-                    .select({ id: userAddresses.id })
-                    .from(userAddresses)
-                    .where(eq(userAddresses.user_id, targetUserId))
-                    .limit(1);
+                // Update User (and restore if deleted)
+                await tx.update(users).set({
+                    first_name: customer.first_name,
+                    last_name: customer.last_name,
+                    display_name: customer.display_name,
+                    phone_number: customer.phone_number,
+                    secondary_email: customer.secondary_email,
+                    secondary_phone_number: customer.secondary_phone_number,
+                    date_of_birth: customer.date_of_birth,
+                    gender: customer.gender,
+                    tags: customer.tags as string[],
+                    updated_by: userId,
+                    updated_at: new Date(),
+                    // RESTORE IF DELETED
+                    is_deleted: false,
+                    deleted_at: null,
+                    deleted_by: null
+                }).where(eq(users.id, targetUserId));
+
+                // Update Profile
+                // Check if profile exists first? Or upsert?
+                // For simplicity, we try update first. If row missing (unlikely for valid user), we might need insert.
+                // But generally user exists implies profile exists. 
+                // If profiles were hard deleted but user soft deleted, this might fail or do nothing.
+                // Drizzle's `onConflictDoUpdate` is better for upsert but standard update is safer for simple logic.
+                // We'll Stick to update.
+
+                await tx.update(customerProfiles).set({
+                    segments: customer.segments,
+                    account_status: customer.account_status as 'active' | 'inactive' | 'banned',
+                    notes: customer.notes,
+                    updated_at: new Date()
+                }).where(eq(customerProfiles.user_id, targetUserId));
+            }
 
                 const addressData = {
                     user_id: targetUserId,
                     recipient_name: customer.address_name || `${customer.first_name} ${customer.last_name}`,
                     address_line1: customer.address_line1,
                     address_line2: customer.address_line2,
-                    city: customer.city || 'Unknown',
-                    state_province: customer.state_province || 'Unknown',
-                    postal_code: customer.postal_code || '00000',
-                    country: customer.country || 'Unknown',
-                    country_code: customer.country === 'India' ? 'IN' : 'US', // Default mapping
-                };
-
-                if (existingAddress) {
-                    await tx.update(userAddresses)
-                        .set(addressData)
-                        .where(eq(userAddresses.id, existingAddress.id));
-                } else {
-                    await tx.insert(userAddresses).values(addressData);
-                }
+                    city: customer.city,
+                    state_province: customer.state_province || '',
+                    postal_code: customer.postal_code || '000000',
+                    country: customer.country || 'India',
+                    country_code: 'IN',
+                    address_label: 'home',
+                    is_default_shipping: true,
+                    is_default_billing: true,
+                });
             }
 
             return targetUserId;

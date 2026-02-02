@@ -58,8 +58,9 @@ export const customerProfiles = pgTable(
       .unique()
       .notNull(),
 
-    // Customer segmentation
-    segment: customerSegmentEnum('segment').default('new').notNull(),
+    // Customer segmentation - supports multiple segments per customer
+    // Valid values: 'new', 'regular', 'vip', 'at_risk'
+    segments: text('segments').array().default(sql`ARRAY['new']::text[]`).notNull(),
 
     // Store credit & referrals
     store_credit_balance: decimal('store_credit_balance', { precision: 12, scale: 2 })
@@ -110,7 +111,7 @@ export const customerProfiles = pgTable(
     // User lookup (unique constraint already provides index)
     referralCodeIdx: index('customer_profiles_referral_code_idx').on(table.referral_code),
     statusIdx: index('customer_profiles_status_idx').on(table.account_status),
-    segmentIdx: index('customer_profiles_segment_idx').on(table.segment),
+    // segmentsIdx: index('customer_profiles_segments_idx').on(table.segments),
     riskIdx: index('customer_profiles_risk_idx').on(table.risk_profile),
   })
 );

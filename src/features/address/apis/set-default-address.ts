@@ -1,8 +1,11 @@
 /**
  * PATCH /api/users/:userId/addresses/:id/default
- * Set address as default
+ * Set address as default (for shipping and/or billing)
  * - Users can set their own addresses as default
  * - Users with users:write permission can set any user's addresses as default
+ * 
+ * Query params:
+ * - type: 'shipping' | 'billing' | 'both' (default: 'both')
  */
 
 import { Router, Response } from 'express';
@@ -19,9 +22,14 @@ const paramsSchema = z.object({
   id: uuidSchema,
 });
 
+const querySchema = z.object({
+  type: z.enum(['shipping', 'billing', 'both']).default('both'),
+});
+
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.params.userId as string;
   const addressId = req.params.id as string;
+  const { type } = querySchema.parse(req.query);
 
   // Check if address exists and belongs to user
   const [existingAddress] = await db
@@ -39,29 +47,56 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(404, 'Address not found');
   }
 
-  // Unset ALL other defaults for this user (only one default allowed)
-  await db
-    .update(userAddresses)
-    .set({ is_default: false })
-    .where(
-      and(
-        eq(userAddresses.user_id, userId),
-        eq(userAddresses.is_deleted, false)
-      )
-    );
+  const setShipping = type === 'shipping' || type === 'both';
+  const setBilling = type === 'billing' || type === 'both';
+
+  // Unset other default shipping addresses if needed
+  if (setShipping) {
+    await db
+      .update(userAddresses)
+      .set({ is_default_shipping: false })
+      .where(
+        and(
+          eq(userAddresses.user_id, userId),
+          eq(userAddresses.is_deleted, false),
+          eq(userAddresses.is_default_shipping, true)
+        )
+      );
+  }
+
+  // Unset other default billing addresses if needed
+  if (setBilling) {
+    await db
+      .update(userAddresses)
+      .set({ is_default_billing: false })
+      .where(
+        and(
+          eq(userAddresses.user_id, userId),
+          eq(userAddresses.is_deleted, false),
+          eq(userAddresses.is_default_billing, true)
+        )
+      );
+  }
 
   // Set this address as default
+  const updateData: Record<string, unknown> = {
+    updated_at: new Date(),
+  };
+  if (setShipping) updateData.is_default_shipping = true;
+  if (setBilling) updateData.is_default_billing = true;
+
   await db
     .update(userAddresses)
-    .set({
-      is_default: true,
-      updated_at: new Date(),
-    })
+    .set(updateData)
     .where(eq(userAddresses.id, addressId));
 
   ResponseFormatter.success(
     res,
-    { id: addressId, isDefault: true },
+    { 
+      id: addressId, 
+      isDefaultShipping: setShipping, 
+      isDefaultBilling: setBilling 
+    },
     'Address set as default successfully'
   );
 };

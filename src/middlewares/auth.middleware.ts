@@ -150,14 +150,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     next();
   } catch (error) {
-    logger.error('Auth middleware error:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      ip: req.ip || req.connection?.remoteAddress || 'Unknown',
-      userAgent: req.headers['user-agent'] || 'Unknown',
-      url: req.originalUrl,
-      method: req.method,
-    });
+    logger.error('Auth middleware error:', error);
 
     // If it's already an HttpException, pass it through
     if (error instanceof HttpException) {

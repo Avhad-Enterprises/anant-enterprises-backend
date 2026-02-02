@@ -1,7 +1,7 @@
 import App from './app';
 import { logger } from './utils';
 import UserRoute from './features/user';
-import CustomerRoute from './features/customer';
+// CustomerRoute is now handled via UserRoute to avoid path conflicts
 import AddressRoute from './features/address';
 import AdminRoute from './features/admin';
 import AuthRoute from './features/auth';
@@ -68,7 +68,7 @@ async function bootstrap() {
     const app = new App([
       new AuthRoute(),
       new UserRoute(),
-      new CustomerRoute(),
+      // CustomerRoute routes are now handled via UserRoute to avoid path conflicts with /users/:id
       new AddressRoute(),
       new AdminRoute(),
       new ProductRoute(),
