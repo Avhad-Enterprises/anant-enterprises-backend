@@ -21,7 +21,7 @@ import { wishlistItems } from '../../wishlist/shared/wishlist-items.schema';
 import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
-import { reserveStockForOrder, validateStockAvailability, extendCartReservation, logOrderPlacement } from '../../inventory/services/inventory.service';
+import { reserveStockForOrder, validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
 
 import { eventPublisher } from '../../queue/services/event-publisher.service';
 import { getAllAdminUserIds } from '../../rbac/shared/queries';
@@ -197,9 +197,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
             return newOrder;
         });
-
-        // Log order placement for inventory tracking
-        await logOrderPlacement(order.id, order.order_number, creatorId);
 
         // Send response first, then queue notifications
         const response = ResponseFormatter.success(res, {
@@ -506,9 +503,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
         return newOrder;
     });
 
-    // Log order placement for inventory tracking
-    await logOrderPlacement(order.id, order.order_number, userId);
-
     // Update wishlist items with purchased_at timestamp
     const [wishlist] = await db
         .select({ id: wishlists.id })
@@ -634,3 +628,4 @@ const router = Router();
 router.post('/', requireAuth, handler);
 
 export default router;
+

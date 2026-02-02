@@ -259,3 +259,16 @@ export interface ICustomerStatistics {
   average_review_rating?: string;
   updated_at: Date;
 }
+
+// ============================================
+// GLOBAL TYPE EXTENSIONS
+// ============================================
+
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      user?: IUser;
+    }
+  }
+}

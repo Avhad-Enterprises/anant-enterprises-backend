@@ -15,8 +15,9 @@ import { users } from '../../user/shared/user.schema';
 import { userAddresses } from '../../user/shared/addresses.schema';
 import { HttpException, logger } from '../../../utils';
 import PDFKit from 'pdfkit';
-import { uploadToStorage } from '../../../utils/supabaseStorage';
+import { uploadToStorage, downloadFromStorageAsBuffer } from '../../../utils/supabaseStorage';
 import { numberToWords } from '../../../utils/numberToWords';
+import { invoiceConfig } from '../invoice.config';
 
 /**
  * Invoice Service
@@ -47,27 +48,50 @@ export class InvoiceService {
    * Calculate GST breakdown based on billing and shipping addresses
    */
   private calculateGST(
-    subtotal: number,
+    amount: number, // Use generic 'amount' instead of 'subtotal' as it implies different things
     billingState: string,
     shippingState: string
   ): {
+    taxableValue: number;
     cgst: number;
     sgst: number;
     igst: number;
     taxAmount: number;
   } {
-    const GST_RATE = 0.18; // 18% GST
-    const taxAmount = subtotal * GST_RATE;
+    if (!invoiceConfig.tax.enabled) {
+      return { taxableValue: amount, cgst: 0, sgst: 0, igst: 0, taxAmount: 0 };
+    }
+
+    const { rate, isInclusive } = invoiceConfig.tax;
+    let taxableValue = 0;
+    let taxAmount = 0;
+
+    if (isInclusive) {
+      // Inclusive: Tax is part of the amount
+      // Amount = Taxable + Taxable * Rate = Taxable * (1 + Rate)
+      // Taxable = Amount / (1 + Rate)
+      taxableValue = amount / (1 + rate);
+      taxAmount = amount - taxableValue;
+    } else {
+      // Exclusive: Tax is added to the amount
+      taxableValue = amount;
+      taxAmount = amount * rate;
+    }
+
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
 
     if (billingState.toLowerCase() === shippingState.toLowerCase()) {
       // Intra-state: CGST + SGST (50% each)
-      const cgst = taxAmount / 2;
-      const sgst = taxAmount / 2;
-      return { cgst, sgst, igst: 0, taxAmount };
+      cgst = taxAmount / 2;
+      sgst = taxAmount / 2;
+    } else {
+      // Inter-state: IGST (100%)
+      igst = taxAmount;
     }
 
-    // Inter-state: IGST (100%)
-    return { cgst: 0, sgst: 0, igst: taxAmount, taxAmount };
+    return { taxableValue, cgst, sgst, igst, taxAmount };
   }
 
   /**
@@ -279,18 +303,30 @@ export class InvoiceService {
         const unitPrice = Number(item.unit_price);
         const qty = item.quantity;
         const discountAmt = 0;
-        const taxableValue = unitPrice * qty - discountAmt;
-        subtotal += taxableValue;
+        const lineTotal = unitPrice * qty - discountAmt; // This is the raw amount (Inclusive or Exclusive based on config)
+        subtotal += lineTotal;
 
         const taxRate = Number(item.tax_rate || 18);
-        const taxAmount = taxableValue * (taxRate / 100);
 
-        // State Check Logic for Inter/Intra
+        // Calculate per-item tax using the centralized logic
+        // We use the same state check logic as the main calculator
         const shippingState = (
           shippingAddress?.state_province ||
           order.shipping_state ||
           ''
         ).toLowerCase();
+
+        // Note: We use calculateGST to get precise values for this row
+        // We assume the same state logic applies
+        const itemTaxDetails = this.calculateGST(
+          lineTotal,
+          billingAddress?.state_province || order.billing_state || '',
+          shippingState
+        );
+
+        const itemTaxableValue = itemTaxDetails.taxableValue;
+        const itemTaxAmount = itemTaxDetails.taxAmount;
+
         const homeStateKeys = ['maharashtra', 'mh', 'pune'];
         const isIntraState = homeStateKeys.some(k => shippingState.includes(k));
 
@@ -311,7 +347,7 @@ export class InvoiceService {
         if (config.table.showDiscount) doc.text(discountAmt.toFixed(2), cols.disc, yPos);
 
         if (config.table.showTaxableValue) {
-          doc.text(taxableValue.toFixed(2), cols.taxable, yPos, { align: 'right', width: 60 });
+          doc.text(itemTaxableValue.toFixed(2), cols.taxable, yPos, { align: 'right', width: 60 });
         }
 
         // Tax Breakdown
@@ -326,7 +362,7 @@ export class InvoiceService {
         if (isIntraState) {
           if (config.summary.showCGSTSGST) {
             const halfRate = taxRate / 2;
-            const halfTax = taxAmount / 2;
+            const halfTax = itemTaxAmount / 2;
             doc.text(`CGST (${halfRate}%): ${halfTax.toFixed(2)}`, cols.taxable - 20, taxYPos, {
               align: 'right',
               width: 80,
@@ -340,10 +376,15 @@ export class InvoiceService {
           }
         } else {
           if (config.summary.showIGST) {
-            doc.text(`IGST (${taxRate}%): ${taxAmount.toFixed(2)}`, cols.taxable - 20, taxYPos, {
-              align: 'right',
-              width: 80,
-            });
+            doc.text(
+              `IGST (${taxRate}%): ${itemTaxAmount.toFixed(2)}`,
+              cols.taxable - 20,
+              taxYPos,
+              {
+                align: 'right',
+                width: 80,
+              }
+            );
           }
         }
 
@@ -494,7 +535,7 @@ export class InvoiceService {
   /**
    * Generate invoice for order
    */
-  async generateInvoice(orderId: string): Promise<any> {
+  async generateInvoice(orderId: string, options?: { forceNewVersion?: boolean }): Promise<any> {
     try {
       logger.info('Generating invoice for order', { orderId });
 
@@ -519,7 +560,7 @@ export class InvoiceService {
         .from(invoices)
         .where(eq(invoices.order_id, orderId));
 
-      if (existingInvoice) {
+      if (existingInvoice && !options?.forceNewVersion) {
         logger.info('Invoice already exists for order', { orderId });
         return this.getLatestInvoiceForOrder(orderId);
       }
@@ -565,41 +606,71 @@ export class InvoiceService {
           .where(eq(userAddresses.id, order.shipping_address_id));
       }
 
-      // Generate invoice number
-      const invoiceNumber = await this.generateInvoiceNumber();
+      let invoiceId = '';
+      let versionNumber = 1;
+      let invoiceNumber = '';
+      let currentInvoice;
+
+      if (existingInvoice) {
+        logger.info('Regenerating invoice for order (new version)', { orderId });
+        invoiceId = existingInvoice.id;
+        invoiceNumber = existingInvoice.invoice_number;
+        versionNumber = (existingInvoice.latest_version || 1) + 1;
+        currentInvoice = existingInvoice;
+
+        // Update invoice latest version
+        await db
+          .update(invoices)
+          .set({
+            latest_version: versionNumber,
+            updated_at: new Date(),
+          })
+          .where(eq(invoices.id, invoiceId));
+      } else {
+        // Generate invoice number for new invoice
+        invoiceNumber = await this.generateInvoiceNumber();
+
+        // Create invoice
+        const newInvoice: NewInvoice = {
+          id: crypto.randomUUID(),
+          order_id: orderId,
+          invoice_number: invoiceNumber,
+          latest_version: 1,
+          status: 'generated',
+          created_at: new Date(),
+          updated_at: new Date(),
+        };
+
+        const [invoice] = await db.insert(invoices).values(newInvoice).returning();
+        invoiceId = invoice.id;
+        currentInvoice = invoice;
+      }
 
       // Calculate totals
-      let subtotal = 0;
+      // Calculate totals
+      let itemsTotal = 0;
       orderItemsResult.forEach(item => {
-        subtotal += item.quantity * parseFloat(item.cost_price);
+        itemsTotal += item.quantity * parseFloat(item.cost_price);
       });
 
-      const taxBreakdown = this.calculateGST(
-        subtotal,
+      const { taxableValue, taxAmount, cgst, sgst, igst } = this.calculateGST(
+        itemsTotal,
         billingAddress?.state_province || '',
         shippingAddress?.state_province || ''
       );
 
-      const grandTotal = subtotal + taxBreakdown.taxAmount + parseFloat(order.shipping_amount);
+      const shippingAmount = parseFloat(order.shipping_amount || '0');
 
-      // Create invoice
-      const newInvoice: NewInvoice = {
-        id: crypto.randomUUID(),
-        order_id: orderId,
-        invoice_number: invoiceNumber,
-        latest_version: 1,
-        status: 'generated',
-        created_at: new Date(),
-        updated_at: new Date(),
-      };
-
-      const [invoice] = await db.insert(invoices).values(newInvoice).returning();
+      // Grand Total = Taxable Value + Tax + Shipping
+      // Note: In Inclusive mode, Taxable + Tax = itemsTotal, so Grand Total = itemsTotal + Shipping
+      // Note: In Exclusive mode, Taxable = itemsTotal, so Grand Total = itemsTotal + Tax + Shipping
+      const grandTotal = taxableValue + taxAmount + shippingAmount;
 
       // Create invoice version
       const newInvoiceVersion: NewInvoiceVersion = {
         id: crypto.randomUUID(),
-        invoice_id: invoice.id,
-        version_number: 1,
+        invoice_id: invoiceId,
+        version_number: versionNumber,
         customer_name: billingAddress?.recipient_name || shippingAddress?.recipient_name || 'Guest',
         customer_email: user?.email || '',
         customer_gstin: order.customer_gstin || null,
@@ -610,16 +681,16 @@ export class InvoiceService {
           ? `${shippingAddress.address_line1}, ${shippingAddress.address_line2 || ''}, ${shippingAddress.city}, ${shippingAddress.state_province} ${shippingAddress.postal_code}`
           : '',
         place_of_supply: billingAddress?.state_province || '',
-        subtotal: subtotal.toString(),
+        subtotal: taxableValue.toString(), // Store TAXABLE value as subtotal (convention varies, but safe for exclusive logic)
         discount: order.discount_amount,
         shipping: order.shipping_amount,
-        tax_amount: taxBreakdown.taxAmount.toString(),
+        tax_amount: taxAmount.toString(),
         grand_total: grandTotal.toString(),
-        cgst: taxBreakdown.cgst.toString(),
-        sgst: taxBreakdown.sgst.toString(),
-        igst: taxBreakdown.igst.toString(),
-        tax_type: taxBreakdown.igst > 0 ? 'igst' : 'cgst_sgst',
-        reason: 'INITIAL',
+        cgst: cgst.toString(),
+        sgst: sgst.toString(),
+        igst: igst.toString(),
+        tax_type: igst > 0 ? 'igst' : 'cgst_sgst',
+        reason: options?.forceNewVersion ? 'CORRECTION' : 'INITIAL',
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -639,9 +710,9 @@ export class InvoiceService {
         quantity: item.quantity,
         unit_price: item.cost_price,
         tax_rate: '18', // Default 18% GST
-        cgst_amount: (taxBreakdown.cgst / orderItemsResult.length).toString(), // Approximate
-        sgst_amount: (taxBreakdown.sgst / orderItemsResult.length).toString(), // Approximate
-        igst_amount: (taxBreakdown.igst / orderItemsResult.length).toString(), // Approximate
+        cgst_amount: (cgst / orderItemsResult.length).toString(), // Approximate
+        sgst_amount: (sgst / orderItemsResult.length).toString(), // Approximate
+        igst_amount: (igst / orderItemsResult.length).toString(), // Approximate
         line_total: (item.quantity * parseFloat(item.cost_price)).toString(),
         created_at: new Date(),
         updated_at: new Date(),
@@ -651,7 +722,7 @@ export class InvoiceService {
 
       // Generate PDF
       const pdfBuffer: Buffer = await this.generatePDFContent(
-        invoice,
+        currentInvoice,
         order,
         orderItemsResult,
         billingAddress,
@@ -683,7 +754,7 @@ export class InvoiceService {
 
       logger.info('Invoice generated successfully', {
         orderId,
-        invoiceId: invoice.id,
+        invoiceId: invoiceId,
         invoiceNumber,
         fileUrl: uploadResult.url,
       });
@@ -784,59 +855,28 @@ export class InvoiceService {
         .where(eq(invoiceVersions.id, versionId));
 
       if (!version || !version.pdf_url) {
-        throw new HttpException(404, 'Invoice PDF not found');
+        throw new HttpException(404, 'Invoice PDF not found or not generated yet');
       }
 
-      // Extract filename from URL
-      const filename = version.pdf_url.split('/').pop() || 'invoice.pdf';
+      // Fetch parent invoice to get invoice number for filename
+      const [invoice] = await db
+        .select({ invoice_number: invoices.invoice_number })
+        .from(invoices)
+        .where(eq(invoices.id, version.invoice_id));
 
-      // For Supabase storage, we need to use the storage client directly to get the file
-      // This is a placeholder - you need to implement the actual download from Supabase
-      // For now, we'll generate a new PDF as a fallback
-      const [invoice] = await db.select().from(invoices).where(eq(invoices.id, version.invoice_id));
+      const filename = `${invoice?.invoice_number || 'invoice'}.pdf`;
 
-      const [order] = await db.select().from(orders).where(eq(orders.id, invoice.order_id));
-
-      const orderItemsResult = await db
-        .select()
-        .from(orderItems)
-        .where(eq(orderItems.order_id, invoice.order_id));
-
-      // Get user and addresses for PDF generation
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, order.user_id || ''));
-
-      let billingAddress = null;
-      let shippingAddress = null;
-
-      if (order.billing_address_id) {
-        [billingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.billing_address_id));
+      // Download directly from storage using the stored path
+      // This ensures we get the exact same file that was emailed/generated
+      if (!version.pdf_path) {
+        throw new HttpException(404, 'Invoice file path missing');
       }
 
-      if (order.shipping_address_id) {
-        [shippingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.shipping_address_id));
-      }
-
-      const pdfBuffer = await this.generatePDFContent(
-        invoice,
-        order,
-        orderItemsResult,
-        billingAddress,
-        shippingAddress,
-        user
-      );
+      const buffer = await downloadFromStorageAsBuffer(version.pdf_path);
 
       return {
-        buffer: pdfBuffer,
-        filename: filename,
+        buffer,
+        filename,
       };
     } catch (error) {
       logger.error('Error downloading invoice', { versionId, error });
@@ -861,7 +901,7 @@ export class InvoiceService {
         .select()
         .from(invoiceVersions)
         .where(eq(invoiceVersions.invoice_id, invoice.id))
-        .orderBy(sql`${invoiceVersions.version_number} ASC`);
+        .orderBy(sql`${invoiceVersions.version_number} DESC`);
 
       return versions.map(version => ({
         ...invoice,
@@ -898,3 +938,4 @@ export class InvoiceService {
 }
 
 export const invoiceService = new InvoiceService();
+

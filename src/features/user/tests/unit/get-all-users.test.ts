@@ -52,6 +52,7 @@ describe('Get All Users Business Logic', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       user_type: 'individual',
       name: 'Admin User',
+      last_name: 'Admin', // Added required field
       email: 'admin@example.com',
       password: 'hashedPassword1',
       email_verified: true,
@@ -73,6 +74,7 @@ describe('Get All Users Business Logic', () => {
       id: '550e8400-e29b-41d4-a716-446655440002',
       user_type: 'business',
       name: 'Scientist User',
+      last_name: 'User', // Added required field
       email: 'scientist@example.com',
       password: 'hashedPassword2',
       email_verified: false,
