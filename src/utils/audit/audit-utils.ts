@@ -123,27 +123,60 @@ export function getResourceTypeFromPath(path: string): AuditResourceType {
     // Core Auth & Users
     users: AuditResourceType.USER,
     auth: AuditResourceType.AUTH,
+    profile: AuditResourceType.USER,
+    address: AuditResourceType.USER,
 
-    // RBAC
+    // RBAC & Admin
     roles: AuditResourceType.ROLE,
     permissions: AuditResourceType.PERMISSION,
-
-    // Admin
+    admin: AuditResourceType.ADMIN,
     invitations: AuditResourceType.INVITATION,
     invite: AuditResourceType.INVITATION,
+    'admin-invite': AuditResourceType.INVITATION,
+    company: AuditResourceType.SETTINGS,
 
-    // Files
+    // Store Features
+    products: AuditResourceType.PRODUCT,
+    product: AuditResourceType.PRODUCT,
+    catalogue: AuditResourceType.PRODUCT,
+    categories: AuditResourceType.CATEGORY,
+    collections: AuditResourceType.COLLECTION,
+    collection: AuditResourceType.COLLECTION,
+    bundles: AuditResourceType.BUNDLE,
+    tags: AuditResourceType.TAG,
+    tiers: AuditResourceType.TIER,
+    inventory: AuditResourceType.INVENTORY,
+
+    // Orders & Sales
+    orders: AuditResourceType.ORDER,
+    cart: AuditResourceType.CART,
+    invoice: AuditResourceType.INVOICE,
+    invoices: AuditResourceType.INVOICE,
+    payments: AuditResourceType.PAYMENT,
+    shipping: AuditResourceType.SHIPPING_ZONE,
+    'shipping-zone': AuditResourceType.SHIPPING_ZONE,
+    tax: AuditResourceType.TAX,
+
+    // Marketing & Content
+    discounts: AuditResourceType.DISCOUNT,
+    discount: AuditResourceType.DISCOUNT,
+    coupons: AuditResourceType.DISCOUNT,
+    giftcards: AuditResourceType.GIFT_CARD,
+    blog: AuditResourceType.BLOG,
+    faq: AuditResourceType.FAQ,
+    reviews: AuditResourceType.REVIEW,
+    wishlist: AuditResourceType.WISHLIST,
+
+    // System & Communication
     uploads: AuditResourceType.UPLOAD,
     upload: AuditResourceType.UPLOAD,
-
-    // Chatbot
+    'media-manager': AuditResourceType.UPLOAD,
+    notifications: AuditResourceType.NOTIFICATION,
+    tickets: AuditResourceType.TICKET,
     chatbot: AuditResourceType.CHATBOT_SESSION,
-
-    // System
     settings: AuditResourceType.SETTINGS,
-
-    // NEW RESOURCES: Just leave them unmapped!
-    // They'll use SYSTEM type and still be tracked properly
+    logs: AuditResourceType.SYSTEM,
+    queue: AuditResourceType.QUEUE,
   };
 
   return resourceMap[resource] || AuditResourceType.SYSTEM;

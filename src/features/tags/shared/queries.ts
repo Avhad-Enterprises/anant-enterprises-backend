@@ -11,6 +11,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { db, schema } from '../../../database';
 import { tags, Tag, NewTag } from './tags.schema';
 import { TagType } from './interface';
+import { buildTagSearchConditions } from './search-utils';
 
 type Database = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema, any>;
 
@@ -26,7 +27,7 @@ export const findTagById = async (id: string, tx: Database = db): Promise<Tag | 
             eq(tags.is_deleted, false)
         ))
         .limit(1);
-    
+
     return tag;
 };
 
@@ -42,7 +43,7 @@ export const findTagByName = async (name: string, tx: Database = db): Promise<Ta
             eq(tags.is_deleted, false)
         ))
         .limit(1);
-    
+
     return tag;
 };
 
@@ -68,7 +69,7 @@ export const isTagNameTaken = async (
 
     if (result.length === 0) return false;
     if (excludeId && result[0].id === excludeId) return false;
-    
+
     return true;
 };
 
@@ -140,7 +141,7 @@ export const createTag = async (
         .insert(tags)
         .values(data)
         .returning();
-    
+
     return tag;
 };
 
@@ -160,7 +161,7 @@ export const updateTagById = async (
         })
         .where(eq(tags.id, id))
         .returning();
-    
+
     return tag;
 };
 
@@ -204,7 +205,7 @@ export const bulkSoftDeleteTags = async (
             eq(tags.is_deleted, false)
         ))
         .returning({ id: tags.id });
-    
+
     return result.length;
 };
 
@@ -271,7 +272,7 @@ export const getTagStats = async (tx: Database = db) => {
         })
         .from(tags)
         .where(eq(tags.is_deleted, false));
-    
+
     return stats;
 };
 
@@ -345,9 +346,12 @@ export const queryTags = async (
         conditions.push(inArray(tags.status, statuses));
     }
 
-    // Search by name
-    if (search) {
-        conditions.push(like(tags.name, `%${search}%`));
+    // Search by name (Fuzzy)
+    if (search && search.trim().length > 0) {
+        const searchConditions = buildTagSearchConditions(search);
+        if (searchConditions) {
+            conditions.push(searchConditions);
+        }
     }
 
     // Filter by usage

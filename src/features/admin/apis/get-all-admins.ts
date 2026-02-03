@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, or, SQL, ilike } from 'drizzle-orm';
+import { eq, count, desc, and, SQL } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, logger } from '../../../utils';
@@ -13,6 +13,7 @@ import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { adminProfiles } from '../shared/admin-profiles.schema';
 import { sanitizeUsers } from '../../user/shared/sanitizeUser';
+import { buildAdminSearchConditions } from '../shared/search-utils';
 
 // Default pagination values
 const DEFAULT_PAGE = 1;
@@ -53,18 +54,12 @@ async function getAllAdmins(query: GetAllAdminsQuery) {
         conditions.push(eq(adminProfiles.is_active, false));
     }
 
-    // Search filter (name, email, employee_id, job_title)
-    if (search) {
-        const searchTerm = `%${search}%`;
-        conditions.push(
-            or(
-                ilike(users.first_name, searchTerm),
-                ilike(users.last_name, searchTerm),
-                ilike(users.email, searchTerm),
-                ilike(adminProfiles.employee_id, searchTerm),
-                ilike(adminProfiles.job_title, searchTerm)
-            ) as SQL<unknown>
-        );
+    // Fuzzy Search filter (name, email, employee_id, job_title)
+    if (search && search.trim().length > 0) {
+        const searchConditions = buildAdminSearchConditions(search);
+        if (searchConditions) {
+            conditions.push(searchConditions as SQL<unknown>);
+        }
     }
 
     // Fetch total count

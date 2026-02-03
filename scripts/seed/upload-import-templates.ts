@@ -9,8 +9,13 @@ import { createClient } from '@supabase/supabase-js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 import { logger } from '../../src/utils';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables based on NODE_ENV
 const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev';
@@ -79,31 +84,35 @@ async function uploadFile(
 async function main() {
   logger.info('🚀 Starting import template upload process...\n');
 
+  // Get the absolute path to the admin templates directory
+  const adminTemplatesPath = path.resolve(__dirname, '../../../anant-enterprises-admin/public/templates');
+  logger.info(`📁 Templates directory: ${adminTemplatesPath}\n`);
+
   // Define templates to upload
   const templates = [
     {
       name: 'Tags Template',
-      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/tags-template.csv'),
+      localPath: path.join(adminTemplatesPath, 'tags-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/tags-template.csv`,
     },
     {
       name: 'Tiers Template',
-      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/tiers-template.csv'),
+      localPath: path.join(adminTemplatesPath, 'tiers-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/tiers-template.csv`,
     },
     {
       name: 'Blogs Template',
-      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/blogs-template.csv'),
+      localPath: path.join(adminTemplatesPath, 'blogs-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/blogs-template.csv`,
     },
     {
       name: 'Customers Template',
-      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/customers-template.csv'),
+      localPath: path.join(adminTemplatesPath, 'customers-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/customers-template.csv`,
     },
     {
       name: 'Products Template',
-      localPath: path.join(__dirname, '../../anant-enterprises-admin/public/templates/products-template.csv'),
+      localPath: path.join(adminTemplatesPath, 'products-template.csv'),
       storagePath: `${TEMPLATE_FOLDER}/products-template.csv`,
     },
   ];

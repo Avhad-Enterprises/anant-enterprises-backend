@@ -152,12 +152,14 @@ export function dateParser(returnFormat: 'iso' | 'date' = 'iso') {
 export function caseInsensitiveEnum<T extends string>(values: readonly T[]) {
   return z.preprocess((val) => {
     if (typeof val === 'string') {
-      const lower = val.toLowerCase().trim();
+      const trimmed = val.trim();
+      if (trimmed === '') return undefined;
+      const lower = trimmed.toLowerCase();
       const match = values.find(v => v.toLowerCase() === lower);
       return match || val;
     }
     return val;
-  }, z.enum(values as [T, ...T[]]));
+  }, z.enum(values as [T, ...T[]]).optional());
 }
 
 /**

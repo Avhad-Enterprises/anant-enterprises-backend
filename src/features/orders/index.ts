@@ -60,6 +60,10 @@ class OrdersRoute implements Route {
     const { default: getOrderTagsRouter } = await import('./apis/get-order-tags');
     const { default: createOrderTagRouter } = await import('./apis/create-order-tag');
 
+    // Admin payment endpoints
+    const { default: adminCreatePaymentOrderRouter } = await import('./apis/admin-create-payment-order');
+    const { default: adminVerifyPaymentRouter } = await import('./apis/admin-verify-payment');
+
     // Register routes - they define their own paths
     // IMPORTANT: Order matters! More specific routes MUST come before wildcards
 
@@ -89,6 +93,10 @@ class OrdersRoute implements Route {
     this.router.use(this.path, getAdminOrderByIdRouter); // GET /admin/orders/:id
     this.router.use(this.path, updateOrderRouter); // PUT /admin/orders/:id
     this.router.use(this.path, updateOrderStatusRouter); // PUT /admin/orders/:id/status
+
+    // Admin payment routes
+    this.router.use(this.path, adminCreatePaymentOrderRouter); // POST /admin/orders/create-payment-order
+    this.router.use(this.path, adminVerifyPaymentRouter); // POST /admin/orders/verify-payment
 
     // Admin direct order creation (must be before user route)
     this.router.use('/admin/orders', createOrderDirectRouter); // POST /admin/orders/direct

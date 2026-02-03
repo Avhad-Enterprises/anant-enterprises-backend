@@ -34,7 +34,9 @@ export interface IProductResponse {
   // Inventory
   sku: string;
   inStock: boolean;
-  total_stock: number | undefined;  // undefined when no inventory tracking
+  total_stock: number | undefined;  // Total physical stock (available + reserved)
+  available_stock?: number; // Stock available for sale (not reserved)
+  reserved_stock?: number; // Stock reserved for orders/carts
   base_inventory: number;
 
   // Media

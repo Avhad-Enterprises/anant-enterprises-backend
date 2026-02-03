@@ -6,7 +6,7 @@ import { requestIdMiddleware } from './middlewares';
 import { securityMiddleware } from './middlewares';
 import { corsMiddleware } from './middlewares';
 import { requestLoggerMiddleware } from './middlewares';
-import { sanitizeInput } from './middlewares'; // auditMiddleware removed as it's commented out
+import { sanitizeInput, auditMiddleware } from './middlewares';
 import type { Route as Routes } from './interfaces';
 import { errorMiddleware } from './middlewares';
 import { logger } from './utils';
@@ -150,6 +150,10 @@ class App {
 
     // Input sanitization (XSS protection) - runs BEFORE validation
     this.app.use(sanitizeInput);
+
+    // Audit logging - tracks all API requests
+    // MUST be after body parsing (to capture input) and before routes
+    this.app.use(auditMiddleware);
   }
 
   private initializeRoutes(routes: Routes[]) {

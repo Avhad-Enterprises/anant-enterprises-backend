@@ -248,6 +248,7 @@ const handler = async (req: Request, res: Response) => {
             const { discounts } = await import('../../discount/shared/discount.schema');
 
             // Fetch discount info for each code
+            const upperCaseCodes = appliedCodes.map(c => c.toUpperCase());
             const discountInfoResults = await db
                 .select({
                     code: discountCodes.code,
@@ -257,7 +258,7 @@ const handler = async (req: Request, res: Response) => {
                 })
                 .from(discountCodes)
                 .innerJoin(discounts, eq(discountCodes.discount_id, discounts.id))
-                .where(sql`UPPER(${discountCodes.code}) IN (${sql.raw(appliedCodes.map(c => `'${c.toUpperCase()}'`).join(','))})`);
+                .where(sql`UPPER(${discountCodes.code}) IN ${upperCaseCodes}`);
 
             appliedDiscounts = discountInfoResults.map(d => ({
                 code: d.code,

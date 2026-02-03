@@ -6,7 +6,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
+import { eq, sql, and, gte, lte, or, ilike } from 'drizzle-orm';
 import { z } from 'zod';
 import { ResponseFormatter, paginationSchema, logger } from '../../../utils';
 import { db } from '../../../database';
@@ -18,6 +18,7 @@ import {
   buildAverageRating,
   buildReviewCount,
   buildInventoryQuantityWithVariants,
+  buildAvailableStockWithVariants,
 } from '../shared/query-builders';
 
 // Query params validation
@@ -89,17 +90,18 @@ const handler = async (req: Request, res: Response) => {
     // Search Logic (Fuzzy Match + SKU + Tags)
     if (params.search && params.search.trim().length > 0) {
       const searchQuery = params.search.trim();
+      const searchPattern = `%${searchQuery}%`;
 
       // Fuzzy matching for Title (using pg_trgm similarity)
       // Threshold > 0.1 allows for loose matching (e.g. typos), adjustments can be made.
       const titleFuzzyCondition = sql`similarity(${products.product_title}, ${searchQuery}) > 0.1`;
       
       // Standard substring match for identifiers should retain precision
-      const skuCondition = sql`${products.sku} ILIKE ${`%${searchQuery}%`}`;
-      const barcodeCondition = sql`${products.barcode} ILIKE ${`%${searchQuery}%`}`;
+      const skuCondition = ilike(products.sku, searchPattern);
+      const barcodeCondition = ilike(products.barcode, searchPattern);
       
       // Tags search
-      const tagsCondition = sql`${products.tags}::text ILIKE ${`%${searchQuery}%`}`;
+      const tagsCondition = sql`${products.tags}::text ILIKE ${searchPattern}`;
       
       // Keep Full Text Search for exact word matches as it utilizes the search_vector index efficiently
       const fullTextCondition = sql`${products.search_vector} @@ plainto_tsquery('english', ${searchQuery})`;
@@ -214,8 +216,8 @@ const handler = async (req: Request, res: Response) => {
         slug: products.slug,
         description: products.short_description,
 
-        // Computed: Inventory Quantity (unified inventory table for both products and variants)
-        inventory_quantity: buildInventoryQuantityWithVariants().mapWith(Number),
+        // Computed: Inventory Quantity (available stock for sale)
+        inventory_quantity: buildAvailableStockWithVariants().mapWith(Number),
 
         // Computed: Average rating
         rating: buildAverageRating(),
@@ -223,7 +225,7 @@ const handler = async (req: Request, res: Response) => {
         // Computed: Review count
         review_count: buildReviewCount(),
 
-        // Computed: Total Stock (Same logic as inventory_quantity for now, but explicit field)
+        // Computed: Total Stock (total physical stock = available + reserved)
         total_stock: buildInventoryQuantityWithVariants().mapWith(Number),
       })
       .from(products)

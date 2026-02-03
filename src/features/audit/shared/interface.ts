@@ -119,6 +119,29 @@ export enum AuditResourceType {
   PRODUCT = 'PRODUCT',
   INVENTORY = 'INVENTORY',
   PAYMENT = 'PAYMENT',
+  CART = 'CART',
+  INVOICE = 'INVOICE',
+  SHIPPING_ZONE = 'SHIPPING_ZONE',
+  TAX = 'TAX',
+  DISCOUNT = 'DISCOUNT',
+  GIFT_CARD = 'GIFT_CARD',
+
+  // Store Management
+  CATEGORY = 'CATEGORY',
+  COLLECTION = 'COLLECTION',
+  BUNDLE = 'BUNDLE',
+  TAG = 'TAG',
+  TIER = 'TIER',
+  REVIEW = 'REVIEW',
+  WISHLIST = 'WISHLIST',
+
+  // Administrative
+  ADMIN = 'ADMIN',
+  BLOG = 'BLOG',
+  FAQ = 'FAQ',
+  NOTIFICATION = 'NOTIFICATION',
+  TICKET = 'TICKET',
+  QUEUE = 'QUEUE',
 }
 
 /**

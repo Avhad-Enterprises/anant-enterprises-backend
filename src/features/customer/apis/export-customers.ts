@@ -5,10 +5,14 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { and, between, inArray, eq } from 'drizzle-orm';
+import { and, between, inArray, eq, notInArray, or, SQL, ilike } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
+import { customerProfiles } from '../shared/customer-profiles.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
+import { userRoles } from '../../rbac/shared/user-roles.schema';
+import { roles } from '../../rbac/shared/roles.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 import {
@@ -20,8 +24,9 @@ import {
 // Customer-specific export schema
 const customerExportSchema = baseExportSchema.extend({
   filters: z.object({
-    status: z.enum(['active', 'inactive']).optional(),
-    gender: z.enum(['male', 'female', 'other']).optional(),
+    status: z.enum(['active', 'inactive', 'banned']).optional(),
+    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
+    tags: z.string().optional(),
   }).optional(),
 });
 
@@ -38,6 +43,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // Build query conditions
   const conditions = [eq(users.is_deleted, false)];
 
+  // Exclude admin/superadmin users
+  const adminUserIdsSubquery = db
+    .select({ userId: userRoles.user_id })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.role_id, roles.id))
+    .where(inArray(roles.name, ['admin', 'superadmin']));
+
+  conditions.push(
+    notInArray(users.id, adminUserIdsSubquery)
+  );
+
   if (options.scope === 'selected' && options.selectedIds?.length) {
     conditions.push(inArray(users.id, options.selectedIds));
   }
@@ -45,6 +61,22 @@ const handler = async (req: RequestWithUser, res: Response) => {
   // Apply filters
   if (options.filters?.gender) {
     conditions.push(eq(users.gender, options.filters.gender));
+  }
+
+  if (options.filters?.status) {
+    // Status filter applies to customer_profiles table
+    conditions.push(eq(customerProfiles.account_status, options.filters.status));
+  }
+
+  if (options.filters?.tags) {
+    const tagList = options.filters.tags.split(',').map(t => t.trim());
+    if (tagList.length > 0) {
+      conditions.push(
+        or(
+          ...tagList.map(tag => ilike(users.tags as any, `%${tag}%`))
+        ) as SQL<unknown>
+      );
+    }
   }
 
   if (options.dateRange?.from && options.dateRange?.to) {
@@ -61,32 +93,97 @@ const handler = async (req: RequestWithUser, res: Response) => {
     );
   }
 
-  // Query data
-  const data = await db
-    .select()
+  // Query data with joins
+  const rawData = await db
+    .select({
+      user: users,
+      profile: customerProfiles,
+    })
     .from(users)
+    .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
     .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   if (options.selectedColumns.length === 0) {
     throw new HttpException(400, 'Please select at least one column to export.');
   }
 
-  // Format data
-  const formattedData = data.map(user => {
+  // Get addresses for all users
+  const userIds = rawData.map(row => row.user.id);
+  let addressesMap: Record<string, any> = {};
+
+  if (userIds.length > 0) {
+    const addressesList = await db
+      .select()
+      .from(userAddresses)
+      .where(
+        and(
+          inArray(userAddresses.user_id, userIds),
+          eq(userAddresses.is_default_shipping, true)
+        )
+      );
+
+    addressesList.forEach(addr => {
+      addressesMap[addr.user_id] = addr;
+    });
+  }
+
+  // Format data - map profile fields and addresses to top level
+  const formattedData = rawData.map(({ user, profile }) => {
+    const row: any = {
+      customer_id: user.display_id || user.id, // Use display_id (CUST-XXXXXX) or fallback to UUID
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      display_name: user.display_name,
+      phone_number: user.phone_number,
+      secondary_email: user.secondary_email,
+      secondary_phone_number: user.secondary_phone_number,
+      date_of_birth: user.date_of_birth,
+      gender: user.gender,
+      user_type: 'individual', // All customers are individual type now
+      tags: Array.isArray(user.tags) ? user.tags.join(', ') : '',
+      email_verified: user.email_verified,
+      phone_verified: user.phone_verified,
+      secondary_email_verified: user.secondary_email_verified,
+      profile_image_url: user.profile_image_url,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+      
+      // Profile fields
+      account_status: profile?.account_status || '',
+      segments: Array.isArray(profile?.segments) ? profile.segments.join(', ') : '',
+      notes: profile?.notes || '',
+      
+      // Address fields from default address
+      city: '',
+      state: '',
+      postal_code: '',
+      country: '',
+    };
+
+    // Add address fields if available
+    const address = addressesMap[user.id];
+    if (address) {
+      row.city = address.city || '';
+      row.state = address.state_province || '';
+      row.postal_code = address.postal_code || '';
+      row.country = address.country || '';
+    }
+
+    return row;
+  });
+
+  // Filter to only selected columns
+  const exportData = formattedData.map(row => {
     const filtered: any = {};
     options.selectedColumns.forEach(col => {
-      if (col in user) {
-        const value = user[col as keyof typeof user];
+      if (col in row) {
+        const value = row[col];
         // Format dates
         if (value instanceof Date) {
-          filtered[col] = value.toISOString();
-        }
-        // Format arrays
-        else if (Array.isArray(value)) {
-          filtered[col] = value.join(', ');
-        }
-        else {
-          filtered[col] = value;
+          filtered[col] = value.toISOString().split('T')[0];
+        } else {
+          filtered[col] = value ?? '';
         }
       }
     });
@@ -98,7 +195,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const filename = `customers-export-${timestamp}`;
 
   if (options.format === 'csv') {
-    const csvString = generateCSV(formattedData, options.selectedColumns);
+    const csvString = generateCSV(exportData, options.selectedColumns);
     const fileBuffer = Buffer.from(csvString, 'utf-8');
 
     res.setHeader('Content-Type', 'text/csv');
@@ -108,7 +205,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   if (options.format === 'xlsx') {
-    const fileBuffer = await generateExcelBuffer(formattedData, options.selectedColumns, {
+    const fileBuffer = await generateExcelBuffer(exportData, options.selectedColumns, {
       sheetName: 'Customers'
     });
 

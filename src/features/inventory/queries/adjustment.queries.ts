@@ -80,7 +80,7 @@ export async function findAdjustmentHistoryByProduct(
                 WHEN i.variant_id IS NOT NULL THEN pv.sku
                 ELSE p.sku
             END as variant_sku,
-            u.name as adjusted_by_name
+            CONCAT(u.first_name, ' ', u.last_name) as adjusted_by_name
         FROM ${inventoryAdjustments} ia
         INNER JOIN ${inventory} i ON ia.inventory_id = i.id
         LEFT JOIN ${products} p ON i.product_id = p.id OR p.id = ${productId}

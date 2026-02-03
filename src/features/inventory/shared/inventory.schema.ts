@@ -68,8 +68,13 @@ export const inventory = pgTable(
     // Benefits: No stale data, reduced storage, single source of truth
 
     // Quantity Tracking
+    // IMPORTANT: These quantities are MUTUALLY EXCLUSIVE categories:
+    // - available_quantity: Stock physically available AND not reserved (can be sold immediately)
+    // - reserved_quantity: Stock allocated to orders/carts but not yet fulfilled (cannot be sold)
+    // - Total physical stock = available_quantity + reserved_quantity
+    // DO NOT subtract reserved from available - they are already separate!
     available_quantity: integer('available_quantity').default(0).notNull(),
-    reserved_quantity: integer('reserved_quantity').default(0).notNull(), // Committed to orders/carts
+    reserved_quantity: integer('reserved_quantity').default(0).notNull(),
 
     // Incoming Stock (from Purchase Orders)
     incoming_quantity: integer('incoming_quantity').default(0).notNull(),

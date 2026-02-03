@@ -52,11 +52,16 @@ export async function queueCustomerOrderNotification(
             .where(eq(users.id, userId))
             .limit(1);
 
+        if (!customer) {
+            logger.warn('Skipping customer notification: User not found', { userId, orderId });
+            return;
+        }
+
         await eventPublisher.publishNotification({
             userId,
             templateCode: TEMPLATE_CODES.ORDER_CREATED,
             variables: {
-                userName: customer?.name || 'Customer',
+                userName: customer.name || 'Customer',
                 orderNumber,
                 total: Number(totalAmount).toFixed(2),
                 currency,

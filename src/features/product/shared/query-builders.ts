@@ -12,10 +12,29 @@ export function buildInventoryQuantity(): ReturnType<typeof sql<number>> {
   )`;
 }
 
+// Total physical stock in warehouse (available + reserved)
 export function buildInventoryQuantityWithVariants(): ReturnType<typeof sql<number>> {
   return sql<number>`
     COALESCE(
-      (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})
+      (SELECT SUM(${inventory.available_quantity} + ${inventory.reserved_quantity})
+       FROM ${inventory}
+       WHERE ${inventory.product_id} = ${products.id}
+       OR ${inventory.variant_id} IN (
+         SELECT id FROM ${productVariants}
+         WHERE ${productVariants.product_id} = ${products.id}
+         AND ${productVariants.is_active} = true
+         AND ${productVariants.is_deleted} = false
+       )),
+      0
+    )
+  `;
+}
+
+// Available stock for sale (excluding reserved)
+export function buildAvailableStockWithVariants(): ReturnType<typeof sql<number>> {
+  return sql<number>`
+    COALESCE(
+      (SELECT SUM(${inventory.available_quantity})
        FROM ${inventory}
        WHERE ${inventory.product_id} = ${products.id}
        OR ${inventory.variant_id} IN (

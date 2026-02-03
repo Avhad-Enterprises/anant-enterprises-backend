@@ -203,24 +203,36 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     images.push(...(productData.additional_images as string[]));
   }
 
-  // Calculate total stock from unified inventory table
-  const totalCalculatedStock = inventoryData.reduce((sum, item) => {
+  // Calculate total physical stock from unified inventory table (available + reserved)
+  const totalPhysicalStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
     const reserved = Number(item.reserved_quantity) || 0;
-    return sum + Math.max(0, available - reserved);
+    return sum + available + reserved;
+  }, 0);
+
+  // Calculate available stock (for sale)
+  const totalAvailableStock = inventoryData.reduce((sum, item) => {
+    const available = Number(item.available_quantity) || 0;
+    return sum + available;
+  }, 0);
+
+  // Calculate total reserved stock
+  const totalReservedStock = inventoryData.reduce((sum, item) => {
+    const reserved = Number(item.reserved_quantity) || 0;
+    return sum + reserved;
   }, 0);
 
   // Calculate base inventory for product (first inventory record if exists)
   const baseInventoryItem = inventoryData.find(item => item.product_id === productData.id);
   const baseCalculatedInventory = baseInventoryItem
-    ? Math.max(0, (Number(baseInventoryItem.available_quantity) || 0) - (Number(baseInventoryItem.reserved_quantity) || 0))
+    ? Number(baseInventoryItem.available_quantity) || 0
     : 0;
 
-  // Mapping for variant inventory
+  // Mapping for variant inventory (available stock only)
   const variantInventoryMap = new Map<string, number>();
   inventoryData.forEach(item => {
     if (item.variant_id) {
-      const qty = Math.max(0, (Number(item.available_quantity) || 0) - (Number(item.reserved_quantity) || 0));
+      const qty = Number(item.available_quantity) || 0;
       variantInventoryMap.set(item.variant_id, (variantInventoryMap.get(item.variant_id) || 0) + qty);
     }
   });
@@ -273,8 +285,10 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
 
     // Inventory
     sku: productData.sku,
-    inStock: totalCalculatedStock > 0,
-    total_stock: totalCalculatedStock,
+    inStock: totalAvailableStock > 0,
+    total_stock: totalPhysicalStock, // Total physical stock (available + reserved)
+    available_stock: totalAvailableStock, // Stock available for sale
+    reserved_stock: totalReservedStock, // Stock reserved for orders
     base_inventory: baseCalculatedInventory,
 
     // Media

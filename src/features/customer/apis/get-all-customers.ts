@@ -1,12 +1,6 @@
-/**
- * GET /api/users/customers (or /api/customers)
- * Get all customers with pagination, search, and filtering
- * Returns richer data than simple /users
- */
-
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, or, arrayOverlaps, SQL, ilike, notInArray } from 'drizzle-orm';
+import { eq, count, desc, and, or, arrayOverlaps, SQL, notInArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -20,6 +14,7 @@ import { userAddresses } from '../../address/shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
 import { userRoles } from '../../rbac/shared/user-roles.schema';
 import { roles } from '../../rbac/shared/roles.schema';
+import { buildCustomerSearchConditions } from '../shared/search-utils';
 
 // Default pagination values
 const DEFAULT_PAGE = 1;
@@ -56,18 +51,12 @@ async function getAllCustomers(
     // 'all' = any customer (has either profile)
     // Note: Filtering by profile will be done via JOIN, not WHERE clause here
 
-    // Search Filter
-    if (search) {
-        const searchTerm = `%${search}%`;
-        conditions.push(
-            or(
-                ilike(users.first_name, searchTerm),
-                ilike(users.last_name, searchTerm),
-                ilike(users.email, searchTerm),
-                ilike(users.phone_number, searchTerm),
-                ilike(users.display_name, searchTerm)
-            ) as SQL<unknown>
-        );
+    // Fuzzy Search Filter (NEW - using pg_trgm similarity)
+    if (search && search.trim().length > 0) {
+        const searchConditions = buildCustomerSearchConditions(search);
+        if (searchConditions) {
+            conditions.push(searchConditions as SQL<unknown>);
+        }
     }
 
     // Exclude users with admin/superadmin roles using Drizzle subquery
