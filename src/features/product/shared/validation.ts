@@ -29,6 +29,7 @@ export const createProductSchema = z.object({
 
   sku: z.string().min(1, 'SKU is required'),
   hsn_code: z.string().optional().nullable(),
+  barcode: z.string().optional().nullable(),
 
   weight: decimalSchema.optional().nullable(),
   length: decimalSchema.optional().nullable(),
@@ -48,6 +49,8 @@ export const createProductSchema = z.object({
   product_url: z.string().optional().nullable(),
 
   tags: z.array(z.string()).optional().default([]),
+  admin_comment: z.string().optional().nullable(),
+
 
   // FAQs - array of question/answer pairs
   faqs: z.array(z.object({
@@ -145,6 +148,7 @@ export const updateProductSchema = z.object({
 
   sku: shortTextSchema.optional(),
   hsn_code: z.string().optional().nullable(),
+  barcode: z.string().optional().nullable(),
 
   // Inventory - coerced to number to handle string inputs
   inventory_quantity: z.coerce.number().int().nonnegative().optional(),
@@ -169,6 +173,8 @@ export const updateProductSchema = z.object({
   product_url: z.string().optional().nullable(),
 
   tags: z.array(z.string()).optional(),
+  admin_comment: z.string().optional().nullable(),
+
 
   // FAQs - array of question/answer pairs
   faqs: z.array(z.object({

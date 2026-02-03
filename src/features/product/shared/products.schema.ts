@@ -59,6 +59,8 @@ export const products = pgTable(
         // Content
         short_description: text('short_description'),
         full_description: text('full_description'), // Rich Text / HTML
+        admin_comment: text('admin_comment'),
+
 
         // Status & Availability
         status: productStatusEnum('status').default('draft').notNull(),
