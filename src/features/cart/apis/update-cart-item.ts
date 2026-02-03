@@ -78,31 +78,6 @@ const handler = async (req: Request, res: Response) => {
         throw new HttpException(403, 'Not authorized to modify this cart');
     }
 
-    // Check stock availability
-    if (cartItem.product_id) {
-        const [stockData] = await db
-            .select({
-                totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
-            })
-            .from(inventory)
-            .where(eq(inventory.product_id, cartItem.product_id));
-
-        const availableStock = Number(stockData?.totalStock) || 0;
-
-        // Calculate what's available for THIS user (including their current hold)
-        let currentReservedQty = 0;
-        // Check if user has an active reservation
-        if (cartItem.reservation_id &&
-            cartItem.reservation_expires_at &&
-            new Date(cartItem.reservation_expires_at) > new Date()) {
-            currentReservedQty = cartItem.quantity;
-        }
-
-        if (quantity > (availableStock + currentReservedQty)) {
-            throw new HttpException(400, `Only ${availableStock + currentReservedQty} units available`);
-        }
-    }
-
     // Get current product price for recalculation
     let currentPrice = Number(cartItem.final_price);
     let comparePrice = Number(cartItem.cost_price);
@@ -127,44 +102,75 @@ const handler = async (req: Request, res: Response) => {
     const lineSubtotal = comparePrice * quantity;
     const lineTotal = currentPrice * quantity;
 
-    // Phase 2: Release OLD reservation BEFORE updating quantity
-    // This ensures we release the amount currently held in DB (old quantity)
-    if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
-        try {
-            await releaseCartStock(itemId);
-        } catch (error: any) {
-            console.warn('[update-cart-item] Failed to release old reservation:', error.message);
-            // Continue - better to have inconsistent reservation than failing cart
+    // Phase 2: Transactional Update & Reservation
+    // We wrap Release -> Update -> Reserve in a transaction to prevent inventory leaks
+    await db.transaction(async (tx) => {
+        // [FIX] Lock rows to prevent race conditions.
+        // 1. Lock cart item to serialize updates to this specific line
+        await tx
+            .select({ id: cartItems.id })
+            .from(cartItems)
+            .where(eq(cartItems.id, itemId))
+            .for('update');
+
+        // 2. Lock inventory row to serialize stock checks across all carts
+        let totalStock = 0;
+        if (cartItem.product_id) {
+            const [stockData] = await tx
+                .select({
+                    id: inventory.id,
+                    totalStock: sql<number>`${inventory.available_quantity} - ${inventory.reserved_quantity}`
+                })
+                .from(inventory)
+                .where(eq(inventory.product_id, cartItem.product_id))
+                .for('update');
+
+            totalStock = Number(stockData?.totalStock) || 0;
         }
-    }
 
-    // Update cart item with NEW quantity
-    await db.update(cartItems)
-        .set({
-            quantity,
-            final_price: currentPrice.toFixed(2),
-            cost_price: comparePrice.toFixed(2),
-            discount_amount: (discountAmount * quantity).toFixed(2),
-            line_subtotal: lineSubtotal.toFixed(2),
-            line_total: lineTotal.toFixed(2),
-            updated_at: new Date(),
-        })
-        .where(eq(cartItems.id, itemId));
+        // 3. Validate stock availability (INSIDE transaction after locking)
+        // currentReservedQty represents the quantity currently held by THIS cart item.
+        // This quantity will be released and then re-reserved.
+        const currentReservedQty = cartItem.quantity || 0;
+        if (quantity > (totalStock + currentReservedQty)) {
+            throw new HttpException(400, `Insufficient stock. Only ${totalStock + currentReservedQty} units available.`);
+        }
 
-    // Phase 2: Reserve NEW quantity
-    if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
-        try {
+        // 4. Release OLD reservation
+        if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
+            // We removed the try/catch block. If release fails, we must abort the transaction
+            // to prevent inventory leaks (phantom reservations).
+            await releaseCartStock(itemId, tx);
+        }
+
+        // 5. Update cart item with NEW quantity
+        await tx.update(cartItems)
+            .set({
+                quantity,
+                final_price: currentPrice.toFixed(2),
+                cost_price: comparePrice.toFixed(2),
+                discount_amount: (discountAmount * quantity).toFixed(2),
+                line_subtotal: lineSubtotal.toFixed(2),
+                line_total: lineTotal.toFixed(2),
+                updated_at: new Date(),
+            })
+            .where(eq(cartItems.id, itemId));
+
+        // 6. Reserve NEW quantity
+        if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
+            // Note: reserveCartStock performs an internal validation.
+            // We skip internal validation here because we already validated (considering user's held stock)
+            // INSIDE THE TRANSACTION after acquiring locks.
             await reserveCartStock(
                 cartItem.product_id,
                 quantity,
                 itemId,
-                CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT
+                CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT,
+                tx,
+                true // skipValidation
             );
-        } catch (error: any) {
-            console.warn('[update-cart-item] Failed to reserve new quantity:', error.message);
-            // Continue - cart still works without reservation
         }
-    }
+    });
 
     // Recalculate cart totals (handling discounts)
     await cartService.recalculate(cart.id);

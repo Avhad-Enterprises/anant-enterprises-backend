@@ -226,9 +226,12 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
   }, 0);
 
   // Calculate available stock (for sale)
+  // IMPORTANT: available_quantity in DB is total physical stock.
+  // We must subtract reserved_quantity to get what's actually available to start a new purchase.
   const totalAvailableStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
-    return sum + available;
+    const reserved = Number(item.reserved_quantity) || 0;
+    return sum + Math.max(0, available - reserved);
   }, 0);
 
   // Calculate total reserved stock

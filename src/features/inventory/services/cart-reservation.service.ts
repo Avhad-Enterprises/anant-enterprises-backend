@@ -30,25 +30,36 @@ import { validateStockAvailability } from './order-reservation.service';
  * @param quantity - Quantity to reserve
  * @param cartItemId - Cart item ID for tracking
  * @param expirationMinutes - Timeout in minutes (default: 30)
+ * @param tx - Optional transaction object
+ * @param skipValidation - Whether to skip stock validation
  * @returns Reservation ID and expiration timestamp
  */
 export async function reserveCartStock(
     productId: string,
     quantity: number,
     cartItemId: string,
-    expirationMinutes: number = 30
+    expirationMinutes: number = 30,
+    tx?: any,
+    skipValidation: boolean = false
 ): Promise<{ reservation_id: string; expires_at: Date }> {
-    return await db.transaction(async (tx) => {
+    const execute = async (transaction: any) => {
         // Business logic: Validate stock availability
-        const validations = await validateStockAvailability([{ product_id: productId, quantity }]);
-        const [validation] = validations;
+        // Only run validation if not skipped. 
+        // When running in a transaction where we just released stock, standard validation 
+        // (reading outside tx) might fail due to isolation.
+        if (!skipValidation) {
+            // Note: validateStockAvailability also needs to support tx if we want full atomicity reading stock!
+            // But validateStockAvailability is imported. It likely just reads.
+            const validations = await validateStockAvailability([{ product_id: productId, quantity }]);
+            const [validation] = validations;
 
-        if (!validation.available) {
-            throw new Error(validation.message || 'Insufficient stock');
+            if (!validation.available) {
+                throw new Error(validation.message || 'Insufficient stock');
+            }
         }
 
         // Query layer: Reserve stock (increase reserved_quantity)
-        await tx
+        await transaction
             .update(inventory)
             .set({
                 reserved_quantity: sql`${inventory.reserved_quantity} + ${quantity}`,
@@ -63,7 +74,7 @@ export async function reserveCartStock(
         // Query layer: Update cart item with reservation details
         const { cartItems } = await import('../../cart/shared/cart-items.schema');
 
-        await tx
+        await transaction
             .update(cartItems)
             .set({
                 reservation_id: reservationId,
@@ -73,7 +84,13 @@ export async function reserveCartStock(
             .where(eq(cartItems.id, cartItemId));
 
         return { reservation_id: reservationId, expires_at: expiresAt };
-    });
+    };
+
+    if (tx) {
+        return execute(tx);
+    } else {
+        return db.transaction(execute);
+    }
 }
 
 /**
@@ -85,13 +102,14 @@ export async function reserveCartStock(
  * - Safe to call even if no reservation exists
  * 
  * @param cartItemId - Cart item ID
+ * @param tx - Optional transaction object
  */
-export async function releaseCartStock(cartItemId: string): Promise<void> {
-    return await db.transaction(async (tx) => {
+export async function releaseCartStock(cartItemId: string, tx?: any): Promise<void> {
+    const execute = async (transaction: any) => {
         const { cartItems } = await import('../../cart/shared/cart-items.schema');
 
         // Query layer: Get cart item with reservation
-        const [item] = await tx
+        const [item] = await transaction
             .select({
                 product_id: cartItems.product_id,
                 quantity: cartItems.quantity,
@@ -106,7 +124,7 @@ export async function releaseCartStock(cartItemId: string): Promise<void> {
         }
 
         // Query layer: Release reservation (decrease reserved_quantity)
-        await tx
+        await transaction
             .update(inventory)
             .set({
                 reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
@@ -115,7 +133,7 @@ export async function releaseCartStock(cartItemId: string): Promise<void> {
             .where(eq(inventory.product_id, item.product_id));
 
         // Query layer: Clear reservation fields
-        await tx
+        await transaction
             .update(cartItems)
             .set({
                 reservation_id: null,
@@ -123,7 +141,13 @@ export async function releaseCartStock(cartItemId: string): Promise<void> {
                 reservation_expires_at: null,
             })
             .where(eq(cartItems.id, cartItemId));
-    });
+    };
+
+    if (tx) {
+        return execute(tx);
+    } else {
+        return db.transaction(execute);
+    }
 }
 
 /**
@@ -135,28 +159,39 @@ export async function releaseCartStock(cartItemId: string): Promise<void> {
  * 
  * @param cartId - Cart ID
  * @param additionalMinutes - Time to extend (default: 60 for checkout)
+ * @param tx - Optional transaction object
  */
 export async function extendCartReservation(
     cartId: string,
-    additionalMinutes: number = 60
+    additionalMinutes: number = 60,
+    tx?: any
 ): Promise<void> {
-    const { cartItems } = await import('../../cart/shared/cart-items.schema');
+    const execute = async (transaction: any) => {
+        const { cartItems } = await import('../../cart/shared/cart-items.schema');
 
-    // Business logic: Calculate new expiration time
-    const newExpiresAt = new Date(Date.now() + additionalMinutes * 60 * 1000);
+        // Business logic: Calculate new expiration time
+        const newExpiresAt = new Date(Date.now() + additionalMinutes * 60 * 1000);
 
-    // Query layer: Update all cart items
-    await db
-        .update(cartItems)
-        .set({
-            reservation_expires_at: newExpiresAt,
-        })
-        .where(
-            and(
-                eq(cartItems.cart_id, cartId),
-                eq(cartItems.is_deleted, false)
-            )
-        );
+        // Query layer: Update all cart items
+        await transaction
+            .update(cartItems)
+            .set({
+                reservation_expires_at: newExpiresAt,
+            })
+            .where(
+                and(
+                    eq(cartItems.cart_id, cartId),
+                    eq(cartItems.is_deleted, false)
+                )
+            );
+    };
+
+    if (tx) {
+        return execute(tx);
+    } else {
+        // Simple update doesn't strictly need transaction but consistent API is good
+        return execute(db);
+    }
 }
 
 /**
