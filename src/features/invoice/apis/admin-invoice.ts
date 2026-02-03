@@ -43,17 +43,14 @@ router.post(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id: orderId } = req.params as { id: string };
-      const { reason, force } = req.body;
-      const authReq = req as AuthenticatedRequest;
+      const { force } = req.body;
 
-      await eventPublisher.publishGenerateInvoice({
-        orderId,
-        reason: reason || 'CORRECTION',
-        triggeredBy: authReq.userId || 'admin',
+      // Call service directly for synchronous feedback
+      const invoice = await invoiceService.generateInvoice(orderId, {
         forceNewVersion: force === true,
       });
 
-      ResponseFormatter.success(res, null, 'Invoice generation triggered');
+      ResponseFormatter.success(res, invoice, 'Invoice generated successfully');
     } catch (error) {
       next(error);
     }
@@ -113,4 +110,3 @@ router.post(
 );
 
 export default router;
-
