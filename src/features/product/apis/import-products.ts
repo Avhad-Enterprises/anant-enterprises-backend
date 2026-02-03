@@ -25,12 +25,26 @@ import {
   createImportRequestSchema,
   batchProcessImport,
   formatImportSummary,
+  trimAndNullify,
 } from '../../../utils/import-export';
 import { importSingleProduct } from '../services/product-import.service';
 
 // ============================================
 // VALIDATION SCHEMA
 // ============================================
+
+/**
+ * Robust URL parser that returns null instead of throwing on invalid URLs
+ */
+const lenientUrl = z.preprocess((val) => {
+  if (!val || typeof val !== 'string' || val.trim() === '') return null;
+  try {
+    new URL(val.trim());
+    return val.trim();
+  } catch {
+    return null;
+  }
+}, z.string().url().nullable().optional());
 
 /**
  * Product import row schema
@@ -46,42 +60,42 @@ const productImportSchema = z.object({
   status: caseInsensitiveEnum(['active', 'draft', 'archived'] as const).default('draft'),
   featured: booleanParser(z.boolean().default(false)),
 
-  // Pricing (using common number parsers)
-  selling_price: numberParser(z.number().min(0, 'Selling price must be positive')),
-  cost_price: numberParser(z.number().min(0, 'Cost price is required')),
+  // Pricing
+  selling_price: numberParser(z.number().min(0).default(0)),
+  cost_price: numberParser(z.number().min(0).default(0)),
   compare_at_price: nullableNumberParser(z.number().min(0).optional().nullable()),
 
-  // Dimensions (using nullable number parser)
+  // Dimensions
   weight: nullableNumberParser(z.number().optional().nullable()),
   length: nullableNumberParser(z.number().optional().nullable()),
   breadth: nullableNumberParser(z.number().optional().nullable()),
   height: nullableNumberParser(z.number().optional().nullable()),
 
   // Logistics
-  hsn_code: z.string().optional().nullable(),
-  barcode: z.string().optional().nullable(),
+  hsn_code: trimAndNullify(z.string().optional().nullable()),
+  barcode: trimAndNullify(z.string().optional().nullable()),
 
   // Content
-  short_description: z.string().optional().nullable(),
-  full_description: z.string().optional().nullable(),
+  short_description: trimAndNullify(z.string().optional().nullable()),
+  full_description: trimAndNullify(z.string().optional().nullable()),
 
   // Meta
-  meta_title: z.string().optional().nullable(),
-  meta_description: z.string().optional().nullable(),
-  product_url: z.string().optional().nullable(),
+  meta_title: trimAndNullify(z.string().optional().nullable()),
+  meta_description: trimAndNullify(z.string().optional().nullable()),
+  product_url: lenientUrl,
 
-  // Tags (using array parser for CSV support)
+  // Tags
   tags: arrayParser(/[;,]/).optional().default([]),
 
   // Images
-  primary_image_url: z.string().url().optional().nullable(),
+  primary_image_url: lenientUrl,
   additional_images: arrayParser(/[;,]/).optional().default([]),
 
-  // Inventory
-  inventory_quantity: numberParser(z.number().int().min(0, 'Inventory quantity must be >= 0')),
+  // Inventory - Now optional with a default of 0
+  inventory_quantity: numberParser(z.number().int().min(0).optional().default(0)),
 
   // Category (lookup by name)
-  category_name: z.string().optional().nullable(),
+  category_name: trimAndNullify(z.string().optional().nullable()),
 });
 
 /**
