@@ -166,6 +166,19 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     ? await findVariantsByProductId(productData.id)
     : [];
 
+  console.log('🔍 Backend - Variants fetched from DB:', {
+    productId: productData.id,
+    has_variants: productData.has_variants,
+    variantsCount: variantsData.length,
+    variants: variantsData.map(v => ({
+      id: v.id,
+      option_name: v.option_name,
+      option_value: v.option_value,
+      is_active: v.is_active,
+      is_deleted: v.is_deleted
+    }))
+  });
+
   const variantIds = variantsData.map(v => v.id);
 
   // Fetch all inventory for this product and its variants (Unified fetch)
