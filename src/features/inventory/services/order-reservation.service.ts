@@ -7,7 +7,7 @@
  * Phase 2: Domain Service Extraction
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
@@ -102,7 +102,12 @@ export async function validateStockAvailability(
             })
             .from(inventory)
             .leftJoin(products, eq(inventory.product_id, products.id))
-            .where(eq(inventory.product_id, item.product_id));
+            .where(
+                and(
+                    eq(inventory.product_id, item.product_id),
+                    sql`${products.status} != 'archived'`
+                )
+            );
 
         // Business logic: Validate stock not found
         if (!stock) {

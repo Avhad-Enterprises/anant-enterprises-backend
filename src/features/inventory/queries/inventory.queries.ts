@@ -199,6 +199,7 @@ export async function findInventoryList(params: InventoryListParams) {
         LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
         LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
         WHERE 1=1
+        AND p.status != 'archived'
         ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR p.sku ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
         ${condition ? sql`AND i.condition = ${condition}` : sql``}
         ${status ? sql`AND i.status = ${status}` : sql``}
@@ -273,6 +274,7 @@ export async function countInventory(params: InventoryListParams): Promise<numbe
         LEFT JOIN ${tiers} t ON p.category_tier_1 = t.id
         LEFT JOIN ${inventoryLocations} il ON i.location_id = il.id
         WHERE 1=1
+        AND p.status != 'archived'
         ${search ? sql`AND (p.product_title ILIKE ${searchClause} OR p.sku ILIKE ${searchClause} OR pv.sku ILIKE ${searchClause})` : sql``}
         ${condition ? sql`AND i.condition = ${condition}` : sql``}
         ${status ? sql`AND i.status = ${status}` : sql``}
@@ -326,7 +328,12 @@ export async function findInventoryByIdWithDetails(id: string) {
         .leftJoin(inventoryLocations, eq(inventory.location_id, inventoryLocations.id))
         .leftJoin(products, eq(inventory.product_id, products.id))
         .leftJoin(productVariants, eq(inventory.variant_id, productVariants.id))
-        .where(eq(inventory.id, id));
+        .where(
+            and(
+                eq(inventory.id, id),
+                sql`${products.status} != 'archived'`
+            )
+        );
     
     return result[0];
 }

@@ -8,14 +8,7 @@ import { inArray, sql } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { tags } from '../shared/tags.schema';
-import { products } from '../../product/shared/products.schema';
-import { blogs } from '../../blog/shared/blog.schema';
 import { users } from '../../user/shared/user.schema';
-import { orders } from '../../orders/shared/orders.schema';
-import { tickets } from '../../tickets/shared/tickets.schema';
-import { discounts } from '../../discount/shared/discount.schema';
-import { collections } from '../../collection/shared/collection.schema';
-import { discountCodes } from '../../discount/shared/discount-codes.schema';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 import { tagIdsSchema, bulkSoftDeleteTags } from '../shared';
@@ -46,38 +39,45 @@ const handler = async (req: RequestWithUser, res: Response) => {
         const tagNames = tagsToDelete.map(t => t.name);
 
         if (tagNames.length > 0) {
-            // JSONB columns cleanup
+            // JSONB columns cleanup - only tables that are confirmed to exist
             const jsonbEntities = [
-                { table: products, column: products.tags },
-                { table: blogs, column: blogs.tags },
-                { table: orders, column: orders.tags },
-                { table: tickets, column: tickets.tags },
-                { table: discounts, column: discounts.tags },
-                { table: collections, column: collections.tags },
+                { tableName: 'products', columnName: 'tags' },
+                { tableName: 'blogs', columnName: 'tags' },
+                { tableName: 'orders', columnName: 'tags' },
             ];
 
             for (const name of tagNames) {
                 for (const entity of jsonbEntities) {
-                    await tx.update(entity.table)
-                        .set({
-                            [entity.column.name]: sql`${entity.column} - ${name}`
-                        })
-                        .where(sql`${entity.column} ? ${name}`);
+                    // Use raw SQL with string interpolation for table/column names
+                    try {
+                        await tx.execute(sql.raw(`
+                            UPDATE "${entity.tableName}"
+                            SET "${entity.columnName}" = (
+                                SELECT COALESCE(
+                                    jsonb_agg(to_jsonb(elem)),
+                                    '[]'::jsonb
+                                )
+                                FROM jsonb_array_elements_text("${entity.tableName}"."${entity.columnName}") AS elem
+                                WHERE elem != '${name.replace(/'/g, "''")}'
+                            )
+                            WHERE "${entity.tableName}"."${entity.columnName}" @> '["${name.replace(/'/g, "''")}"]'::jsonb
+                        `));
+                    } catch (error) {
+                        // Skip if table doesn't exist or has issues
+                        console.warn(`Failed to update ${entity.tableName}.${entity.columnName} for tag "${name}":`, error);
+                    }
                 }
 
-                // Special case: discount_codes
-                await tx.update(discountCodes)
-                    .set({
-                        required_customer_tags: sql`required_customer_tags - ${name}`
-                    })
-                    .where(sql`required_customer_tags ? ${name}`);
-
-                // Postgres array cleanup
-                await tx.update(users)
-                    .set({
-                        tags: sql`array_remove(${users.tags}, ${name})`
-                    })
-                    .where(sql`${name} = ANY(${users.tags})`);
+                // Postgres array cleanup for users table
+                try {
+                    await tx.update(users)
+                        .set({
+                            tags: sql`array_remove(${users.tags}, ${name})`
+                        })
+                        .where(sql`${name} = ANY(${users.tags})`);
+                } catch (error) {
+                    console.warn(`Failed to update users.tags for tag "${name}":`, error);
+                }
             }
         }
 
