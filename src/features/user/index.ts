@@ -26,6 +26,13 @@ class UserRoute implements Route {
 
     const { default: getUserOrdersRouter } = await import('../orders/apis/get-user-orders');
 
+    // Address routers (dynamically imported)
+    const { default: getUserAddressesRouter } = await import('../address/apis/get-user-addresses');
+    const { default: createUserAddressRouter } = await import('../address/apis/create-user-address');
+    const { default: updateUserAddressRouter } = await import('../address/apis/update-user-address');
+    const { default: deleteUserAddressRouter } = await import('../address/apis/delete-user-address');
+    const { default: setDefaultAddressRouter } = await import('../address/apis/set-default-address');
+
     // OTP verification routes
     const { default: sendEmailOtpRouter } = await import('./apis/send-email-otp');
     const { default: verifyEmailOtpRouter } = await import('./apis/verify-email-otp');
@@ -45,7 +52,7 @@ class UserRoute implements Route {
     // Core user routes
     this.router.use(this.path, getAllUsersRouter);          // GET /users
     this.router.use(this.path, getCurrentUserRouter);       // GET /users/me
-    
+
     // OTP verification endpoints
     this.router.use(this.path, sendEmailOtpRouter);         // POST /users/send-otp
     this.router.use(this.path, verifyEmailOtpRouter);       // POST /users/verify-otp
@@ -61,6 +68,13 @@ class UserRoute implements Route {
 
     // Sub-resources
     this.router.use(this.path, getUserOrdersRouter);        // GET /users/:userId/orders
+
+    // Address sub-resources (Fix for 404: Mount address routes under /users)
+    this.router.use(this.path, getUserAddressesRouter);         // GET /users/:userId/addresses
+    this.router.use(this.path, createUserAddressRouter);        // POST /users/:userId/addresses
+    this.router.use(this.path, setDefaultAddressRouter);        // PUT /users/:userId/addresses/:id/default
+    this.router.use(this.path, updateUserAddressRouter);        // PUT /users/:userId/addresses/:id
+    this.router.use(this.path, deleteUserAddressRouter);        // DELETE /users/:userId/addresses/:id
 
     // Dynamic ID routes (customer-specific) - these use /customer/:id pattern
     this.router.use(this.path, getCustomerByIdRouter);      // GET /users/customer/:id

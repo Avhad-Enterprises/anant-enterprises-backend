@@ -22,6 +22,8 @@ import { shortTextSchema, optionalPhoneSchema } from '../../../utils/validation/
 
 const syncUserSchema = z.object({
   name: shortTextSchema.optional(),
+  first_name: shortTextSchema.optional(),
+  last_name: shortTextSchema.optional(),
   phone_number: optionalPhoneSchema,
 });
 
@@ -115,16 +117,28 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   // Create new user
-  const fullName =
-    bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
-  const nameParts = fullName.trim().split(' ');
-  const first_name = nameParts[0] || 'User';
-  const last_name = nameParts.slice(1).join(' ') || '';
+  // Use explicit first/last name if provided, otherwise fallback to parsing name or email
+  let first_name = bodyData.first_name;
+  let last_name = bodyData.last_name;
+
+  if (!first_name) {
+    const fullName = bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
+    const nameParts = fullName.trim().split(' ');
+    first_name = nameParts[0] || 'User';
+    // Only set last_name if it wasn't provided directly
+    if (!last_name) {
+      last_name = nameParts.slice(1).join(' ') || '';
+    }
+  }
+
+  // Ensure last_name is never undefined/null
+  if (!last_name) last_name = '';
 
   // Ensure unique customer_id
   const [newUser] = await db
     .insert(users)
     .values({
+      auth_id: authUser.id, // CRITICAL: Link to Supabase Auth ID
       first_name,
       last_name,
       email: authUser.email!,
