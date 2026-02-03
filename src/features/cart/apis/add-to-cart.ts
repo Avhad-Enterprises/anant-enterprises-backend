@@ -7,13 +7,14 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNull, SQL } from 'drizzle-orm';
 import { ResponseFormatter, decimalSchema } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 // carts removed
 import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { reserveCartStock, releaseCartStock } from '../../inventory/services/inventory.service';
@@ -22,6 +23,7 @@ import { CART_RESERVATION_CONFIG } from '../config/cart-reservation.config';
 // Validation schema
 const addToCartSchema = z.object({
     product_id: z.string().uuid().optional(),
+    variant_id: z.string().uuid().optional(),
     bundle_id: z.string().uuid().optional(),
     quantity: z.number().int().min(1).max(100).default(1),
     customization_data: z.array(z.object({
@@ -82,8 +84,34 @@ const handler = async (req: Request, res: Response) => {
 
         // Wrap stock check and cart update in a transaction with locking
         await db.transaction(async (tx) => {
+            // 0. Resolve Variant if provided
+            let variant: typeof productVariants.$inferSelect | null = null;
+            if (data.variant_id) {
+                const [v] = await tx
+                    .select()
+                    .from(productVariants)
+                    .where(and(
+                        eq(productVariants.id, data.variant_id),
+                        eq(productVariants.is_deleted, false)
+                    ))
+                    .limit(1);
+
+                if (!v) throw new HttpException(404, 'Variant not found');
+                if (v.product_id !== data.product_id) throw new HttpException(400, 'Variant does not belong to product');
+                if (!v.is_active) throw new HttpException(400, 'Variant is not available');
+                variant = v;
+            }
+
             // 1. Lock the inventory row to prevent concurrent stock availability issues
             // This ensures that two requests checking stock will be serialized.
+            // Support Variant-Specific Lock
+            let inventoryFilter: SQL = data.variant_id
+                ? eq(inventory.variant_id, data.variant_id)
+                : and(
+                    eq(inventory.product_id, data.product_id!),
+                    isNull(inventory.variant_id)
+                )!;
+
             const [stockData] = await tx
                 .select({
                     id: inventory.id,
@@ -92,11 +120,13 @@ const handler = async (req: Request, res: Response) => {
                     totalStock: sql<number>`${inventory.available_quantity} - ${inventory.reserved_quantity}`,
                 })
                 .from(inventory)
-                .where(eq(inventory.product_id, data.product_id!))
+                .where(inventoryFilter)
                 .for('update');
 
             if (!stockData) {
-                throw new HttpException(404, 'Product not found in inventory');
+                // If variant specific inventory is missing, use base if variant not enforced? 
+                // But if variant_id passed, we expect specific stock.
+                throw new HttpException(404, 'Product/Variant inventory not found');
             }
 
             const totalStock = Number(stockData.totalStock) || 0;
@@ -111,13 +141,23 @@ const handler = async (req: Request, res: Response) => {
                 .where(and(
                     eq(cartItems.cart_id, cartId),
                     eq(cartItems.product_id, data.product_id!),
+                    data.variant_id
+                        ? eq(cartItems.variant_id, data.variant_id)
+                        : isNull(cartItems.variant_id),
                     eq(cartItems.is_deleted, false)
                 ))
                 .limit(1);
 
-            const sellingPrice = Number(product.selling_price);
-            const compareAtPrice = product.compare_at_price ? Number(product.compare_at_price) : sellingPrice;
+            // Determine Prices (Base or Variant)
+            const sellingPrice = Number(variant ? variant.selling_price : product.selling_price);
+            const compareAtPrice = Number((variant ? variant.compare_at_price : product.compare_at_price) || sellingPrice);
             const discountAmount = Math.max(compareAtPrice - sellingPrice, 0);
+
+            // Determine SKU and Name
+            const itemSku = variant ? variant.sku : product.sku;
+            const itemName = variant
+                ? `${product.product_title} - ${variant.option_value}` // simplified name
+                : product.product_title;
 
             if (existingItem) {
                 // Update quantity
@@ -158,7 +198,8 @@ const handler = async (req: Request, res: Response) => {
                         existingItem.id,
                         CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT,
                         tx,
-                        true // Skip internal validation as we already locked and validated!
+                        true, // Skip internal validation as we already locked and validated!
+                        data.variant_id // PASS VARIANT ID
                     );
                 }
             } else {
@@ -169,15 +210,16 @@ const handler = async (req: Request, res: Response) => {
                 const [cartItem] = await tx.insert(cartItems).values({
                     cart_id: cartId,
                     product_id: data.product_id!,
+                    variant_id: data.variant_id, // Store Variant ID
                     quantity: data.quantity,
                     cost_price: compareAtPrice.toFixed(2),
                     final_price: sellingPrice.toFixed(2),
                     discount_amount: (discountAmount * data.quantity).toFixed(2),
                     line_subtotal: lineSubtotal.toFixed(2),
                     line_total: lineTotal.toFixed(2),
-                    product_name: product.product_title,
-                    product_image_url: product.primary_image_url,
-                    product_sku: product.sku,
+                    product_name: itemName,
+                    product_image_url: product.primary_image_url, // Or variant image if available
+                    product_sku: itemSku,
                     customization_data: data.customization_data,
                 }).returning();
 
@@ -189,7 +231,8 @@ const handler = async (req: Request, res: Response) => {
                         cartItem.id,
                         CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT,
                         tx,
-                        true // Skip internal validation
+                        true, // Skip internal validation
+                        data.variant_id // PASS VARIANT ID
                     );
                 }
             }

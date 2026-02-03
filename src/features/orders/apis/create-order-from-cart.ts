@@ -144,6 +144,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .filter(item => item.product_id)
         .map(item => ({
             product_id: item.product_id!,
+            variant_id: item.variant_id,
             quantity: item.quantity,
         }));
 
@@ -197,6 +198,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         const orderItemsData = items.map(item => ({
             order_id: newOrder.id,
             product_id: item.product_id,
+            variant_id: item.variant_id,
             sku: item.product_sku,
             product_name: item.product_name || 'Unknown Product',
             product_image: item.product_image_url,

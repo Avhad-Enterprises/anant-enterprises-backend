@@ -7,7 +7,7 @@
  * Phase 2: Domain Service Extraction
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
@@ -87,7 +87,7 @@ function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'ou
  * @returns Array of validation results
  */
 export async function validateStockAvailability(
-    items: Array<{ product_id: string; quantity: number }>
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>
 ): Promise<StockValidationResult[]> {
     const results: StockValidationResult[] = [];
 
@@ -102,7 +102,14 @@ export async function validateStockAvailability(
             })
             .from(inventory)
             .leftJoin(products, eq(inventory.product_id, products.id))
-            .where(eq(inventory.product_id, item.product_id));
+            .where(
+                item.variant_id
+                    ? eq(inventory.variant_id, item.variant_id)
+                    : and(
+                        eq(inventory.product_id, item.product_id),
+                        isNull(inventory.variant_id)
+                    )
+            );
 
         // Business logic: Validate stock not found
         if (!stock) {
@@ -154,7 +161,7 @@ export async function validateStockAvailability(
  * @param allowOverselling - Whether to allow reserving more than available
  */
 export async function reserveStockForOrder(
-    items: Array<{ product_id: string; quantity: number }>,
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>,
     orderId: string,
     userId: string,
     allowOverselling: boolean = false
@@ -177,6 +184,14 @@ export async function reserveStockForOrder(
 
         // Reserve stock for each item
         for (const item of items) {
+            // Support Variant-Specific Filter (Mutual Exclusivity)
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                )!;
+
             // Query layer: Update reserved quantity atomically
             const [updated] = await tx
                 .update(inventory)
@@ -185,7 +200,7 @@ export async function reserveStockForOrder(
                     updated_at: new Date(),
                     updated_by: validUserId,
                 })
-                .where(eq(inventory.product_id, item.product_id))
+                .where(inventoryFilter)
                 .returning();
 
             if (!updated) {

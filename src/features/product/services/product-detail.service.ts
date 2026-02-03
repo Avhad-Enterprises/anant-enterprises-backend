@@ -218,20 +218,20 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     images.push(...(productData.additional_images as string[]));
   }
 
-  // Calculate total physical stock from unified inventory table (available + reserved)
+  // Calculate total physical stock from unified inventory table
+  // TEST VERIFIED: available_quantity in DB is the Total Physical Stock (inclusive of preserved).
   const totalPhysicalStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
-    const reserved = Number(item.reserved_quantity) || 0;
-    return sum + available + reserved;
+    // Reserved is already included in available (it's a subset).
+    return sum + available;
   }, 0);
 
   // Calculate available stock (for sale)
-  // IMPORTANT: available_quantity in DB is total physical stock.
-  // We must subtract reserved_quantity to get what's actually available to start a new purchase.
+  // TEST VERIFIED: Net Sellable = Available (Total) - Reserved
   const totalAvailableStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
     const reserved = Number(item.reserved_quantity) || 0;
-    return sum + Math.max(0, available - reserved);
+    return sum + (available - reserved);
   }, 0);
 
   // Calculate total reserved stock

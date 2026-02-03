@@ -14,6 +14,8 @@ import { tiers } from '../../../src/features/tiers/shared/tiers.schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { getDefaultLocation } from './database';
+import { productVariants } from '../../../src/features/product/shared/product-variants.schema';
+
 
 // ============================================
 // TEST USER CREATION
@@ -30,7 +32,7 @@ export interface CreateTestUserOptions {
 export async function createTestCustomer(options: CreateTestUserOptions = {}) {
     const timestamp = Date.now();
     const randomId = Math.floor(Math.random() * 10000);
-    
+
     const email = options.email || `test-customer-${timestamp}-${randomId}@example.com`;
     const phone = options.phone || `91${9000000000 + randomId}`;
     const hashedPassword = await bcrypt.hash('Test@123', 10);
@@ -51,6 +53,16 @@ export async function createTestCustomer(options: CreateTestUserOptions = {}) {
 // TEST PRODUCT CREATION
 // ============================================
 
+export interface CreateTestVariantOptions {
+    option_name: string;
+    option_value: string;
+    sku?: string;
+    inventory_quantity?: number;
+    sellable_quantity?: number; // alias for inventory_quantity
+    cost_price?: string;
+    selling_price?: string;
+}
+
 export interface CreateTestProductOptions {
     product_title?: string;
     sku?: string;
@@ -59,12 +71,14 @@ export interface CreateTestProductOptions {
     stock?: number;
     status?: 'active' | 'draft' | 'archived';
     category_tier_1?: string;
+    variants?: CreateTestVariantOptions[];
+    has_variants?: boolean;
 }
 
 export async function createTestProduct(options: CreateTestProductOptions = {}) {
     const timestamp = Date.now();
     const randomId = Math.floor(Math.random() * 10000);
-    
+
     const productTitle = options.product_title || `Test Product ${randomId}`;
     const sku = options.sku || `TEST-SKU-${randomId}`;
     const slug = productTitle.toLowerCase().replace(/\s+/g, '-') + `-${randomId}`;
@@ -77,7 +91,7 @@ export async function createTestProduct(options: CreateTestProductOptions = {}) 
             .from(tiers)
             .where(eq(tiers.level, 1))
             .limit(1);
-        
+
         if (!tier) {
             const [newTier] = await db.insert(tiers).values({
                 name: 'Test Category',
@@ -101,28 +115,68 @@ export async function createTestProduct(options: CreateTestProductOptions = {}) 
         status: options.status || 'active',
         category_tier_1: categoryId,
         short_description: `Test product for automated testing`,
-        has_variants: false,
+        has_variants: options.has_variants ?? (options.variants && options.variants.length > 0) ?? false,
     }).returning();
 
-    // Create inventory record
+    // Create inventory record (Base Inventory)
+    // Only create base inventory if validation doesn't prevent it, or if we want to simulate the buggy state.
+    // For now, we follow standard logic: if stock is provided, we add it. 
+    // If variants are provided, we add their stock.
+
+    // Note: The schema check constraint enforces mutual exclusion between product_id and variant_id.
+    // So we can have an inventory row for the product (base) AND inventory rows for variants.
+
     const defaultLocation = await getDefaultLocation();
     if (!defaultLocation) {
         throw new Error('No default inventory location found. Please create one first.');
     }
 
-    const stockQuantity = options.stock ?? 100; // Default 100 units
+    // Add base stock if provided (even if variants exist, to simulate the issue)
+    if (options.stock !== undefined) {
+        await db.insert(inventory).values({
+            product_id: product.id,
+            location_id: defaultLocation.id,
+            available_quantity: options.stock,
+            reserved_quantity: 0,
+            incoming_quantity: 0,
+            status: options.stock > 0 ? 'in_stock' : 'out_of_stock',
+            condition: 'sellable',
+        });
+    }
 
-    await db.insert(inventory).values({
-        product_id: product.id,
-        location_id: defaultLocation.id,
-        available_quantity: stockQuantity,
-        reserved_quantity: 0,
-        incoming_quantity: 0,
-        status: stockQuantity > 0 ? 'in_stock' : 'out_of_stock',
-        condition: 'sellable',
-    });
+    // Create Variants if provided
+    if (options.variants && options.variants.length > 0) {
+        for (const variantOpt of options.variants) {
+            const variantSku = variantOpt.sku || `${sku}-${variantOpt.option_value.toUpperCase()}`;
 
-    console.log(`✅ Created test product: ${productTitle} (SKU: ${sku}, Stock: ${stockQuantity})`);
+            const [variant] = await db.insert(productVariants).values({
+                product_id: product.id,
+                option_name: variantOpt.option_name,
+                option_value: variantOpt.option_value,
+                sku: variantSku,
+                selling_price: variantOpt.selling_price || options.selling_price || '999.00',
+                cost_price: variantOpt.cost_price || options.cost_price || '500.00',
+                is_active: true,
+                is_default: false,
+            }).returning();
+
+            const variantStock = variantOpt.inventory_quantity ?? variantOpt.sellable_quantity ?? 0;
+
+            // Add variant inventory
+            await db.insert(inventory).values({
+                variant_id: variant.id,
+                location_id: defaultLocation.id,
+                available_quantity: variantStock,
+                reserved_quantity: 0,
+                incoming_quantity: 0,
+                status: variantStock > 0 ? 'in_stock' : 'out_of_stock',
+                condition: 'sellable',
+            });
+            console.log(`  Reference Variant created: ${variantOpt.option_name}:${variantOpt.option_value} (Stock: ${variantStock})`);
+        }
+    }
+
+    console.log(`✅ Created test product: ${productTitle} (SKU: ${sku}, Stock: ${options.stock ?? 0})`);
     return product;
 }
 

@@ -5,13 +5,14 @@
 
 import { Router, Response, Request } from 'express';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, SQL, isNull } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
 import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { releaseCartStock, reserveCartStock } from '../../inventory/services/inventory.service';
@@ -42,6 +43,7 @@ const handler = async (req: Request, res: Response) => {
             id: cartItems.id,
             cart_id: cartItems.cart_id,
             product_id: cartItems.product_id,
+            variant_id: cartItems.variant_id,
             cost_price: cartItems.cost_price,
             final_price: cartItems.final_price,
             quantity: cartItems.quantity,
@@ -83,18 +85,35 @@ const handler = async (req: Request, res: Response) => {
     let comparePrice = Number(cartItem.cost_price);
 
     if (cartItem.product_id) {
-        const [product] = await db
-            .select({
-                selling_price: products.selling_price,
-                compare_at_price: products.compare_at_price,
-            })
-            .from(products)
-            .where(eq(products.id, cartItem.product_id))
-            .limit(1);
+        // Fetch current product/variant price
+        if (cartItem.variant_id) {
+            const [variant] = await db
+                .select({
+                    selling_price: productVariants.selling_price,
+                    compare_at_price: productVariants.compare_at_price,
+                })
+                .from(productVariants)
+                .where(eq(productVariants.id, cartItem.variant_id))
+                .limit(1);
 
-        if (product) {
-            currentPrice = Number(product.selling_price);
-            comparePrice = product.compare_at_price ? Number(product.compare_at_price) : currentPrice;
+            if (variant) {
+                currentPrice = Number(variant.selling_price);
+                comparePrice = variant.compare_at_price ? Number(variant.compare_at_price) : currentPrice;
+            }
+        } else {
+            const [product] = await db
+                .select({
+                    selling_price: products.selling_price,
+                    compare_at_price: products.compare_at_price,
+                })
+                .from(products)
+                .where(eq(products.id, cartItem.product_id))
+                .limit(1);
+
+            if (product) {
+                currentPrice = Number(product.selling_price);
+                comparePrice = product.compare_at_price ? Number(product.compare_at_price) : currentPrice;
+            }
         }
     }
 
@@ -116,13 +135,20 @@ const handler = async (req: Request, res: Response) => {
         // 2. Lock inventory row to serialize stock checks across all carts
         let totalStock = 0;
         if (cartItem.product_id) {
+            let inventoryFilter: SQL = cartItem.variant_id
+                ? eq(inventory.variant_id, cartItem.variant_id)
+                : and(
+                    eq(inventory.product_id, cartItem.product_id),
+                    isNull(inventory.variant_id)
+                )!;
+
             const [stockData] = await tx
                 .select({
                     id: inventory.id,
                     totalStock: sql<number>`${inventory.available_quantity} - ${inventory.reserved_quantity}`
                 })
                 .from(inventory)
-                .where(eq(inventory.product_id, cartItem.product_id))
+                .where(inventoryFilter)
                 .for('update');
 
             totalStock = Number(stockData?.totalStock) || 0;
@@ -167,7 +193,8 @@ const handler = async (req: Request, res: Response) => {
                 itemId,
                 CART_RESERVATION_CONFIG.RESERVATION_TIMEOUT,
                 tx,
-                true // skipValidation
+                true, // skipValidation
+                cartItem.variant_id // PASS VARIANT ID
             );
         }
     });

@@ -7,7 +7,7 @@
  * Phase 2: Domain Service Extraction
  */
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { logger } from '../../../utils';
@@ -40,7 +40,8 @@ export async function reserveCartStock(
     cartItemId: string,
     expirationMinutes: number = 30,
     tx?: any,
-    skipValidation: boolean = false
+    skipValidation: boolean = false,
+    variantId?: string | null
 ): Promise<{ reservation_id: string; expires_at: Date }> {
     const execute = async (transaction: any) => {
         // Business logic: Validate stock availability
@@ -50,7 +51,11 @@ export async function reserveCartStock(
         if (!skipValidation) {
             // Note: validateStockAvailability also needs to support tx if we want full atomicity reading stock!
             // But validateStockAvailability is imported. It likely just reads.
-            const validations = await validateStockAvailability([{ product_id: productId, quantity }]);
+            const validations = await validateStockAvailability([{
+                product_id: productId,
+                quantity,
+                variant_id: variantId
+            }]);
             const [validation] = validations;
 
             if (!validation.available) {
@@ -65,7 +70,14 @@ export async function reserveCartStock(
                 reserved_quantity: sql`${inventory.reserved_quantity} + ${quantity}`,
                 updated_at: new Date(),
             })
-            .where(eq(inventory.product_id, productId));
+            .where(
+                variantId
+                    ? eq(inventory.variant_id, variantId)
+                    : and(
+                        eq(inventory.product_id, productId),
+                        isNull(inventory.variant_id)
+                    )
+            );
 
         // Business logic: Create reservation record
         const reservationId = crypto.randomUUID();
