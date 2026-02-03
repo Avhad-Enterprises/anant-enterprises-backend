@@ -98,18 +98,21 @@ class PaymentWorker extends BaseWorker {
         logger.info('Processing PAYMENT_FAILED', { paymentId: data.paymentId });
 
         try {
-            // Send failure notification
-            await eventPublisher.publishEmailNotification({
-                to: data.userId,
-                subject: 'Payment Failed - Action Required',
-                template: 'payment_failed',
-                templateData: {
+            // Send failure notification via unified service
+            await eventPublisher.publishNotification({
+                userId: data.userId,
+                templateCode: 'PAYMENT_FAILED',
+                variables: {
                     amount: data.amount,
                     currency: data.currency,
                     paymentMethod: data.paymentMethod,
                     errorMessage: data.errorMessage || 'Please try again',
                 },
-                priority: 1,
+                options: {
+                    priority: 'high',
+                    actionUrl: `/profile/orders/${data.orderId}`,
+                    actionText: 'Retry Payment',
+                },
             });
 
             // Audit log
@@ -136,17 +139,52 @@ class PaymentWorker extends BaseWorker {
 
         try {
             // Send refund notification
-            await eventPublisher.publishEmailNotification({
-                to: data.orderId, // Will be resolved
-                subject: 'Refund Processed',
-                template: 'payment_refunded',
-                templateData: {
-                    amount: data.amount,
-                    currency: data.currency,
-                    reason: data.reason,
-                    refundedAt: data.refundedAt,
-                },
-            });
+            // Note: data.orderId is passed as recipient in old code, assuming it was a mistake or handled upstream.
+            // But notifications require userId. The event data technically has orderId but not explicit userId?
+            // Actually PaymentRefundedData interface HAS `userId`? Let's check types.ts
+            // Wait, looking at PaymentRefundedData in types.ts:
+            // export interface PaymentRefundedData { paymentId, orderId, refundId, amount, currency, reason, refundedAt }
+            // It DOES NOT have userId! This is a problem.
+            // However, handlePaymentRefunded in the OLD code used `to: data.orderId`. OLD code: `to: data.orderId`.
+            // That's weird. It implies the old code was broken or trying to look up email by orderId?
+            // But `publishEmailNotification` takes `to: string | string[]` which is email address.
+            // Passing orderId there would fail unless orderId IS an email (unlikely).
+            //
+            // Let's look at `PaymentWorker` source again.
+            // `to: data.orderId` // Will be resolved
+            // The comment says "Will be resolved". But `eventPublisher.publishEmailNotification` just queues it.
+            // If `NotificationWorker` receives an ID as email, `nodemailer` will fail.
+            //
+            // FIX: We need to fetch userId or email. But `NotificationService` requires `userId`.
+            // We should modify `PaymentRefundedData` to include `userId` or fetch it here.
+            // Fetching it here requires DB access `orders` table.
+
+            // To be safe and quick, let's fetch the order to get userId.
+            const { orders } = await import('../../../orders/shared/orders.schema');
+            const { eq } = await import('drizzle-orm');
+            const { db } = await import('../../../../database');
+
+            const [order] = await db.select({ userId: orders.user_id }).from(orders).where(eq(orders.id, data.orderId)).limit(1);
+
+            if (order && order.userId) {
+                await eventPublisher.publishNotification({
+                    userId: order.userId,
+                    templateCode: 'PAYMENT_REFUNDED',
+                    variables: {
+                        amount: data.amount,
+                        currency: data.currency,
+                        reason: data.reason || 'Customer request',
+                        refundedAt: data.refundedAt,
+                    },
+                    options: {
+                        priority: 'normal',
+                        actionUrl: `/profile/orders/${data.orderId}`,
+                        actionText: 'View Order',
+                    }
+                });
+            } else {
+                logger.warn('Could not find order or user for refund notification', { orderId: data.orderId });
+            }
 
             // Audit log
             await auditService.log({
