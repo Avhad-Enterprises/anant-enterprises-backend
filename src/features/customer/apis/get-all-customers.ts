@@ -14,6 +14,7 @@ import { userAddresses } from '../../address/shared/addresses.schema';
 import { inArray } from 'drizzle-orm';
 import { userRoles } from '../../rbac/shared/user-roles.schema';
 import { roles } from '../../rbac/shared/roles.schema';
+import { orders } from '../../orders/shared/orders.schema';
 import { buildCustomerSearchConditions } from '../shared/search-utils';
 
 // Default pagination values
@@ -161,6 +162,31 @@ async function getAllCustomers(
         });
     }
 
+    // 2.2 Fetch Order Counts for these users
+    let orderCountsMap: Record<string, number> = {};
+    if (userIds.length > 0) {
+        const orderCounts = await db
+            .select({
+                userId: orders.user_id,
+                count: count()
+            })
+            .from(orders)
+            .where(
+                and(
+                    inArray(orders.user_id, userIds),
+                    eq(orders.is_deleted, false),
+                    eq(orders.is_draft, false)
+                )
+            )
+            .groupBy(orders.user_id);
+
+        orderCounts.forEach(row => {
+            if (row.userId) {
+                orderCountsMap[row.userId] = Number(row.count);
+            }
+        });
+    }
+
     // 3. Format Response
     const formattedUsers = allUsers.map(({ user, customerProfile }) => {
         const sanitized = sanitizeUsers([user])[0];
@@ -169,6 +195,7 @@ async function getAllCustomers(
             details: customerProfile || null,
             profileType: customerProfile ? 'individual' : 'none',
             addresses: addressesMap[user.id] || [],
+            total_orders: orderCountsMap[user.id] || 0,
             gender: user.gender // Explicitly ensuring gender is at top level (already in sanitized but being explicit helps debug)
         };
     });

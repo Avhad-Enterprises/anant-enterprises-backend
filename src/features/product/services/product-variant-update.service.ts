@@ -31,15 +31,28 @@ export async function updateProductVariants({
 
   const existingVariants = await findVariantsByProductId(productId);
   const existingVariantIds = new Set(existingVariants.map(v => v.id));
+  // Create a map of SKU -> existing variant for matching when id is not provided
+  const existingVariantsBysku = new Map(existingVariants.map(v => [v.sku, v]));
 
   if (variants && variants.length > 0) {
     await validateVariantSkus(variants, existingVariants, productId);
 
     for (const variant of variants) {
+      // Check if variant exists by ID first
       if (variant.id && existingVariantIds.has(variant.id)) {
         await updateExistingVariant(variant, updatedBy);
         await updateVariantInventory(productId, variant, updatedBy);
-      } else {
+      }
+      // If no ID provided, try to match by SKU (for updates from frontend that don't send id)
+      else if (!variant.id && variant.sku && existingVariantsBysku.has(variant.sku)) {
+        const existingVariant = existingVariantsBysku.get(variant.sku)!;
+        // Add the existing id to the variant for update
+        const variantWithId = { ...variant, id: existingVariant.id };
+        await updateExistingVariant(variantWithId, updatedBy);
+        await updateVariantInventory(productId, variantWithId, updatedBy);
+      }
+      // No match found - create new variant
+      else {
         const newVariantId = await createNewVariant(productId, variant, updatedBy);
         await createInventoryForProduct(
           productId,
@@ -68,8 +81,12 @@ async function validateVariantSkus(
   for (const variant of variants) {
     const skuTaken = await isSkuTaken(variant.sku, productId);
     if (skuTaken) {
-      const sameVariant = existingVariants.find(v => v.sku === variant.sku && v.id === variant.id);
-      if (!sameVariant) {
+      // Allow if variant matches by ID, or if no ID provided but SKU matches an existing variant of this product
+      const sameVariantById = existingVariants.find(v => v.sku === variant.sku && v.id === variant.id);
+      const sameVariantBySku = existingVariants.find(v => v.sku === variant.sku);
+
+      // If variant has ID, must match by ID. If no ID, allow if SKU belongs to this product's variant
+      if (!sameVariantById && !(variant.id === undefined && sameVariantBySku)) {
         throw new HttpException(409, `SKU '${variant.sku}' is already in use`);
       }
     }
@@ -157,8 +174,14 @@ async function softDeleteMissingVariants(
   variants: VariantUpdateInput[],
   updatedBy: string
 ): Promise<void> {
+  // Collect both IDs and SKUs from the incoming variants (for matching)
   const updatedVariantIds = new Set(variants.filter(v => v.id).map(v => v.id!));
-  const variantsToDelete = existingVariants.filter(v => !updatedVariantIds.has(v.id));
+  const updatedVariantSkus = new Set(variants.map(v => v.sku));
+
+  // Only delete variants that don't match by ID AND don't match by SKU
+  const variantsToDelete = existingVariants.filter(
+    v => !updatedVariantIds.has(v.id) && !updatedVariantSkus.has(v.sku)
+  );
 
   for (const variant of variantsToDelete) {
     await db
