@@ -55,28 +55,30 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
       secondary_title: products.secondary_title,
       short_description: products.short_description,
       full_description: products.full_description,
+      admin_comment: products.admin_comment,
       status: products.status,
       featured: products.featured,
-      
+
       // Pricing
       cost_price: products.cost_price,
       selling_price: products.selling_price,
       compare_at_price: products.compare_at_price,
-      
+
       // Inventory
       sku: products.sku,
       hsn_code: products.hsn_code,
-      
+      barcode: products.barcode,
+
       // Media
       primary_image_url: products.primary_image_url,
       additional_images: products.additional_images,
-      
+
       // Categories
       category_tier_1: products.category_tier_1,
       category_tier_2: products.category_tier_2,
       category_tier_3: products.category_tier_3,
       category_tier_4: products.category_tier_4,
-      
+
       // Timestamps
       created_at: products.created_at,
       updated_at: products.updated_at,
@@ -240,7 +242,7 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
   // Transform variants with inventory
   const variants = variantsData.map(variant => {
     const variantStock = variantInventoryMap.get(variant.id) || 0;
-    
+
     return {
       id: variant.id,
       product_id: variant.product_id,
@@ -275,6 +277,7 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     secondary_title: productData.secondary_title,
     short_description: productData.short_description,
     full_description: productData.full_description,
+    admin_comment: productData.admin_comment || null,
     status: productData.status,
 
     // Pricing
@@ -321,6 +324,7 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     product_url: productData.product_url,
 
     hsn_code: productData.hsn_code,
+    barcode: productData.barcode,
 
     tags: (productData.tags as string[]) || [],
 

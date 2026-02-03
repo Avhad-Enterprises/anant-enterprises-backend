@@ -69,7 +69,10 @@ export interface IProductResponse {
   product_url: string | null;
 
   hsn_code: string | null;
+  barcode: string | null;
   tags: string[];
+  admin_comment: string | null;
+
 
   featured: boolean;
   faqs: Array<{ id: string; question: string; answer: string }>;

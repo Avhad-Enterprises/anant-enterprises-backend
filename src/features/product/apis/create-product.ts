@@ -74,7 +74,9 @@ async function createNewProduct(data: z.infer<typeof createProductSchema>, creat
     meta_description: data.meta_description,
     product_url: data.product_url,
     tags: data.tags,
+    admin_comment: data.admin_comment,
     has_variants: data.has_variants || false,
+
     created_by: createdBy,
     updated_by: createdBy,
   };
@@ -223,12 +225,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     base_inventory: productData.inventory_quantity || 0,
     total_stock: productData.inventory_quantity || 0,
     // If variants exist, we should ideally map them too, but for now base_inventory is critical
-    variants: product.has_variants && productData.variants 
+    variants: product.has_variants && productData.variants
       ? productData.variants.map((v: any) => ({
-          ...v, // Includes inventory_quantity from input
-          // We don't have the new IDs here without refactoring, so we return input data
-          // The frontend mainly needs the product ID which is at the root
-      })) 
+        ...v, // Includes inventory_quantity from input
+        // We don't have the new IDs here without refactoring, so we return input data
+        // The frontend mainly needs the product ID which is at the root
+      }))
       : undefined
   };
 

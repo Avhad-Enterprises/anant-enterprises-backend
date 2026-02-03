@@ -19,6 +19,7 @@ export interface IProduct {
 
   short_description?: string | null;
   full_description?: string | null;
+  admin_comment?: string | null;
 
   status: 'draft' | 'active' | 'archived';
   featured: boolean;
