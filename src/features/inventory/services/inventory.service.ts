@@ -179,61 +179,76 @@ export async function adjustInventory(
     throw new Error('Unable to resolve a valid user for audit logging.');
   }
 
-  // Transaction: ensures consistency between inventory and adjustments
-  const result = await db.transaction(async tx => {
-    // Query layer: Get current inventory
-    const current = await inventoryQueries.findInventoryById(id);
+  // Get current value first (before transaction)
+  const current = await inventoryQueries.findInventoryById(id);
 
-    if (!current) {
-      throw new Error('Inventory item not found');
+  if (!current) {
+    throw new Error('Inventory item not found');
+  }
+
+  const quantityBefore = current.available_quantity;
+  const quantityAfter = quantityBefore + data.quantity_change;
+
+  // Business logic: Validate quantity constraints
+  if (quantityAfter < 0 && !allowNegative) {
+    throw new Error(
+      `Resulting quantity cannot be negative (current: ${quantityBefore}, change: ${data.quantity_change})`
+    );
+  }
+
+  if (quantityAfter < 0 && allowNegative) {
+    logger.warn(`[Inventory] Item ${current.id} adjusted to negative quantity: ${quantityAfter}`);
+  }
+
+  // Business logic: Determine adjustment type
+  let adjustmentType: 'increase' | 'decrease' | 'correction' | 'write-off';
+  if (data.quantity_change > 0) {
+    adjustmentType = 'increase';
+  } else if (data.quantity_change < 0) {
+    adjustmentType = 'decrease';
+  } else {
+    adjustmentType = 'correction';
+  }
+
+  // Query layer: Update inventory using ATOMIC increment/decrement to prevent race conditions
+  // These operations are already atomic at the database level, no transaction needed
+  let updated;
+  if (data.quantity_change > 0) {
+    // Use atomic increment
+    updated = await inventoryQueries.incrementAvailableQuantity(id, data.quantity_change);
+  } else if (data.quantity_change < 0) {
+    // Use atomic decrement
+    updated = await inventoryQueries.decrementAvailableQuantity(id, Math.abs(data.quantity_change));
+  } else {
+    // No change in quantity, just update metadata
+    updated = current;
+  }
+
+  // Update status separately based on new quantity
+  if (updated.available_quantity !== current.available_quantity) {
+    const newStatus = getStatusFromQuantity(updated.available_quantity);
+    if (newStatus !== updated.status) {
+      updated = await inventoryQueries.updateInventoryById(id, {
+        status: newStatus,
+        updated_by: validUserId,
+      });
     }
+  }
 
-    const quantityBefore = current.available_quantity;
-    const quantityAfter = quantityBefore + data.quantity_change;
-
-    // Business logic: Validate quantity constraints
-    if (quantityAfter < 0 && !allowNegative) {
-      throw new Error(
-        `Resulting quantity cannot be negative (current: ${quantityBefore}, change: ${data.quantity_change})`
-      );
-    }
-
-    if (quantityAfter < 0 && allowNegative) {
-      logger.warn(`[Inventory] Item ${current.id} adjusted to negative quantity: ${quantityAfter}`);
-    }
-
-    // Business logic: Determine adjustment type
-    let adjustmentType: 'increase' | 'decrease' | 'correction' | 'write-off';
-    if (data.quantity_change > 0) {
-      adjustmentType = 'increase';
-    } else if (data.quantity_change < 0) {
-      adjustmentType = 'decrease';
-    } else {
-      adjustmentType = 'correction';
-    }
-
-    // Query layer: Update inventory (using raw query for transaction)
-    const updated = await inventoryQueries.updateInventoryById(id, {
-      available_quantity: quantityAfter,
-      status: getStatusFromQuantity(quantityAfter),
-      updated_by: validUserId,
-    });
-
-    // Query layer: Create adjustment record
-    const adjustment = await adjustmentQueries.createAdjustment({
-      inventory_id: id,
-      adjustment_type: adjustmentType,
-      quantity_change: data.quantity_change,
-      quantity_before: quantityBefore,
-      quantity_after: quantityAfter,
-      reason: data.reason,
-      reference_number: data.reference_number,
-      notes: data.notes,
-      adjusted_by: validUserId,
-    });
-
-    return { inventory: updated, adjustment };
+  // Query layer: Create adjustment record
+  const adjustment = await adjustmentQueries.createAdjustment({
+    inventory_id: id,
+    adjustment_type: adjustmentType,
+    quantity_change: data.quantity_change,
+    quantity_before: quantityBefore,
+    quantity_after: updated.available_quantity,
+    reason: data.reason,
+    reference_number: data.reference_number,
+    notes: data.notes,
+    adjusted_by: validUserId,
   });
+
+  const result = { inventory: updated, adjustment };
 
   // Business logic: Post-transaction notifications
   try {

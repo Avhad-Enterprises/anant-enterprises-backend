@@ -278,6 +278,7 @@ export async function createTestCart(options: CreateTestCartOptions) {
 export interface SetupTestScenarioResult {
     customer: typeof users.$inferSelect;
     products: Array<typeof products.$inferSelect>;
+    inventories: Array<typeof inventory.$inferSelect>;
     address: typeof userAddresses.$inferSelect;
     cart?: typeof carts.$inferSelect;
 }
@@ -306,6 +307,13 @@ export async function setupBasicTestScenario(options: {
         createdProducts.push(product);
     }
 
+    // Fetch inventories for all created products
+    const createdInventories: Array<typeof inventory.$inferSelect> = [];
+    for (const product of createdProducts) {
+        const [inv] = await db.select().from(inventory).where(eq(inventory.product_id, product.id));
+        if (inv) createdInventories.push(inv);
+    }
+
     // 3. Create address
     const address = await createTestAddress({
         userId: customer.id,
@@ -329,6 +337,7 @@ export async function setupBasicTestScenario(options: {
     return {
         customer,
         products: createdProducts,
+        inventories: createdInventories,
         address,
         cart,
     };

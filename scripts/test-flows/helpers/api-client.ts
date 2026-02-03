@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-const BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000/api';
+const BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
 export interface ApiClientOptions {
     token?: string;
@@ -213,6 +213,37 @@ export class TestApiClient {
 
     async getProductById(productId: string) {
         const response = await this.client.get(`/products/${productId}`, {
+            headers: this.getHeaders(),
+        });
+        return response.data;
+    }
+
+    // ============================================
+    // INVENTORY APIs
+    // ============================================
+
+    async getAvailableStock(productId: string) {
+        const response = await this.client.get(`/inventory/product/${productId}/available`, {
+            headers: this.getHeaders(),
+        });
+        return response.data;
+    }
+
+    async adjustInventory(inventoryId: string, data: {
+        quantity_change: number;
+        reason: string;
+        reference_number?: string;
+        notes?: string;
+    }) {
+        const response = await this.client.post(`/admin/inventory/${inventoryId}/adjust`, data, {
+            headers: this.getHeaders(),
+        });
+        return response.data;
+    }
+
+    async getInventoryHistory(inventoryId: string, limit = 50) {
+        const response = await this.client.get(`/admin/inventory/${inventoryId}/history`, {
+            params: { limit },
             headers: this.getHeaders(),
         });
         return response.data;
