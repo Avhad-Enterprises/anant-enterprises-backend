@@ -105,15 +105,16 @@ export class InvoiceService {
     shippingAddress: any,
     user: any
   ): Promise<Buffer> {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       const doc = new PDFKit({ margin: 50, size: 'A4' });
       const buffers: Buffer[] = [];
 
       doc.on('data', buffers.push.bind(buffers));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', err => reject(err));
 
-      // Import config
-      const { invoiceConfig: config } = require('./config/invoice.config');
+      // Import config - REPLACED WITH STATIC IMPORT
+      const config = invoiceConfig;
 
       // Base Y position
       let yPos = 50;
@@ -536,76 +537,78 @@ export class InvoiceService {
    * Generate invoice for order
    */
   async generateInvoice(orderId: string, options?: { forceNewVersion?: boolean }): Promise<any> {
-    try {
-      logger.info('Generating invoice for order', { orderId });
+    logger.info('Generating invoice for order', { orderId });
 
-      // Get order details with addresses
-      const orderDetails = await db.query.orders.findFirst({
-        where: eq(orders.id, orderId),
-        with: {
-          shippingAddress: true,
-          billingAddress: true,
-        },
-      });
+    // Get order details with addresses (outside transaction for read)
+    const orderDetails = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+      with: {
+        shippingAddress: true,
+        billingAddress: true,
+      },
+    });
 
-      if (!orderDetails) {
-        throw new HttpException(404, 'Order not found');
-      }
+    if (!orderDetails) {
+      throw new HttpException(404, 'Order not found');
+    }
 
-      const order = orderDetails;
+    const order = orderDetails;
 
-      // Check if invoice already exists
-      const [existingInvoice] = await db
+    // Check if invoice already exists
+    const [existingInvoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.order_id, orderId));
+
+    if (existingInvoice && !options?.forceNewVersion) {
+      logger.info('Invoice already exists for order', { orderId });
+      return this.getLatestInvoiceForOrder(orderId);
+    }
+
+    // Get order items with HSN from products
+    const orderItemsResult = await db
+      .select({
+        id: orderItems.id,
+        order_id: orderItems.order_id,
+        product_id: orderItems.product_id,
+        product_name: orderItems.product_name,
+        sku: orderItems.sku,
+        quantity: orderItems.quantity,
+        cost_price: orderItems.cost_price,
+        unit_price: orderItems.cost_price, // map cost_price to unit_price for invoice
+        hsn_code: products.hsn_code,
+      })
+      .from(orderItems)
+      .leftJoin(products, eq(orderItems.product_id, products.id))
+      .where(eq(orderItems.order_id, orderId));
+
+    // Get user details
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, order.user_id || ''));
+
+    // Get billing and shipping addresses
+    let billingAddress = null;
+    let shippingAddress = null;
+
+    if (order.billing_address_id) {
+      [billingAddress] = await db
         .select()
-        .from(invoices)
-        .where(eq(invoices.order_id, orderId));
+        .from(userAddresses)
+        .where(eq(userAddresses.id, order.billing_address_id));
+    }
 
-      if (existingInvoice && !options?.forceNewVersion) {
-        logger.info('Invoice already exists for order', { orderId });
-        return this.getLatestInvoiceForOrder(orderId);
-      }
-
-      // Get order items with HSN from products
-      const orderItemsResult = await db
-        .select({
-          id: orderItems.id,
-          order_id: orderItems.order_id,
-          product_id: orderItems.product_id,
-          product_name: orderItems.product_name,
-          sku: orderItems.sku,
-          quantity: orderItems.quantity,
-          cost_price: orderItems.cost_price,
-          unit_price: orderItems.cost_price, // map cost_price to unit_price for invoice
-          hsn_code: products.hsn_code,
-        })
-        .from(orderItems)
-        .leftJoin(products, eq(orderItems.product_id, products.id))
-        .where(eq(orderItems.order_id, orderId));
-
-      // Get user details
-      const [user] = await db
+    if (order.shipping_address_id) {
+      [shippingAddress] = await db
         .select()
-        .from(users)
-        .where(eq(users.id, order.user_id || ''));
+        .from(userAddresses)
+        .where(eq(userAddresses.id, order.shipping_address_id));
+    }
 
-      // Get billing and shipping addresses
-      let billingAddress = null;
-      let shippingAddress = null;
-
-      if (order.billing_address_id) {
-        [billingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.billing_address_id));
-      }
-
-      if (order.shipping_address_id) {
-        [shippingAddress] = await db
-          .select()
-          .from(userAddresses)
-          .where(eq(userAddresses.id, order.shipping_address_id));
-      }
-
+    // Wrap all write operations in a transaction for atomicity
+    // If PDF generation or upload fails, the entire transaction rolls back
+    return await db.transaction(async tx => {
       let invoiceId = '';
       let versionNumber = 1;
       let invoiceNumber = '';
@@ -619,7 +622,7 @@ export class InvoiceService {
         currentInvoice = existingInvoice;
 
         // Update invoice latest version
-        await db
+        await tx
           .update(invoices)
           .set({
             latest_version: versionNumber,
@@ -641,7 +644,7 @@ export class InvoiceService {
           updated_at: new Date(),
         };
 
-        const [invoice] = await db.insert(invoices).values(newInvoice).returning();
+        const [invoice] = await tx.insert(invoices).values(newInvoice).returning();
         invoiceId = invoice.id;
         currentInvoice = invoice;
       }
@@ -695,7 +698,7 @@ export class InvoiceService {
         updated_at: new Date(),
       };
 
-      const [invoiceVersion] = await db
+      const [invoiceVersion] = await tx
         .insert(invoiceVersions)
         .values(newInvoiceVersion)
         .returning();
@@ -718,7 +721,7 @@ export class InvoiceService {
         updated_at: new Date(),
       }));
 
-      await db.insert(invoiceLineItems).values(invoiceLineItemsData);
+      await tx.insert(invoiceLineItems).values(invoiceLineItemsData);
 
       // Generate PDF
       const pdfBuffer: Buffer = await this.generatePDFContent(
@@ -743,7 +746,7 @@ export class InvoiceService {
       );
 
       // Update invoice version with PDF info
-      await db
+      await tx
         .update(invoiceVersions)
         .set({
           pdf_url: uploadResult.url,
@@ -758,12 +761,10 @@ export class InvoiceService {
         invoiceNumber,
         fileUrl: uploadResult.url,
       });
+    }); // End of transaction
 
-      return this.getLatestInvoiceForOrder(orderId);
-    } catch (error) {
-      logger.error('Error generating invoice', { orderId, error });
-      throw error;
-    }
+    // Fetch and return the invoice after transaction commits
+    return this.getLatestInvoiceForOrder(orderId);
   }
 
   /**
@@ -938,4 +939,3 @@ export class InvoiceService {
 }
 
 export const invoiceService = new InvoiceService();
-
