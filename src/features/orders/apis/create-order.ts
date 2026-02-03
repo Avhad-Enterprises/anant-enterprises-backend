@@ -215,7 +215,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 try {
                     // Fetch customer details for notification
                     const [customer] = await db
-                        .select({ name: users.name, email: users.email })
+                        .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                         .from(users)
                         .where(eq(users.id, targetUserId))
                         .limit(1);
@@ -224,7 +224,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                         userId: targetUserId,
                         templateCode: TEMPLATE_CODES.ORDER_CREATED,
                         variables: {
-                            userName: customer?.name || 'Customer',
+                            userName: customer ? `${customer.first_name} ${customer.last_name}` : 'Customer',
                             orderNumber: order.order_number,
                             total: Number(order.total_amount).toFixed(2),
                             currency: order.currency || 'INR',
@@ -253,11 +253,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     let customerEmail = 'N/A';
                     if (targetUserId) {
                         const [customer] = await db
-                            .select({ name: users.name, email: users.email })
+                            .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                             .from(users)
                             .where(eq(users.id, targetUserId))
                             .limit(1);
-                        customerName = customer?.name || 'Guest';
+                        customerName = customer ? `${customer.first_name} ${customer.last_name}` : 'Guest';
                         customerEmail = customer?.email || 'N/A';
                     }
 
@@ -547,7 +547,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         try {
             // Fetch customer details for personalized notification
             const [customer] = await db
-                .select({ name: users.name, email: users.email })
+                .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                 .from(users)
                 .where(eq(users.id, userId))
                 .limit(1);
@@ -556,7 +556,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 userId: userId!,
                 templateCode: TEMPLATE_CODES.ORDER_CREATED,
                 variables: {
-                    userName: customer?.name || 'Customer',
+                    userName: customer ? `${customer.first_name} ${customer.last_name}` : 'Customer',
                     orderNumber: order.order_number,
                     total: Number(order.total_amount).toFixed(2),
                     currency: order.currency || 'INR',
@@ -582,7 +582,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             if (adminUserIds.length > 0) {
                 // Fetch customer details for admin notification
                 const [customer] = await db
-                    .select({ name: users.name, email: users.email })
+                    .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                     .from(users)
                     .where(eq(users.id, userId))
                     .limit(1);
@@ -598,7 +598,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
                     variables: {
                         orderNumber: order.order_number,
-                        customerName: customer?.name || 'Customer',
+                        customerName: customer ? `${customer.first_name} ${customer.last_name}` : 'Guest',
                         customerEmail: customer?.email || 'N/A',
                         total: Number(order.total_amount).toFixed(2),
                         currency: order.currency || 'INR',

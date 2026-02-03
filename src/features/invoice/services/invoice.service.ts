@@ -17,7 +17,7 @@ import { HttpException, logger } from '../../../utils';
 import PDFKit from 'pdfkit';
 import { uploadToStorage, downloadFromStorageAsBuffer } from '../../../utils/supabaseStorage';
 import { numberToWords } from '../../../utils/numberToWords';
-import { invoiceConfig } from '../invoice.config';
+import { invoiceConfig } from '../config/invoice.config';
 
 /**
  * Invoice Service

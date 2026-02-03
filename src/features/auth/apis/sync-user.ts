@@ -13,7 +13,7 @@ import validationMiddleware from '../../../middlewares/validation.middleware';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
-import { logger, generateCustomerId } from '../../../utils';
+import { logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { verifySupabaseToken } from '../services/supabase-auth.service';
@@ -122,28 +122,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const last_name = nameParts.slice(1).join(' ') || '';
 
   // Ensure unique customer_id
-  let customerId = generateCustomerId();
-  let attempts = 0;
-  while (attempts < 10) {
-    const [existing] = await db
-      .select()
-      .from(users)
-      .where(eq(users.customer_id, customerId))
-      .limit(1);
-    if (!existing) break;
-    customerId = generateCustomerId();
-    attempts++;
-  }
-
   const [newUser] = await db
     .insert(users)
     .values({
-      auth_id: authUser.id,
       first_name,
       last_name,
       email: authUser.email!,
       phone_number: bodyData.phone_number || authUser.phone || '',
-      customer_id: customerId,
       email_verified: emailVerified,
       email_verified_at: emailVerifiedAt,
       is_deleted: false,

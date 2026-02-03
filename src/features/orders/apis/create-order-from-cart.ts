@@ -20,7 +20,7 @@ import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { users } from '../../user/shared/user.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
-import { validateStockAvailability, extendCartReservation, logOrderPlacement } from '../../inventory/services/inventory.service';
+import { validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
 import { createOrderSchema, orderService, queueCustomerOrderNotification, queueAdminOrderNotification } from '../shared';
 
 const handler = async (req: RequestWithUser, res: Response) => {
@@ -220,9 +220,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         return newOrder;
     });
-
-    // Log order placement for inventory tracking
-    await logOrderPlacement(order.id, order.order_number, userId);
 
     // Update wishlist items with purchased_at timestamp
     const [wishlist] = await db

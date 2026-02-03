@@ -14,7 +14,7 @@ import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { reserveStockForOrder, logOrderPlacement } from '../../inventory/services/inventory.service';
+import { reserveStockForOrder } from '../../inventory/services/inventory.service';
 import { directOrderSchema, orderService, validateAndWarnStock, queueCustomerOrderNotification, queueAdminOrderNotification } from '../shared';
 import { users } from '../../user/shared/user.schema';
 import { eq } from 'drizzle-orm';
@@ -124,9 +124,6 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         return newOrder;
     });
-
-    // Log order placement for inventory tracking
-    await logOrderPlacement(order.id, order.order_number, creatorId);
 
     // Send response first, then queue notifications
     const response = ResponseFormatter.success(res, {

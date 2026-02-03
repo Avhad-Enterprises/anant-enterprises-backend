@@ -13,13 +13,12 @@ import {
   emailSchema,
   HttpException,
   logger,
-  generateCustomerId,
 } from '../../../utils';
 import { db } from '../../../database';
 import { eq, and } from 'drizzle-orm';
 import { users } from '../shared/user.schema';
-import { customerProfiles, customerSegmentEnum } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { customerProfiles, customerSegmentEnum } from '../../customer/shared/customer-profiles.schema';
+import { businessCustomerProfiles, paymentTermsEnum } from '../../customer/shared/business-profiles.schema';
 import { syncTags } from '../../tags/services/tag-sync.service';
 import { notificationService } from '../../notifications/services/notification.service';
 
@@ -102,31 +101,16 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // Ensure unique customer_id
-    let customerId = generateCustomerId();
-    let attempts = 0;
-    while (attempts < 10) {
-      const [existing] = await db
-        .select()
-        .from(users)
-        .where(eq(users.customer_id, customerId))
-        .limit(1);
-      if (!existing) break;
-      customerId = generateCustomerId();
-      attempts++;
-    }
-
     const result = await db.transaction(async tx => {
-      // 1. Create User with email_verified status and customer_id
+      // 1. Create User with email_verified status
       const [newUser] = await tx
         .insert(users)
         .values({
-          name: data.name,
+          first_name: data.name,
           last_name: data.last_name,
           email: data.email,
-          customer_id: customerId,
           display_name: data.display_name,
           phone_number: data.phone_number,
-          user_type: data.user_type,
           tags: data.tags || [],
           date_of_birth: data.date_of_birth || undefined,
           gender: data.gender,
@@ -158,7 +142,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // Create Individual Customer Profile
         await tx.insert(customerProfiles).values({
           user_id: newUser.id,
-          segment: data.segment || 'new',
+          segments: data.segment ? [data.segment] : ['new'],
           notes: data.notes,
         });
       }
@@ -178,7 +162,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         result.id,
         'customer_welcome',
         {
-          name: result.name,
+          name: `${result.first_name} ${result.last_name}`,
           email: result.email,
         },
         {
@@ -197,7 +181,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         result.id,
         'customer_welcome',
         {
-          name: result.name,
+          name: `${result.first_name} ${result.last_name}`,
           email: result.email,
         },
         {
