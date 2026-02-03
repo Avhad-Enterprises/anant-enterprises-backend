@@ -115,8 +115,9 @@ export async function reserveCartStock(
  * 
  * @param cartItemId - Cart item ID
  * @param tx - Optional transaction object
+ * @param forceRelease - Force release even without reservation_id (fixes phantom reservations)
  */
-export async function releaseCartStock(cartItemId: string, tx?: any): Promise<void> {
+export async function releaseCartStock(cartItemId: string, tx?: any, forceRelease: boolean = false): Promise<void> {
     const execute = async (transaction: any) => {
         const { cartItems } = await import('../../cart/shared/cart-items.schema');
 
@@ -124,25 +125,45 @@ export async function releaseCartStock(cartItemId: string, tx?: any): Promise<vo
         const [item] = await transaction
             .select({
                 product_id: cartItems.product_id,
+                variant_id: cartItems.variant_id,
                 quantity: cartItems.quantity,
                 reservation_id: cartItems.reservation_id,
             })
             .from(cartItems)
             .where(eq(cartItems.id, cartItemId));
 
-        // Business logic: Nothing to release if no reservation
-        if (!item || !item.product_id || !item.reservation_id) {
+        // Business logic: Nothing to release if no product
+        if (!item || !item.product_id) {
             return;
         }
 
+        // FIX: Only skip release if no reservation AND not forced
+        // This prevents phantom reservations from accumulating
+        if (!forceRelease && !item.reservation_id) {
+            logger.warn(`releaseCartStock: No reservation_id for cart item ${cartItemId}, skipping release`);
+            return;
+        }
+
+        // Log the release operation for debugging
+        logger.info(`Releasing ${item.quantity} units for cart item ${cartItemId} (product: ${item.product_id}, variant: ${item.variant_id})`);
+    
+
         // Query layer: Release reservation (decrease reserved_quantity)
+        // FIX: Support variants - use variant_id if present, otherwise product_id
         await transaction
             .update(inventory)
             .set({
                 reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                 updated_at: new Date(),
             })
-            .where(eq(inventory.product_id, item.product_id));
+            .where(
+                item.variant_id
+                    ? eq(inventory.variant_id, item.variant_id)
+                    : and(
+                        eq(inventory.product_id, item.product_id),
+                        isNull(inventory.variant_id)
+                    )
+            );
 
         // Query layer: Clear reservation fields
         await transaction

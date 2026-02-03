@@ -166,7 +166,8 @@ const handler = async (req: Request, res: Response) => {
         if (CART_RESERVATION_CONFIG.ENABLED && cartItem.product_id) {
             // We removed the try/catch block. If release fails, we must abort the transaction
             // to prevent inventory leaks (phantom reservations).
-            await releaseCartStock(itemId, tx);
+            // FIX: Force release to prevent phantom reservations from rollback scenarios
+            await releaseCartStock(itemId, tx, true); // forceRelease=true
         }
 
         // 5. Update cart item with NEW quantity
