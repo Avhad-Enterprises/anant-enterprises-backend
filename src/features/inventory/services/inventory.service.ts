@@ -383,9 +383,12 @@ export async function createInventoryForProduct(
   const validUserId = createdBy ? await resolveValidUserId(createdBy) : null;
 
   // Query layer: Create inventory
+  // IMPORTANT: Database has CHECK constraint requiring EITHER product_id OR variant_id (not both)
+  // For variants: only set variant_id
+  // For base products: only set product_id
   const created = await inventoryQueries.createInventory({
-    product_id: productId,
-    variant_id: variantId,
+    product_id: variantId ? undefined : productId,  // Only set if NOT a variant
+    variant_id: variantId || undefined,              // Only set if IS a variant
     location_id: targetLocationId,
     available_quantity: initialQuantity,
     status: getStatusFromQuantity(initialQuantity),
