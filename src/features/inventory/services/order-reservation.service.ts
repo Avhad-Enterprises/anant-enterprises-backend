@@ -7,11 +7,11 @@
  * Phase 2: Domain Service Extraction
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import type { StockValidationResult } from '../shared/interface';
 import { logger } from '../../../utils';
 
@@ -87,22 +87,36 @@ function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'ou
  * @returns Array of validation results
  */
 export async function validateStockAvailability(
-    items: Array<{ product_id: string; quantity: number }>
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>
 ): Promise<StockValidationResult[]> {
     const results: StockValidationResult[] = [];
 
     for (const item of items) {
+        // Support Variant-Specific Filter (Mutual Exclusivity)
+        const inventoryFilter = item.variant_id
+            ? eq(inventory.variant_id, item.variant_id)
+            : and(
+                eq(inventory.product_id, item.product_id),
+                isNull(inventory.variant_id)
+            );
+
         // Query layer: Fetch inventory data
         const [stock] = await db
             .select({
                 product_id: inventory.product_id,
+                variant_id: inventory.variant_id,
                 available_quantity: inventory.available_quantity,
                 reserved_quantity: inventory.reserved_quantity,
                 product_name: products.product_title,
             })
             .from(inventory)
             .leftJoin(products, eq(inventory.product_id, products.id))
-            .where(eq(inventory.product_id, item.product_id));
+            .where(
+                and(
+                    inventoryFilter,
+                    sql`${products.status} != 'archived'`
+                )
+            );
 
         // Business logic: Validate stock not found
         if (!stock) {
@@ -154,58 +168,68 @@ export async function validateStockAvailability(
  * @param allowOverselling - Whether to allow reserving more than available
  */
 export async function reserveStockForOrder(
-    items: Array<{ product_id: string; quantity: number }>,
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>,
     orderId: string,
     userId: string,
     allowOverselling: boolean = false
 ): Promise<void> {
     const validUserId = await resolveValidUserId(userId);
 
-    return await db.transaction(async (tx) => {
-        // Business logic: Validate stock availability
-        const validations = await validateStockAvailability(items);
-        const failures = validations.filter((v) => !v.available);
+    // Business logic: Validate stock availability
+    const validations = await validateStockAvailability(items);
+    const failures = validations.filter((v) => !v.available);
 
-        if (failures.length > 0) {
-            const messages = failures.map((f) => f.message).join('; ');
-            if (!allowOverselling) {
-                throw new Error(`Insufficient stock: ${messages}`);
-            }
-            // If overselling allowed, just log it
-            logger.warn(`[OrderReservation] Overselling allowed for order ${orderId}. Issues: ${messages}`);
+    if (failures.length > 0) {
+        const messages = failures.map((f) => f.message).join('; ');
+        if (!allowOverselling) {
+            throw new Error(`Insufficient stock: ${messages}`);
+        }
+        // If overselling allowed, just log it
+        logger.warn(`[OrderReservation] Overselling allowed for order ${orderId}. Issues: ${messages}`);
+    }
+
+    // Reserve stock for each item
+    // NOTE: No transaction wrapper to avoid serialization conflicts on concurrent reservations
+    // The UPDATE is atomic at row level: reserved_quantity = reserved_quantity + N
+    for (const item of items) {
+        // Support Variant-Specific Filter (Mutual Exclusivity)
+        const inventoryFilter = item.variant_id
+            ? eq(inventory.variant_id, item.variant_id)
+            : and(
+                eq(inventory.product_id, item.product_id),
+                isNull(inventory.variant_id)
+            )!;
+
+        // Query layer: Update reserved quantity atomically
+        // PHASE 1: Track movement timestamp
+        const [updated] = await db
+            .update(inventory)
+            .set({
+                reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
+                last_stock_movement_at: new Date(), // PHASE 1
+                updated_at: new Date(),
+                updated_by: validUserId,
+            })
+            .where(inventoryFilter)
+            .returning();
+
+        if (!updated) {
+            throw new Error(`Failed to reserve stock for product ${item.product_id}`);
         }
 
-        // Reserve stock for each item
-        for (const item of items) {
-            // Query layer: Update reserved quantity atomically
-            const [updated] = await tx
-                .update(inventory)
-                .set({
-                    reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
-                    updated_at: new Date(),
-                    updated_by: validUserId,
-                })
-                .where(eq(inventory.product_id, item.product_id))
-                .returning();
-
-            if (!updated) {
-                throw new Error(`Failed to reserve stock for product ${item.product_id}`);
-            }
-
-            // Query layer: Create audit record
-            await tx.insert(inventoryAdjustments).values({
-                inventory_id: updated.id,
-                adjustment_type: 'correction',
-                quantity_change: 0,
-                reason: `Stock reserved for order`,
-                reference_number: orderId,
-                quantity_before: updated.available_quantity,
-                quantity_after: updated.available_quantity,
-                adjusted_by: validUserId!,
-                notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
-            });
-        }
-    });
+        // Query layer: Create audit record
+        await db.insert(inventoryAdjustments).values({
+            inventory_id: updated.id,
+            adjustment_type: 'correction',
+            quantity_change: 0,
+            reason: `Stock reserved for order`,
+            reference_number: orderId,
+            quantity_before: updated.available_quantity,
+            quantity_after: updated.available_quantity,
+            adjusted_by: validUserId!,
+            notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
+        });
+    }
 }
 
 /**
@@ -242,6 +266,7 @@ export async function fulfillOrderInventory(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
                 product_name: orderItems.product_name,
             })
@@ -266,11 +291,19 @@ export async function fulfillOrderInventory(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            // Support Variant-Specific Filter
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Query layer: Get current inventory
             const [current] = await tx
                 .select()
                 .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
+                .where(inventoryFilter);
 
             if (!current) {
                 throw new Error(`Inventory not found for product ${item.product_name}`);
@@ -292,16 +325,25 @@ export async function fulfillOrderInventory(
             }
 
             // Query layer: Update inventory - reduce both available and reserved
+            // PHASE 1: Also update analytics fields
+            const now = new Date();
             const [updated] = await tx
                 .update(inventory)
                 .set({
                     available_quantity: quantityAfter,
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                     status: getStatusFromQuantity(quantityAfter),
-                    updated_at: new Date(),
+
+                    // PHASE 1: Analytics updates
+                    total_sold: sql`${inventory.total_sold} + ${item.quantity}`,
+                    total_fulfilled: sql`${inventory.total_fulfilled} + 1`,
+                    last_stock_movement_at: now,
+                    last_sale_at: now,
+
+                    updated_at: now,
                     updated_by: validUserId,
                 })
-                .where(eq(inventory.product_id, item.product_id))
+                .where(inventoryFilter)
                 .returning();
 
             // Query layer: Create audit record
@@ -350,6 +392,7 @@ export async function releaseReservation(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
             })
             .from(orderItems)
@@ -369,23 +412,32 @@ export async function releaseReservation(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Query layer: Get current inventory
             const [current] = await tx
                 .select()
                 .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
+                .where(inventoryFilter);
 
             if (!current) continue;
 
             // Query layer: Update - reduce reserved_quantity only
+            // PHASE 1: Track movement timestamp
             const [updated] = await tx
                 .update(inventory)
                 .set({
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                    last_stock_movement_at: new Date(), // PHASE 1
                     updated_at: new Date(),
                     updated_by: validUserId,
                 })
-                .where(eq(inventory.product_id, item.product_id))
+                .where(inventoryFilter)
                 .returning();
 
             // Query layer: Create audit record
@@ -438,6 +490,7 @@ export async function processOrderReturn(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
                 product_name: orderItems.product_name,
             })
@@ -458,13 +511,20 @@ export async function processOrderReturn(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Business logic: Check if restocking is enabled
             if (restock) {
                 // Query layer: Get current inventory
                 const [current] = await tx
                     .select()
                     .from(inventory)
-                    .where(eq(inventory.product_id, item.product_id));
+                    .where(inventoryFilter);
 
                 if (!current) {
                     logger.warn(`[OrderReservation] Skipping return for ${item.product_name}: Inventory record not found`);
@@ -483,7 +543,7 @@ export async function processOrderReturn(
                         updated_at: new Date(),
                         updated_by: validUserId,
                     })
-                    .where(eq(inventory.product_id, item.product_id))
+                    .where(inventoryFilter)
                     .returning();
 
                 // Query layer: Create audit record
@@ -502,3 +562,4 @@ export async function processOrderReturn(
         }
     });
 }
+

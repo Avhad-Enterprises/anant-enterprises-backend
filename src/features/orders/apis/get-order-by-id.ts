@@ -10,14 +10,17 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { logger } from '../../../utils';
+import { getOrderByIdParamsSchema } from '../shared/validation';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.userId;
-  const orderId = req.params.id as string;
+
+  // Validate path parameters
+  const { id: orderId } = getOrderByIdParamsSchema.parse(req.params);
 
   logger.info(`[GetOrderById] Request received - OrderID: ${orderId}, UserID: ${userId}`);
 

@@ -9,7 +9,7 @@ import { eq, and, desc, count, gte, lte } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { reviews } from '../shared/reviews.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { users } from '../../user/shared/user.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
@@ -71,7 +71,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             product_id: reviews.product_id,
             product_name: products.product_title,
             user_id: reviews.user_id,
-            user_name: users.name,
+            user_name: users.first_name,
             user_email: users.email,
             rating: reviews.rating,
             title: reviews.title,

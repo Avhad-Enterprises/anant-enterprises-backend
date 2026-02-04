@@ -11,10 +11,12 @@ import { db } from '../../../database';
 import { wishlists } from '../shared/wishlist.schema';
 import { wishlistItems } from '../shared/wishlist-items.schema';
 import { RequestWithUser } from '../../../interfaces';
-import { requireAuth } from '../../../middlewares';
+import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
+import { z } from 'zod';
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const userId = req.userId;
+    // Support admin/owner access
+    const userId = req.params.userId || req.userId;
     const productId = req.params.productId as string;
 
     if (!userId) {
@@ -65,6 +67,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.delete('/items/:productId', requireAuth, handler);
+
+// Admin route only - remove from any user's wishlist
+router.delete(
+    '/:userId/wishlist/:productId',
+    requireAuth,
+    validationMiddleware(z.object({ userId: z.string().uuid(), productId: z.string().uuid() }), 'params'),
+    requireOwnerOrPermission('userId', 'users:delete'),
+    handler
+);
 
 export default router;

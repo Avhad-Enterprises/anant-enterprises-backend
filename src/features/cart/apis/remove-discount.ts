@@ -8,7 +8,7 @@ import { Router, Response, Request } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { RequestWithUser } from '../../../interfaces';
 import { cartService } from '../services';
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const handler = async (req: Request, res: Response) => {
     const userReq = req as RequestWithUser;

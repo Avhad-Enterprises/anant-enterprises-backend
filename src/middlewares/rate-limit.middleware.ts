@@ -4,12 +4,12 @@ import { Request, RequestHandler } from 'express';
 import { logger } from '../utils/logging/logger';
 import { redisClient, isRedisReady } from '../utils/database/redis';
 import { RequestWithId } from '../interfaces';
-import { isDevelopment, isTest, isProduction } from '../utils/validateEnv';
+import { isDevelopment, isProduction } from '../utils/validateEnv';
 
 /**
  * Create rate limit store based on environment
  * - Production: Redis store for distributed rate limiting across instances
- * - Development/Test: In-memory store (default)
+ * - Development: In-memory store (default)
  */
 const createStore = (): Store | undefined => {
   // Only use Redis in production when connected
@@ -58,12 +58,10 @@ const createRateLimitHandler =
         .status(429)
         .json(createRateLimitResponse(message, retryAfter, requestWithId.requestId || 'unknown'));
     };
-// Skip logic for development localhost and test environment
+// Skip logic for development localhost
 const skipDevOrTest = (req: Request) =>
-  isTest ||
-  (isDevelopment &&
-    (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) ||
-  false; // Rate limiting ENABLED for production/staging
+  isDevelopment &&
+  (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1'); // Rate limiting ENABLED for production
 
 // Auth endpoints - strict rate limiting (5 requests per 15 minutes) - PRODUCTION ONLY
 export const authRateLimit: RequestHandler = rateLimit({
@@ -77,7 +75,7 @@ export const authRateLimit: RequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createStore(),
-  skip: skipDevOrTest, // Skip rate limiting in test and development environments
+  skip: skipDevOrTest, // Skip rate limiting in development environment
   handler: createRateLimitHandler(
     'Too many authentication attempts, please try again later.',
     '15 minutes'
@@ -132,7 +130,7 @@ export const invitationRateLimit: RequestHandler = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   store: createStore(),
-  skip: skipDevOrTest, // Skip rate limiting in test and development environments
+  skip: skipDevOrTest, // Skip rate limiting in development environment
   handler: createRateLimitHandler(
     'Too many invitation attempts, please try again later.',
     '15 minutes'

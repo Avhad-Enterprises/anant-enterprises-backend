@@ -2,7 +2,7 @@ import { relations } from 'drizzle-orm';
 import { orders } from './orders.schema';
 import { orderItems } from './order-items.schema';
 import { users } from '../../user/shared/user.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { invoices } from '../../invoice/shared/invoice.schema';
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({

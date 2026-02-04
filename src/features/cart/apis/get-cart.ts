@@ -10,7 +10,7 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 
@@ -248,6 +248,7 @@ const handler = async (req: Request, res: Response) => {
             const { discounts } = await import('../../discount/shared/discount.schema');
 
             // Fetch discount info for each code
+            const upperCaseCodes = appliedCodes.map(c => c.toUpperCase());
             const discountInfoResults = await db
                 .select({
                     code: discountCodes.code,
@@ -257,7 +258,7 @@ const handler = async (req: Request, res: Response) => {
                 })
                 .from(discountCodes)
                 .innerJoin(discounts, eq(discountCodes.discount_id, discounts.id))
-                .where(sql`UPPER(${discountCodes.code}) IN (${sql.raw(appliedCodes.map(c => `'${c.toUpperCase()}'`).join(','))})`);
+                .where(sql`UPPER(${discountCodes.code}) IN ${upperCaseCodes}`);
 
             appliedDiscounts = discountInfoResults.map(d => ({
                 code: d.code,
@@ -293,7 +294,7 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, response, 'Cart retrieved successfully');
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.get('/', optionalAuth, handler);

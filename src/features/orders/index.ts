@@ -25,7 +25,8 @@ class OrdersRoute implements Route {
    */
   public async init(): Promise<void> {
     // Dynamic imports to avoid circular dependency
-    const { default: createOrderRouter } = await import('./apis/create-order');
+    const { default: createOrderFromCartRouter } = await import('./apis/create-order-from-cart');
+    const { default: createOrderDirectRouter } = await import('./apis/create-order-direct');
     const { default: getOrdersRouter } = await import('./apis/get-orders');
     const { default: getOrderByIdRouter } = await import('./apis/get-order-by-id');
     const { default: cancelOrderRouter } = await import('./apis/cancel-order');
@@ -59,6 +60,10 @@ class OrdersRoute implements Route {
     const { default: getOrderTagsRouter } = await import('./apis/get-order-tags');
     const { default: createOrderTagRouter } = await import('./apis/create-order-tag');
 
+    // Admin payment endpoints
+    const { default: adminCreatePaymentOrderRouter } = await import('./apis/admin-create-payment-order');
+    const { default: adminVerifyPaymentRouter } = await import('./apis/admin-verify-payment');
+
     // Register routes - they define their own paths
     // IMPORTANT: Order matters! More specific routes MUST come before wildcards
 
@@ -89,10 +94,17 @@ class OrdersRoute implements Route {
     this.router.use(this.path, updateOrderRouter); // PUT /admin/orders/:id
     this.router.use(this.path, updateOrderStatusRouter); // PUT /admin/orders/:id/status
 
+    // Admin payment routes
+    this.router.use(this.path, adminCreatePaymentOrderRouter); // POST /admin/orders/create-payment-order
+    this.router.use(this.path, adminVerifyPaymentRouter); // POST /admin/orders/verify-payment
+
+    // Admin direct order creation (must be before user route)
+    this.router.use('/admin/orders', createOrderDirectRouter); // POST /admin/orders/direct
+
     // User routes - MOUNTED AT /orders
     // This strips '/orders' from the path, ensuring routers receive relative paths (e.g. '/' or '/:id')
     this.router.use('/orders', cancelOrderRouter); // handles /:id/cancel
-    this.router.use('/orders', createOrderRouter); // handles /
+    this.router.use('/orders', createOrderFromCartRouter); // handles /
     this.router.use('/orders', getOrdersRouter); // handles /
     this.router.use('/orders', getOrderByIdRouter); // handles /:id
   }

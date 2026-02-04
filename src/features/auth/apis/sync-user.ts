@@ -9,6 +9,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import validationMiddleware from '../../../middlewares/validation.middleware';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
@@ -18,8 +19,11 @@ import { users } from '../../user/shared/user.schema';
 import { verifySupabaseToken } from '../services/supabase-auth.service';
 import { shortTextSchema, optionalPhoneSchema } from '../../../utils/validation/common-schemas';
 
+
 const syncUserSchema = z.object({
   name: shortTextSchema.optional(),
+  first_name: shortTextSchema.optional(),
+  last_name: shortTextSchema.optional(),
   phone_number: optionalPhoneSchema,
 });
 
@@ -38,8 +42,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'Invalid or expired token');
   }
 
-  // Parse optional body data
-  const bodyData = syncUserSchema.parse(req.body || {});
+  // Get validated body data from middleware
+  const bodyData = req.body;
 
   // Extract email verification status from Supabase Auth
   const emailVerified = !!authUser.email_confirmed_at;
@@ -113,17 +117,29 @@ const handler = async (req: RequestWithUser, res: Response) => {
   }
 
   // Create new user
-  const fullName =
-    bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
-  const nameParts = fullName.trim().split(' ');
-  const name = nameParts[0] || 'User';
-  const last_name = nameParts.slice(1).join(' ') || '';
+  // Use explicit first/last name if provided, otherwise fallback to parsing name or email
+  let first_name = bodyData.first_name;
+  let last_name = bodyData.last_name;
 
+  if (!first_name) {
+    const fullName = bodyData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User';
+    const nameParts = fullName.trim().split(' ');
+    first_name = nameParts[0] || 'User';
+    // Only set last_name if it wasn't provided directly
+    if (!last_name) {
+      last_name = nameParts.slice(1).join(' ') || '';
+    }
+  }
+
+  // Ensure last_name is never undefined/null
+  if (!last_name) last_name = '';
+
+  // Ensure unique customer_id
   const [newUser] = await db
     .insert(users)
     .values({
-      auth_id: authUser.id,
-      name,
+      auth_id: authUser.id, // CRITICAL: Link to Supabase Auth ID
+      first_name,
       last_name,
       email: authUser.email!,
       phone_number: bodyData.phone_number || authUser.phone || '',
@@ -154,6 +170,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.post('/sync-user', handler);
+router.post('/sync-user', validationMiddleware(syncUserSchema), handler);
 
 export default router;
+

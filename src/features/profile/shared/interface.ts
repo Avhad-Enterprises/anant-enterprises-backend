@@ -15,10 +15,12 @@ export interface ISession extends Session { }
 export interface IUserProfile {
   // Basic user info (from users table)
   id: string;
-  name: string;
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
+  display_name?: string | null;
   email: string;
   phone_number?: string | null;
-  user_type: string;
   created_at: Date;
   updated_at: Date;
 }

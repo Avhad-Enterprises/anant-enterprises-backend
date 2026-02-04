@@ -10,7 +10,7 @@
 import { logger } from '../../../utils';
 import { redisClient, isRedisReady } from '../../../utils';
 import { findProductById, findProductBySku, findProductBySlug } from '../shared/queries';
-import type { Product } from '../shared/product.schema';
+import type { Product } from '../shared/products.schema';
 
 // Redis key prefixes
 const PRODUCT_BY_ID_PREFIX = 'product:id:';

@@ -15,7 +15,7 @@ import { ResponseFormatter, HttpException, uuidSchema } from '../../../utils';
 import { db } from '../../../database';
 import { collections } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { collectionCacheService } from '../services/collection-cache.service';
 
 const paramsSchema = z.object({

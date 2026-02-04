@@ -1,16 +1,13 @@
-import dotenv from 'dotenv';
-dotenv.config({ quiet: true });
-
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { logger } from '../utils';
 import { config, isProduction, isDevelopment } from '../utils/validateEnv';
 
 // Import all schemas directly from .schema.ts files to avoid circular deps with drizzle-kit
-import { users, userTypeEnum, genderEnum } from '../features/user/shared/user.schema';
-import { userAddresses, addressTypeEnum } from '../features/user/shared/addresses.schema';
-import { customerProfiles, customerAccountStatusEnum, customerSegmentEnum } from '../features/user/shared/customer-profiles.schema';
-import { adminProfiles } from '../features/user/shared/admin-profiles.schema';
+import { users, genderEnum } from '../features/user/shared/user.schema';
+import { userAddresses, addressLabelEnum } from '../features/address/shared/addresses.schema';
+import { customerProfiles, customerAccountStatusEnum } from '../features/customer/shared/customer-profiles.schema';
+import { adminProfiles } from '../features/admin/shared/admin-profiles.schema';
 import { uploads } from '../features/upload/shared/upload.schema';
 import { invitations } from '../features/admin-invite/shared/admin-invite.schema';
 // COMMENTED OUT - Unused tables (31 Jan 2026)
@@ -28,7 +25,8 @@ import { userRoles } from '../features/rbac/shared/user-roles.schema';
 //   countries,
 //   regions,
 // } from '../features/settings';
-import { products, productVariants, productStatusEnum } from '../features/product/shared/product.schema';
+import { products, productStatusEnum } from '../features/product/shared/products.schema';
+import { productVariants } from '../features/product/shared/product-variants.schema';
 import { productFaqs } from '../features/product/shared/product-faqs.schema';
 import { collections, collectionTypeEnum, collectionStatusEnum, collectionSortOrderEnum, conditionMatchTypeEnum } from '../features/collection/shared/collection.schema';
 import { collectionProducts } from '../features/collection/shared/collection-products.schema';
@@ -102,12 +100,10 @@ import { orderItems } from '../features/orders/shared/order-items.schema';
 import { ordersRelations, orderItemsRelations } from '../features/orders/shared/orders.relations';
 import { paymentTransactions, paymentTransactionStatusEnum } from '../features/payments/shared/payment-transactions.schema';
 import { paymentWebhookLogs } from '../features/payments/shared/webhook-logs.schema';
-import { invoices, invoiceStatusEnum } from '../features/invoices/shared/invoices.schema';
-import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoices/shared/invoice-versions.schema';
-import { invoiceLineItems } from '../features/invoices/shared/invoice-line-items.schema';
-import {
-  // sessions, // REMOVED - Unused table (31 Jan 2026)
-} from '../features/profile/shared/sessions.schema';
+import { invoices, invoiceStatusEnum } from '../features/invoice/shared/invoices.schema';
+import { invoiceVersions, invoiceVersionReasonEnum, invoiceTaxTypeEnum } from '../features/invoice/shared/invoice-versions.schema';
+import { invoiceLineItems } from '../features/invoice/shared/invoice-line-items.schema';
+// sessions table - REMOVED (31 Jan 2026)
 
 // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
 // import {
@@ -142,10 +138,10 @@ if (!connectionString) {
  */
 const sslConfig = isProduction
   ? {
-      rejectUnauthorized: false, // Supabase uses self-signed certificates
-      // If using self-signed certs, set DATABASE_SSL_CA env var
-      ca: process.env.DATABASE_SSL_CA || undefined,
-    }
+    rejectUnauthorized: false, // Supabase uses self-signed certificates
+    // If using self-signed certs, set DATABASE_SSL_CA env var
+    ca: process.env.DATABASE_SSL_CA || undefined,
+  }
   : undefined;
 
 export const pool = new Pool({
@@ -196,11 +192,10 @@ export async function connectWithRetry(
 export const schema = {
   // User feature - core
   users,
-  userTypeEnum,
   genderEnum,
   // User feature - addresses
   userAddresses,
-  addressTypeEnum,
+  addressLabelEnum,
   // COMMENTED OUT - Dropped in Phase 4 (31 Jan 2026)
   // User feature - payments
   // userPaymentMethods,
@@ -209,7 +204,6 @@ export const schema = {
   // User feature - customer profiles
   customerProfiles,
   customerAccountStatusEnum,
-  customerSegmentEnum,
   // COMMENTED OUT - Dropped in Phase 2 (31 Jan 2026)
   // User feature - business profiles (B2B)
   // businessCustomerProfiles,

@@ -14,15 +14,20 @@ import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../shared/wishlist.schema';
 import { wishlistItems } from '../shared/wishlist-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { RequestWithUser } from '../../../interfaces';
-import { requireAuth } from '../../../middlewares';
+import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
 import { randomBytes } from 'crypto';
 
 // Validation schema
 const addToWishlistSchema = z.object({
-    product_id: z.string().uuid(),
+    product_id: z.string().uuid().optional(), // Optional in body if provided in params
     notes: z.string().max(500).optional(),
+});
+
+const paramsSchema = z.object({
+    userId: z.string().uuid(),
+    productId: z.string().uuid(),
 });
 
 /**
@@ -58,13 +63,22 @@ async function getOrCreateWishlist(userId: string): Promise<string> {
     return newWishlist.id;
 }
 
+
 const handler = async (req: RequestWithUser, res: Response) => {
-    const userId = req.userId;
-    if (!userId) {
+    // Support admin/owner access via params
+    const targetUserId = req.params.userId || req.userId;
+    if (!targetUserId) {
         throw new HttpException(401, 'Authentication required');
     }
 
-    const { product_id, notes } = addToWishlistSchema.parse(req.body);
+    const body = addToWishlistSchema.parse(req.body);
+    // Support productId from params (old user route) or body
+    const product_id = req.params.productId || body.product_id;
+    const notes = body.notes;
+
+    if (!product_id) {
+        throw new HttpException(400, 'Product ID is required');
+    }
 
     // Validate product exists and is active
     const [product] = await db
@@ -89,7 +103,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     // Get or create wishlist
-    const wishlistId = await getOrCreateWishlist(userId);
+    const wishlistId = await getOrCreateWishlist(targetUserId);
 
     // Check if already in wishlist
     const [existingItem] = await db
@@ -128,6 +142,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.post('/items', requireAuth, handler);
+
+// Admin route only - add to any user's wishlist
+router.post(
+    '/:userId/wishlist/:productId',
+    requireAuth,
+    validationMiddleware(paramsSchema, 'params'),
+    requireOwnerOrPermission('userId', 'users:write'),
+    handler
+);
 
 export default router;

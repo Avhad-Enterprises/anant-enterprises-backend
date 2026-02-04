@@ -31,8 +31,8 @@ class TierRoute implements Route {
     this.router.use(this.path, getTiersRouter);           // GET /tiers
     this.router.use(this.path, getTierHierarchyRouter);   // GET /tiers/hierarchy
     this.router.use(this.path, bulkDeleteTierRouter);     // POST /tiers/bulk-delete (Must be before :id)
-    this.router.use(this.path, importTiersRouter);        // POST /tiers/import
-    this.router.use(this.path, exportTiersRouter);        // POST /tiers/export
+    this.router.use(`${this.path}/import`, importTiersRouter);  // POST /tiers/import (Fixed path)
+    this.router.use(`${this.path}/export`, exportTiersRouter);  // POST /tiers/export (Fixed path)
     this.router.use(this.path, getTierByIdRouter);        // GET /tiers/:id
     this.router.use(this.path, updateTierRouter);         // PUT /tiers/:id
     this.router.use(this.path, deleteTierRouter);         // DELETE /tiers/:id

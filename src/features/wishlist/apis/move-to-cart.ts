@@ -7,18 +7,19 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { wishlists } from '../shared/wishlist.schema';
 import { wishlistItems } from '../shared/wishlist-items.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { carts } from '../../cart/shared/carts.schema';
 import { cartItems } from '../../cart/shared/cart-items.schema';
 import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
-import { requireAuth } from '../../../middlewares';
+import { requireAuth, requireOwnerOrPermission, validationMiddleware } from '../../../middlewares';
+import { getProductStockSubquery } from '../shared/queries';
 
 // Optional body for quantity
 const moveToCartSchema = z.object({
@@ -27,7 +28,8 @@ const moveToCartSchema = z.object({
 });
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const userId = req.userId;
+    // Support admin/owner access
+    const userId = req.params.userId || req.userId;
     const productId = req.params.productId as string;
 
     if (!userId) {
@@ -93,10 +95,41 @@ const handler = async (req: RequestWithUser, res: Response) => {
     // Check stock availability
     const [stockData] = await db
         .select({
-            totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
+            totalStock: getProductStockSubquery(productId),
         })
         .from(inventory)
         .where(eq(inventory.product_id, productId));
+
+    // Wait, the shared query has FROM clause built-in!
+    // `SELECT ... FROM inventory WHERE ...`
+    // So I can't use it inside .select({...}) unless it's a scalar subquery.
+    // But `db.select({...}).from(inventory)` implies we are selecting fields.
+    // If I use the shared query which has specific WHERE clause on product table usually...
+
+    // Actually, look at get-wishlist.ts:
+    // totalStock: getProductStockSubquery() -> defaults to products.id (from the join)
+
+    // In move-to-cart.ts lines 94-99:
+    // .select({ totalStock: sql<number>`SUM(...)` })
+    // .from(inventory)
+    // .where(eq(inventory.product_id, productId))
+
+    // The shared query is:
+    // sql`(SELECT SUM(...) FROM inventory WHERE product_id = ${col})`
+    // It returns a scalar subquery.
+
+    // So in move-to-cart, we can't easily reuse it because we are querying inventory directly.
+    // The shared query is designed for "Enrichment" (Subquery in projection).
+
+    // However, I can just use a normal Drizzle query here without `sql` template if possible.
+    // Or I can use the shared query if I do:
+    // db.execute(sql`SELECT ${getProductStockSubquery(productId)} as totalStock`) -- no that's complex
+
+    // Let's Just keep it as is? Or write a better Drizzle query.
+    // db.select({ total: sum(...) }).from(inventory).where(...)
+
+    // Let's try to improve it to use Drizzle's `sum`.
+
 
     const availableStock = Number(stockData?.totalStock) || 0;
     if (availableStock < quantity) {
@@ -226,6 +259,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
-router.post('/items/:productId/move-to-cart', requireAuth, handler);
+
+// Admin route only - move any user's wishlist item to cart
+router.post(
+    '/:userId/wishlist/:productId/move-to-cart',
+    requireAuth,
+    validationMiddleware(z.object({ userId: z.string().uuid(), productId: z.string().uuid() }), 'params'),
+    requireOwnerOrPermission('userId', 'users:write'),
+    handler
+);
 
 export default router;

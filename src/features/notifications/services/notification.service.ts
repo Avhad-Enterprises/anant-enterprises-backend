@@ -122,7 +122,7 @@ class NotificationService {
                     // WebSocket rooms are keyed by auth_id (Supabase Auth ID)
                     // We need to look up the auth_id from the database user id
                     const authId = await this.getAuthIdFromUserId(userId);
-                    
+
                     if (authId) {
                         socketService.emitToUser(authId, 'notification:new', {
                             notification: {
@@ -182,7 +182,7 @@ class NotificationService {
             actionUrl: input.actionUrl,
             actionText: input.actionText,
         });
-        
+
         const [notification] = await db
             .insert(notifications)
             .values({
@@ -433,6 +433,7 @@ class NotificationService {
             'ORDER_SHIPPED': 'order_shipped',
             'ORDER_DELIVERED': 'order_delivered',
             'PAYMENT_CAPTURED': 'payment_captured',
+            'PAYMENT_CONFIRMED': 'payment_captured', // Map template to valid enum
             'LOW_STOCK_ALERT': 'inventory_low_stock',
             'USER_WELCOME': 'user_welcome',
         };

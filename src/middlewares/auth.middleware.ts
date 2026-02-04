@@ -4,7 +4,7 @@ import { logger } from '../utils';
 import { verifySupabaseToken } from '../features/auth/services/supabase-auth.service';
 import { db } from '../database';
 import { users } from '../features/user/shared/user.schema';
-import { customerProfiles } from '../features/user/shared/customer-profiles.schema';
+import { customerProfiles } from '../features/customer/shared/customer-profiles.schema';
 import { eq } from 'drizzle-orm';
 import * as crypto from 'crypto';
 import { redisClient } from '../utils/database/redis';
@@ -59,7 +59,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     const result = await db
       .select({
         user: users,
-        profile: customerProfiles
+        profile: customerProfiles,
       })
       .from(users)
       .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
@@ -91,23 +91,25 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     // Check customer profile status
     if (profile) {
-      if (profile.account_status === 'closed') {
-        logger.warn('Authentication failed: User account is closed/inactive', {
+      if (profile.account_status === 'inactive') {
+        logger.warn('Authentication failed: User account is inactive', {
           ip: clientIP,
           userId: user.id,
-          status: profile.account_status
+          status: profile.account_status,
         });
         return next(new HttpException(403, 'Your account is inactive. Please contact support.'));
       }
 
-      if (profile.account_status === 'suspended') {
-        logger.warn('Authentication failed: User account is suspended', {
+      if (profile.account_status === 'banned') {
+        logger.warn('Authentication failed: User account is banned', {
           ip: clientIP,
           userId: user.id,
-          status: profile.account_status
+          status: profile.account_status,
         });
-        return next(new HttpException(403, 'Your account has been suspended. Please contact support.'));
+        return next(new HttpException(403, 'Your account has been banned. Please contact support.'));
       }
+    } else {
+      console.log(`DEBUG: requireAuth - No customer profile found for user ${user.id}`);
     }
 
     // Attach user information to request (use integer ID for RBAC)
@@ -150,14 +152,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     next();
   } catch (error) {
-    logger.error('Auth middleware error:', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      ip: req.ip || req.connection?.remoteAddress || 'Unknown',
-      userAgent: req.headers['user-agent'] || 'Unknown',
-      url: req.originalUrl,
-      method: req.method,
-    });
+    logger.error('Auth middleware error:', error);
 
     // If it's already an HttpException, pass it through
     if (error instanceof HttpException) {
@@ -199,7 +194,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
     const result = await db
       .select({
         user: users,
-        profile: customerProfiles
+        profile: customerProfiles,
       })
       .from(users)
       .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
@@ -218,7 +213,7 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 
     // Check customer profile status
     if (profile) {
-      if (profile.account_status === 'closed' || profile.account_status === 'suspended') {
+      if (profile.account_status === 'inactive' || profile.account_status === 'banned') {
         // Optional auth: treat as anonymous if account is closed/suspended?
         // Or fail? Usually, if you try to auth and are banned, you should probably be told you are banned.
         return next(new HttpException(403, 'Your account is inactive/suspended.'));
@@ -239,3 +234,4 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
 };
 
 export default requireAuth;
+

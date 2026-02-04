@@ -10,6 +10,7 @@
 
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { logger } from '../utils';
+import { isDevelopment } from '../utils/validateEnv';
 
 /**
  * Rate limiter for payment order creation
@@ -33,8 +34,8 @@ export const paymentCreateRateLimit = rateLimit({
         return (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown');
     },
     skip: () => {
-        // Skip rate limiting in test environment
-        return process.env.NODE_ENV === 'test';
+        // Skip rate limiting in development environment
+        return isDevelopment;
     },
     handler: (req, res) => {
         logger.warn('Payment rate limit exceeded', {
@@ -63,7 +64,7 @@ export const paymentVerifyRateLimit = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
-    skip: () => process.env.NODE_ENV === 'test',
+    skip: () => isDevelopment,
 });
 
 /**
@@ -80,7 +81,7 @@ export const refundRateLimit = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => (req as { userId?: string }).userId || ipKeyGenerator(req.ip || 'unknown'),
-    skip: () => process.env.NODE_ENV === 'test',
+    skip: () => isDevelopment,
 });
 
 /**
@@ -95,5 +96,5 @@ export const webhookRateLimit = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => ipKeyGenerator(req.ip || 'unknown'),
-    skip: () => process.env.NODE_ENV === 'test',
+    skip: () => isDevelopment,
 });

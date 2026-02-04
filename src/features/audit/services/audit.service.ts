@@ -89,12 +89,12 @@ class AuditService {
         reason: enrichedData.reason ?? null,
       });
 
-      logger.info('Audit log created', {
-        action: enrichedData.action,
-        resourceType: enrichedData.resourceType,
-        resourceId: enrichedData.resourceId,
-        userId: enrichedData.userId,
-      });
+      // logger.info('Audit log created', {
+      //   action: enrichedData.action,
+      //   resourceType: enrichedData.resourceType,
+      //   resourceId: enrichedData.resourceId,
+      //   userId: enrichedData.userId,
+      // });
     } catch (error) {
       // Log the error but don't throw - audit logging should never break the main flow
       logger.error('Failed to create audit log', { error, data });

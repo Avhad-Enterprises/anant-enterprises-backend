@@ -6,15 +6,20 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, sql, and, gte, lte, or } from 'drizzle-orm';
+import { eq, sql, and, gte, lte, or, ilike } from 'drizzle-orm';
 import { z } from 'zod';
-import { ResponseFormatter, paginationSchema } from '../../../utils';
+import { ResponseFormatter, paginationSchema, logger } from '../../../utils';
 import { db } from '../../../database';
-import { products, productVariants } from '../shared/product.schema';
-import { ICollectionProduct } from '../shared/interface';
+import { products } from '../shared/products.schema';
+import { IProductListItem } from '../shared/responses';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
+import {
+  buildAverageRating,
+  buildReviewCount,
+  buildInventoryQuantityWithVariants,
+  buildAvailableStockWithVariants,
+} from '../shared/query-builders';
 
 // Query params validation
 const querySchema = paginationSchema
@@ -34,7 +39,7 @@ const querySchema = paginationSchema
     search: z.string().optional(),
 
     // Sorting
-    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'cost_price', 'compare_at_price', 'product_title', 'category_tier_1', 'inventory_quantity', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
+    sortBy: z.enum(['created_at', 'updated_at', 'selling_price', 'cost_price', 'compare_at_price', 'product_title', 'category_tier_1', 'inventory_quantity', 'total_stock', 'status', 'featured', 'sku', 'rating']).default('created_at').optional(),
     sortOrder: z.enum(['asc', 'desc']).default('desc').optional(),
 
     // Additional Filters
@@ -85,17 +90,18 @@ const handler = async (req: Request, res: Response) => {
     // Search Logic (Fuzzy Match + SKU + Tags)
     if (params.search && params.search.trim().length > 0) {
       const searchQuery = params.search.trim();
+      const searchPattern = `%${searchQuery}%`;
 
       // Fuzzy matching for Title (using pg_trgm similarity)
       // Threshold > 0.1 allows for loose matching (e.g. typos), adjustments can be made.
       const titleFuzzyCondition = sql`similarity(${products.product_title}, ${searchQuery}) > 0.1`;
       
       // Standard substring match for identifiers should retain precision
-      const skuCondition = sql`${products.sku} ILIKE ${`%${searchQuery}%`}`;
-      const barcodeCondition = sql`${products.barcode} ILIKE ${`%${searchQuery}%`}`;
+      const skuCondition = ilike(products.sku, searchPattern);
+      const barcodeCondition = ilike(products.barcode, searchPattern);
       
       // Tags search
-      const tagsCondition = sql`${products.tags}::text ILIKE ${`%${searchQuery}%`}`;
+      const tagsCondition = sql`${products.tags}::text ILIKE ${searchPattern}`;
       
       // Keep Full Text Search for exact word matches as it utilizes the search_vector index efficiently
       const fullTextCondition = sql`${products.search_vector} @@ plainto_tsquery('english', ${searchQuery})`;
@@ -210,27 +216,17 @@ const handler = async (req: Request, res: Response) => {
         slug: products.slug,
         description: products.short_description,
 
-        // Computed: Inventory Quantity (unified inventory table for both products and variants)
-        inventory_quantity: sql<number>`
-          COALESCE(
-            (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity}) 
-             FROM ${inventory} 
-             WHERE ${inventory.product_id} = ${products.id} 
-             OR ${inventory.variant_id} IN (
-               SELECT id FROM ${productVariants} 
-               WHERE ${productVariants.product_id} = ${products.id} 
-               AND ${productVariants.is_active} = true 
-               AND ${productVariants.is_deleted} = false
-             )),
-            0
-          )
-        `.mapWith(Number),
+        // Computed: Inventory Quantity (available stock for sale)
+        inventory_quantity: buildAvailableStockWithVariants().mapWith(Number),
 
         // Computed: Average rating
-        rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`,
+        rating: buildAverageRating(),
 
         // Computed: Review count
-        review_count: sql<number>`COUNT(${reviews.id})`,
+        review_count: buildReviewCount(),
+
+        // Computed: Total Stock (total physical stock = available + reserved)
+        total_stock: buildInventoryQuantityWithVariants().mapWith(Number),
       })
       .from(products)
       .leftJoin(
@@ -304,6 +300,7 @@ const handler = async (req: Request, res: Response) => {
         case 'compare_at_price':
            return (Number(a.compare_at_price || 0) - Number(b.compare_at_price || 0)) * multiplier;
         case 'inventory_quantity':
+        case 'total_stock':
           // Convert inventory string to number for comparison
           return (Number(a.inventory_quantity || 0) - Number(b.inventory_quantity || 0)) * multiplier;
         case 'rating':
@@ -336,7 +333,8 @@ const handler = async (req: Request, res: Response) => {
       // Format inventory_quantity as string to match frontend expectation
       const adminProducts = paginatedProducts.map(p => ({
         ...p,
-        inventory_quantity: p.inventory_quantity.toString()
+        inventory_quantity: p.inventory_quantity.toString(),
+        total_stock: p.total_stock
       }));
 
       return ResponseFormatter.success(
@@ -352,7 +350,7 @@ const handler = async (req: Request, res: Response) => {
     }
 
     // Public/Storefront Response: Format response with field mapping
-    const formattedProducts: ICollectionProduct[] = paginatedProducts.map(product => {
+    const formattedProducts: IProductListItem[] = paginatedProducts.map(product => {
       const createdDate = new Date(product.created_at);
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -387,12 +385,14 @@ const handler = async (req: Request, res: Response) => {
       },
       'Products retrieved successfully'
     );
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve products',
-      error: error instanceof Error ? error.message : String(error)
-    });
+  } catch (error: unknown) {
+    logger.error('Failed to retrieve products:', error);
+    return ResponseFormatter.error(
+      res,
+      'FETCH_ERROR',
+      'Failed to retrieve products',
+      500
+    );
   }
 };
 

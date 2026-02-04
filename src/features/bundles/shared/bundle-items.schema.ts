@@ -16,7 +16,7 @@
 import { pgTable, uuid, boolean, integer, timestamp, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { bundles } from './bundles.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 
 // ============================================
 // BUNDLE ITEMS TABLE

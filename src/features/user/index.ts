@@ -21,80 +21,70 @@ class UserRoute implements Route {
     const { default: getAllUsersRouter } = await import('./apis/get-all-users');
     const { default: getCurrentUserRouter } = await import('./apis/get-current-user');
     const { default: getUserByIdRouter } = await import('./apis/get-user-by-id');
-    const { default: getCustomerByIdRouter } = await import('./apis/get-customer-by-id');
-    const { default: getAllCustomersRouter } = await import('./apis/get-all-customers');
-    const { default: createCustomerRouter } = await import('./apis/create-customer');
-    const { default: updateCustomerRouter } = await import('./apis/update-customer');
-    const { default: deleteCustomerRouter } = await import('./apis/delete-customer');
     const { default: updateUserRouter } = await import('./apis/update-user');
     const { default: deleteUserRouter } = await import('./apis/delete-user');
 
-    const { default: getUserOrdersRouter } = await import('./apis/get-user-orders');
+    const { default: getUserOrdersRouter } = await import('../orders/apis/get-user-orders');
 
-    const { default: getUserAddressesRouter } = await import('./apis/get-user-addresses');
-    const { default: createUserAddressRouter } = await import('./apis/create-user-address');
-    const { default: updateUserAddressRouter } = await import('./apis/update-user-address');
-    const { default: deleteUserAddressRouter } = await import('./apis/delete-user-address');
-    const { default: setDefaultAddressRouter } = await import('./apis/set-default-address');
-
-    const { default: getUserWishlistRouter } = await import('./apis/get-user-wishlist');
-    const { default: addToWishlistRouter } = await import('./apis/add-to-wishlist');
-    const { default: removeFromWishlistRouter } = await import('./apis/remove-from-wishlist');
-    const { default: moveWishlistToCartRouter } = await import('./apis/move-wishlist-to-cart');
+    // Address routers (dynamically imported)
+    const { default: getUserAddressesRouter } = await import('../address/apis/get-user-addresses');
+    const { default: createUserAddressRouter } = await import('../address/apis/create-user-address');
+    const { default: updateUserAddressRouter } = await import('../address/apis/update-user-address');
+    const { default: deleteUserAddressRouter } = await import('../address/apis/delete-user-address');
+    const { default: setDefaultAddressRouter } = await import('../address/apis/set-default-address');
 
     // OTP verification routes
     const { default: sendEmailOtpRouter } = await import('./apis/send-email-otp');
     const { default: verifyEmailOtpRouter } = await import('./apis/verify-email-otp');
 
-    this.router.use(this.path, getAllUsersRouter);
-    this.router.use(this.path, getCurrentUserRouter);
-    this.router.use(this.path, getAllCustomersRouter); // Moved up
-    this.router.use(this.path, getCustomerByIdRouter); // Moved up
-    this.router.use(this.path, createCustomerRouter); // NEW: Create customer
+    // Customer routes - MUST be before dynamic :id routes to avoid 'customers', 'metrics', 'tags' being treated as UUIDs
+    const { default: getAllCustomersRouter } = await import('../customer/apis/get-all-customers');
+    const { default: getCustomerByIdRouter } = await import('../customer/apis/get-customer-by-id');
+    const { default: createCustomerRouter } = await import('../customer/apis/create-customer');
+    const { default: updateCustomerRouter } = await import('../customer/apis/update-customer');
+    const { default: deleteCustomerRouter } = await import('../customer/apis/delete-customer');
+    const { default: bulkDeleteCustomersRouter } = await import('../customer/apis/bulk-delete-customers');
+    const { default: getCustomerMetricsRouter } = await import('../customer/apis/get-customer-metrics');
+    const { default: importCustomersRouter } = await import('../customer/apis/import-customers');
+    const { default: exportCustomersRouter } = await import('../customer/apis/export-customers');
+    const { default: getUserTagsRouter } = await import('../customer/apis/get-user-tags');
 
-    // Import/Export routes (must be before dynamic ID routes)
-    const { default: importCustomersRouter } = await import('./apis/import-customers');
-    const { default: exportCustomersRouter } = await import('./apis/export-customers');
-
-    // Mount to /users/customers/import and /users/customers/export
-    // Assuming the router files handle the '/' path relative to mount point
-    this.router.use(`${this.path}/customers/import`, importCustomersRouter);
-    this.router.use(`${this.path}/customers/export`, exportCustomersRouter);
-
-    // Bulk delete router (must be before dynamic ID routes)
-    const { default: bulkDeleteCustomersRouter } = await import('./apis/bulk-delete-customers');
-    this.router.use(this.path, bulkDeleteCustomersRouter);
-
-    // Tags route
-    const { default: getUserTagsRouter } = await import('./apis/get-user-tags');
-    this.router.use(this.path, getUserTagsRouter);
+    // Core user routes
+    this.router.use(this.path, getAllUsersRouter);          // GET /users
+    this.router.use(this.path, getCurrentUserRouter);       // GET /users/me
 
     // OTP verification endpoints
-    this.router.use(this.path, sendEmailOtpRouter);
-    this.router.use(this.path, verifyEmailOtpRouter);
+    this.router.use(this.path, sendEmailOtpRouter);         // POST /users/send-otp
+    this.router.use(this.path, verifyEmailOtpRouter);       // POST /users/verify-otp
 
-    // Customer Metrics
-    const { default: getCustomerMetricsRouter } = await import('./apis/get-customer-metrics');
-    this.router.use(this.path, getCustomerMetricsRouter);
+    // Customer routes (static paths BEFORE dynamic :id)
+    this.router.use(this.path, getAllCustomersRouter);      // GET /users/customers
+    this.router.use(this.path, getCustomerMetricsRouter);   // GET /users/metrics
+    this.router.use(this.path, getUserTagsRouter);          // GET /users/tags
+    this.router.use(this.path, createCustomerRouter);       // POST /users/customer
+    this.router.use(this.path, bulkDeleteCustomersRouter);  // POST /users/bulk-delete
+    this.router.use(`${this.path}/customers/import`, importCustomersRouter);   // POST /users/customers/import
+    this.router.use(`${this.path}/customers/export`, exportCustomersRouter);   // POST /users/customers/export
 
-    // Sub-resources first
-    this.router.use(this.path, getUserOrdersRouter);
-    this.router.use(this.path, getUserAddressesRouter);
-    this.router.use(this.path, createUserAddressRouter);
-    this.router.use(this.path, updateUserAddressRouter);
-    this.router.use(this.path, deleteUserAddressRouter);
-    this.router.use(this.path, setDefaultAddressRouter);
-    this.router.use(this.path, getUserWishlistRouter);
-    this.router.use(this.path, addToWishlistRouter);
-    this.router.use(this.path, removeFromWishlistRouter);
-    this.router.use(this.path, moveWishlistToCartRouter);
+    // Sub-resources
+    this.router.use(this.path, getUserOrdersRouter);        // GET /users/:userId/orders
 
-    // Dynamic ID routes LAST
-    this.router.use(this.path, getUserByIdRouter);
-    this.router.use(this.path, updateCustomerRouter);
-    this.router.use(this.path, deleteCustomerRouter);
-    this.router.use(this.path, updateUserRouter);
-    this.router.use(this.path, deleteUserRouter);
+    // Address sub-resources (Fix for 404: Mount address routes under /users)
+    this.router.use(this.path, getUserAddressesRouter);         // GET /users/:userId/addresses
+    this.router.use(this.path, createUserAddressRouter);        // POST /users/:userId/addresses
+    this.router.use(this.path, setDefaultAddressRouter);        // PUT /users/:userId/addresses/:id/default
+    this.router.use(this.path, updateUserAddressRouter);        // PUT /users/:userId/addresses/:id
+    this.router.use(this.path, deleteUserAddressRouter);        // DELETE /users/:userId/addresses/:id
+
+    // Dynamic ID routes (customer-specific) - these use /customer/:id pattern
+    this.router.use(this.path, getCustomerByIdRouter);      // GET /users/customer/:id
+    this.router.use(this.path, updateCustomerRouter);       // PUT /users/customer/:id
+    this.router.use(this.path, deleteCustomerRouter);       // DELETE /users/customer/:id
+
+    // Dynamic ID routes LAST (generic user routes)
+    this.router.use(this.path, getUserByIdRouter);          // GET /users/:id
+    this.router.use(this.path, updateUserRouter);           // PUT /users/:id
+    this.router.use(this.path, deleteUserRouter);           // DELETE /users/:id
   }
 }
 
@@ -111,11 +101,7 @@ export * from './shared/interface';
 export * from './shared/queries';
 export * from './shared/sanitizeUser';
 
-// E-commerce schemas
-export * from './shared/addresses.schema';
-export * from './shared/payment-methods.schema';
-export * from './shared/customer-profiles.schema';
-export * from './shared/business-profiles.schema';
-export * from './shared/admin-profiles.schema';
+// E-commerce schemas moved to their respective features:
+// - business-profiles.schema → customer/shared/
+// - admin-profiles.schema → admin/shared/
 // export * from './shared/vendors.schema'; // TODO: Enable when vendor feature is needed
-export * from './shared/customer-statistics.schema';

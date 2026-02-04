@@ -20,7 +20,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { carts } from './carts.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 import { inventoryLocations } from '../../inventory/shared/inventory-locations.schema';
 // COMMENTED OUT - Bundles feature dropped (31 Jan 2026)
 // import { bundles } from '../../bundles/shared/bundles.schema';
@@ -40,6 +41,9 @@ export const cartItems = pgTable(
 
     // Product Reference (either product_id OR bundle_id)
     product_id: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+    // Phase 2: Variant Support
+    variant_id: uuid('variant_id').references(() => productVariants.id, { onDelete: 'set null' }),
+
     // REMOVED FK - Bundles table dropped (31 Jan 2026)
     bundle_id: uuid('bundle_id'),
 

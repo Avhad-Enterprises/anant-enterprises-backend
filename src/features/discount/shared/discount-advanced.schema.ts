@@ -14,7 +14,7 @@ import { pgTable, uuid, varchar, primaryKey, index } from 'drizzle-orm/pg-core';
 // import { sql } from 'drizzle-orm';
 import { discounts } from './discount.schema';
 import { users } from '../../user/shared/user.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { collections } from '../../collection/shared/collection.schema';
 
 // ============================================

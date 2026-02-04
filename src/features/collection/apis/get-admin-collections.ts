@@ -9,13 +9,14 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, count, sql, desc, ilike, SQL } from 'drizzle-orm';
+import { eq, and, count, sql, desc, SQL } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { collections, COLLECTION_STATUSES, COLLECTION_TYPES } from '../shared/collection.schema';
 import { collectionProducts } from '../shared/collection-products.schema';
+import { buildCollectionSearchConditions } from '../shared/search-utils';
 
 const querySchema = z.object({
   status: z.enum(COLLECTION_STATUSES).optional(),
@@ -71,8 +72,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
     conditions.push(eq(collections.type, type));
   }
 
-  if (search) {
-    conditions.push(ilike(collections.title, `%${search}%`));
+  // Fuzzy Search Filter (using pg_trgm similarity)
+  if (search && search.trim().length > 0) {
+    const searchConditions = buildCollectionSearchConditions(search);
+    if (searchConditions) {
+      conditions.push(searchConditions);
+    }
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

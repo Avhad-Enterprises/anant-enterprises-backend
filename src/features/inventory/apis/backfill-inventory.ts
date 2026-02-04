@@ -9,11 +9,12 @@
 import { Router, Response, NextFunction } from 'express';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { inventoryLocations } from '../shared/inventory-locations.schema';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import { ResponseFormatter, logger } from '../../../utils';
 import { RequestWithUser } from '../../../interfaces';
+import { requireAuth, requirePermission } from '../../../middlewares';
 
 const handler = async (req: RequestWithUser, res: Response, next: NextFunction) => {
     try {
@@ -28,7 +29,10 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
             })
             .from(products)
             .where(
-                sql`${products.id} NOT IN (SELECT product_id FROM inventory WHERE product_id IS NOT NULL)`
+                and(
+                    sql`${products.id} NOT IN (SELECT product_id FROM inventory WHERE product_id IS NOT NULL)`,
+                    sql`${products.status} != 'archived'`
+                )
             );
 
         if (productsWithoutInventory.length === 0) {
@@ -87,8 +91,6 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
 };
 
 const router = Router();
-// No auth for now - this is a one-time admin operation
-// In production, add: requireAuth, requirePermission('inventory:create')
-router.post('/backfill', handler);
+router.post('/backfill', requireAuth, requirePermission('inventory:create'), handler);
 
 export default router;

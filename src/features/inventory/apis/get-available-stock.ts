@@ -1,6 +1,12 @@
 /**
  * GET /api/inventory/product/:productId/available
- * Get real-time available stock for a product (total stock - reserved stock)
+ * Get real-time available stock for a product
+ * 
+ * Returns:
+ * - availableStock: Stock available for new orders (available_quantity)
+ * - reservedStock: Stock reserved by existing orders (reserved_quantity)  
+ * - totalStock: Total physical inventory (available + reserved)
+ * - inStock: Whether product is available for purchase
  * 
  * This endpoint is used by frontend to check stock availability before adding to cart
  */
@@ -28,13 +34,15 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
 
         logger.info(`GET /api/inventory/product/${productId}/available`);
 
-        // Query available stock (available_quantity - reserved_quantity)
+        // Query available stock
+        // IMPORTANT: available_quantity already excludes reserved stock
+        // totalStock = available + reserved (total physical inventory)
         const [stockData] = await db
             .select({
                 productId: inventory.product_id,
-                totalStock: sql<number>`SUM(${inventory.available_quantity})`.as('total_stock'),
+                availableStock: sql<number>`SUM(${inventory.available_quantity})`.as('available_stock'),
                 reservedStock: sql<number>`SUM(${inventory.reserved_quantity})`.as('reserved_stock'),
-                availableStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`.as('available_stock'),
+                totalStock: sql<number>`SUM(${inventory.available_quantity} + ${inventory.reserved_quantity})`.as('total_stock'),
             })
             .from(inventory)
             .where(eq(inventory.product_id, productId))
@@ -53,9 +61,9 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
 
         const result = {
             productId: stockData.productId,
-            totalStock: Number(stockData.totalStock) || 0,
-            reservedStock: Number(stockData.reservedStock) || 0,
             availableStock: Number(stockData.availableStock) || 0,
+            reservedStock: Number(stockData.reservedStock) || 0,
+            totalStock: Number(stockData.totalStock) || 0,
             inStock: Number(stockData.availableStock) > 0,
         };
 

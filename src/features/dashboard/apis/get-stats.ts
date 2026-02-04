@@ -9,7 +9,7 @@ import { Router, Response, Request } from 'express';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { blogs } from '../../blog/shared/blog.schema';
 import { tags } from '../../tags/shared/tags.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
@@ -168,7 +168,7 @@ const handler = async (req: Request, res: Response) => {
         // Recent 5 customers
         db.select({
             id: users.id,
-            name: users.name,
+            name: users.first_name,
             email: users.email,
             profileImageUrl: users.profile_image_url,
             createdAt: users.created_at,

@@ -8,10 +8,14 @@ import { z } from 'zod';
 import { sql, eq, and, or, desc } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
-import { products } from '../shared/product.schema';
-import { inventory } from '../../inventory/shared/inventory.schema';
+import { products } from '../shared/products.schema';
 import { reviews } from '../../reviews/shared/reviews.schema';
 import { tiers } from '../../tiers/shared/tiers.schema';
+import {
+    buildAverageRating,
+    buildReviewCount,
+    buildInventoryQuantity,
+} from '../shared/query-builders';
 
 const querySchema = paginationSchema.extend({
     q: z.string().min(1).describe('Search query'),
@@ -67,16 +71,35 @@ const handler = async (req: Request, res: Response) => {
             primary_image_url: products.primary_image_url,
             category_tier_1: products.category_tier_1,
             tags: products.tags,
-            rating: sql<number>`COALESCE((SELECT AVG(rating) FROM ${reviews} WHERE product_id = ${products.id} AND status = 'approved'), 0)`,
-            reviews: sql<number>`COALESCE((SELECT COUNT(*) FROM ${reviews} WHERE product_id = ${products.id} AND status = 'approved'), 0)`,
-            total_stock: sql<number>`COALESCE((SELECT SUM(available_quantity) FROM ${inventory} WHERE product_id = ${products.id}), 0)`,
+            rating: buildAverageRating(),
+            reviews: buildReviewCount(),
+            total_stock: buildInventoryQuantity(),
             // Add relevance score for sorting if needed, but standard order might be ok
             rank: sql<number>`ts_rank(${products.search_vector}, plainto_tsquery('english', ${searchQuery}))`,
             category_name: tiers.name
         })
         .from(products)
         .leftJoin(tiers, eq(products.category_tier_1, tiers.id))
+        .leftJoin(
+            reviews,
+            and(
+                eq(reviews.product_id, products.id),
+                eq(reviews.status, 'approved'),
+                eq(reviews.is_deleted, false)
+            )
+        )
         .where(and(...conditions))
+        .groupBy(
+            products.id,
+            products.slug,
+            products.product_title,
+            products.selling_price,
+            products.compare_at_price,
+            products.primary_image_url,
+            products.category_tier_1,
+            products.tags,
+            tiers.name
+        )
         .orderBy(desc(sql`ts_rank(${products.search_vector}, plainto_tsquery('english', ${searchQuery}))`))
         .limit(limit)
         .offset(offset);

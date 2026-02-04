@@ -36,6 +36,7 @@ const ADMIN_URL = (process.env.ADMIN_URL || 'http://localhost:5173').replace(/\/
 // Request body schema
 const orderItemSchema = z.object({
     product_id: z.string().uuid(),
+    variant_id: z.string().uuid().optional(),
     quantity: z.number().min(1),
     cost_price: z.union([z.string(), z.number()]),
     line_total: z.union([z.string(), z.number()]),
@@ -113,6 +114,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         // 1. Validate Stock
         const stockItems = body.items.map(item => ({
             product_id: item.product_id,
+            variant_id: item.variant_id,
             quantity: item.quantity,
         }));
 
@@ -185,6 +187,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             const orderItemsData = body.items!.map(item => ({
                 order_id: newOrder.id,
                 product_id: item.product_id,
+                variant_id: item.variant_id,
                 sku: item.sku || 'UNKNOWN',
                 product_name: item.product_name || 'Unknown Product',
                 product_image: item.product_image,
@@ -215,7 +218,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 try {
                     // Fetch customer details for notification
                     const [customer] = await db
-                        .select({ name: users.name, email: users.email })
+                        .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                         .from(users)
                         .where(eq(users.id, targetUserId))
                         .limit(1);
@@ -224,7 +227,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                         userId: targetUserId,
                         templateCode: TEMPLATE_CODES.ORDER_CREATED,
                         variables: {
-                            userName: customer?.name || 'Customer',
+                            userName: customer ? `${customer.first_name} ${customer.last_name}` : 'Customer',
                             orderNumber: order.order_number,
                             total: Number(order.total_amount).toFixed(2),
                             currency: order.currency || 'INR',
@@ -246,18 +249,18 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 logger.info('[Direct Order] Fetching admin user IDs for notification...');
                 const adminUserIds = await getAllAdminUserIds();
                 logger.info('[Direct Order] Admin user IDs:', { count: adminUserIds.length, ids: adminUserIds });
-                
+
                 if (adminUserIds.length > 0) {
                     // Fetch customer details for admin notification
                     let customerName = 'Guest';
                     let customerEmail = 'N/A';
                     if (targetUserId) {
                         const [customer] = await db
-                            .select({ name: users.name, email: users.email })
+                            .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                             .from(users)
                             .where(eq(users.id, targetUserId))
                             .limit(1);
-                        customerName = customer?.name || 'Guest';
+                        customerName = customer ? `${customer.first_name} ${customer.last_name}` : 'Guest';
                         customerEmail = customer?.email || 'N/A';
                     }
 
@@ -285,7 +288,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                             actionText: 'View Order',
                         },
                     });
-                    
+
                     logger.info('[Direct Order] Admin notification batch published successfully');
                 } else {
                     logger.warn('[Direct Order] No admin users found - skipping admin notification');
@@ -421,6 +424,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .filter(item => item.product_id)
         .map(item => ({
             product_id: item.product_id!,
+            variant_id: item.variant_id,
             quantity: item.quantity,
         }));
 
@@ -479,6 +483,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         const orderItemsData = items.map(item => ({
             order_id: newOrder.id,
             product_id: item.product_id,
+            variant_id: item.variant_id,
             sku: item.product_sku,
             product_name: item.product_name || 'Unknown Product',
             product_image: item.product_image_url,
@@ -547,7 +552,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         try {
             // Fetch customer details for personalized notification
             const [customer] = await db
-                .select({ name: users.name, email: users.email })
+                .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                 .from(users)
                 .where(eq(users.id, userId))
                 .limit(1);
@@ -556,7 +561,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 userId: userId!,
                 templateCode: TEMPLATE_CODES.ORDER_CREATED,
                 variables: {
-                    userName: customer?.name || 'Customer',
+                    userName: customer ? `${customer.first_name} ${customer.last_name}` : 'Customer',
                     orderNumber: order.order_number,
                     total: Number(order.total_amount).toFixed(2),
                     currency: order.currency || 'INR',
@@ -578,11 +583,11 @@ const handler = async (req: RequestWithUser, res: Response) => {
             logger.info('[Cart Order] Fetching admin user IDs for notification...');
             const adminUserIds = await getAllAdminUserIds();
             logger.info('[Cart Order] Admin user IDs:', { count: adminUserIds.length, ids: adminUserIds });
-            
+
             if (adminUserIds.length > 0) {
                 // Fetch customer details for admin notification
                 const [customer] = await db
-                    .select({ name: users.name, email: users.email })
+                    .select({ first_name: users.first_name, last_name: users.last_name, email: users.email })
                     .from(users)
                     .where(eq(users.id, userId))
                     .limit(1);
@@ -598,7 +603,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                     templateCode: TEMPLATE_CODES.NEW_ORDER_RECEIVED,
                     variables: {
                         orderNumber: order.order_number,
-                        customerName: customer?.name || 'Customer',
+                        customerName: customer ? `${customer.first_name} ${customer.last_name}` : 'Guest',
                         customerEmail: customer?.email || 'N/A',
                         total: Number(order.total_amount).toFixed(2),
                         currency: order.currency || 'INR',
@@ -611,7 +616,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
                         actionText: 'View Order',
                     },
                 });
-                
+
                 logger.info('[Cart Order] Admin notification batch published successfully');
             } else {
                 logger.warn('[Cart Order] No admin users found - skipping admin notification');
@@ -628,3 +633,4 @@ const router = Router();
 router.post('/', requireAuth, handler);
 
 export default router;
+

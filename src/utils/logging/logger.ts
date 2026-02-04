@@ -14,7 +14,10 @@ if (!fs.existsSync(logDir)) {
 const { combine, timestamp, printf } = winston.format;
 
 // Define log format
-const logFormat = printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
+const logFormat = printf(({ timestamp, level, message, ...meta }) => {
+  const metaString = meta && Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
+  return `${timestamp} ${level}: ${message}${metaString}`;
+});
 
 /*
  * Log Level

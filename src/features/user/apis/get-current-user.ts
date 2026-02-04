@@ -40,3 +40,4 @@ const router = Router();
 router.get('/me', requireAuth, handler);
 
 export default router;
+

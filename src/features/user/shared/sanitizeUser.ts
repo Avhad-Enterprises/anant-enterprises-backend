@@ -3,7 +3,7 @@ import { IUser } from './interface';
 /**
  * Sanitized user type without sensitive fields
  */
-export type SanitizedUser = Omit<IUser, 'password'>;
+export type SanitizedUser = Omit<IUser, 'password'> & { hasPassword: boolean };
 
 /**
  * Remove sensitive fields from a single user object
@@ -12,7 +12,10 @@ export type SanitizedUser = Omit<IUser, 'password'>;
 export const sanitizeUser = (user: IUser): SanitizedUser => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { password, ...sanitized } = user;
-  return sanitized;
+  return {
+    ...sanitized,
+    hasPassword: !!password,
+  };
 };
 
 /**
@@ -21,3 +24,4 @@ export const sanitizeUser = (user: IUser): SanitizedUser => {
 export const sanitizeUsers = (users: IUser[]): SanitizedUser[] => {
   return users.map(sanitizeUser);
 };
+

@@ -57,7 +57,7 @@ class OrderWorker extends BaseWorker {
 
     /**
      * Handle ORDER_CREATED event
-     * - Send confirmation email
+     * - Send confirmation email (Unified)
      * - Reserve inventory
      * - Create audit log
      */
@@ -65,12 +65,12 @@ class OrderWorker extends BaseWorker {
         logger.info('Processing ORDER_CREATED', { orderId: data.orderId });
 
         try {
-            // Send order confirmation email
-            await eventPublisher.publishEmailNotification({
-                to: data.userEmail,
-                subject: `Order Confirmed - #${data.orderNumber}`,
-                template: 'order_confirmation',
-                templateData: {
+            // Send order confirmation via unified notification service
+            // This handles Email, In-App, and Socket broadcasts
+            await eventPublisher.publishNotification({
+                userId: data.userId,
+                templateCode: 'ORDER_CREATED',
+                variables: {
                     orderNumber: data.orderNumber,
                     userName: data.userName,
                     items: data.items,
@@ -79,8 +79,13 @@ class OrderWorker extends BaseWorker {
                     shipping: data.shipping,
                     total: data.total,
                     currency: data.currency,
+                    orderUrl: `${process.env.FRONTEND_URL}/profile/orders/${data.orderId}`,
                 },
-                priority: 1, // High priority
+                options: {
+                    priority: 'high',
+                    actionUrl: `/profile/orders/${data.orderId}`,
+                    actionText: 'View Order',
+                },
             });
 
             // Reserve inventory for the order items
@@ -122,17 +127,21 @@ class OrderWorker extends BaseWorker {
         logger.info('Processing ORDER_PAID', { orderId: data.orderId });
 
         try {
-            // Send payment confirmation email
-            await eventPublisher.publishEmailNotification({
-                to: data.userId, // Will be resolved to email by notification worker
-                subject: `Payment Received - Order #${data.orderNumber}`,
-                template: 'payment_confirmation',
-                templateData: {
+            // Send payment confirmation notification
+            await eventPublisher.publishNotification({
+                userId: data.userId,
+                templateCode: 'PAYMENT_CONFIRMED',
+                variables: {
                     orderNumber: data.orderNumber,
                     amount: data.amount,
                     currency: data.currency,
                     paymentMethod: data.paymentMethod,
                     paidAt: data.paidAt,
+                },
+                options: {
+                    priority: 'high',
+                    actionUrl: `/profile/orders/${data.orderId}`,
+                    actionText: 'View Order',
                 },
             });
 
@@ -163,16 +172,20 @@ class OrderWorker extends BaseWorker {
         logger.info('Processing ORDER_SHIPPED', { orderId: data.orderId });
 
         try {
-            // Send shipping notification email
-            await eventPublisher.publishEmailNotification({
-                to: data.userEmail,
-                subject: `Your Order Has Shipped - #${data.orderNumber}`,
-                template: 'order_shipped',
-                templateData: {
+            // Send shipping notification
+            await eventPublisher.publishNotification({
+                userId: data.userId,
+                templateCode: 'ORDER_SHIPPED',
+                variables: {
                     orderNumber: data.orderNumber,
                     trackingNumber: data.trackingNumber || 'Not available',
                     carrier: data.carrier || 'Not specified',
                     estimatedDelivery: data.estimatedDelivery,
+                },
+                options: {
+                    priority: 'normal',
+                    actionUrl: `/profile/orders/${data.orderId}`,
+                    actionText: 'Track Order',
                 },
             });
 
@@ -214,6 +227,9 @@ class OrderWorker extends BaseWorker {
                 reason: 'cancelled',
                 releasedBy: data.cancelledBy,
             });
+
+            // Note: We don't send a specific "CANCELLED" template yet in the seed,
+            // but if we did, we'd add it here. For now, just audit log.
 
             await auditService.log({
                 action: AuditAction.ORDER_CANCELLED,

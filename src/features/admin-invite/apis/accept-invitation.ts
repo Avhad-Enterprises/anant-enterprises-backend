@@ -93,7 +93,7 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto) {
     .insert(users)
     .values({
       auth_id: authUser.user.id,
-      name: invitation.first_name,
+      first_name: invitation.first_name,
       last_name: invitation.last_name,
       email: acceptData.email,
       password: '', // Managed by Supabase
@@ -150,7 +150,9 @@ async function handleAcceptInvitation(acceptData: AcceptInvitationDto) {
     user: {
       id: publicUser.id,
       auth_id: authData.user.id,
-      name: publicUser.name,
+      first_name: publicUser.first_name,
+      middle_name: publicUser.middle_name,
+      last_name: publicUser.last_name,
       email: publicUser.email,
       phone_number: publicUser.phone_number || undefined,
       created_at: publicUser.created_at,

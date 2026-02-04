@@ -9,7 +9,7 @@ import { ResponseFormatter } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { reviews } from '../shared/reviews.schema';
-import { products } from '../../product/shared/product.schema';
+import { products } from '../../product/shared/products.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 

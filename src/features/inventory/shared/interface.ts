@@ -52,6 +52,13 @@ export interface InventoryWithProduct {
   condition: 'sellable' | 'damaged' | 'quarantined' | 'expired';
   status: 'in_stock' | 'low_stock' | 'out_of_stock';
   location_id: string; // Changed from location?: string
+
+  // PHASE 1: Analytics fields
+  total_sold?: number;
+  total_fulfilled?: number;
+  last_stock_movement_at?: Date;
+  last_sale_at?: Date;
+
   updated_by?: string;
   updated_by_name?: string;
   created_at: Date;

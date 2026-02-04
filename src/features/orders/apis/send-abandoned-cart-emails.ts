@@ -6,7 +6,7 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and, inArray } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { HttpException, ResponseFormatter, logger } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../../cart/shared/carts.schema';
 import { users } from '../../user/shared/user.schema';
@@ -14,7 +14,6 @@ import { notificationTemplates } from '../../notifications/shared/notification-t
 import { deliveryService } from '../../notifications/services/delivery.service';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
-import { logger } from '../../../utils';
 
 const bodySchema = z.object({
     cart_ids: z.array(z.string().uuid()).min(1).max(100), // Max 100 carts at once
@@ -30,7 +29,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             cart_id: carts.id,
             user_id: carts.user_id,
             customer_email: users.email,
-            customer_name: users.name,
+            customer_name: users.first_name,
             grand_total: carts.grand_total,
             abandoned_at: carts.abandoned_at,
         })
@@ -43,7 +42,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         ));
 
     if (abandonedCarts.length === 0) {
-        return ResponseFormatter.error(res, 'NO_CARTS_FOUND', 'No abandoned carts found', 404);
+        throw new HttpException(404, 'No abandoned carts found');
     }
 
     // Get template (use default if not specified)
@@ -69,7 +68,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     }
 
     if (!template) {
-        return ResponseFormatter.error(res, 'TEMPLATE_NOT_FOUND', 'Email template not found or inactive', 404);
+        throw new HttpException(404, 'Email template not found or inactive');
     }
 
     let sentCount = 0;

@@ -12,7 +12,7 @@ import { carts } from '../shared/carts.schema';
 import { cartItems } from '../shared/cart-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { releaseCartStock } from '../../inventory/services/inventory.service';
-import { CART_RESERVATION_CONFIG } from '../../../config/cart-reservation.config';
+import { CART_RESERVATION_CONFIG } from '../config/cart-reservation.config';
 
 import { cartService } from '../services';
 
@@ -89,7 +89,7 @@ const handler = async (req: Request, res: Response) => {
     return ResponseFormatter.success(res, null, `"${cartItem.product_name || 'Item'}" removed from cart`);
 };
 
-import { optionalAuth } from '../../../middlewares/auth.middleware';
+import { optionalAuth } from '../../../middlewares';
 
 const router = Router();
 router.delete('/items/:id', optionalAuth, handler);

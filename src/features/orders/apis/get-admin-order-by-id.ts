@@ -4,13 +4,14 @@
  */
 
 import { Router, Response } from 'express';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
-import { userAddresses } from '../../user/shared/addresses.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { users } from '../../user/shared/user.schema';
+import { inventory } from '../../inventory/shared/inventory.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 
@@ -55,7 +56,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             channel: orders.channel,
             is_draft: orders.is_draft,
             // User info
-            customer_name: users.name,
+            customer_name: users.first_name,
             customer_email: users.email,
         })
         .from(orders)
@@ -156,16 +157,42 @@ const handler = async (req: RequestWithUser, res: Response) => {
         shipping_address: shippingAddress,
         billing_address: billingAddress,
 
-        // Items
-        items: items.map(item => ({
-            id: item.id,
-            productId: item.product_id,
-            productName: item.product_name,
-            productSku: item.sku,
-            productImage: item.product_image || '',
-            quantity: item.quantity,
-            costPrice: parseFloat(item.cost_price || '0'),
-            lineTotal: parseFloat(item.line_total || '0'),
+        // Items - enrich with current stock information
+        items: await Promise.all(items.map(async (item) => {
+            // Get current stock from inventory
+            let availableStock = 0;
+            if (item.product_id) {
+                const [stockResult] = await db
+                    .select({
+                        total_available: sql<number>`COALESCE(SUM(${inventory.available_quantity}), 0)::int`,
+                        total_reserved: sql<number>`COALESCE(SUM(${inventory.reserved_quantity}), 0)::int`,
+                    })
+                    .from(inventory)
+                    .where(eq(inventory.product_id, item.product_id));
+                
+                const totalAvailable = stockResult?.total_available || 0;
+                const totalReserved = stockResult?.total_reserved || 0;
+                availableStock = Math.max(0, totalAvailable - totalReserved);
+            }
+            
+            return {
+                id: item.id,
+                product_id: item.product_id,
+                productId: item.product_id,
+                product_name: item.product_name,
+                productName: item.product_name,
+                sku: item.sku,
+                productSku: item.sku,
+                product_image: item.product_image || '',
+                productImage: item.product_image || '',
+                quantity: item.quantity,
+                cost_price: item.cost_price,
+                costPrice: parseFloat(item.cost_price || '0'),
+                line_total: item.line_total,
+                lineTotal: parseFloat(item.line_total || '0'),
+                available_stock: availableStock,
+                availableStock: availableStock,
+            };
         })),
     }, 'Order details retrieved successfully');
 };

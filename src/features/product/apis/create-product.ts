@@ -9,134 +9,21 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter, decimalSchema } from '../../../utils';
+import { ResponseFormatter, logger } from '../../../utils';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { eq } from 'drizzle-orm';
-import { products, productVariants } from '../shared/product.schema';
+import { products } from '../shared/products.schema';
+import { productVariants } from '../shared/product-variants.schema';
 import { findProductBySlug, isSkuTaken } from '../shared/queries';
 import { productCacheService } from '../services/product-cache.service';
 import { sanitizeProduct } from '../shared/sanitizeProduct';
 import { IProduct } from '../shared/interface';
+import { createProductSchema } from '../shared/validation';
 import { syncTags } from '../../tags/services/tag-sync.service';
 import { incrementTierUsage } from '../../tiers/services/tier-sync.service';
 
-// Validation schema for creating a product
-const createProductSchema = z.object({
-  slug: z.string().min(1, 'Slug is required'),
-  product_title: z.string().min(1, 'Product title is required'),
-  secondary_title: z.string().optional(),
-
-  short_description: z.string().optional(),
-  full_description: z.string().optional(),
-
-  status: z.enum(['draft', 'active', 'archived']).default('draft'),
-  featured: z.boolean().default(false),
-
-  cost_price: decimalSchema.default('0.00'),
-  selling_price: decimalSchema,
-  compare_at_price: decimalSchema.optional().nullable(),
-
-  sku: z.string().min(1, 'SKU is required'),
-  hsn_code: z.string().optional().nullable(),
-
-  weight: decimalSchema.optional().nullable(),
-  length: decimalSchema.optional().nullable(),
-  breadth: decimalSchema.optional().nullable(),
-  height: decimalSchema.optional().nullable(),
-
-  category_tier_1: z.string().optional().nullable(),
-  category_tier_2: z.string().optional().nullable(),
-  category_tier_3: z.string().optional().nullable(),
-  category_tier_4: z.string().optional().nullable(),
-
-  primary_image_url: z.string().url().optional().nullable(),
-  additional_images: z.array(z.string().url()).default([]),
-
-  meta_title: z.string().optional().nullable(),
-  meta_description: z.string().optional().nullable(),
-  product_url: z.string().optional().nullable(),
-
-  tags: z.array(z.string()).optional().default([]),
-
-  // FAQs - array of question/answer pairs
-  faqs: z.array(z.object({
-    question: z.string().min(1, 'Question is required'),
-    answer: z.string().min(1, 'Answer is required'),
-  })).optional().default([]),
-
-  // Inventory - initial stock quantity (only used for products without variants)
-  inventory_quantity: z.number().int().nonnegative().optional().default(0),
-
-  // Variants support
-  has_variants: z.boolean().default(false),
-  variants: z.array(z.object({
-    option_name: z.string().default('Default'),
-    option_value: z.string().default('Standard'),
-    sku: z.string().min(1, 'Variant SKU is required'),
-    barcode: z.string().optional().nullable(),
-    cost_price: decimalSchema.default('0.00'),
-    selling_price: decimalSchema,
-    compare_at_price: decimalSchema.optional().nullable(),
-    inventory_quantity: z.number().int().nonnegative().default(0),
-    image_url: z.string().url().optional().nullable(),
-    thumbnail_url: z.string().url().optional().nullable(),
-  })).optional().default([]),
-}).refine((data) => {
-  if (data.compare_at_price && data.selling_price) {
-    const compareAt = parseFloat(data.compare_at_price);
-    const selling = parseFloat(data.selling_price);
-    return compareAt >= selling;
-  }
-  return true;
-}, {
-  message: "Compare at price must be greater than or equal to selling price",
-  path: ["compare_at_price"],
-}).refine((data) => {
-  // If has_variants is true, must have at least one variant
-  if (data.has_variants && (!data.variants || data.variants.length === 0)) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Products with variants must have at least one variant defined",
-  path: ["variants"],
-}).refine((data) => {
-  // Variant SKUs must be unique within the product
-  if (data.variants && data.variants.length > 0) {
-    const skus = data.variants.map(v => v.sku);
-    const uniqueSkus = new Set(skus);
-    return skus.length === uniqueSkus.size;
-  }
-  return true;
-}, {
-  message: "Variant SKUs must be unique",
-  path: ["variants"],
-}).refine((data) => {
-  // Validate variant pricing: Compare At >= Selling
-  if (data.variants && data.variants.length > 0) {
-    for (const variant of data.variants) {
-      if (variant.compare_at_price && variant.selling_price) {
-        const compareAt = parseFloat(variant.compare_at_price);
-        const selling = parseFloat(variant.selling_price);
-        // Skip if invalid numbers (Zod handles type validation elsewhere)
-        if (isNaN(compareAt) || isNaN(selling)) continue;
-
-        if (compareAt < selling) {
-          return false;
-        }
-      }
-    }
-  }
-  return true;
-}, {
-  message: "Variant 'Compare at price' must be greater than or equal to 'Selling price'",
-  path: ["variants"],
-});
-
-type CreateProductData = z.infer<typeof createProductSchema>;
-
-async function createNewProduct(data: CreateProductData, createdBy: string): Promise<IProduct> {
+async function createNewProduct(data: z.infer<typeof createProductSchema>, createdBy: string): Promise<IProduct> {
   // Check product SKU uniqueness (globally across products and variants)
   const productSkuTaken = await isSkuTaken(data.sku);
   if (productSkuTaken) {
@@ -187,7 +74,9 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     meta_description: data.meta_description,
     product_url: data.product_url,
     tags: data.tags,
+    admin_comment: data.admin_comment,
     has_variants: data.has_variants || false,
+
     created_by: createdBy,
     updated_by: createdBy,
   };
@@ -195,15 +84,15 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
   let newProduct;
   try {
     [newProduct] = await db.insert(products).values(productData).returning();
-  } catch (err: any) {
-    console.error('❌ Error inserting product:', {
-      message: err.message,
-      code: err.code,
-      detail: err.detail,
-      constraint: err.constraint,
+  } catch (err: unknown) {
+    logger.error('❌ Error inserting product:', {
+      error: err instanceof Error ? err.message : 'Unknown error',
+      code: (err as any)?.code,
+      detail: (err as any)?.detail,
+      constraint: (err as any)?.constraint,
       params: productData
     });
-    throw new HttpException(500, `Database error: ${err.message}`);
+    throw new HttpException(500, `Database error: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
   if (!newProduct) {
@@ -265,11 +154,23 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
 
     // Step 2: ALSO create inventory for each variant (if variants exist)
     if (data.has_variants && data.variants && data.variants.length > 0) {
-      for (const variant of data.variants) {
+      // We need to fetch the newly created variants to get their IDs
+      const insertedVariants = await db
+        .select()
+        .from(productVariants)
+        .where(eq(productVariants.product_id, newProduct.id));
+
+      for (const variant of insertedVariants) {
+        // Find matching variant from input data to get its initial quantity
+        const inputVariant = data.variants.find(v => v.sku === variant.sku);
+        const initialQty = inputVariant?.inventory_quantity || 0;
+
         await createInventoryForProduct(
           newProduct.id,
-          variant.inventory_quantity || 0,
-          createdBy
+          initialQty,
+          createdBy,
+          undefined,
+          variant.id
         );
       }
     }
@@ -291,7 +192,7 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
         data.category_tier_4 ?? null,
       ]);
     } catch (tierError) {
-      console.error('[create-product] ERROR syncing tier usage:', tierError);
+      logger.error('[create-product] ERROR syncing tier usage:', tierError);
       // Don't fail product creation if tier sync fails
       // Just log the error
     }
@@ -299,7 +200,7 @@ async function createNewProduct(data: CreateProductData, createdBy: string): Pro
     return newProduct as IProduct;
 
   } catch (error) {
-    console.error('Error during product creation post-processing. Rolling back product...', error);
+    logger.error('Error during product creation post-processing. Rolling back product...', error);
     // Compensating transaction: Delete the product if any subsequent step fails
     await db.delete(products).where(eq(products.id, newProduct.id));
     throw error;
@@ -312,11 +213,28 @@ const handler = async (req: RequestWithUser, res: Response) => {
     throw new HttpException(401, 'User authentication required');
   }
 
-  const productData: CreateProductData = req.body;
+  const productData = req.body;
   const product = await createNewProduct(productData, userId);
   const productResponse = sanitizeProduct(product);
 
-  ResponseFormatter.success(res, productResponse, 'Product created successfully', 201);
+  // INJECT INVENTORY DATA
+  // The frontend expects 'base_inventory' or 'total_stock' to be present
+  // since the 'inventory_quantity' column was removed from the products table.
+  const responseWithInventory = {
+    ...productResponse,
+    base_inventory: productData.inventory_quantity || 0,
+    total_stock: productData.inventory_quantity || 0,
+    // If variants exist, we should ideally map them too, but for now base_inventory is critical
+    variants: product.has_variants && productData.variants
+      ? productData.variants.map((v: any) => ({
+        ...v, // Includes inventory_quantity from input
+        // We don't have the new IDs here without refactoring, so we return input data
+        // The frontend mainly needs the product ID which is at the root
+      }))
+      : undefined
+  };
+
+  ResponseFormatter.success(res, responseWithInventory, 'Product created successfully', 201);
 };
 
 const router = Router();

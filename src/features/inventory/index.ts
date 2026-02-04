@@ -3,80 +3,14 @@
  *
  * Registers all inventory-related API routes.
  * 
- * IMPORTANT: Route order matters! More specific routes MUST come before generic ones.
- * - /:id/history → before /:id
- * - /:id/adjust → before /:id
- * - /:id → before /
+ * Refactored to use modular router pattern and dynamic imports
+ * to avoid circular dependencies.
  */
 
-import { Router, Response, Request, NextFunction } from 'express';
-import { z } from 'zod';
-import { RequestWithUser } from '../../interfaces';
-import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../utils';
-import {
-  getInventoryList,
-  getInventoryById as getInventoryByIdService,
-  updateInventory as updateInventoryService,
-  adjustInventory as adjustInventoryService,
-  getInventoryHistory as getInventoryHistoryService,
-} from './services/inventory.service';
-import backfillInventoryRouter from './apis/backfill-inventory';
-import getInventoryHistoryByProductRouter from './apis/get-inventory-history-by-product';
-// REMOVED: adjustVariantInventoryRouter (Phase 2A - variants use unified inventory/adjust endpoint)
-import getAvailableStockRouter from './apis/get-available-stock';
+import { Router } from 'express';
+import Route from '../../interfaces/route.interface';
 
-// Phase 3: Multi-location APIs (TEMPORARILY DISABLED - circular dependency issue)
-// import getProductLocations from './apis/get-product-locations';
-// import createTransfer from './apis/create-transfer';
-// import executeTransfer from './apis/execute-transfer';
-// import listTransfers from './apis/list-transfers';
-
-// ============================================
-// SCHEMAS
-// ============================================
-
-const querySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().optional(),
-  condition: z.enum(['sellable', 'damaged', 'quarantined', 'expired']).optional(),
-  status: z.enum(['in_stock', 'low_stock', 'out_of_stock']).optional(),
-  location: z.string().optional(),
-  sortBy: z.string().optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
-  quickFilter: z.string().optional(),
-});
-
-const paramsSchema = z.object({
-  id: uuidSchema,
-});
-
-const updateBodySchema = z.object({
-  condition: z.enum(['sellable', 'damaged', 'quarantined', 'expired']).optional(),
-  location: z.string().max(255).optional(),
-  incoming_quantity: z.number().int().min(0).optional(),
-  incoming_po_reference: z.string().max(100).optional(),
-  incoming_eta: z.string().datetime().optional(),
-});
-
-const adjustBodySchema = z.object({
-  quantity_change: z.number().int().refine(val => val !== 0, {
-    message: 'Quantity change cannot be zero',
-  }),
-  reason: z.string().min(1).max(500),
-  reference_number: z.string().max(100).optional(),
-  notes: z.string().optional(),
-});
-
-const historyQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-});
-
-// ============================================
-// ROUTE CLASS
-// ============================================
-
-class InventoryRoute {
+class InventoryRoute implements Route {
   public path = '/inventory';
   public router = Router();
 
@@ -84,7 +18,19 @@ class InventoryRoute {
     this.initializeRoutes();
   }
 
-  private initializeRoutes() {
+  private async initializeRoutes() {
+    // Dynamic imports to avoid circular dependency
+    const { default: backfillInventoryRouter } = await import('./apis/backfill-inventory');
+    const { default: getInventoryHistoryByProductRouter } = await import('./apis/get-inventory-history-by-product');
+    const { default: getAvailableStockRouter } = await import('./apis/get-available-stock');
+
+    // Core CRUD routers
+    const { default: getAllInventoryRouter } = await import('./apis/get-all-inventory');
+    const { default: getInventoryByIdRouter } = await import('./apis/get-inventory-by-id');
+    const { default: updateInventoryRouter } = await import('./apis/update-inventory');
+    const { default: adjustInventoryRouter } = await import('./apis/adjust-inventory');
+    const { default: getInventoryHistoryRouter } = await import('./apis/get-inventory-history');
+
     // ORDER MATTERS: Most specific routes first!
 
     // POST /api/inventory/backfill - Admin: Create inventory for products without one
@@ -96,184 +42,31 @@ class InventoryRoute {
     // GET /api/inventory/product/:productId/available - Real-time available stock
     this.router.use(this.path, getAvailableStockRouter);
 
-    // REMOVED: POST /api/inventory/variants/:variantId/adjust (Phase 2A - variants use unified /:id/adjust endpoint)
-    // Variant adjustments now go through: POST /api/inventory/:id/adjust where :id is the inventory record ID
-
     // GET /api/inventory/:id/history
-    this.router.get(`${this.path}/:id/history`, this.getInventoryHistory);
+    this.router.use(this.path, getInventoryHistoryRouter);
 
     // POST /api/inventory/:id/adjust
-    this.router.post(`${this.path}/:id/adjust`, this.adjustInventory);
+    this.router.use(this.path, adjustInventoryRouter);
 
     // PUT /api/inventory/:id
-    this.router.put(`${this.path}/:id`, this.updateInventory);
+    this.router.use(this.path, updateInventoryRouter);
 
     // GET /api/inventory/:id
-    this.router.get(`${this.path}/:id`, this.getInventoryById);
+    this.router.use(this.path, getInventoryByIdRouter);
 
     // GET /api/inventory (LIST - must be LAST)
-    this.router.get(this.path, this.getAllInventory);
+    this.router.use(this.path, getAllInventoryRouter);
 
-    // Phase 3: Multi-location routes (TEMPORARILY DISABLED)
-    // this.router.use(this.path, getProductLocations);
-    // this.router.use(this.path, createTransfer);
-    // this.router.use(this.path, executeTransfer);
-    // this.router.use(this.path, listTransfers);
-  }
+    // Phase 3: Multi-location routes
+    const { default: getProductLocations } = await import('./apis/get-product-locations');
+    const { default: createTransfer } = await import('./apis/create-transfer');
+    const { default: executeTransfer } = await import('./apis/execute-transfer');
+    const { default: listTransfers } = await import('./apis/list-transfers');
 
-  // ============================================
-  // HANDLERS
-  // ============================================
-
-  private async getAllInventory(req: Request, res: Response, next: NextFunction) {
-    try {
-      const params = querySchema.parse(req.query);
-      logger.info('GET /api/inventory', { params });
-
-      const result = await getInventoryList(params);
-
-      ResponseFormatter.paginated(
-        res,
-        result.items,
-        { page: result.page, limit: result.limit, total: result.total },
-        'Inventory retrieved successfully'
-      );
-    } catch (error) {
-      logger.error('Error in get-all-inventory:', error);
-      next(error);
-    }
-  }
-
-  private async getInventoryById(req: RequestWithUser, res: Response, next: NextFunction) {
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-      // If no ID provided, skip to next route (list endpoint)
-      if (!id) {
-        return next('route');
-      }
-
-      // If ID is not a valid UUID, skip to next route
-      const validation = paramsSchema.safeParse({ id });
-      if (!validation.success) {
-        return next('route');
-      }
-
-      logger.info(`GET /api/inventory/${id}`);
-
-      const item = await getInventoryByIdService(id);
-      if (!item) {
-        throw new HttpException(404, 'Inventory item not found');
-      }
-
-      ResponseFormatter.success(res, item, 'Inventory item retrieved successfully');
-    } catch (error) {
-      logger.error('Error in get-inventory-by-id:', error);
-      next(error);
-    }
-  }
-
-  private async updateInventory(req: RequestWithUser, res: Response, next: NextFunction) {
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-      const paramsValidation = paramsSchema.safeParse({ id });
-      if (!paramsValidation.success) {
-        throw new HttpException(400, 'Invalid inventory ID format');
-      }
-
-      const bodyValidation = updateBodySchema.safeParse(req.body);
-      if (!bodyValidation.success) {
-        throw new HttpException(400, bodyValidation.error.issues[0]?.message || 'Invalid request body');
-      }
-
-      const data = bodyValidation.data;
-      const userId = req.userId || 'system';
-
-      logger.info(`PUT /api/inventory/${id}`, { data });
-
-      const existing = await getInventoryByIdService(id);
-      if (!existing) {
-        throw new HttpException(404, 'Inventory item not found');
-      }
-
-      const updated = await updateInventoryService(id, data, userId);
-      ResponseFormatter.success(res, updated, 'Inventory updated successfully');
-    } catch (error) {
-      logger.error('Error in update-inventory:', error);
-      next(error);
-    }
-  }
-
-  private async adjustInventory(req: RequestWithUser, res: Response, next: NextFunction) {
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-      const paramsValidation = paramsSchema.safeParse({ id });
-      if (!paramsValidation.success) {
-        throw new HttpException(400, 'Invalid inventory ID format');
-      }
-
-      const bodyValidation = adjustBodySchema.safeParse(req.body);
-      if (!bodyValidation.success) {
-        throw new HttpException(400, bodyValidation.error.issues[0]?.message || 'Invalid request body');
-      }
-
-      const data = bodyValidation.data;
-      const userId = req.userId || 'system';
-
-      logger.info(`POST /api/inventory/${id}/adjust`, { data });
-
-      const existing = await getInventoryByIdService(id);
-      if (!existing) {
-        throw new HttpException(404, 'Inventory item not found');
-      }
-
-      const result = await adjustInventoryService(id, data, userId);
-
-      ResponseFormatter.success(
-        res,
-        {
-          inventory: result.inventory,
-          adjustment: result.adjustment,
-        },
-        'Inventory adjusted successfully'
-      );
-    } catch (error: any) {
-      logger.error('Error in adjust-inventory:', error);
-
-      if (error.message === 'Resulting quantity cannot be negative') {
-        return next(new HttpException(400, error.message));
-      }
-
-      next(error);
-    }
-  }
-
-  private async getInventoryHistory(req: RequestWithUser, res: Response, next: NextFunction) {
-    try {
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-
-      const paramsValidation = paramsSchema.safeParse({ id });
-      if (!paramsValidation.success) {
-        throw new HttpException(400, 'Invalid inventory ID format');
-      }
-
-      const { limit } = historyQuerySchema.parse(req.query);
-
-      logger.info(`GET /api/inventory/${id}/history`);
-
-      const existing = await getInventoryByIdService(id);
-      if (!existing) {
-        throw new HttpException(404, 'Inventory item not found');
-      }
-
-      const history = await getInventoryHistoryService(id, limit);
-      ResponseFormatter.success(res, history, 'Inventory history retrieved successfully');
-    } catch (error) {
-      logger.error('Error in get-inventory-history:', error);
-      next(error);
-    }
+    this.router.use(this.path, getProductLocations);
+    this.router.use(this.path, createTransfer);
+    this.router.use(this.path, executeTransfer);
+    this.router.use(this.path, listTransfers);
   }
 }
 

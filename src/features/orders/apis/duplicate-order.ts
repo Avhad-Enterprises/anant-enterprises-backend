@@ -6,14 +6,14 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { ResponseFormatter } from '../../../utils';
+import { HttpException, ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
 import { logger } from '../../../utils';
-import { sql } from 'drizzle-orm';
+import { orderService } from '../shared';
 
 const paramsSchema = z.object({
     orderId: z.string().uuid(),
@@ -32,7 +32,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         ));
 
     if (!originalOrder) {
-        return ResponseFormatter.error(res, 'ORDER_NOT_FOUND', 'Order not found', 404);
+        throw new HttpException(404, 'Order not found');
     }
 
     // Get order items
@@ -43,15 +43,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     try {
         const result = await db.transaction(async (tx) => {
-            // Generate new order number
-            const currentYear = new Date().getFullYear().toString().slice(-2);
-            const [countResult] = await tx
-                .select({ count: sql<number>`count(*)::int` })
-                .from(orders)
-                .where(sql`${orders.order_number} LIKE ${`ORD-${currentYear}-%`}`);
-
-            const nextNumber = (countResult?.count || 0) + 1;
-            const newOrderNumber = `ORD-${currentYear}-${String(nextNumber).padStart(6, '0')}`;
+            // Generate new order number using service
+            const newOrderNumber = await orderService.generateOrderNumber();
 
             // Create duplicate order (exclude specific fields)
             const [newOrder] = await tx
@@ -142,7 +135,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             orderId,
             error: error instanceof Error ? error.message : String(error),
         });
-        return ResponseFormatter.error(res, 'DUPLICATION_FAILED', 'Failed to duplicate order', 500);
+        throw new HttpException(500, 'Failed to duplicate order');
     }
 };
 

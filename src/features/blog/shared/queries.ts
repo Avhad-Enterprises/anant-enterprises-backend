@@ -1,7 +1,8 @@
-import { eq, desc, asc, inArray, sql, and, gte, lte } from 'drizzle-orm';
+import { eq, desc, asc, inArray, sql, and, gte, lte, ilike } from 'drizzle-orm';
 import { db } from '../../../database';
 import { blogs, type NewBlog } from './blog.schema';
 import { blogSubsections, type NewBlogSubsection } from './blog-subsections.schema';
+import { buildBlogSearchConditions } from './search-utils';
 
 /**
  * Find blog by ID with subsections
@@ -203,7 +204,7 @@ export const getAllBlogs = async (
     }
 
     if (filters.author) {
-        conditions.push(sql`${blogs.author} ILIKE ${`%${filters.author}%`}`);
+        conditions.push(ilike(blogs.author, `%${filters.author}%`));
     }
 
     if (filters.tags) {
@@ -234,11 +235,12 @@ export const getAllBlogs = async (
         conditions.push(lte(blogs.views_count, filters.maxViews));
     }
 
-    if (filters.search) {
-        const searchPattern = `%${filters.search}%`;
-        conditions.push(
-            sql`(${blogs.title} ILIKE ${searchPattern} OR ${blogs.description} ILIKE ${searchPattern})`
-        );
+    // Fuzzy Search Filter (NEW - using pg_trgm similarity)
+    if (filters.search && filters.search.trim().length > 0) {
+        const searchConditions = buildBlogSearchConditions(filters.search);
+        if (searchConditions) {
+            conditions.push(searchConditions);
+        }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

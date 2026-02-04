@@ -8,7 +8,8 @@ import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
 import { ITier } from '../shared/interface';
-import { eq, asc, and, or, like, gt, inArray } from 'drizzle-orm';
+import { eq, asc, and, or, gt, inArray } from 'drizzle-orm';
+import { buildTierSearchConditions } from '../shared/search-utils';
 
 const handler = async (req: Request, res: Response) => {
     const { level, status, parentId, search, usage } = req.query;
@@ -40,15 +41,12 @@ const handler = async (req: Request, res: Response) => {
         conditions.push(eq(tiers.parent_id, parentId as string));
     }
 
-    // Add search filter if specified
-    if (search && typeof search === 'string') {
-        const searchTerm = `%${search}%`;
-        conditions.push(
-            or(
-                like(tiers.name, searchTerm),
-                like(tiers.code, searchTerm)
-            )
-        );
+    // Fuzzy Search Filter (using pg_trgm similarity)
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+        const searchConditions = buildTierSearchConditions(search);
+        if (searchConditions) {
+            conditions.push(searchConditions);
+        }
     }
 
     // Add usage filter (support multi-select)

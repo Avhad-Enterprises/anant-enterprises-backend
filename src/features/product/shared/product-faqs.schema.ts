@@ -6,7 +6,7 @@
 
 import { pgTable, uuid, text, timestamp, index } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { products } from './product.schema';
+import { products } from './products.schema';
 
 // ============================================
 // PRODUCT FAQS TABLE

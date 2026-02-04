@@ -3,7 +3,7 @@
  * Refresh access token using Supabase Auth (Public - no auth)
  */
 
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import validationMiddleware from '../../../middlewares/validation.middleware';
 import { authRateLimit } from '../../../middlewares';
@@ -44,7 +44,9 @@ export async function handleRefreshToken(refreshToken: string) {
     user: {
       id: publicUser[0].id,
       auth_id: authData.user.id,
-      name: publicUser[0].name,
+      first_name: publicUser[0].first_name,
+      middle_name: publicUser[0].middle_name,
+      last_name: publicUser[0].last_name,
       email: publicUser[0].email,
       phone_number: publicUser[0].phone_number || undefined,
       created_at: publicUser[0].created_at,
@@ -55,20 +57,10 @@ export async function handleRefreshToken(refreshToken: string) {
   };
 }
 
-const handler = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      throw new HttpException(400, 'Refresh token is required');
-    }
-
-    const result = await handleRefreshToken(refreshToken);
-
-    ResponseFormatter.success(res, result, 'Token refreshed successfully');
-  } catch (error) {
-    next(error);
-  }
+const handler = async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  const result = await handleRefreshToken(refreshToken);
+  ResponseFormatter.success(res, result, 'Token refreshed successfully');
 };
 
 const router = Router();

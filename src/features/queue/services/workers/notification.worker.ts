@@ -142,12 +142,19 @@ class NotificationWorker extends BaseWorker {
 
   /**
    * Handle SEND_EMAIL event
+   * @deprecated logic should be moved to NotificationService with DB templates.
+   * This is kept for backward compatibility with non-order systems.
    */
   private async handleSendEmail(data: EmailNotificationData): Promise<void> {
+    logger.warn('Legacy SEND_EMAIL event received. Please migrate to notificationService.createFromTemplate', {
+      subject: data.subject
+    });
     logger.info('Processing SEND_EMAIL', { to: data.to, subject: data.subject });
 
     try {
       const transporter = createTransporter();
+      // ... rest of the method logic
+
 
       // Build email content
       let htmlContent = data.html;
@@ -199,6 +206,7 @@ class NotificationWorker extends BaseWorker {
 
   /**
    * Render email template
+   * @deprecated Templates should be fetched from database via TemplateService.
    * Simple template rendering - can be extended with handlebars/ejs
    */
   private renderTemplate(

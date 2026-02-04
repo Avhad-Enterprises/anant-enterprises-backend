@@ -25,12 +25,17 @@ import { findUserById, findUserByEmail } from '../shared/queries';
 
 const updateUserSchema = z.object({
   name: shortTextSchema.optional(),
+  last_name: shortTextSchema.optional(),
+  display_name: z.string().max(100).optional(), // Allow empty string
   email: emailSchema.optional(),
+  secondary_email: emailSchema.optional().or(z.literal('')),
   phone_number: z.string().optional(),
+  secondary_phone_number: z.string().optional().or(z.literal('')),
   timezone: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
+  preferred_currency: z.string().max(50).optional(),
   user_type: z.enum(['individual', 'business']).optional(),
-  date_of_birth: z.string().datetime().or(z.string()).optional(), // Accept ISO string for date
+  date_of_birth: z.string().datetime().or(z.string()).optional().nullable(),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
   profile_image_url: z.string().url().optional(),
 });
@@ -106,12 +111,35 @@ const handler = async (req: RequestWithUser, res: Response) => {
   ResponseFormatter.success(res, userResponse, 'User updated successfully');
 };
 
+const meHandler = async (req: RequestWithUser, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    throw new HttpException(401, 'User authentication required');
+  }
+
+  const updateData: UpdateUser = req.body;
+
+  // Update SELF
+  const user = await updateUser(userId, updateData, userId);
+
+  // Invalidate cache
+  await userCacheService.invalidateUser(user.id, user.email);
+
+  const userResponse = sanitizeUser(user);
+
+  ResponseFormatter.success(res, userResponse, 'Profile updated successfully');
+};
+
 const router = Router();
 
 const paramsSchema = z.object({
   id: uuidSchema,
 });
 
+// Specific routes first
+router.put('/me', requireAuth, validationMiddleware(updateUserSchema), meHandler);
+
+// Dynamic routes second
 router.put(
   '/:id',
   requireAuth,
@@ -121,3 +149,4 @@ router.put(
 );
 
 export default router;
+

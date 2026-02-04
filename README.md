@@ -88,7 +88,7 @@ Required environment variables for local development (`.env.dev`) and production
 - `SUPABASE_SECRET_KEY` — Supabase secret key
 - `PORT` — Server port (default: 8000)
 - `REQUEST_TIMEOUT` — Request timeout in milliseconds (default: 30000)
-- `NODE_ENV` — Environment (`development`, `production`, `test`)
+- `NODE_ENV` — Environment (`development`, `production`)
 
 ### Redis Cache
 
@@ -147,7 +147,7 @@ Production rate limits (automatically disabled in development/test):
 | **Auth endpoints** (`/api/auth/login`, `/api/auth/register`, `/api/auth/refresh-token`) | 5 requests | 15 minutes | Prevents brute-force attacks |
 | **General API** (`/api/*`) | 100 requests | 1 minute | Standard API protection |
 
-**Redis Backing:** In production, rate limits are distributed across instances using Redis. Development/test environments use in-memory storage.
+**Redis Backing:** In production, rate limits are distributed across instances using Redis. Development environment uses in-memory storage.
 
 **Important:** Redis is mandatory in production. The server will fail to start if Redis is unavailable in production mode.
 

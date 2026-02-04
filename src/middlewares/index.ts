@@ -2,7 +2,7 @@
 
 // Authentication middleware
 export { default as requireAuth } from './auth.middleware';
-export { requireAuth as requireAuthNamed } from './auth.middleware';
+export { requireAuth as requireAuthNamed, optionalAuth } from './auth.middleware';
 
 // Authorization/Permission middleware
 export {
@@ -39,7 +39,7 @@ export { uploadSingleFileMiddleware, uploadCsvMiddleware } from './upload.middle
 export { default as validationMiddleware } from './validation.middleware';
 
 // Rate limiting middleware
-export { authRateLimit, apiRateLimit } from './rate-limit.middleware';
+export { authRateLimit, apiRateLimit, uploadRateLimit, invitationRateLimit } from './rate-limit.middleware';
 
 // Input sanitization middleware (XSS protection)
 export { sanitizeInput } from './sanitize.middleware';

@@ -5,7 +5,7 @@
  * Used by admin APIs for creating, updating, and managing discounts.
  */
 
-import { eq, and, or, ilike, desc, asc, sql, isNull } from 'drizzle-orm';
+import { eq, and, or, desc, asc, sql, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import {
     discounts,
@@ -39,6 +39,7 @@ import type {
 } from '../shared/interface';
 import { discountUsage } from '../shared/discount-usage.schema';
 import { logger } from '../../../utils';
+import { buildDiscountSearchConditions } from '../shared/search-utils';
 
 // ============================================
 // TYPES
@@ -130,13 +131,11 @@ class DiscountService {
         // Build conditions
         const conditions = [eq(discounts.is_deleted, false)];
 
-        if (search) {
-            conditions.push(
-                or(
-                    ilike(discounts.title, `%${search}%`),
-                    sql`EXISTS (SELECT 1 FROM discount_codes dc WHERE dc.discount_id = discounts.id AND dc.code ILIKE ${`%${search}%`})`
-                )!
-            );
+        if (search && search.trim().length > 0) {
+            const searchConditions = buildDiscountSearchConditions(search);
+            if (searchConditions) {
+                conditions.push(searchConditions);
+            }
         }
 
         if (status) {

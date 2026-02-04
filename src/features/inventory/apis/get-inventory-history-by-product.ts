@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
 import { getInventoryHistoryByProductId } from '../services/inventory.service';
+import { requireAuth, requirePermission } from '../../../middlewares';
 
 const paramsSchema = z.object({
     productId: uuidSchema,
@@ -47,6 +48,6 @@ const handler = async (req: RequestWithUser, res: Response, next: NextFunction) 
 };
 
 const router = Router();
-router.get('/products/:productId/history', handler);
+router.get('/products/:productId/history', requireAuth, requirePermission('inventory:read'), handler);
 
 export default router;

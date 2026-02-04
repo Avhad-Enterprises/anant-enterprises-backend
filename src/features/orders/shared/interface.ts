@@ -22,22 +22,22 @@ export interface IOrder {
 
   // Overall order status (Added from schema)
   order_status?:
-    | 'pending'
-    | 'confirmed'
-    | 'processing'
-    | 'shipped'
-    | 'delivered'
-    | 'cancelled'
-    | 'refunded';
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'refunded';
 
   is_draft: boolean;
   payment_method?: string | null;
   payment_status:
-    | 'pending'
-    | 'paid'
-    | 'refunded'
-    | 'failed'
-    | 'partially_refunded';
+  | 'pending'
+  | 'paid'
+  | 'refunded'
+  | 'failed'
+  | 'partially_refunded';
   payment_ref?: string | null;
   transaction_id?: string | null;
   paid_at?: Date | null;
@@ -106,4 +106,62 @@ export interface IOrderItem {
   line_total: string; // Decimal
   created_at: Date;
   updated_at: Date;
+}
+
+// ============================================
+// RESPONSE TYPES
+// ============================================
+
+/**
+ * Order item summary for list responses
+ * Used in order list endpoints to return minimal item details
+ */
+export interface IOrderItemSummary {
+  id: string;
+  product_name: string;
+  product_image: string | null;
+  quantity: number;
+  cost_price: string;
+  line_total: string;
+}
+
+/**
+ * Order summary for list responses
+ * Used in order list endpoints with paginated results
+ */
+export interface IOrderSummary {
+  id: string;
+  order_number: string;
+  order_status: string;
+  payment_status: string;
+  total_amount: string;
+  total_quantity: number;
+  items_count: number;
+  created_at: Date;
+  items: IOrderItemSummary[];
+}
+
+/**
+ * Order item response for user-facing endpoints
+ * Simplified format optimized for frontend display
+ */
+export interface IOrderItemResponse {
+  name: string;
+  quantity: number;
+  price: number;
+  image: string;
+}
+
+/**
+ * Order response for user-facing endpoints
+ * Formatted for frontend consumption with human-readable dates
+ */
+export interface IOrderResponse {
+  id: string;
+  date: string;
+  status: string;
+  total: number;
+  deliveryDate?: string;
+  trackingNumber?: string;
+  items: IOrderItemResponse[];
 }

@@ -59,5 +59,4 @@ export * from './shared/user-roles.schema';
 export * from './shared/interface';
 export * from './shared/queries';
 
-// Seed data and functions - SAFE to export
-export { SYSTEM_ROLES, INITIAL_PERMISSIONS, ROLE_PERMISSIONS_MAP, seedRBAC } from './seed';
+// Note: Seed data moved to scripts/seed/rbac-seed.ts

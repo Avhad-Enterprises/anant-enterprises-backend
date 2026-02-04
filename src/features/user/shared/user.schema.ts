@@ -16,7 +16,6 @@ import { sql } from 'drizzle-orm';
 // ENUMS
 // ============================================
 
-export const userTypeEnum = pgEnum('user_type', ['individual', 'business']);
 export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_not_to_say']);
 
 // ============================================
@@ -35,7 +34,6 @@ export const genderEnum = pgEnum('gender', ['male', 'female', 'other', 'prefer_n
  * - email_is_deleted_idx: Composite index for email lookups
  * - created_at_idx: For sorting/pagination
  * - auth_id_idx: For Supabase Auth lookups
- * - user_type_idx: For B2C/B2B filtering
  * - email_verified_idx: For filtering verified users
  */
 export const users = pgTable(
@@ -43,12 +41,12 @@ export const users = pgTable(
   {
     id: uuid('id').primaryKey().default(sql`uuid_generate_v7()`), // Changed to UUID for consistency
     auth_id: uuid('auth_id').unique(), // Links to Supabase Auth (auth.users.id)
-    customer_id: varchar('customer_id', { length: 15 }).unique(), // Human-readable ID: CUST-XXXXXX
-    user_type: userTypeEnum('user_type').default('individual').notNull(), // B2C or B2B
+    display_id: varchar('display_id', { length: 20 }).unique(), // Auto-generated: CUST-XXXXXX, EMP-XXXXXX, or USER-XXXXXX
 
     // Basic info
-    name: varchar('name', { length: 255 }).notNull(), // First name
-    last_name: varchar('last_name', { length: 255 }).notNull(), // Last name (required)
+    first_name: varchar('first_name', { length: 255 }).notNull(),
+    middle_name: varchar('middle_name', { length: 255 }), // Optional
+    last_name: varchar('last_name', { length: 255 }).notNull(),
     display_name: varchar('display_name', { length: 100 }),
     email: varchar('email', { length: 255 }).unique().notNull(),
     password: varchar('password', { length: 255 }), // Optional - Supabase Auth manages passwords
@@ -97,8 +95,8 @@ export const users = pgTable(
     createdAtIdx: index('users_created_at_idx').on(table.created_at),
     // Index for Supabase Auth lookups
     authIdIdx: index('users_auth_id_idx').on(table.auth_id),
-    // Index for B2C/B2B filtering
-    userTypeIdx: index('users_user_type_idx').on(table.user_type, table.is_deleted),
+    // Index for display_id lookups (human-readable ID)
+    displayIdIdx: index('users_display_id_idx').on(table.display_id),
     // Index for email verification filtering
     emailVerifiedIdx: index('users_email_verified_idx').on(table.email_verified, table.is_deleted),
   })
