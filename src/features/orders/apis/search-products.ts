@@ -57,11 +57,17 @@ const handler = async (req: RequestWithUser, res: Response) => {
                 .from(inventory)
                 .where(eq(inventory.product_id, product.id));
 
+            // Calculate actual available stock (available - reserved)
+            const totalAvailable = stockResult?.total_available || 0;
+            const totalReserved = stockResult?.total_reserved || 0;
+            const actualAvailable = Math.max(0, totalAvailable - totalReserved);
+
             return {
                 ...product,
-                available_stock: stockResult?.total_available || 0,
-                reserved_stock: stockResult?.total_reserved || 0,
-                in_stock: (stockResult?.total_available || 0) > 0,
+                stock_quantity: actualAvailable, // Frontend expects this field name
+                available_stock: totalAvailable,
+                reserved_stock: totalReserved,
+                in_stock: actualAvailable > 0,
             };
         })
     );
