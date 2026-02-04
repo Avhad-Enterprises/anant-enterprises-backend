@@ -60,6 +60,7 @@ async function createNewProduct(data: z.infer<typeof createProductSchema>, creat
     compare_at_price: data.compare_at_price,
     sku: data.sku,
     hsn_code: data.hsn_code,
+    barcode: data.barcode,
     weight: data.weight,
     length: data.length,
     breadth: data.breadth,

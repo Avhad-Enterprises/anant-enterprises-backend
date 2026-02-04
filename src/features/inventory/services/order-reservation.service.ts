@@ -201,10 +201,12 @@ export async function reserveStockForOrder(
             )!;
 
         // Query layer: Update reserved quantity atomically
+        // PHASE 1: Track movement timestamp
         const [updated] = await db
             .update(inventory)
             .set({
                 reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
+                last_stock_movement_at: new Date(), // PHASE 1
                 updated_at: new Date(),
                 updated_by: validUserId,
             })
@@ -323,13 +325,22 @@ export async function fulfillOrderInventory(
             }
 
             // Query layer: Update inventory - reduce both available and reserved
+            // PHASE 1: Also update analytics fields
+            const now = new Date();
             const [updated] = await tx
                 .update(inventory)
                 .set({
                     available_quantity: quantityAfter,
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
                     status: getStatusFromQuantity(quantityAfter),
-                    updated_at: new Date(),
+
+                    // PHASE 1: Analytics updates
+                    total_sold: sql`${inventory.total_sold} + ${item.quantity}`,
+                    total_fulfilled: sql`${inventory.total_fulfilled} + 1`,
+                    last_stock_movement_at: now,
+                    last_sale_at: now,
+
+                    updated_at: now,
                     updated_by: validUserId,
                 })
                 .where(inventoryFilter)
@@ -417,10 +428,12 @@ export async function releaseReservation(
             if (!current) continue;
 
             // Query layer: Update - reduce reserved_quantity only
+            // PHASE 1: Track movement timestamp
             const [updated] = await tx
                 .update(inventory)
                 .set({
                     reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${item.quantity})`,
+                    last_stock_movement_at: new Date(), // PHASE 1
                     updated_at: new Date(),
                     updated_by: validUserId,
                 })

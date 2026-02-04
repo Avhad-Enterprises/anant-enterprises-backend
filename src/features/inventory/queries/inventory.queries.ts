@@ -29,7 +29,7 @@ export async function findInventoryById(id: string) {
         .select()
         .from(inventory)
         .where(eq(inventory.id, id));
-    
+
     return result;
 }
 
@@ -69,7 +69,7 @@ export async function findInventoryByProductAndLocation(
                 eq(inventory.location_id, locationId)
             )
         );
-    
+
     return result;
 }
 
@@ -89,7 +89,7 @@ export async function findInventoryByVariantAndLocation(
                 eq(inventory.location_id, locationId)
             )
         );
-    
+
     return result;
 }
 
@@ -112,23 +112,23 @@ export async function findInventoryList(params: InventoryListParams) {
         sortBy,
         sortOrder
     } = params;
-    
+
     const offset = (page - 1) * limit;
-    
+
     // Build search clauses
     const searchClause = search ? `%${search}%` : null;
     const locationClause = locationName ? `%${locationName}%` : null;
-    
+
     // Build date range
     const startDateDate = startDate ? new Date(startDate) : null;
     const endDateDate = endDate ? new Date(endDate) : null;
-    
+
     // Build order by clause
     let orderByClause = sql`updated_at DESC`;
-    
+
     if (sortBy) {
         const direction = sortOrder === 'asc' ? sql`ASC` : sql`DESC`;
-        
+
         switch (sortBy) {
             case 'product_name':
             case 'productName':
@@ -153,7 +153,7 @@ export async function findInventoryList(params: InventoryListParams) {
                 break;
         }
     }
-    
+
     // Main query: Unified products + variants
     const query = sql`
         SELECT
@@ -178,6 +178,10 @@ export async function findInventoryList(params: InventoryListParams) {
             i.incoming_eta,
             i.condition::text as condition,
             i.status::text as status,
+            i.total_sold,
+            i.total_fulfilled,
+            i.last_stock_movement_at,
+            i.last_sale_at,
             il.name as location_name,
             t.name as category_name,
             i.updated_by,
@@ -214,9 +218,9 @@ export async function findInventoryList(params: InventoryListParams) {
         ORDER BY ${orderByClause}
         LIMIT ${limit} OFFSET ${offset}
     `;
-    
+
     const result = await db.execute(query);
-    
+
     // Map raw results to interface
     const items = result.rows.map(row => ({
         id: row.id,
@@ -231,6 +235,13 @@ export async function findInventoryList(params: InventoryListParams) {
         incoming_eta: row.incoming_eta ? new Date(row.incoming_eta as string) : undefined,
         condition: row.condition,
         status: row.status,
+
+        // PHASE 1: Analytics fields
+        total_sold: row.total_sold,
+        total_fulfilled: row.total_fulfilled,
+        last_stock_movement_at: row.last_stock_movement_at ? new Date(row.last_stock_movement_at as string) : undefined,
+        last_sale_at: row.last_sale_at ? new Date(row.last_sale_at as string) : undefined,
+
         location: row.location_name,
         updated_by: row.updated_by,
         created_at: new Date(row.created_at as string),
@@ -240,7 +251,7 @@ export async function findInventoryList(params: InventoryListParams) {
         category: row.category_name,
         brand: undefined
     }));
-    
+
     return items as unknown as InventoryWithProduct[];
 }
 
@@ -258,12 +269,12 @@ export async function countInventory(params: InventoryListParams): Promise<numbe
         startDate,
         endDate
     } = params;
-    
+
     const searchClause = search ? `%${search}%` : null;
     const locationClause = locationName ? `%${locationName}%` : null;
     const startDateDate = startDate ? new Date(startDate) : null;
     const endDateDate = endDate ? new Date(endDate) : null;
-    
+
     const countQuery = sql`
         SELECT COUNT(*) as total
         FROM ${inventory} i
@@ -287,7 +298,7 @@ export async function countInventory(params: InventoryListParams): Promise<numbe
         ${quickFilter === 'blocked' ? sql`AND i.reserved_quantity > 0` : sql``}
         ${quickFilter === 'recently-updated' ? sql`AND i.updated_at >= (NOW() - INTERVAL '24 HOURS')` : sql``}
     `;
-    
+
     const countResult = await db.execute(countQuery);
     return Number(countResult.rows[0]?.total || 0);
 }
@@ -334,7 +345,7 @@ export async function findInventoryByIdWithDetails(id: string) {
                 sql`${products.status} != 'archived'`
             )
         );
-    
+
     return result[0];
 }
 
@@ -361,7 +372,7 @@ export async function createInventory(data: {
         .insert(inventory)
         .values(data)
         .returning();
-    
+
     return result;
 }
 
@@ -390,7 +401,7 @@ export async function updateInventoryById(
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -402,11 +413,12 @@ export async function incrementAvailableQuantity(id: string, amount: number) {
         .update(inventory)
         .set({
             available_quantity: sql`${inventory.available_quantity} + ${amount}`,
+            last_stock_movement_at: new Date(), // PHASE 1
             updated_at: new Date(),
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -418,11 +430,12 @@ export async function decrementAvailableQuantity(id: string, amount: number) {
         .update(inventory)
         .set({
             available_quantity: sql`GREATEST(0, ${inventory.available_quantity} - ${amount})`,
+            last_stock_movement_at: new Date(), // PHASE 1
             updated_at: new Date(),
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -434,11 +447,12 @@ export async function incrementReservedQuantity(id: string, amount: number) {
         .update(inventory)
         .set({
             reserved_quantity: sql`${inventory.reserved_quantity} + ${amount}`,
+            last_stock_movement_at: new Date(), // PHASE 1
             updated_at: new Date(),
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -450,11 +464,12 @@ export async function decrementReservedQuantity(id: string, amount: number) {
         .update(inventory)
         .set({
             reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} - ${amount})`,
+            last_stock_movement_at: new Date(), // PHASE 1
             updated_at: new Date(),
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -471,11 +486,12 @@ export async function adjustQuantities(
         .set({
             available_quantity: sql`GREATEST(0, ${inventory.available_quantity} + ${availableDelta})`,
             reserved_quantity: sql`GREATEST(0, ${inventory.reserved_quantity} + ${reservedDelta})`,
+            last_stock_movement_at: new Date(), // PHASE 1
             updated_at: new Date(),
         })
         .where(eq(inventory.id, id))
         .returning();
-    
+
     return result;
 }
 
@@ -485,9 +501,9 @@ export async function adjustQuantities(
 export async function updateInventoryStatus(id: string) {
     const record = await findInventoryById(id);
     if (!record) return null;
-    
+
     let newStatus: 'in_stock' | 'low_stock' | 'out_of_stock';
-    
+
     if (record.available_quantity === 0) {
         newStatus = 'out_of_stock';
     } else if (record.available_quantity <= 10) {
@@ -495,10 +511,10 @@ export async function updateInventoryStatus(id: string) {
     } else {
         newStatus = 'in_stock';
     }
-    
+
     if (record.status !== newStatus) {
         return updateInventoryById(id, { status: newStatus });
     }
-    
+
     return record;
 }
