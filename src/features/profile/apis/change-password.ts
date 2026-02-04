@@ -15,6 +15,7 @@ import { db } from '../../../database';
 import { supabase } from '../../../utils/supabase';
 import { users } from '../../user/shared/user.schema';
 import { userCacheService } from '../../user/services/user-cache.service';
+import { logger } from '../../../utils/logging/logger';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const userId = req.userId;
@@ -74,18 +75,37 @@ const handler = async (req: RequestWithUser, res: Response) => {
   await userCacheService.invalidateUser(userId, user.email);
 
   // Update password in Supabase Auth (since frontend uses Supabase for login)
-  try {
-    const { error: supabaseError } = await supabase.auth.admin.updateUserById(userId, {
-      password: newPassword,
-    });
+  if (user.auth_id) {
+    try {
+      const { error: supabaseError } = await supabase.auth.admin.updateUserById(user.auth_id, {
+        password: newPassword,
+      });
 
-    if (supabaseError) {
-      // We don't throw error here to allow local update to succeed,
-      // but in a real sync scenario we might want to rollback.
-      // For now, logging is sufficient as local auth is growing priority.
+      if (supabaseError) {
+        logger.error('Failed to update password in Supabase Auth:', {
+          userId,
+          authId: user.auth_id,
+          error: supabaseError.message,
+        });
+        
+        // Critical error: if we can't sync to Supabase, the user won't be able to log in
+        throw new HttpException(500, `Failed to update authentication service: ${supabaseError.message}`);
+      }
+      
+      logger.info('Successfully updated password in both local DB and Supabase Auth', {
+        userId,
+        authId: user.auth_id
+      });
+    } catch (err) {
+      if (err instanceof HttpException) throw err;
+      
+      logger.error('Unexpected error syncing password to Supabase:', err);
+      throw new HttpException(500, 'Failed to sync password with authentication service');
     }
-  } catch (err) {
-    // Error syncing to Supabase
+  } else {
+    logger.warn('User has no auth_id, skipping Supabase password update', { userId });
+    // If it's a local-only user (if that's even a thing in this system), we might want to handle it differently
+    // but based on sync-user.ts, all users should have an auth_id.
   }
 
   ResponseFormatter.success(res, null, 'Password updated successfully');

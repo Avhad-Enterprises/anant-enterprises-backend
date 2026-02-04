@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -45,7 +45,7 @@ async function getCustomerById(id: string) {
     const addresses = await db
         .select()
         .from(userAddresses)
-        .where(eq(userAddresses.user_id, id));
+        .where(and(eq(userAddresses.user_id, id), eq(userAddresses.is_deleted, false)));
 
     // 3. Construct Rich Response
     // Only individual customers supported now (business profiles dropped in Phase 2)
