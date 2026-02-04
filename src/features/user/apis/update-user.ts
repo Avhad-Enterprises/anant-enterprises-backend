@@ -15,7 +15,7 @@ import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
+import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, logger } from '../../../utils';
 import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -24,8 +24,8 @@ import { IUser } from '../shared/interface';
 import { findUserById, findUserByEmail } from '../shared/queries';
 
 const updateUserSchema = z.object({
-  name: shortTextSchema.optional(),
-  last_name: shortTextSchema.optional(),
+  first_name: shortTextSchema.optional(),
+  last_name: shortTextSchema.optional().or(z.literal('')),
   display_name: z.string().max(100).optional(), // Allow empty string
   email: emailSchema.optional(),
   secondary_email: emailSchema.optional().or(z.literal('')),
@@ -67,10 +67,13 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     }
   }
 
+  // Map 'name' to 'first_name' for database compatibility
   const updateData: Partial<IUser> = {
     ...data,
     updated_by: requesterId,
   };
+
+  logger.info('[updateUser] Final updateData:', updateData);
 
   const [result] = await db
     .update(users)
