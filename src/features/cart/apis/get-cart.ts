@@ -5,7 +5,7 @@
  */
 
 import { Router, Response, Request } from 'express';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNull } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { carts } from '../shared/carts.schema';
@@ -168,6 +168,7 @@ const handler = async (req: Request, res: Response) => {
         .select({
             id: cartItems.id,
             product_id: cartItems.product_id,
+            variant_id: cartItems.variant_id, // ADDED: needed for variant-specific stock
             bundle_id: cartItems.bundle_id,
             quantity: cartItems.quantity,
             cost_price: cartItems.cost_price,
@@ -197,13 +198,21 @@ const handler = async (req: Request, res: Response) => {
             let inStock = true;
 
             if (item.product_id) {
-                // Get stock for this product
+                // Get stock for this product OR variant
+                // CRITICAL: Use variant-specific stock if variant_id exists
+                let inventoryFilter = item.variant_id
+                    ? eq(inventory.variant_id, item.variant_id)
+                    : and(
+                        eq(inventory.product_id, item.product_id),
+                        isNull(inventory.variant_id)
+                    )!;
+
                 const [stockData] = await db
                     .select({
                         totalStock: sql<number>`SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})`,
                     })
                     .from(inventory)
-                    .where(eq(inventory.product_id, item.product_id));
+                    .where(inventoryFilter);
 
                 availableStock = Number(stockData?.totalStock) || 0;
                 inStock = availableStock >= item.quantity;
