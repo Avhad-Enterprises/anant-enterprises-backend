@@ -87,7 +87,7 @@ function getStatusFromQuantity(quantity: number): 'in_stock' | 'low_stock' | 'ou
  * @returns Array of validation results
  */
 export async function validateStockAvailability(
-    items: Array<{ product_id: string; quantity: number }>
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>
 ): Promise<StockValidationResult[]> {
     const results: StockValidationResult[] = [];
 
@@ -159,58 +159,66 @@ export async function validateStockAvailability(
  * @param allowOverselling - Whether to allow reserving more than available
  */
 export async function reserveStockForOrder(
-    items: Array<{ product_id: string; quantity: number }>,
+    items: Array<{ product_id: string; quantity: number; variant_id?: string | null }>,
     orderId: string,
     userId: string,
     allowOverselling: boolean = false
 ): Promise<void> {
     const validUserId = await resolveValidUserId(userId);
 
-    return await db.transaction(async (tx) => {
-        // Business logic: Validate stock availability
-        const validations = await validateStockAvailability(items);
-        const failures = validations.filter((v) => !v.available);
+    // Business logic: Validate stock availability
+    const validations = await validateStockAvailability(items);
+    const failures = validations.filter((v) => !v.available);
 
-        if (failures.length > 0) {
-            const messages = failures.map((f) => f.message).join('; ');
-            if (!allowOverselling) {
-                throw new Error(`Insufficient stock: ${messages}`);
-            }
-            // If overselling allowed, just log it
-            logger.warn(`[OrderReservation] Overselling allowed for order ${orderId}. Issues: ${messages}`);
+    if (failures.length > 0) {
+        const messages = failures.map((f) => f.message).join('; ');
+        if (!allowOverselling) {
+            throw new Error(`Insufficient stock: ${messages}`);
+        }
+        // If overselling allowed, just log it
+        logger.warn(`[OrderReservation] Overselling allowed for order ${orderId}. Issues: ${messages}`);
+    }
+
+    // Reserve stock for each item
+    // NOTE: No transaction wrapper to avoid serialization conflicts on concurrent reservations
+    // The UPDATE is atomic at row level: reserved_quantity = reserved_quantity + N
+    for (const item of items) {
+        // Support Variant-Specific Filter (Mutual Exclusivity)
+        const inventoryFilter = item.variant_id
+            ? eq(inventory.variant_id, item.variant_id)
+            : and(
+                eq(inventory.product_id, item.product_id),
+                isNull(inventory.variant_id)
+            )!;
+
+        // Query layer: Update reserved quantity atomically
+        const [updated] = await db
+            .update(inventory)
+            .set({
+                reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
+                updated_at: new Date(),
+                updated_by: validUserId,
+            })
+            .where(inventoryFilter)
+            .returning();
+
+        if (!updated) {
+            throw new Error(`Failed to reserve stock for product ${item.product_id}`);
         }
 
-        // Reserve stock for each item
-        for (const item of items) {
-            // Query layer: Update reserved quantity atomically
-            const [updated] = await tx
-                .update(inventory)
-                .set({
-                    reserved_quantity: sql`${inventory.reserved_quantity} + ${item.quantity}`,
-                    updated_at: new Date(),
-                    updated_by: validUserId,
-                })
-                .where(eq(inventory.product_id, item.product_id))
-                .returning();
-
-            if (!updated) {
-                throw new Error(`Failed to reserve stock for product ${item.product_id}`);
-            }
-
-            // Query layer: Create audit record
-            await tx.insert(inventoryAdjustments).values({
-                inventory_id: updated.id,
-                adjustment_type: 'correction',
-                quantity_change: 0,
-                reason: `Stock reserved for order`,
-                reference_number: orderId,
-                quantity_before: updated.available_quantity,
-                quantity_after: updated.available_quantity,
-                adjusted_by: validUserId!,
-                notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
-            });
-        }
-    });
+        // Query layer: Create audit record
+        await db.insert(inventoryAdjustments).values({
+            inventory_id: updated.id,
+            adjustment_type: 'correction',
+            quantity_change: 0,
+            reason: `Stock reserved for order`,
+            reference_number: orderId,
+            quantity_before: updated.available_quantity,
+            quantity_after: updated.available_quantity,
+            adjusted_by: validUserId!,
+            notes: `Reserved ${item.quantity} units (reserved_quantity: ${updated.reserved_quantity - item.quantity} -> ${updated.reserved_quantity})`,
+        });
+    }
 }
 
 /**

@@ -168,6 +168,19 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     ? await findVariantsByProductId(productData.id)
     : [];
 
+  console.log('🔍 Backend - Variants fetched from DB:', {
+    productId: productData.id,
+    has_variants: productData.has_variants,
+    variantsCount: variantsData.length,
+    variants: variantsData.map(v => ({
+      id: v.id,
+      option_name: v.option_name,
+      option_value: v.option_value,
+      is_active: v.is_active,
+      is_deleted: v.is_deleted
+    }))
+  });
+
   const variantIds = variantsData.map(v => v.id);
 
   // Fetch all inventory for this product and its variants (Unified fetch)
@@ -205,17 +218,20 @@ export async function getProductDetail(options: GetProductDetailOptions): Promis
     images.push(...(productData.additional_images as string[]));
   }
 
-  // Calculate total physical stock from unified inventory table (available + reserved)
+  // Calculate total physical stock from unified inventory table
+  // TEST VERIFIED: available_quantity in DB is the Total Physical Stock (inclusive of preserved).
   const totalPhysicalStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
-    const reserved = Number(item.reserved_quantity) || 0;
-    return sum + available + reserved;
+    // Reserved is already included in available (it's a subset).
+    return sum + available;
   }, 0);
 
   // Calculate available stock (for sale)
+  // TEST VERIFIED: Net Sellable = Available (Total) - Reserved
   const totalAvailableStock = inventoryData.reduce((sum, item) => {
     const available = Number(item.available_quantity) || 0;
-    return sum + available;
+    const reserved = Number(item.reserved_quantity) || 0;
+    return sum + (available - reserved);
   }, 0);
 
   // Calculate total reserved stock

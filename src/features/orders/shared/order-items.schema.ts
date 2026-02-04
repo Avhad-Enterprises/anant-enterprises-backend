@@ -19,6 +19,7 @@ import {
 import { sql } from 'drizzle-orm';
 import { orders } from './orders.schema';
 import { products } from '../../product/shared/products.schema';
+import { productVariants } from '../../product/shared/product-variants.schema';
 
 // ============================================
 // ORDER ITEMS TABLE
@@ -35,6 +36,7 @@ export const orderItems = pgTable(
 
     // Product Reference
     product_id: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+    variant_id: uuid('variant_id').references(() => productVariants.id, { onDelete: 'set null' }),
 
     // Product Snapshot (frozen at purchase time)
     sku: varchar('sku', { length: 100 }),
