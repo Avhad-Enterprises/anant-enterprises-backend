@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-const BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
+const BASE_URL = (process.env.API_BASE_URL || 'http://localhost:8000') + '/api';
 
 export interface ApiClientOptions {
     token?: string;
@@ -63,7 +63,7 @@ export class TestApiClient {
             email,
             password,
         });
-        
+
         // Auto-set token for subsequent requests
         if (response.data.data?.token) {
             this.setToken(response.data.data.token);
@@ -308,7 +308,7 @@ export function createApiClient(options?: ApiClientOptions): TestApiClient {
 export async function loginAndGetToken(email: string, password: string): Promise<string> {
     const client = createApiClient();
     const response = await client.login(email, password);
-    
+
     if (!response.data?.token) {
         throw new Error('Login failed: No token received');
     }

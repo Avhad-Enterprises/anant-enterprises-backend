@@ -5,7 +5,8 @@
  * Covers boundary conditions, validation, and unusual scenarios
  */
 
-import { setupBasicTestScenario, createTestCustomer } from './helpers/test-data';
+import { setupBasicTestScenario, createTestCustomer, createTestAddress } from './helpers/test-data';
+import { TestApiClient } from './helpers/api-client';
 import { cleanupAllTestData } from './helpers/cleanup';
 import {
     assertInventoryState,
@@ -13,11 +14,17 @@ import {
     getInventoryState,
     getStockCalculation,
 } from './helpers/inventory';
+import { db } from '../../src/database';
+import { users } from '../../src/features/user/shared/user.schema';
+import { supabase } from '../../src/utils/supabase';
+import { eq } from 'drizzle-orm';
 import * as inventoryService from '../../src/features/inventory/services/inventory.service';
 
 async function testInventoryEdgeCases(): Promise<{ success: boolean; error?: string }> {
     console.log('🧪 TEST 005: Inventory Edge Cases & Boundary Conditions\n');
     console.log('========================================\n');
+
+    let authUserId: string | undefined;
 
     try {
         // ============================================
@@ -25,9 +32,32 @@ async function testInventoryEdgeCases(): Promise<{ success: boolean; error?: str
         // ============================================
         console.log('📦 STEP 1: Setting up test environment...\n');
 
+        // Create DB customer
         const admin = await createTestCustomer({
             email: `admin-edge-${Date.now()}@test.com`,
         });
+
+        // Setup Auth
+        console.log('🔐 Setting up Supabase Auth...');
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: admin.email,
+            password: 'Test@123',
+            email_confirm: true,
+            user_metadata: { first_name: 'Test', last_name: 'User' }
+        });
+        if (authError || !authData.user) throw new Error(`Auth create failed: ${authError?.message}`);
+        authUserId = authData.user.id;
+
+        const address = await createTestAddress({ userId: admin.id });
+
+        await db.update(users).set({ auth_id: authUserId }).where(eq(users.id, admin.id));
+        const { data: signInData } = await supabase.auth.signInWithPassword({
+            email: admin.email,
+            password: 'Test@123',
+        });
+        if (!signInData.session?.access_token) throw new Error('Sign in failed');
+        const token = signInData.session.access_token;
+        console.log('✅ Authenticated');
 
         const testData = await setupBasicTestScenario({
             numProducts: 1,
@@ -81,10 +111,13 @@ async function testInventoryEdgeCases(): Promise<{ success: boolean; error?: str
         // New orders should be rejected (no available stock)
         try {
             const sessionId = `edge2-${Date.now()}`;
-            const client = new TestApiClient({ sessionId });
+            const client = new TestApiClient({ sessionId, token });
 
             await client.addToCart(product.id, 1);
-            await client.createOrder({ payment_method: 'cod' });
+            await client.createOrder({
+                payment_method: 'cod',
+                shipping_address_id: address.id
+            });
 
             throw new Error('Should have rejected order when available=0');
         } catch (error: any) {
@@ -314,6 +347,12 @@ async function testInventoryEdgeCases(): Promise<{ success: boolean; error?: str
         if (process.env.CLEANUP_AFTER_TEST !== 'false') {
             console.log('\n🧹 Cleaning up test data...\n');
             await cleanupAllTestData();
+
+            if (authUserId) {
+                await supabase.auth.admin.deleteUser(authUserId);
+                console.log(`   Deleted Supabase Auth User: ${authUserId}`);
+            }
+
             console.log('✅ Cleanup complete\n');
         }
     }

@@ -13,8 +13,9 @@
  * NOTE: Simplified to test service layer directly without auth complexity
  */
 
-import { setupBasicTestScenario } from './helpers/test-data';
+import { setupBasicTestScenario, createTestCustomer } from './helpers/test-data';
 import { cleanupAllTestData } from './helpers/cleanup';
+import { TestApiClient, loginAndGetToken } from './helpers/api-client';
 import {
     assertInventoryState,
     setInventoryState,
@@ -22,6 +23,9 @@ import {
 } from './helpers/inventory';
 import { reserveStockForOrder, releaseReservation } from '../../src/features/inventory/services/order-reservation.service';
 import { db } from '../../src/database';
+import { supabase } from '../../src/utils/supabase';
+import { users } from '../../src/features/user/shared/user.schema';
+import { eq } from 'drizzle-orm';
 
 async function testOrderReservationFlow(): Promise<{ success: boolean; error?: string }> {
     console.log('🧪 TEST 003: Order Reservation Flow\n');
@@ -33,23 +37,69 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
         // ============================================
         console.log('📦 STEP 1: Setting up customer and test products...\n');
 
-        const customer = await createTestCustomer({
-            email: `customer-${Date.now()}@test.com`,
-        });
-
-        const customerToken = await loginAndGetToken(customer.email, 'Test@123');
-
         const testData = await setupBasicTestScenario({
             numProducts: 2,
             stockPerProduct: 100,
             addToCart: false,
         });
 
+        const { customer, address } = testData;
         const [product1, product2] = testData.products;
 
+        console.log(`✅ Created test customer: ${customer.email}`);
         console.log(`✅ Created 2 test products`);
         console.log(`   Product 1: ${product1.product_title} (ID: ${product1.id})`);
         console.log(`   Product 2: ${product2.product_title} (ID: ${product2.id})\n`);
+
+        // ============================================
+        // AUTHENTICATION
+        // ============================================
+        console.log('🔐 Setting up customer authentication...\n');
+
+        // Create user via Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+            email: customer.email,
+            password: 'Test@123',
+            email_confirm: true,
+            user_metadata: {
+                first_name: customer.first_name,
+                last_name: customer.last_name,
+            }
+        });
+
+        if (authError || !authData.user) {
+            // Check if user already exists (might be from previous failed run)
+            if (!authError?.message.includes('already registered')) {
+                throw new Error(`Failed to create Supabase user: ${authError?.message}`);
+            }
+            console.log('⚠️  User already exists in Supabase, continuing...');
+        } else {
+            console.log('✅ Supabase user created');
+        }
+
+        // Update the local database user with the auth_id (fetch fresh user data first to be safe, though not strictly needed if we just use the ID)
+        // Note: In a real flow, a webhook would do this. Here we force it.
+        if (authData.user) {
+            await db.update(users).set({
+                auth_id: authData.user.id,
+                email_verified: true,
+                email_verified_at: new Date(),
+            }).where(eq(users.id, customer.id));
+            console.log('✅ Local user linked to Supabase auth');
+        }
+
+        // Sign in to get session token
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: customer.email,
+            password: 'Test@123',
+        });
+
+        if (signInError || !signInData.session?.access_token) {
+            throw new Error(`Failed to sign in: ${signInError?.message}`);
+        }
+
+        const customerToken = signInData.session.access_token;
+        console.log('✅ User signed in, got access token\n');
 
         const apiClient = new TestApiClient({ token: customerToken });
 
@@ -96,6 +146,7 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
         console.log('Placing order from cart...');
         const orderResponse = await apiClient.createOrder({
             payment_method: 'cod',
+            shipping_address_id: address.id,
         });
 
         const order = orderResponse.data;
@@ -129,13 +180,14 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
         try {
             // Create a new cart with excessive quantity
             const sessionId = `test-session-${Date.now()}`;
-            const tempClient = new TestApiClient({ sessionId });
+            const tempClient = new TestApiClient({ sessionId, token: customerToken });
 
             await tempClient.addToCart(product1.id, 10);
 
             // Try to create order - should fail
             await tempClient.createOrder({
                 payment_method: 'cod',
+                shipping_address_id: address.id,
             });
 
             throw new Error('❌ Should have rejected order with insufficient stock!');
@@ -185,13 +237,14 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
 
         // Create fresh session for new order
         const session2 = `test-session-${Date.now()}-2`;
-        const client2 = new TestApiClient({ sessionId: session2 });
+        const client2 = new TestApiClient({ sessionId: session2, token: customerToken });
 
         await setInventoryState(product1.id, 100, 0); // Reset
 
         await client2.addToCart(product1.id, 10);
         const order2Response = await client2.createOrder({
             payment_method: 'cod',
+            shipping_address_id: address.id,
         });
         const order2 = order2Response.data;
 
@@ -228,11 +281,12 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
         const orders = [];
         for (let i = 0; i < 3; i++) {
             const session = `test-session-${Date.now()}-multi-${i}`;
-            const client = new TestApiClient({ sessionId: session });
+            const client = new TestApiClient({ sessionId: session, token: customerToken });
 
             await client.addToCart(product1.id, 5 + i * 2); // 5, 7, 9
             const orderRes = await client.createOrder({
                 payment_method: 'cod',
+                shipping_address_id: address.id,
             });
 
             orders.push(orderRes.data);
@@ -262,10 +316,13 @@ async function testOrderReservationFlow(): Promise<{ success: boolean; error?: s
 
         try {
             const session = `test-session-${Date.now()}-exceed`;
-            const client = new TestApiClient({ sessionId: session });
+            const client = new TestApiClient({ sessionId: session, token: customerToken });
 
             await client.addToCart(product1.id, 10);
-            await client.createOrder({ payment_method: 'cod' });
+            await client.createOrder({
+                payment_method: 'cod',
+                shipping_address_id: address.id,
+            });
 
             throw new Error('❌ Should have rejected order exceeding available stock!');
         } catch (error: any) {

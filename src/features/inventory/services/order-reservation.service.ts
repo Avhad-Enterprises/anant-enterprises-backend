@@ -7,7 +7,7 @@
  * Phase 2: Domain Service Extraction
  */
 
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, isNull } from 'drizzle-orm';
 import { db } from '../../../database';
 import { inventory } from '../shared/inventory.schema';
 import { inventoryAdjustments } from '../shared/inventory-adjustments.schema';
@@ -92,10 +92,19 @@ export async function validateStockAvailability(
     const results: StockValidationResult[] = [];
 
     for (const item of items) {
+        // Support Variant-Specific Filter (Mutual Exclusivity)
+        const inventoryFilter = item.variant_id
+            ? eq(inventory.variant_id, item.variant_id)
+            : and(
+                eq(inventory.product_id, item.product_id),
+                isNull(inventory.variant_id)
+            );
+
         // Query layer: Fetch inventory data
         const [stock] = await db
             .select({
                 product_id: inventory.product_id,
+                variant_id: inventory.variant_id,
                 available_quantity: inventory.available_quantity,
                 reserved_quantity: inventory.reserved_quantity,
                 product_name: products.product_title,
@@ -104,7 +113,7 @@ export async function validateStockAvailability(
             .leftJoin(products, eq(inventory.product_id, products.id))
             .where(
                 and(
-                    eq(inventory.product_id, item.product_id),
+                    inventoryFilter,
                     sql`${products.status} != 'archived'`
                 )
             );
@@ -255,6 +264,7 @@ export async function fulfillOrderInventory(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
                 product_name: orderItems.product_name,
             })
@@ -279,11 +289,19 @@ export async function fulfillOrderInventory(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            // Support Variant-Specific Filter
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Query layer: Get current inventory
             const [current] = await tx
                 .select()
                 .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
+                .where(inventoryFilter);
 
             if (!current) {
                 throw new Error(`Inventory not found for product ${item.product_name}`);
@@ -314,7 +332,7 @@ export async function fulfillOrderInventory(
                     updated_at: new Date(),
                     updated_by: validUserId,
                 })
-                .where(eq(inventory.product_id, item.product_id))
+                .where(inventoryFilter)
                 .returning();
 
             // Query layer: Create audit record
@@ -363,6 +381,7 @@ export async function releaseReservation(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
             })
             .from(orderItems)
@@ -382,11 +401,18 @@ export async function releaseReservation(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Query layer: Get current inventory
             const [current] = await tx
                 .select()
                 .from(inventory)
-                .where(eq(inventory.product_id, item.product_id));
+                .where(inventoryFilter);
 
             if (!current) continue;
 
@@ -398,7 +424,7 @@ export async function releaseReservation(
                     updated_at: new Date(),
                     updated_by: validUserId,
                 })
-                .where(eq(inventory.product_id, item.product_id))
+                .where(inventoryFilter)
                 .returning();
 
             // Query layer: Create audit record
@@ -451,6 +477,7 @@ export async function processOrderReturn(
         const items = await tx
             .select({
                 product_id: orderItems.product_id,
+                variant_id: orderItems.variant_id,
                 quantity: orderItems.quantity,
                 product_name: orderItems.product_name,
             })
@@ -471,13 +498,20 @@ export async function processOrderReturn(
         for (const item of items) {
             if (!item.product_id) continue;
 
+            const inventoryFilter = item.variant_id
+                ? eq(inventory.variant_id, item.variant_id)
+                : and(
+                    eq(inventory.product_id, item.product_id),
+                    isNull(inventory.variant_id)
+                );
+
             // Business logic: Check if restocking is enabled
             if (restock) {
                 // Query layer: Get current inventory
                 const [current] = await tx
                     .select()
                     .from(inventory)
-                    .where(eq(inventory.product_id, item.product_id));
+                    .where(inventoryFilter);
 
                 if (!current) {
                     logger.warn(`[OrderReservation] Skipping return for ${item.product_name}: Inventory record not found`);
@@ -496,7 +530,7 @@ export async function processOrderReturn(
                         updated_at: new Date(),
                         updated_by: validUserId,
                     })
-                    .where(eq(inventory.product_id, item.product_id))
+                    .where(inventoryFilter)
                     .returning();
 
                 // Query layer: Create audit record
