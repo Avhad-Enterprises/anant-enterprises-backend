@@ -17,6 +17,7 @@ export const orderItemSchema = z.object({
     product_name: z.string().optional(),
     sku: z.string().optional(),
     product_image: z.string().optional(),
+    variant_id: z.string().uuid().optional().nullable(),
 });
 
 /**
@@ -81,6 +82,7 @@ export const directOrderItemSchema = z.object({
     discount_percentage: z.number().min(0).max(100).optional(),
     discount_amount: z.number().min(0).optional(),
     tax_percentage: z.number().min(0).max(100).optional(),
+    variant_id: z.string().uuid().optional().nullable(),
 });
 
 export const directOrderSchema = z.object({

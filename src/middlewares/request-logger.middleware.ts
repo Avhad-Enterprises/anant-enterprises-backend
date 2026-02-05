@@ -36,7 +36,6 @@ export const requestLoggerMiddleware = (req: Request, res: Response, next: NextF
           responseTime: parseFloat(tokens['response-time'](req, res) || '0'),
           requestId: tokens['request-id'](req, res),
           userId: tokens['user-id'](req, res),
-          userRole: tokens['user-role'](req, res),
           userAgent: tokens['user-agent'](req, res),
           ip: tokens['remote-addr'](req, res),
           contentLength: tokens.res(req, res, 'content-length') || '0',
