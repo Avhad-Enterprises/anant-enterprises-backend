@@ -28,20 +28,22 @@ class CustomerRoute implements Route {
     const { default: importCustomersRouter } = await import('./apis/import-customers');
     const { default: exportCustomersRouter } = await import('./apis/export-customers');
     const { default: getUserTagsRouter } = await import('./apis/get-user-tags');
+    const { default: getCustomerActivityRouter } = await import('./apis/get-customer-activity');
 
     // Static routes BEFORE dynamic :id routes
-    this.router.use(this.path, getAllCustomersRouter);          // GET /customers
-    this.router.use(this.path, createCustomerRouter);           // POST /customers
-    this.router.use(this.path, bulkDeleteCustomersRouter);      // POST /customers/bulk-delete
-    this.router.use(this.path, getCustomerMetricsRouter);       // GET /customers/metrics
-    this.router.use(this.path, getUserTagsRouter);              // GET /customers/tags
+    this.router.use(this.path, getAllCustomersRouter); // GET /customers
+    this.router.use(this.path, createCustomerRouter); // POST /customers
+    this.router.use(this.path, bulkDeleteCustomersRouter); // POST /customers/bulk-delete
+    this.router.use(this.path, getCustomerMetricsRouter); // GET /customers/metrics
+    this.router.use(this.path, getUserTagsRouter); // GET /customers/tags
     this.router.use(`${this.path}/import`, importCustomersRouter); // POST /customers/import
     this.router.use(`${this.path}/export`, exportCustomersRouter); // POST /customers/export
-    
+
     // Dynamic :id routes LAST
-    this.router.use(this.path, getCustomerByIdRouter);          // GET /customers/:id
-    this.router.use(this.path, updateCustomerRouter);           // PUT /customers/:id
-    this.router.use(this.path, deleteCustomerRouter);           // DELETE /customers/:id
+    this.router.use(this.path, getCustomerByIdRouter); // GET /customers/:id
+    this.router.use(this.path, getCustomerActivityRouter); // GET /customers/:id/activity
+    this.router.use(this.path, updateCustomerRouter); // PUT /customers/:id
+    this.router.use(this.path, deleteCustomerRouter); // DELETE /customers/:id
   }
 }
 
