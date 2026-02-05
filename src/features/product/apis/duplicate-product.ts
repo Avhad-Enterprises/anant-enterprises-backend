@@ -9,7 +9,7 @@ import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
 import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { products } from '../shared/products.schema';
 import { productVariants } from '../shared/product-variants.schema';
 import { productFaqs } from '../shared/product-faqs.schema';
@@ -43,12 +43,70 @@ const generateUniqueSlug = (originalSlug: string): string => {
 
 /**
  * Generate a unique product title based on the original
+ * @param originalTitle - The original product title
+ * @param copyNumber - The copy number to append (always numbered: Copy 1, Copy 2, etc.)
  */
-const generateUniqueTitle = (originalTitle: string, duplicateCount: number = 1): string => {
-  if (duplicateCount === 1) {
-    return `${originalTitle} (Copy)`;
+const generateUniqueTitle = (originalTitle: string, copyNumber: number = 1): string => {
+  // Always use numbered format: (Copy 1), (Copy 2), (Copy 3), etc.
+  return `${originalTitle} (Copy ${copyNumber})`;
+};
+
+/**
+ * Find the next available copy number for a product by checking existing copies in database
+ * @param originalTitle - The original product title
+ * @param tx - Database transaction
+ * @returns The next available copy number
+ */
+const findNextCopyNumber = async (originalTitle: string, tx: any): Promise<number> => {
+  // Remove existing (Copy N) suffix if present to get base title
+  // Matches: "Title (Copy)" or "Title (Copy N)" or "Title (Copy  N)" etc.
+  const baseTitle = originalTitle.replace(/\s*\(Copy(\s+\d+)?\)\s*$/i, '').trim();
+  
+  // Query to find all products that match the base title or have copy suffixes
+  // Using SQL pattern matching with proper escaping for LIKE
+  const likePattern = baseTitle.replace(/[%_]/g, '\\$&') + ' (Copy%';
+  
+  const existingCopies = await tx
+    .select({ product_title: products.product_title })
+    .from(products)
+    .where(
+      sql`${products.is_deleted} = false AND (
+        ${products.product_title} = ${baseTitle} OR
+        ${products.product_title} LIKE ${likePattern}
+      )`
+    );
+  
+  // Extract copy numbers from all matching titles
+  const copyNumbers: number[] = [];
+  
+  existingCopies.forEach((item: { product_title: string }) => {
+    const title = item.product_title;
+    
+    // Skip if it's the exact base title (not a copy)
+    if (title === baseTitle) {
+      return;
+    }
+    
+    // Match pattern: "BaseTitle (Copy N)" where N is a number
+    // Also matches old format "BaseTitle (Copy)" and treats it as Copy 1
+    const copyPattern = /\(Copy(?:\s+(\d+))?\)\s*$/i;
+    const match = title.match(copyPattern);
+    
+    if (match) {
+      // If number is captured, use it; otherwise it's old "(Copy)" format = 1
+      const copyNum = match[1] ? parseInt(match[1], 10) : 1;
+      copyNumbers.push(copyNum);
+    }
+  });
+  
+  // Find the highest copy number and return the next one
+  if (copyNumbers.length === 0) {
+    // No copies exist yet, start with Copy 1
+    return 1;
   }
-  return `${originalTitle} (Copy ${duplicateCount})`;
+  
+  const maxCopyNumber = Math.max(...copyNumbers);
+  return maxCopyNumber + 1;
 };
 
 async function duplicateProducts(ids: string[], userId: string): Promise<number> {
@@ -89,26 +147,22 @@ async function duplicateProducts(ids: string[], userId: string): Promise<number>
   }
 
   let successCount = 0;
-  
-  // Track how many copies of each product we've created for unique naming
-  const productCopyCount = new Map<string, number>();
 
   // Process sequentially to handle transactions properly
   for (const original of originalProducts) {
     await db.transaction(async (tx) => {
       try {
-        // Increment copy counter for this specific product
-        const currentCopyCount = (productCopyCount.get(original.id) || 0) + 1;
-        productCopyCount.set(original.id, currentCopyCount);
-
         // Use pre-fetched inventory data for consistent stock levels
         const stockToCopy = inventoryData.get(original.id)!;
+
+        // Find the next available copy number by checking database
+        const nextCopyNumber = await findNextCopyNumber(original.product_title, tx);
 
         // 2. Prepare new product data
         // Copy the original product properties while maintaining proper field mappings
         const newProductData: typeof products.$inferInsert = {
           slug: generateUniqueSlug(original.slug),
-          product_title: generateUniqueTitle(original.product_title, currentCopyCount),
+          product_title: generateUniqueTitle(original.product_title, nextCopyNumber),
           secondary_title: original.secondary_title,
           short_description: original.short_description,
           full_description: original.full_description,
