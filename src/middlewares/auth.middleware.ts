@@ -108,10 +108,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         });
         return next(new HttpException(403, 'Your account has been banned. Please contact support.'));
       }
-    } else {
-      console.log(`DEBUG: requireAuth - No customer profile found for user ${user.id}`);
     }
-
     // Attach user information to request (use integer ID for RBAC)
     req.userId = user.id;
     req.userAgent = userAgent;
