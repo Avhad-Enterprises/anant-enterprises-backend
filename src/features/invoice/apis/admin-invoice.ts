@@ -27,10 +27,7 @@ router.get(
   }
 );
 
-// Local interface for authenticated request until global types are fixed
-interface AuthenticatedRequest extends Request {
-  userId?: string;
-}
+
 
 /**
  * POST /api/admin/orders/:id/invoices

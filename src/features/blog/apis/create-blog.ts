@@ -5,11 +5,14 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter } from '../../../utils';
+import { ResponseFormatter, HttpException } from '../../../utils';
 import { createBlog } from '../shared/queries';
 import { syncTags } from '../../tags';
+import { db } from '../../../database';
+import { blogs } from '../shared/blog.schema';
 
 // Validation Schema
 const createBlogSchema = z.object({
@@ -81,6 +84,15 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
         created_by: userId,
     };
+
+    // Check for duplicate blog (slug must be unique)
+    const existingBlog = await db.query.blogs.findFirst({
+        where: eq(blogs.slug, blogData.slug),
+    });
+
+    if (existingBlog) {
+        throw new HttpException(409, 'Blog with this title/URL already exists', 'BLOG_ALREADY_EXISTS');
+    }
 
     const subsectionsData = data.subsections.map((sub: any, index: number) => ({
         title: sub.title,

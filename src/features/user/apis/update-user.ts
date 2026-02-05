@@ -15,7 +15,7 @@ import { requireAuth } from '../../../middlewares';
 import { rbacCacheService } from '../../rbac';
 import { userCacheService } from '../services/user-cache.service';
 import validationMiddleware from '../../../middlewares/validation.middleware';
-import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema } from '../../../utils';
+import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, phoneSchema, logger } from '../../../utils';
 import { sanitizeUser } from '../shared/sanitizeUser';
 import { HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -24,13 +24,14 @@ import { IUser } from '../shared/interface';
 import { findUserById, findUserByEmail } from '../shared/queries';
 
 const updateUserSchema = z.object({
-  name: shortTextSchema.optional(),
-  last_name: shortTextSchema.optional(),
+  name: shortTextSchema.optional(), // Admin panel compatibility - handled in code
+  first_name: shortTextSchema.optional(),
+  last_name: shortTextSchema.optional().or(z.literal('')),
   display_name: z.string().max(100).optional(), // Allow empty string
   email: emailSchema.optional(),
   secondary_email: emailSchema.optional().or(z.literal('')),
-  phone_number: z.string().optional(),
-  secondary_phone_number: z.string().optional().or(z.literal('')),
+  phone_number: phoneSchema.optional().or(z.literal('')),
+  secondary_phone_number: phoneSchema.optional().or(z.literal('')),
   timezone: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
   preferred_currency: z.string().max(50).optional(),
@@ -67,10 +68,29 @@ async function updateUser(id: string, data: UpdateUser, requesterId: string): Pr
     }
   }
 
+  // Handle name mapping (Support both 'name' from Admin and 'first_name' from Frontend)
+  let firstName = data.first_name;
+  let lastName = data.last_name;
+
+  if (data.name) {
+    const parts = data.name.trim().split(/\s+/);
+    if (!firstName) firstName = parts[0];
+    if (lastName === undefined) lastName = parts.slice(1).join(' ');
+  }
+
   const updateData: Partial<IUser> = {
     ...data,
+    first_name: firstName,
+    last_name: lastName,
     updated_by: requesterId,
   };
+
+  // Remove 'name' from payload as it's not a DB column
+  if ('name' in updateData) {
+    delete (updateData as any).name;
+  }
+
+  logger.info('[updateUser] Final updateData:', updateData);
 
   const [result] = await db
     .update(users)
@@ -149,4 +169,3 @@ router.put(
 );
 
 export default router;
-

@@ -4,7 +4,7 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
+
 import { and, between, inArray, eq, notInArray, or, SQL, ilike } from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
@@ -17,18 +17,9 @@ import { requireAuth, requirePermission } from '../../../middlewares';
 import { RequestWithUser } from '../../../interfaces';
 import {
   generateCSV,
-  generateExcelBuffer,
-  baseExportSchema
+  generateExcelBuffer
 } from '../../../utils/import-export';
-
-// Customer-specific export schema
-const customerExportSchema = baseExportSchema.extend({
-  filters: z.object({
-    status: z.enum(['active', 'inactive', 'banned']).optional(),
-    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
-    tags: z.string().optional(),
-  }).optional(),
-});
+import { customerExportSchema } from '../shared/validation';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const validation = customerExportSchema.safeParse(req.body);
@@ -148,12 +139,12 @@ const handler = async (req: RequestWithUser, res: Response) => {
       profile_image_url: user.profile_image_url,
       created_at: user.created_at,
       updated_at: user.updated_at,
-      
+
       // Profile fields
       account_status: profile?.account_status || '',
       segments: Array.isArray(profile?.segments) ? profile.segments.join(', ') : '',
       notes: profile?.notes || '',
-      
+
       // Address fields from default address
       city: '',
       state: '',

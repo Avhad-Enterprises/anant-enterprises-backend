@@ -4,51 +4,19 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, shortTextSchema, emailSchema, HttpException, logger } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { eq, and } from 'drizzle-orm';
 import { users } from '../../user/shared/user.schema';
 import { customerProfiles } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { businessCustomerProfiles } from '../shared/business-profiles.schema';
 import { syncTags } from '../../tags/services/tag-sync.service';
 import { notificationService } from '../../notifications/services/notification.service';
+import { createCustomerSchema, CreateCustomerDto } from '../shared/validation';
 
-// Validation Schema
-const createCustomerSchema = z.object({
-    // Required User Fields
-    first_name: shortTextSchema,
-    middle_name: shortTextSchema.optional(),
-    last_name: shortTextSchema,
-    email: emailSchema,
-    phone_number: z.string().optional(),
-    secondary_email: z.string().email().optional(),
-    secondary_phone_number: z.string().optional(),
-    // DEPRECATED: user_type removed - create appropriate profile instead
-    tags: z.array(z.string()).optional(),
-    profile_image_url: z.string().optional(),
-
-    // Optional User Fields
-    display_name: z.string().max(100).optional(),
-    date_of_birth: z.string().optional(),
-    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
-    preferred_language: z.string().optional(),
-    languages: z.array(z.string()).optional(),
-
-    // Customer (Individual) Profile Fields
-    segments: z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional(),
-    notes: z.string().optional(),
-
-    // Business (B2B) Profile Fields
-    company_legal_name: z.string().optional(),
-    tax_id: z.string().optional(), // GSTIN
-    credit_limit: z.number().or(z.string()).optional(),
-    payment_terms: z.enum(paymentTermsEnum.enumValues).optional(),
-});
-
-type CreateCustomerDto = z.infer<typeof createCustomerSchema>;
+// Validation Schema imported from ../shared/validation
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const data: CreateCustomerDto = req.body;

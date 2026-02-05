@@ -8,68 +8,15 @@ import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, shortTextSchema, emailSchema, uuidSchema, logger } from '../../../utils';
+import { ResponseFormatter, uuidSchema, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-import { customerProfiles, customerAccountStatusEnum } from '../shared/customer-profiles.schema';
-import { businessCustomerProfiles, businessAccountStatusEnum, paymentTermsEnum } from '../shared/business-profiles.schema';
+import { customerProfiles } from '../shared/customer-profiles.schema';
+import { businessCustomerProfiles } from '../shared/business-profiles.schema';
 import { updateTagUsage } from '../../tags/services/tag-sync.service';
+import { updateCustomerSchema, UpdateCustomerDto } from '../shared/validation';
 
-// Validation Schema
-const updateCustomerSchema = z.object({
-    // User Fields
-    first_name: shortTextSchema.optional(),
-    middle_name: shortTextSchema.optional().nullable(),
-    last_name: shortTextSchema.optional(),
-    email: emailSchema.optional(),
-    phone_number: z.string().optional(),
-    secondary_email: z.string().email().optional().nullable(),
-    secondary_phone_number: z.string().optional().nullable(),
-    // Verification status fields for primary/secondary swap
-    email_verified: z.boolean().optional(),
-    secondary_email_verified: z.boolean().optional(),
-    // DEPRECATED: user_type removed - use profile tables
-    tags: z.array(z.string()).optional(),
-    display_name: z.string().max(100).optional(),
-    date_of_birth: z.string().optional(),
-    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
-    preferred_language: z.string().optional(),
-    languages: z.array(z.string()).optional(),
-    profile_image_url: z.string().optional().nullable(),
-
-    // Customer (Individual) Profile Fields
-    segments: z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional(),
-    notes: z.string().optional(), // Shared with Business profile conceptually, but stored in respective table
-    account_status: z.enum(customerAccountStatusEnum.enumValues).optional(),
-    store_credit_balance: z.number().or(z.string()).optional(),
-
-    // Business (B2B) Profile Fields
-    company_legal_name: z.string().optional(),
-    tax_id: z.string().optional(), // GSTIN
-    credit_limit: z.number().or(z.string()).optional(),
-    payment_terms: z.enum(paymentTermsEnum.enumValues).optional(),
-    business_account_status: z.enum(businessAccountStatusEnum.enumValues).optional(),
-
-    // Marketing Preferences
-    marketing_opt_in: z.boolean().optional(),
-    sms_opt_in: z.boolean().optional(),
-    email_opt_in: z.boolean().optional(),
-    whatsapp_opt_in: z.boolean().optional(),
-
-    // Risk & Loyalty & Subscription (New Fields)
-    risk_profile: z.string().optional(),
-    loyalty_enrolled: z.boolean().optional(),
-    loyalty_tier: z.string().optional(),
-    loyalty_points: z.number().or(z.string()).optional(),
-    loyalty_enrollment_date: z.string().optional(),
-    subscription_plan: z.string().optional(),
-    subscription_status: z.string().optional(),
-    billing_cycle: z.string().optional(),
-    subscription_start_date: z.string().optional(),
-    auto_renew: z.boolean().optional(),
-});
-
-type UpdateCustomerDto = z.infer<typeof updateCustomerSchema>;
+// Validation Schema imported from ../shared/validation
 
 const handler = async (req: RequestWithUser, res: Response) => {
     const { id } = req.params as { id: string };
@@ -141,7 +88,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
 
         // 2. Update Profile Tables - polymorphic approach
-        // Update customer profile (always exists for customers)
+        // Update customer profile (create if doesn't exist)
         const customerProfileUpdates: Record<string, unknown> = {};
         if (data.segments !== undefined) customerProfileUpdates.segments = data.segments;
         if (data.notes !== undefined) customerProfileUpdates.notes = data.notes;
@@ -152,10 +99,29 @@ const handler = async (req: RequestWithUser, res: Response) => {
         if (data.email_opt_in !== undefined) customerProfileUpdates.email_opt_in = data.email_opt_in;
         if (data.whatsapp_opt_in !== undefined) customerProfileUpdates.whatsapp_opt_in = data.whatsapp_opt_in;
 
+        // Risk & Loyalty & Subscription fields
+        if (data.risk_profile !== undefined) customerProfileUpdates.risk_profile = data.risk_profile;
+        if (data.loyalty_enrolled !== undefined) customerProfileUpdates.loyalty_enrolled = data.loyalty_enrolled;
+        if (data.loyalty_tier !== undefined) customerProfileUpdates.loyalty_tier = data.loyalty_tier;
+        if (data.loyalty_points !== undefined) customerProfileUpdates.loyalty_points = String(data.loyalty_points);
+        if (data.loyalty_enrollment_date !== undefined) customerProfileUpdates.loyalty_enrollment_date = data.loyalty_enrollment_date;
+        if (data.subscription_plan !== undefined) customerProfileUpdates.subscription_plan = data.subscription_plan;
+        if (data.subscription_status !== undefined) customerProfileUpdates.subscription_status = data.subscription_status;
+        if (data.billing_cycle !== undefined) customerProfileUpdates.billing_cycle = data.billing_cycle;
+        if (data.subscription_start_date !== undefined) customerProfileUpdates.subscription_start_date = data.subscription_start_date;
+        if (data.auto_renew !== undefined) customerProfileUpdates.auto_renew = data.auto_renew;
+
         if (Object.keys(customerProfileUpdates).length > 0) {
-            await tx.update(customerProfiles)
-                .set({ ...customerProfileUpdates, updated_at: new Date() })
-                .where(eq(customerProfiles.user_id, id));
+            // Use upsert to create profile if it doesn't exist
+            await tx.insert(customerProfiles)
+                .values({
+                    user_id: id,
+                    ...customerProfileUpdates,
+                })
+                .onConflictDoUpdate({
+                    target: customerProfiles.user_id,
+                    set: { ...customerProfileUpdates, updated_at: new Date() }
+                });
         }
 
         // Update business profile if B2B data provided (upsert approach)
