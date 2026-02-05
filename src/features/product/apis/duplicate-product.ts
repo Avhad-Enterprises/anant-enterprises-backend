@@ -271,64 +271,59 @@ async function duplicateProducts(ids: string[], userId: string): Promise<number>
           await tx.insert(productFaqs).values(newFaqsData);
         }
 
-        // 6. Initialize Inventory 
-        // For products WITHOUT variants: create inventory with product_id
-        // For products WITH variants: create inventory with variant_id only (not base product)
+        // 6. Initialize Base Product Inventory
+        // Always create base product inventory record, regardless of whether it has variants
+        // This ensures consistent inventory tracking across all products
+        
+        // Find default location
+        const [defaultLocation] = await tx
+          .select({ id: inventoryLocations.id })
+          .from(inventoryLocations)
+          .where(eq(inventoryLocations.is_default, true))
+          .limit(1);
 
-        if (!original.has_variants) {
-          // Base product inventory (only for products without variants)
-          // Find default location
-          const [defaultLocation] = await tx
+        // Fallback to any active location if no default
+        let locationId = defaultLocation?.id;
+        if (!locationId) {
+          const [activeLocation] = await tx
             .select({ id: inventoryLocations.id })
             .from(inventoryLocations)
-            .where(eq(inventoryLocations.is_default, true))
+            .where(eq(inventoryLocations.is_active, true))
             .limit(1);
-
-          // Fallback to any active location if no default
-          let locationId = defaultLocation?.id;
-          if (!locationId) {
-            const [activeLocation] = await tx
-              .select({ id: inventoryLocations.id })
-              .from(inventoryLocations)
-              .where(eq(inventoryLocations.is_active, true))
-              .limit(1);
-            locationId = activeLocation?.id;
-          }
-
-          if (locationId) {
-            // Create inventory with original stock levels
-            await tx.insert(inventory).values({
-              product_id: newProduct.id, // Only for base products without variants
-              location_id: locationId,
-              available_quantity: stockToCopy.available_quantity,
-              reserved_quantity: 0, // Reset reserved quantity for new product
-              status: stockToCopy.available_quantity > 0 ? 'in_stock' : 'out_of_stock',
-              condition: stockToCopy.condition,
-              updated_by: userId
-            });
-
-            // Get the inventory ID we just created
-            const [newInventory] = await tx.select().from(inventory).where(eq(inventory.product_id, newProduct.id));
-
-            if (newInventory && stockToCopy.available_quantity > 0) {
-              // Create inventory adjustment record for the copied stock
-              await tx.insert(inventoryAdjustments).values({
-                inventory_id: newInventory.id,
-                adjustment_type: 'increase',
-                quantity_change: stockToCopy.available_quantity,
-                reason: `Initial stock (Duplicated from ${original.product_title})`,
-                quantity_before: 0,
-                quantity_after: stockToCopy.available_quantity,
-                adjusted_by: userId,
-                notes: `System duplicated product with ${stockToCopy.available_quantity} units`
-              });
-            }
-          } else {
-            logger.warn(`[Duplicate] No inventory location found. Skipping inventory creation for ${newProduct.id}`);
-          }
+          locationId = activeLocation?.id;
         }
 
-        // Variant inventory logic removed as it was incorrect (redundant base product calls)
+        if (locationId) {
+          // Create base inventory with original stock levels
+          await tx.insert(inventory).values({
+            product_id: newProduct.id,
+            location_id: locationId,
+            available_quantity: stockToCopy.available_quantity,
+            reserved_quantity: 0, // Reset reserved quantity for new product
+            status: stockToCopy.available_quantity > 0 ? 'in_stock' : 'out_of_stock',
+            condition: stockToCopy.condition,
+            updated_by: userId
+          });
+
+          // Get the inventory ID we just created
+          const [newInventory] = await tx.select().from(inventory).where(eq(inventory.product_id, newProduct.id));
+
+          if (newInventory && stockToCopy.available_quantity > 0) {
+            // Create inventory adjustment record for the copied stock
+            await tx.insert(inventoryAdjustments).values({
+              inventory_id: newInventory.id,
+              adjustment_type: 'increase',
+              quantity_change: stockToCopy.available_quantity,
+              reason: `Initial stock (Duplicated from ${original.product_title})`,
+              quantity_before: 0,
+              quantity_after: stockToCopy.available_quantity,
+              adjusted_by: userId,
+              notes: `System duplicated product with ${stockToCopy.available_quantity} units`
+            });
+          }
+        } else {
+          logger.warn(`[Duplicate] No inventory location found. Skipping inventory creation for ${newProduct.id}`);
+        }
 
         // 7. Sync Tags
         if (newProduct.tags && Array.isArray(newProduct.tags) && newProduct.tags.length > 0) {
