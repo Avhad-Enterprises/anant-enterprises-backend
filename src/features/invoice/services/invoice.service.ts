@@ -734,7 +734,7 @@ export class InvoiceService {
       );
 
       // Upload to Supabase Storage
-      const folderPath = `invoices/${order.user_id || 'anonymous'}/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+      const folderPath = `invoices/${order.order_number || 'anonymous'}/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}`;
       const fileName = `${invoiceNumber}.pdf`;
 
       const uploadResult = await uploadToStorage(
