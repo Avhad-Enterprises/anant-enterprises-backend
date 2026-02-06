@@ -18,6 +18,7 @@ import { cartItems } from '../../cart/shared/cart-items.schema';
 import { wishlistItems } from '../../wishlist/shared/wishlist-items.schema';
 import { wishlists } from '../../wishlist/shared/wishlist.schema';
 import { users } from '../../user/shared/user.schema';
+import { userAddresses } from '../../address/shared/addresses.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { validateStockAvailability, extendCartReservation } from '../../inventory/services/inventory.service';
@@ -94,11 +95,56 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const discountTotal = Number(cart.discount_total);
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    // For now, simplified tax and shipping (should come from cart if we had it there)
+    // Shipping
     const shippingAmount = 0; // Free shipping
-    const taxAmount = 0; // Tax calculated separately if needed
 
-    // Grand total should match cart's grand_total roughly, but let's recalculate to be safe with shipping/tax
+    // Fetch addresses for tax calculation
+    let shippingAddress = null;
+    let billingAddress = null;
+    let cgst = 0;
+    let sgst = 0;
+    let igst = 0;
+    let taxAmount = 0;
+
+    if (body.shipping_address_id) {
+        [shippingAddress] = await db
+            .select()
+            .from(userAddresses)
+            .where(eq(userAddresses.id, body.shipping_address_id))
+            .limit(1);
+    }
+
+    const billingAddressId = body.billing_address_id || body.shipping_address_id;
+    if (billingAddressId) {
+        [billingAddress] = await db
+            .select()
+            .from(userAddresses)
+            .where(eq(userAddresses.id, billingAddressId))
+            .limit(1);
+    }
+
+    // Calculate GST (18% total)
+    // CGST (9%) + SGST (9%) for same state
+    // IGST (18%) for different states
+    const taxableAmount = subtotal - discountTotal;
+
+    if (shippingAddress && billingAddress && shippingAddress.state_province && billingAddress.state_province) {
+        const isSameState = shippingAddress.state_province === billingAddress.state_province;
+        const gstRate = 0.18; // 18% GST
+
+        if (isSameState) {
+            // Intra-state: CGST 9% + SGST 9%
+            cgst = parseFloat((taxableAmount * 0.09).toFixed(2));
+            sgst = parseFloat((taxableAmount * 0.09).toFixed(2));
+            taxAmount = cgst + sgst;
+        } else {
+            // Inter-state: IGST 18%
+            igst = parseFloat((taxableAmount * gstRate).toFixed(2));
+            taxAmount = igst;
+        }
+    }
+
+    // Grand total
     const totalAmount = Math.max(subtotal - discountTotal + shippingAmount + taxAmount, 0);
 
     // Resolve Discount Details if applied
@@ -182,6 +228,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
             discount_code_id: discountCodeId,
             discount_code: discountCode,
             shipping_amount: shippingAmount.toFixed(2),
+            cgst: cgst.toFixed(2),
+            sgst: sgst.toFixed(2),
+            igst: igst.toFixed(2),
             tax_amount: taxAmount.toFixed(2),
             total_amount: totalAmount.toFixed(2),
             total_quantity: totalQuantity,
