@@ -44,7 +44,8 @@ export default defineConfig({
     './src/features/admin-invite/shared/admin-invite.schema.ts',
     
     // Products & Collections (6 tables: products, product_faqs, collections, collection_products, tiers, tags)
-    './src/features/product/shared/product.schema.ts',
+    './src/features/product/shared/products.schema.ts',
+    './src/features/product/shared/product-variants.schema.ts',
     './src/features/product/shared/product-faqs.schema.ts',
     './src/features/collection/shared/collection.schema.ts',
     './src/features/collection/shared/collection-products.schema.ts',
