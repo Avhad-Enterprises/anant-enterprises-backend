@@ -205,6 +205,16 @@ async function getAllCustomers(
         .groupBy(orders.user_id)
         .as('order_metrics');
 
+    // Default City Subquery for Sorting
+    const citySq = db
+        .select({
+            userId: userAddresses.user_id,
+            city: userAddresses.city
+        })
+        .from(userAddresses)
+        .where(eq(userAddresses.is_default_billing, true))
+        .as('city_metrics');
+
     // 2. Fetch Data
     const allUsers = await db
         .select({
@@ -216,6 +226,7 @@ async function getAllCustomers(
         .from(users)
         .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
         .leftJoin(orderCountSq, eq(users.id, orderCountSq.userId))
+        .leftJoin(citySq, eq(users.id, citySq.userId))
         // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
         .where(and(...conditions))
         .limit(limit)
@@ -229,6 +240,43 @@ async function getAllCustomers(
                     case 'name_asc': return asc(users.first_name);
                     case 'name_desc': return desc(users.first_name);
                     case 'orders_desc': return desc(orderCountSq.totalOrders);
+                    
+                    // Column Header Sorts
+                    case 'customerId_asc': return asc(users.display_id);
+                    case 'customerId_desc': return desc(users.display_id);
+                    case 'displayName_asc': return asc(users.display_name);
+                    case 'displayName_desc': return desc(users.display_name);
+                    case 'email_asc': return asc(users.email);
+                    case 'email_desc': return desc(users.email);
+                    case 'phone_asc': return asc(users.phone_number);
+                    case 'phone_desc': return desc(users.phone_number);
+                    case 'created_at_asc': return asc(users.created_at);
+                    case 'created_at_desc': return desc(users.created_at);
+                    
+                    // New Fields
+                    case 'gender_asc': return asc(users.gender);
+                    case 'gender_desc': return desc(users.gender);
+                    
+                    case 'dob_asc': // Frontend key: 'dob' or 'dateOfBirth'
+                    case 'dateOfBirth_asc': return asc(users.date_of_birth);
+                    case 'dob_desc':
+                    case 'dateOfBirth_desc': return desc(users.date_of_birth);
+                    
+                    case 'tags_asc': return asc(users.tags); // Array sort
+                    case 'tags_desc': return desc(users.tags);
+
+                    case 'status_asc': return asc(customerProfiles.account_status);
+                    case 'status_desc': return desc(customerProfiles.account_status);
+
+                    case 'total_orders_asc': return asc(orderCountSq.totalOrders);
+                    case 'total_orders_desc': return desc(orderCountSq.totalOrders);
+
+                    case 'lastLogin_asc': return asc(users.updated_at); // Proxy for now
+                    case 'lastLogin_desc': return desc(users.updated_at);
+                    
+                    case 'city_asc': return asc(citySq.city);
+                    case 'city_desc': return desc(citySq.city);
+                    
                     default: return desc(users.created_at);
                 }
             })()
