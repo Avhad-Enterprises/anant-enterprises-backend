@@ -90,7 +90,8 @@ async function createSuperAdminUser() {
             // Update info
             logger.info('📝 Updating user info...');
             await db.update(users).set({
-                name: ADMIN_NAME,
+                first_name: 'Super Admin',
+                last_name: 'User',
                 email_verified: true,
                 email_verified_at: new Date()
             }).where(eq(users.id, userId));
@@ -110,33 +111,30 @@ async function createSuperAdminUser() {
             });
 
             if (authError) {
-                logger.error("Got auth error:", authError.message);
-                if (authError.message.includes("already registered") || authError.message.includes("unique constraint")) {
-                    logger.info("ℹ️ User exists in Supabase. Fetching...");
-                    const { data: { users: existingAuthUsers } } = await supabase.auth.admin.listUsers();
-                    const authUser = (existingAuthUsers as any[]).find(u => u.email === ADMIN_EMAIL);
-                    if (authUser) {
-                        userId = authUser.id;
-                        logger.info('📝 Syncing Supabase user to users table...');
-                        const [newUser] = await db.insert(users).values({
-                            id: authUser.id,
-                            auth_id: authUser.id,
-                            email: ADMIN_EMAIL,
-                            name: 'Super Admin',
-                            last_name: 'User',
-                            email_verified: true,
-                            email_verified_at: new Date(),
-                            created_by: authUser.id,
-                        }).onConflictDoUpdate({
-                            target: users.id,
-                            set: { is_deleted: false, name: 'Super Admin', last_name: 'User' }
-                        }).returning();
-                        userId = newUser.id;
-                    } else {
-                        throw new Error("User reported as existing but could not be found.");
-                    }
+                logger.warn("Auth creation error (checking if user exists):", authError.message);
+                // Try to see if user already exists regardless of error message
+                const { data: { users: existingAuthUsers } } = await supabase.auth.admin.listUsers();
+                const authUser = (existingAuthUsers as any[]).find(u => u.email === ADMIN_EMAIL);
+
+                if (authUser) {
+                    userId = authUser.id;
+                    logger.info('ℹ️ User exists in Supabase. Syncing to users table...');
+                    const [newUser] = await db.insert(users).values({
+                        id: authUser.id,
+                        auth_id: authUser.id,
+                        email: ADMIN_EMAIL,
+                        first_name: 'Super Admin',
+                        last_name: 'User',
+                        email_verified: true,
+                        email_verified_at: new Date(),
+                        created_by: authUser.id,
+                    }).onConflictDoUpdate({
+                        target: users.id,
+                        set: { is_deleted: false, first_name: 'Super Admin', last_name: 'User' }
+                    }).returning();
+                    userId = newUser.id;
                 } else {
-                    throw new Error(`Failed to create user in Supabase Auth: ${authError.message}`);
+                    throw new Error(`Failed to create user and could not find them in list: ${authError.message}`);
                 }
             } else if (authData.user) {
                 userId = authData.user.id;
@@ -148,7 +146,7 @@ async function createSuperAdminUser() {
                         id: authData.user.id,
                         auth_id: authData.user.id,
                         email: ADMIN_EMAIL,
-                        name: 'Super Admin',
+                        first_name: 'Super Admin',
                         last_name: 'User',
                         email_verified: true,
                         email_verified_at: new Date(),
