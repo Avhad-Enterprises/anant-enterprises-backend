@@ -99,10 +99,7 @@ async function getAllCustomers(
 
     // Gender Filter
     if (gender) {
-        const genders = gender.split(',').map(g => {
-            const val = g.trim().toLowerCase();
-            return val === 'prefer not to say' ? 'prefer_not_to_say' : val;
-        }) as any[];
+        const genders = gender.split(',').map(g => g.trim().toLowerCase()) as any[];
 
         if (genders.length > 0) {
             conditions.push(inArray(users.gender, genders));
