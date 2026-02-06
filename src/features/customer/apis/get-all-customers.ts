@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, or, arrayOverlaps, SQL, notInArray } from 'drizzle-orm';
+import { eq, count, desc, and, or, arrayOverlaps, SQL, notInArray, sql, isNotNull } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -29,6 +29,7 @@ const paginationSchema = z.object({
     status: z.string().optional(),
     gender: z.string().optional(),
     tags: z.string().optional(),
+    orders_status: z.string().optional(),
     search: z.string().optional(),
 });
 
@@ -39,6 +40,7 @@ async function getAllCustomers(
     status?: string,
     gender?: string,
     tags?: string,
+    ordersStatus?: string,
     search?: string
 ) {
     const offset = (page - 1) * limit;
@@ -111,6 +113,51 @@ async function getAllCustomers(
         const tagList = tags.split(',').map(t => t.trim());
         if (tagList.length > 0) {
             conditions.push(arrayOverlaps(users.tags, tagList));
+        }
+    }
+
+    // Order Status Filter
+    if (ordersStatus) {
+        const statuses = ordersStatus.split(',').map(s => s.trim());
+        const statusConditions = [];
+
+        // Base subquery for users with ANY orders (excluding deleted/drafts and NULL user_ids)
+        const userOrdersSubquery = db
+            .select({ userId: orders.user_id })
+            .from(orders)
+            .where(and(
+                eq(orders.is_deleted, false),
+                eq(orders.is_draft, false),
+                isNotNull(orders.user_id)
+            ))
+            .groupBy(orders.user_id);
+
+        if (statuses.includes('has-orders')) {
+            statusConditions.push(inArray(users.id, userOrdersSubquery));
+        }
+
+        if (statuses.includes('no-orders')) {
+             statusConditions.push(notInArray(users.id, userOrdersSubquery));
+        }
+
+        if (statuses.includes('high-value')) {
+             // For high value (>10 orders)
+             const highValueSubquery = db
+                .select({ userId: orders.user_id })
+                .from(orders)
+                .where(and(
+                    eq(orders.is_deleted, false),
+                    eq(orders.is_draft, false),
+                    isNotNull(orders.user_id)
+                ))
+                .groupBy(orders.user_id)
+                .having(sql`count(*) > 10`);
+             
+             statusConditions.push(inArray(users.id, highValueSubquery));
+        }
+
+        if (statusConditions.length > 0) {
+            conditions.push(or(...statusConditions) as SQL<unknown>);
         }
     }
 
@@ -206,9 +253,9 @@ async function getAllCustomers(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { page, limit, type, status, gender, tags, search } = paginationSchema.parse(req.query);
+    const { page, limit, type, status, gender, tags, orders_status, search } = paginationSchema.parse(req.query);
 
-    const result = await getAllCustomers(page, limit, type, status, gender, tags, search);
+    const result = await getAllCustomers(page, limit, type, status, gender, tags, orders_status, search);
 
     ResponseFormatter.paginated(
         res,
