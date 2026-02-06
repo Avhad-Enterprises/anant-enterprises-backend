@@ -16,7 +16,7 @@ export function buildInventoryQuantity(): ReturnType<typeof sql<number>> {
 export function buildInventoryQuantityWithVariants(): ReturnType<typeof sql<number>> {
   return sql<number>`
     COALESCE(
-      (SELECT SUM(${inventory.available_quantity} + ${inventory.reserved_quantity})
+      (SELECT SUM(${inventory.available_quantity})
        FROM ${inventory}
        WHERE ${inventory.product_id} = ${products.id}
        OR ${inventory.variant_id} IN (
@@ -34,7 +34,7 @@ export function buildInventoryQuantityWithVariants(): ReturnType<typeof sql<numb
 export function buildAvailableStockWithVariants(): ReturnType<typeof sql<number>> {
   return sql<number>`
     COALESCE(
-      (SELECT SUM(${inventory.available_quantity})
+      (SELECT SUM(${inventory.available_quantity} - ${inventory.reserved_quantity})
        FROM ${inventory}
        WHERE ${inventory.product_id} = ${products.id}
        OR ${inventory.variant_id} IN (
