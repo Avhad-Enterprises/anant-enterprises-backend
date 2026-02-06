@@ -48,6 +48,7 @@ class UserRoute implements Route {
     const { default: importCustomersRouter } = await import('../customer/apis/import-customers');
     const { default: exportCustomersRouter } = await import('../customer/apis/export-customers');
     const { default: getUserTagsRouter } = await import('../customer/apis/get-user-tags');
+    const { default: getCustomerActivityRouter } = await import('../customer/apis/get-customer-activity');
 
     // Core user routes
     this.router.use(this.path, getAllUsersRouter);          // GET /users
@@ -78,6 +79,7 @@ class UserRoute implements Route {
 
     // Dynamic ID routes (customer-specific) - these use /customer/:id pattern
     this.router.use(this.path, getCustomerByIdRouter);      // GET /users/customer/:id
+    this.router.use(this.path, getCustomerActivityRouter);  // GET /users/customer/:id/activity
     this.router.use(this.path, updateCustomerRouter);       // PUT /users/customer/:id
     this.router.use(this.path, deleteCustomerRouter);       // DELETE /users/customer/:id
 

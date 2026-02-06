@@ -4,20 +4,14 @@
  */
 
 import { Router, Response } from 'express';
-import { z } from 'zod';
+
 import { inArray } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission, validationMiddleware } from '../../../middlewares';
-import { ResponseFormatter, uuidSchema, HttpException, logger } from '../../../utils';
+import { ResponseFormatter, HttpException, logger } from '../../../utils';
 import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
-
-// Validation Schema
-const bulkDeleteSchema = z.object({
-  ids: z.array(uuidSchema).min(1, 'At least one ID is required')
-});
-
-type BulkDeleteDto = z.infer<typeof bulkDeleteSchema>;
+import { bulkDeleteSchema, BulkDeleteDto } from '../shared/validation';
 
 const handler = async (req: RequestWithUser, res: Response) => {
   const data: BulkDeleteDto = req.body;

@@ -14,109 +14,12 @@ import {
     recordFailure,
     recordSkipped,
     formatImportSummary,
-    caseInsensitiveEnum,
-    arrayParser,
     type ImportMode
 } from '../../../utils/import-export';
-
-// Customer-specific validation helpers
-const parseDateLoose = (val: unknown): string | undefined => {
-    if (typeof val !== 'string') return undefined;
-    const cleanVal = val.trim();
-    if (!cleanVal) return undefined;
-
-    // Try ISO format YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanVal)) return cleanVal;
-
-    // Try DD/MM/YYYY or DD-MM-YYYY
-    const match = cleanVal.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-    if (match) {
-        const [_, day, month, year] = match;
-        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-
-    // Try Date.parse as fallback
-    const timestamp = Date.parse(cleanVal);
-    if (!isNaN(timestamp)) {
-        return new Date(timestamp).toISOString().split('T')[0];
-    }
-    return undefined;
-};
-
-const looseNumber = z.preprocess((val) => {
-    if (typeof val === 'string') {
-        const trimmed = val.trim();
-        if (trimmed === '') return undefined;
-        return parseFloat(trimmed.replace(/,/g, ''));
-    }
-    return val;
-}, z.coerce.number().min(0).optional());
-
-const emptyStringToUndefined = (val: unknown) => {
-    if (typeof val === 'string' && val.trim() === '') return undefined;
-    return val;
-};
-
-
-// ============================================
-// VALIDATION SCHEMA
-// ============================================
-
-const customerImportSchema = z.object({
-    // Identity
-    first_name: z.string().min(1).max(255).trim(),
-    last_name: z.string().min(1).max(255).trim(),
-    email: z.string().email().max(255).toLowerCase().trim(),
-
-    // Core Details
-    display_name: z.preprocess(emptyStringToUndefined, z.string().max(100).optional()),
-    phone_number: z.preprocess(emptyStringToUndefined, z.string().max(20).optional()),
-    secondary_email: z.preprocess(emptyStringToUndefined, z.string().email().max(255).toLowerCase().optional()),
-    secondary_phone_number: z.preprocess(emptyStringToUndefined, z.string().max(20).optional()),
-
-    // Flexible Date
-    date_of_birth: z.preprocess(
-        parseDateLoose,
-        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date (use YYYY-MM-DD or DD/MM/YYYY)").optional()
-    ),
-
-    gender: z.preprocess(emptyStringToUndefined, caseInsensitiveEnum(['male', 'female', 'other', 'prefer_not_to_say']).optional()),
-    user_type: caseInsensitiveEnum(['individual', 'business']).default('individual'),
-
-    tags: arrayParser().optional(),
-
-    // Profile / Status
-    segments: z.preprocess((val) => {
-        if (typeof val === 'string') {
-            const trimmed = val.trim();
-            if (trimmed === '') return undefined;
-            return trimmed.split(',').map(s => s.trim().toLowerCase()).filter(s => ['new', 'regular', 'vip', 'at_risk'].includes(s));
-        }
-        return val;
-    }, z.array(z.enum(['new', 'regular', 'vip', 'at_risk'])).optional()),
-    account_status: caseInsensitiveEnum(['active', 'inactive', 'banned']).default('active'),
-    notes: z.preprocess(emptyStringToUndefined, z.string().optional()),
-
-    // Business Only (Mapped to generic or ignored if unused)
-    company_name: z.preprocess(emptyStringToUndefined, z.string().max(255).optional()),
-    tax_id: z.preprocess(emptyStringToUndefined, z.string().max(50).optional()),
-    credit_limit: looseNumber,
-    payment_terms: z.preprocess(emptyStringToUndefined, caseInsensitiveEnum(['immediate', 'net_15', 'net_30', 'net_60', 'net_90']).optional()),
-
-    // Address (Optional)
-    address_name: z.preprocess(emptyStringToUndefined, z.string().max(255).optional()),
-    address_line1: z.preprocess(emptyStringToUndefined, z.string().max(255).optional()),
-    address_line2: z.preprocess(emptyStringToUndefined, z.string().max(255).optional()),
-    city: z.preprocess(emptyStringToUndefined, z.string().max(100).optional()),
-    state_province: z.preprocess(emptyStringToUndefined, z.string().max(100).optional()),
-    postal_code: z.preprocess(emptyStringToUndefined, z.string().max(20).optional()),
-    country: z.preprocess(emptyStringToUndefined, z.string().max(100).optional()),
-});
-
-const importRequestSchema = z.object({
-    data: z.array(customerImportSchema),
-    mode: z.enum(['create', 'update', 'upsert']).default('create'),
-});
+import {
+    customerImportSchema,
+    importRequestSchema
+} from '../shared/validation';
 
 /**
  * Process a single customer import record

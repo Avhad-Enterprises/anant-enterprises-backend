@@ -35,6 +35,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const stockItems = body.items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity,
+        variant_id: item.variant_id,
     }));
 
     await validateAndWarnStock(stockItems, true); // allowOverselling = true
@@ -118,6 +119,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             cost_price: (item.cost_price || item.unit_price).toFixed(2),
             quantity: item.quantity,
             line_total: pricing.items[index].line_total.toFixed(2),
+            variant_id: item.variant_id,
         }));
 
         await tx.insert(orderItems).values(orderItemsData);
