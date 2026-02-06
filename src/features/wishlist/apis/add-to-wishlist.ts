@@ -66,14 +66,16 @@ async function getOrCreateWishlist(userId: string): Promise<string> {
 
 const handler = async (req: RequestWithUser, res: Response) => {
     // Support admin/owner access via params
-    const targetUserId = req.params.userId || req.userId;
+    const targetUserIdRaw = req.params.userId || req.userId;
+    const targetUserId = Array.isArray(targetUserIdRaw) ? targetUserIdRaw[0] : targetUserIdRaw;
     if (!targetUserId) {
         throw new HttpException(401, 'Authentication required');
     }
 
     const body = addToWishlistSchema.parse(req.body);
     // Support productId from params (old user route) or body
-    const product_id = req.params.productId || body.product_id;
+    const productIdRaw = req.params.productId || body.product_id;
+    const product_id = Array.isArray(productIdRaw) ? productIdRaw[0] : productIdRaw;
     const notes = body.notes;
 
     if (!product_id) {

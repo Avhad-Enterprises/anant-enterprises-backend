@@ -29,8 +29,10 @@ const moveToCartSchema = z.object({
 
 const handler = async (req: RequestWithUser, res: Response) => {
     // Support admin/owner access
-    const userId = req.params.userId || req.userId;
-    const productId = req.params.productId as string;
+    const userIdRaw = req.params.userId || req.userId;
+    const userId = Array.isArray(userIdRaw) ? userIdRaw[0] : userIdRaw;
+    const productIdRaw = req.params.productId;
+    const productId = Array.isArray(productIdRaw) ? productIdRaw[0] : productIdRaw;
 
     if (!userId) {
         throw new HttpException(401, 'Authentication required');
