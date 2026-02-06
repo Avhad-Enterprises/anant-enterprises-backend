@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, asc, and, or, arrayOverlaps, SQL, notInArray, sql, isNotNull, gte, lte } from 'drizzle-orm';
+import { eq, count, desc, asc, and, or, arrayOverlaps, SQL, notInArray, sql, isNotNull, gte, lte, ne } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -197,7 +197,11 @@ async function getAllCustomers(
             totalOrders: count().as('total_orders')
         })
         .from(orders)
-        .where(and(eq(orders.is_deleted, false), eq(orders.is_draft, false)))
+        .where(and(
+            eq(orders.is_deleted, false), 
+            eq(orders.is_draft, false),
+            ne(orders.order_status, 'cancelled')
+        ))
         .groupBy(orders.user_id)
         .as('order_metrics');
 
@@ -261,7 +265,8 @@ async function getAllCustomers(
                 and(
                     inArray(orders.user_id, userIds),
                     eq(orders.is_deleted, false),
-                    eq(orders.is_draft, false)
+                    eq(orders.is_draft, false),
+                    ne(orders.order_status, 'cancelled')
                 )
             )
             .groupBy(orders.user_id);

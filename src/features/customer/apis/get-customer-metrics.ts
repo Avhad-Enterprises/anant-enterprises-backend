@@ -27,7 +27,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const [totalResult] = await db
     .select({ count: count() })
     .from(users)
-    .innerJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+    .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
     .where(
       and(
         eq(users.is_deleted, false),
@@ -42,7 +42,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   const [activeResult] = await db
     .select({ count: count() })
     .from(users)
-    .innerJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+    .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
     .where(
       and(
         eq(users.is_deleted, false),
