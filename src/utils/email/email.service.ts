@@ -563,8 +563,7 @@ class EmailService {
         subject,
         error: error instanceof Error ? error.message : String(error),
       });
-      // Don't throw - we log errors but don't break the flow
-      // Queue will retry if needed
+      throw error;
     }
   }
 }

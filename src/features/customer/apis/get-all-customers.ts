@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, count, desc, and, or, arrayOverlaps, SQL, notInArray } from 'drizzle-orm';
+import { eq, count, desc, asc, and, or, arrayOverlaps, SQL, notInArray, sql, isNotNull, gte, lte, ne } from 'drizzle-orm';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth } from '../../../middlewares';
 import { requirePermission } from '../../../middlewares';
@@ -29,7 +29,11 @@ const paginationSchema = z.object({
     status: z.string().optional(),
     gender: z.string().optional(),
     tags: z.string().optional(),
+    orders_status: z.string().optional(),
     search: z.string().optional(),
+    sort: z.string().optional(),
+    from_date: z.string().optional(),
+    to_date: z.string().optional(),
 });
 
 async function getAllCustomers(
@@ -39,7 +43,11 @@ async function getAllCustomers(
     status?: string,
     gender?: string,
     tags?: string,
-    search?: string
+    ordersStatus?: string,
+    search?: string,
+    sort?: string,
+    fromDate?: string,
+    toDate?: string
 ) {
     const offset = (page - 1) * limit;
 
@@ -99,10 +107,7 @@ async function getAllCustomers(
 
     // Gender Filter
     if (gender) {
-        const genders = gender.split(',').map(g => {
-            const val = g.trim().toLowerCase();
-            return val === 'prefer not to say' ? 'prefer_not_to_say' : val;
-        }) as any[];
+        const genders = gender.split(',').map(g => g.trim().toLowerCase()) as any[];
 
         if (genders.length > 0) {
             conditions.push(inArray(users.gender, genders));
@@ -117,6 +122,62 @@ async function getAllCustomers(
         }
     }
 
+    // Order Status Filter
+    if (ordersStatus) {
+        const statuses = ordersStatus.split(',').map(s => s.trim());
+        const statusConditions = [];
+
+        // Base subquery for users with ANY orders (excluding deleted/drafts and NULL user_ids)
+        const userOrdersSubquery = db
+            .select({ userId: orders.user_id })
+            .from(orders)
+            .where(and(
+                eq(orders.is_deleted, false),
+                eq(orders.is_draft, false),
+                isNotNull(orders.user_id)
+            ))
+            .groupBy(orders.user_id);
+
+        if (statuses.includes('has-orders')) {
+            statusConditions.push(inArray(users.id, userOrdersSubquery));
+        }
+
+        if (statuses.includes('no-orders')) {
+             statusConditions.push(notInArray(users.id, userOrdersSubquery));
+        }
+
+        if (statuses.includes('high-value')) {
+             // For high value (>10 orders)
+             const highValueSubquery = db
+                .select({ userId: orders.user_id })
+                .from(orders)
+                .where(and(
+                    eq(orders.is_deleted, false),
+                    eq(orders.is_draft, false),
+                    isNotNull(orders.user_id)
+                ))
+                .groupBy(orders.user_id)
+                .having(sql`count(*) > 10`);
+             
+             statusConditions.push(inArray(users.id, highValueSubquery));
+        }
+
+        if (statusConditions.length > 0) {
+            conditions.push(or(...statusConditions) as SQL<unknown>);
+        }
+    }
+
+    // Date Range Filter
+    if (fromDate) {
+        conditions.push(gte(users.created_at, new Date(fromDate)));
+    }
+    if (toDate) {
+        // Adjust to end of day
+        const endDay = new Date(toDate);
+        endDay.setHours(23, 59, 59, 999);
+        conditions.push(lte(users.created_at, endDay));
+    }
+
     // 1. Get Total Count
     // Join is needed for status filters
     const query = db
@@ -129,20 +190,49 @@ async function getAllCustomers(
     const [countResult] = await query;
     const total = countResult?.total ?? 0;
 
+    // Order Count Subquery for Sorting
+    const orderCountSq = db
+        .select({
+            userId: orders.user_id,
+            totalOrders: count().as('total_orders')
+        })
+        .from(orders)
+        .where(and(
+            eq(orders.is_deleted, false), 
+            eq(orders.is_draft, false),
+            ne(orders.order_status, 'cancelled')
+        ))
+        .groupBy(orders.user_id)
+        .as('order_metrics');
+
     // 2. Fetch Data
     const allUsers = await db
         .select({
             user: users,
             customerProfile: customerProfiles,
+            totalOrders: orderCountSq.totalOrders
             // businessProfile: businessCustomerProfiles, // Table dropped in Phase 2
         })
         .from(users)
         .leftJoin(customerProfiles, eq(users.id, customerProfiles.user_id))
+        .leftJoin(orderCountSq, eq(users.id, orderCountSq.userId))
         // .leftJoin(businessCustomerProfiles, eq(users.id, businessCustomerProfiles.user_id)) // Table dropped in Phase 2
         .where(and(...conditions))
         .limit(limit)
         .offset(offset)
-        .orderBy(desc(users.created_at));
+        .orderBy(
+            // Dynamic Sorting
+            (() => {
+                switch (sort) {
+                    case 'oldest': return asc(users.created_at);
+                    case 'newest': return desc(users.created_at);
+                    case 'name_asc': return asc(users.first_name);
+                    case 'name_desc': return desc(users.first_name);
+                    case 'orders_desc': return desc(orderCountSq.totalOrders);
+                    default: return desc(users.created_at);
+                }
+            })()
+        );
 
     // 2.1 Fetch Addresses for these users
     const userIds = allUsers.map(u => u.user.id);
@@ -175,7 +265,8 @@ async function getAllCustomers(
                 and(
                     inArray(orders.user_id, userIds),
                     eq(orders.is_deleted, false),
-                    eq(orders.is_draft, false)
+                    eq(orders.is_draft, false),
+                    ne(orders.order_status, 'cancelled')
                 )
             )
             .groupBy(orders.user_id);
@@ -188,15 +279,15 @@ async function getAllCustomers(
     }
 
     // 3. Format Response
-    const formattedUsers = allUsers.map(({ user, customerProfile }) => {
+    const formattedUsers = allUsers.map(({ user, customerProfile, totalOrders }) => {
         const sanitized = sanitizeUsers([user])[0];
         return {
             ...sanitized,
             details: customerProfile || null,
             profileType: customerProfile ? 'individual' : 'none',
             addresses: addressesMap[user.id] || [],
-            total_orders: orderCountsMap[user.id] || 0,
-            gender: user.gender // Explicitly ensuring gender is at top level (already in sanitized but being explicit helps debug)
+            total_orders: Number(totalOrders || orderCountsMap[user.id] || 0), // Use joined count if available, fallback to map
+            gender: user.gender // Explicitly ensuring gender is at top level
         };
     });
 
@@ -209,9 +300,9 @@ async function getAllCustomers(
 }
 
 const handler = async (req: RequestWithUser, res: Response) => {
-    const { page, limit, type, status, gender, tags, search } = paginationSchema.parse(req.query);
+    const { page, limit, type, status, gender, tags, orders_status, search, sort, from_date, to_date } = paginationSchema.parse(req.query);
 
-    const result = await getAllCustomers(page, limit, type, status, gender, tags, search);
+    const result = await getAllCustomers(page, limit, type, status, gender, tags, orders_status, search, sort, from_date, to_date);
 
     ResponseFormatter.paginated(
         res,
