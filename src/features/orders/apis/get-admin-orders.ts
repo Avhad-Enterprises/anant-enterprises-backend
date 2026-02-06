@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { eq, and, or, desc, asc, count, gte, lte, inArray } from 'drizzle-orm';
+import { eq, and, or, desc, asc, count, gte, lte, inArray, ilike } from 'drizzle-orm';
 import { ResponseFormatter, paginationSchema } from '../../../utils';
 import { db } from '../../../database';
 import { orders } from '../shared/orders.schema';
@@ -100,10 +100,22 @@ const handler = async (req: RequestWithUser, res: Response) => {
         }
     }
 
+    // Search Filter
+    if (params.search) {
+        const searchPattern = `%${params.search}%`;
+        conditions.push(or(
+            ilike(orders.order_number, searchPattern),
+            ilike(users.email, searchPattern),
+            ilike(users.first_name, searchPattern)
+        )!);
+    }
+
     // Get total count
+    // NOTE: Must join users if searching by user fields
     const [countResult] = await db
         .select({ total: count() })
         .from(orders)
+        .leftJoin(users, eq(orders.user_id, users.id))
         .where(and(...conditions));
 
     const total = countResult?.total || 0;
@@ -148,20 +160,9 @@ const handler = async (req: RequestWithUser, res: Response) => {
         .limit(params.limit)
         .offset(offset);
 
-    // Filter by search if provided (after query due to OR condition complexity)
-    let filteredOrders = adminOrders;
-    if (params.search) {
-        const searchLower = params.search.toLowerCase();
-        filteredOrders = adminOrders.filter(order =>
-            order.order_number.toLowerCase().includes(searchLower) ||
-            order.customer_email?.toLowerCase().includes(searchLower) ||
-            order.customer_name?.toLowerCase().includes(searchLower)
-        );
-    }
-
     // Enrich with items count
     const enrichedOrders = await Promise.all(
-        filteredOrders.map(async (order) => {
+        adminOrders.map(async (order) => {
             const [itemCount] = await db
                 .select({ count: count() })
                 .from(orderItems)
