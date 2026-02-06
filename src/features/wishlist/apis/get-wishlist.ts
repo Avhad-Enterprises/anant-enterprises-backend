@@ -22,7 +22,8 @@ import { getProductRatingSubquery, getProductReviewCountSubquery, getProductStoc
 const handler = async (req: RequestWithUser, res: Response) => {
     // Support admin/owner access
     // We prioritize param (admin mode), fallback to auth user (self mode)
-    const targetUserId = req.params.userId || req.userId;
+    const targetUserIdRaw = req.params.userId || req.userId;
+    const targetUserId = Array.isArray(targetUserIdRaw) ? targetUserIdRaw[0] : targetUserIdRaw;
 
     if (!targetUserId) {
         throw new HttpException(401, 'Authentication required');
