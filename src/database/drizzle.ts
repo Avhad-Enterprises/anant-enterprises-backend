@@ -116,6 +116,15 @@ import { notifications } from '../features/notifications/shared/notifications.sc
 import { notificationTemplates } from '../features/notifications/shared/notification-templates.schema';
 import { notificationPreferences } from '../features/notifications/shared/notification-preferences.schema';
 import { notificationDeliveryLogs } from '../features/notifications/shared/notification-delivery-logs.schema';
+import {
+  customerSegments,
+  customerSegmentRules,
+  customerSegmentMembers,
+  segmentPurposeEnum,
+  segmentPriorityEnum,
+  segmentTypeEnum,
+  segmentMatchTypeEnum,
+} from '../features/customer-segment/shared/customer-segments.schema';
 
 /**
  * Database connection configuration
@@ -371,6 +380,14 @@ export const schema = {
   notificationPriorityEnum,
   notificationFrequencyEnum,
   deliveryStatusEnum,
+  // Customer Segments feature
+  customerSegments,
+  customerSegmentRules,
+  customerSegmentMembers,
+  segmentPurposeEnum,
+  segmentPriorityEnum,
+  segmentTypeEnum,
+  segmentMatchTypeEnum,
 };
 
 /**

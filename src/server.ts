@@ -29,6 +29,7 @@ import DashboardRoute from './features/dashboard';
 import QueueRoute from './features/queue';
 import NotificationRoute from './features/notifications';
 import InvoiceRoute from './features/invoice';
+import CustomerSegmentRoute from './features/customer-segment';
 import { connectWithRetry, pool } from './database';
 import { redisClient, testRedisConnection } from './utils';
 import { isProduction } from './utils/validateEnv';
@@ -95,6 +96,7 @@ async function bootstrap() {
       new QueueRoute(), // Queue admin endpoints
       new NotificationRoute(), // Notification endpoints (user + admin)
       new InvoiceRoute(), // Invoice management endpoints
+      new CustomerSegmentRoute(), // Customer segments endpoints
     ]);
 
     // Initialize Cron Jobs
