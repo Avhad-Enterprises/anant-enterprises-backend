@@ -59,6 +59,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             // Product data
             product_name: products.product_title,
             product_image: products.primary_image_url,
+            slug: products.slug,
             selling_price: products.selling_price,
             compare_at_price: products.compare_at_price,
             sku: products.sku,
@@ -81,6 +82,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
             product_id: item.product_id,
             product_name: item.product_name,
             product_image: item.product_image,
+            slug: item.slug,
             selling_price: item.selling_price,
             compare_at_price: item.compare_at_price,
             sku: item.sku,

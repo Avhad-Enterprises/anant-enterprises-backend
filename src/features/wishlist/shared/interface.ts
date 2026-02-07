@@ -36,6 +36,7 @@ export interface IWishlistItemResponse {
   product_id: string;
   product_name: string;
   product_image: string | null;
+  slug: string;
   selling_price: string;
   compare_at_price: string | null;
   sku: string;
