@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { inArray, eq, and, sql } from 'drizzle-orm';
+import { inArray, eq} from 'drizzle-orm';
 import { ResponseFormatter, HttpException } from '../../../utils';
 import { db } from '../../../database';
 import { tiers } from '../shared/tiers.schema';
@@ -54,7 +54,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
   };
 
   // Run collection for each initially selected ID
-  ids.forEach(id => collectDescendants(id));
+  ids.forEach((id: string) => collectDescendants(id));
 
   const finalTargetIds = Array.from(idsToDelete);
 
