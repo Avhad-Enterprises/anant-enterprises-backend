@@ -91,32 +91,63 @@ export async function validateStockAvailability(
 ): Promise<StockValidationResult[]> {
     const results: StockValidationResult[] = [];
 
+    // Import productVariants for variant -> product lookup
+    const { productVariants } = await import('../../product/shared/product-variants.schema');
+
     for (const item of items) {
         // Support Variant-Specific Filter (Mutual Exclusivity)
-        const inventoryFilter = item.variant_id
-            ? eq(inventory.variant_id, item.variant_id)
+        const isVariant = !!item.variant_id;
+        const inventoryFilter = isVariant
+            ? eq(inventory.variant_id, item.variant_id!)
             : and(
                 eq(inventory.product_id, item.product_id),
                 isNull(inventory.variant_id)
             );
 
-        // Query layer: Fetch inventory data
-        const [stock] = await db
-            .select({
-                product_id: inventory.product_id,
-                variant_id: inventory.variant_id,
-                available_quantity: inventory.available_quantity,
-                reserved_quantity: inventory.reserved_quantity,
-                product_name: products.product_title,
-            })
-            .from(inventory)
-            .leftJoin(products, eq(inventory.product_id, products.id))
-            .where(
-                and(
+        let stock: {
+            product_id: string | null;
+            variant_id: string | null;
+            available_quantity: number;
+            reserved_quantity: number;
+            product_name: string | null;
+        } | undefined;
+
+        if (isVariant) {
+            // For variants: join inventory -> productVariants -> products
+            const [variantStock] = await db
+                .select({
+                    product_id: inventory.product_id,
+                    variant_id: inventory.variant_id,
+                    available_quantity: inventory.available_quantity,
+                    reserved_quantity: inventory.reserved_quantity,
+                    product_name: products.product_title,
+                })
+                .from(inventory)
+                .innerJoin(productVariants, eq(inventory.variant_id, productVariants.id))
+                .innerJoin(products, eq(productVariants.product_id, products.id))
+                .where(and(
                     inventoryFilter,
                     sql`${products.status} != 'archived'`
-                )
-            );
+                ));
+            stock = variantStock;
+        } else {
+            // For base products: direct join inventory -> products
+            const [baseStock] = await db
+                .select({
+                    product_id: inventory.product_id,
+                    variant_id: inventory.variant_id,
+                    available_quantity: inventory.available_quantity,
+                    reserved_quantity: inventory.reserved_quantity,
+                    product_name: products.product_title,
+                })
+                .from(inventory)
+                .leftJoin(products, eq(inventory.product_id, products.id))
+                .where(and(
+                    inventoryFilter,
+                    sql`${products.status} != 'archived'`
+                ));
+            stock = baseStock;
+        }
 
         // Business logic: Validate stock not found
         if (!stock) {
