@@ -5,7 +5,7 @@
 
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { ilike, or, eq, sql } from 'drizzle-orm';
+import { ilike, or, eq, sql, and, isNull } from 'drizzle-orm';
 import { ResponseFormatter } from '../../../utils';
 import { db } from '../../../database';
 import { products } from '../../product/shared/products.schema';
@@ -45,29 +45,37 @@ const handler = async (req: RequestWithUser, res: Response) => {
         )
         .limit(limit);
 
-    // Get inventory for each product
+    // Get inventory and variant info for each product
     const enrichedProducts = await Promise.all(
         productResults.map(async (product) => {
-            // Get total available stock across all locations
-            const [stockResult] = await db
+            // 1. Get Base Product Inventory (Specific available at product level)
+            // We filter by variant_id IS NULL to ensure we only get the base product's specific inventory,
+            // avoiding double-counting if variant rows also have product_id set.
+            const [baseStockResult] = await db
                 .select({
                     total_available: sql<number>`COALESCE(SUM(${inventory.available_quantity}), 0)::int`,
                     total_reserved: sql<number>`COALESCE(SUM(${inventory.reserved_quantity}), 0)::int`,
                 })
                 .from(inventory)
-                .where(eq(inventory.product_id, product.id));
+                .where(and(
+                    eq(inventory.product_id, product.id),
+                    isNull(inventory.variant_id)
+                ));
 
-            // Calculate actual available stock (available - reserved)
-            const totalAvailable = stockResult?.total_available || 0;
-            const totalReserved = stockResult?.total_reserved || 0;
-            const actualAvailable = Math.max(0, totalAvailable - totalReserved);
+            console.log(`[DEBUG] Product: ${product.name} (${product.id})`);
+            console.log(`[DEBUG] Base Stock Result:`, baseStockResult);
+            console.log(`[DEBUG] Query params: product_id=${product.id}, variant_id=NULL`);
+
+            const baseAvailable = baseStockResult?.total_available || 0;
+            const baseReserved = baseStockResult?.total_reserved || 0;
+            const specificBaseStock = Math.max(0, baseAvailable - baseReserved);
 
             return {
                 ...product,
-                stock_quantity: actualAvailable, // Frontend expects this field name
-                available_stock: totalAvailable,
-                reserved_stock: totalReserved,
-                in_stock: actualAvailable > 0,
+                stock_quantity: specificBaseStock,
+                available_stock: baseAvailable,
+                reserved_stock: baseReserved,
+                in_stock: specificBaseStock > 0,
             };
         })
     );
@@ -79,6 +87,7 @@ const handler = async (req: RequestWithUser, res: Response) => {
 };
 
 const router = Router();
+// Match the frontend API_ROUTES.ORDERS.SEARCH_PRODUCTS (updated to be specific)
 router.get('/admin/orders/products/search', requireAuth, requirePermission('orders:read'), handler);
 
 export default router;
