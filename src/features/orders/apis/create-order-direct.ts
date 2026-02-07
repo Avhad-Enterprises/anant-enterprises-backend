@@ -3,7 +3,7 @@
  * Admin: Create a direct order with custom items
  * - Allows admin to create orders manually
  * - Calculates pricing SERVER-SIDE (secure)
- * - Allows overselling (warns but doesn't block)
+ * - STRICTLY blocks overselling (validates effective_stock)
  * - Reserves stock for the order
  */
 
@@ -31,14 +31,14 @@ const handler = async (req: RequestWithUser, res: Response) => {
     const targetUserId = body.user_id || null; // Customer ID (nullable for guest orders)
     const creatorId = req.userId!; // Admin/Staff ID
 
-    // 1. Validate Stock (warn but allow overselling for admin)
+    // 1. Validate Stock (STRICT: block overselling for all users including admin)
     const stockItems = body.items.map(item => ({
         product_id: item.product_id,
         quantity: item.quantity,
         variant_id: item.variant_id,
     }));
 
-    await validateAndWarnStock(stockItems, true); // allowOverselling = true
+    await validateAndWarnStock(stockItems, false); // allowOverselling = false (strict mode)
 
     // 2. Calculate pricing SERVER-SIDE (security fix)
     const pricing = await orderService.calculateOrderPricing({
@@ -66,8 +66,8 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // 3. Create Order & Items
     const order = await db.transaction(async (tx) => {
-        // Reserve stock (Allow Overselling = true for Admin)
-        await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', true);
+        // Reserve stock (STRICT: No overselling allowed)
+        await reserveStockForOrder(stockItems, orderNumber, targetUserId || 'GUEST', false);
 
         // Insert Order with SERVER-CALCULATED pricing
         const [newOrder] = await tx.insert(orders).values({

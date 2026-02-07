@@ -12,11 +12,12 @@ import { orders } from '../shared/orders.schema';
 import { orderItems } from '../shared/order-items.schema';
 import { RequestWithUser } from '../../../interfaces';
 import { requireAuth, requirePermission } from '../../../middlewares';
+import { validateStockAvailability } from '../../inventory/services/order-reservation.service';
 
-// Schema reuse from create-order if possible, but defining here for clarity
 const orderItemSchema = z.object({
   // Relaxed product validation (allow empty string for custom items)
   product_id: z.string().optional().or(z.literal('')),
+  variant_id: z.string().optional().or(z.literal('')).nullable(),
   quantity: z.number().min(1),
   cost_price: z.union([z.string(), z.number()]),
   line_total: z.union([z.string(), z.number()]),
@@ -154,6 +155,25 @@ const handler = async (req: RequestWithUser, res: Response) => {
 
     // 3. Update Items (If provided)
     if (body.items) {
+      // STRICT: Validate stock availability before updating items
+      const stockItems = body.items
+        .filter(item => item.product_id) // Only validate items with product_id
+        .map(item => ({
+          product_id: item.product_id!,
+          quantity: item.quantity,
+          variant_id: item.variant_id || null,
+        }));
+
+      if (stockItems.length > 0) {
+        const stockValidation = await validateStockAvailability(stockItems);
+        const insufficientStock = stockValidation.filter(v => !v.available);
+        
+        if (insufficientStock.length > 0) {
+          const messages = insufficientStock.map(v => v.message).join('; ');
+          throw new HttpException(400, `Insufficient stock: ${messages}`);
+        }
+      }
+
       // Delete existing items
       await tx.delete(orderItems).where(eq(orderItems.order_id, orderId));
 

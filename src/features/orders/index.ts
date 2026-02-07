@@ -64,6 +64,10 @@ class OrdersRoute implements Route {
     const { default: adminCreatePaymentOrderRouter } = await import('./apis/admin-create-payment-order');
     const { default: adminVerifyPaymentRouter } = await import('./apis/admin-verify-payment');
 
+    // Stock validation endpoint
+    const { default: getStockBatchRouter } = await import('./apis/get-stock-batch');
+
+
     // Register routes - they define their own paths
     // IMPORTANT: Order matters! More specific routes MUST come before wildcards
 
@@ -83,6 +87,7 @@ class OrdersRoute implements Route {
     this.router.use(this.path, getAbandonedCartsRouter); // GET /admin/abandoned-carts
 
     // Phase 3: Enhanced order management routes (specific paths first)
+    this.router.use(this.path, getStockBatchRouter); // GET /admin/orders/stock/batch
     this.router.use(this.path, searchProductsRouter); // GET /admin/orders/products/search
     this.router.use(this.path, getOrderTagsRouter); // GET /admin/orders/tags
     this.router.use(this.path, createOrderTagRouter); // POST /admin/orders/tags
