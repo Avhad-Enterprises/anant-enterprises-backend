@@ -265,7 +265,7 @@ async function getCustomerActivity(
             amount,
             activity_timestamp,
             category,
-            TO_CHAR(activity_timestamp, 'DD Mon YYYY, HH12:MI AM') as formatted_time
+            TO_CHAR(activity_timestamp AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata', 'DD Mon YYYY, HH12:MI AM') as formatted_time
         FROM customer_activities
         WHERE activity_timestamp IS NOT NULL
         ${category !== 'all' ? sql`AND category = ${category}` : sql``}
