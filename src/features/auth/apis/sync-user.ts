@@ -18,6 +18,7 @@ import { db } from '../../../database';
 import { users } from '../../user/shared/user.schema';
 import { verifySupabaseToken } from '../services/supabase-auth.service';
 import { shortTextSchema, optionalPhoneSchema } from '../../../utils/validation/common-schemas';
+import { customerProfiles } from '../../customer/shared/customer-profiles.schema';
 
 
 const syncUserSchema = z.object({
@@ -151,7 +152,13 @@ const handler = async (req: RequestWithUser, res: Response) => {
     })
     .returning();
 
-  logger.info('Created new user from Supabase Auth', {
+  // Create default customer profile
+  await db.insert(customerProfiles).values({
+    user_id: newUser.id,
+    account_status: 'active', // Explicitly set active
+  });
+
+  logger.info('Created new user and profile from Supabase Auth', {
     userId: newUser.id,
     authId: authUser.id,
     email: authUser.email,
